@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Co-Study | 在线协同自习室</title>
+    <title>Co-Study | Collaborative Study Rooms</title>
     <link rel="icon" type="image/gif" href="/images/baby-chick_1f424.gif">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Noto+Sans+Arabic:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-body: #F5F2EB;
@@ -48,14 +51,45 @@
         }
 
         body {
-            font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
             background: var(--bg-body);
             color: var(--text-main);
             line-height: 1.6;
             transition: background 0.3s, color 0.3s;
         }
 
-        /* 背景装饰 */
+        html[lang="ar"] body {
+            direction: ltr;
+            font-family: 'Tajawal', 'Noto Sans Arabic', 'Inter', sans-serif;
+        }
+
+        html[lang="ar"] .hero-content,
+        html[lang="ar"] .combined-left,
+        html[lang="ar"] .combined-right,
+        html[lang="ar"] .form-card,
+        html[lang="ar"] .result-box,
+        html[lang="ar"] .choice-text,
+        html[lang="ar"] .section-header,
+        html[lang="ar"] .form-note,
+        html[lang="ar"] .form-feedback,
+        html[lang="ar"] .mode-option,
+        html[lang="ar"] .room-preview,
+        html[lang="ar"] .schedule-panel,
+        html[lang="ar"] .result-actions {
+            direction: rtl;
+            text-align: right;
+        }
+
+        html[lang="ar"] input:not([data-force-ltr]) {
+            direction: rtl;
+            text-align: right;
+        }
+
+        html[lang="ar"] [data-force-ltr] {
+            direction: ltr;
+            text-align: left;
+        }
+
         body::before {
             content: '';
             position: fixed;
@@ -67,7 +101,6 @@
             z-index: -1;
         }
 
-        /* 全屏滚动容器 */
         .fullpage-container {
             height: 100vh;
             transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1);
@@ -84,7 +117,6 @@
             position: relative;
         }
 
-        /* 页面指示器 */
         .page-indicator {
             position: fixed;
             right: 24px;
@@ -117,7 +149,6 @@
             box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
-        /* 顶部工具栏 */
         .top-bar {
             position: fixed;
             top: 0;
@@ -174,25 +205,28 @@
             display: flex;
             gap: 4px;
             background: var(--bg-card);
-            padding: 4px 10px;
+            padding: 4px 6px;
             border-radius: 20px;
             font-size: 0.85rem;
             font-weight: 600;
-            cursor: pointer;
             border: 1px solid var(--border);
         }
 
-        .lang-switch span {
-            opacity: 0.4;
-            transition: opacity 0.2s;
+        .lang-option {
+            border: none;
+            background: transparent;
+            color: var(--text-sec);
+            padding: 4px 8px;
+            border-radius: 14px;
+            font: inherit;
+            cursor: pointer;
         }
 
-        .lang-switch span.active {
-            opacity: 1;
+        .lang-option.active {
             color: var(--accent);
+            background: rgba(224, 176, 139, 0.12);
         }
 
-        /* ===== 第一屏：欢迎页 ===== */
         .hero-section {
             display: flex;
             gap: 60px;
@@ -451,7 +485,6 @@
             background-size: 10px 10px;
         }
 
-        /* ===== 第二屏：合并选择+表单页 ===== */
         .combined-section {
             display: flex;
             flex-direction: row;
@@ -660,7 +693,8 @@
             margin-bottom: 6px;
         }
 
-        .input-group input {
+        .input-group input,
+        .input-group select {
             width: 100%;
             padding: 12px 16px;
             border-radius: var(--radius-md);
@@ -671,16 +705,96 @@
             transition: all 0.2s ease;
         }
 
-        .input-group input:focus {
+        .input-group input:focus,
+        .input-group select:focus {
             outline: none;
             border-color: var(--accent);
             box-shadow: 0 0 0 3px var(--accent-glow);
             background: var(--bg-card);
         }
 
-        .input-group input:disabled {
+        .input-group input:disabled,
+        .input-group select:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        .schedule-panel {
+            margin-bottom: 18px;
+            padding: 18px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            background: rgba(224, 176, 139, 0.08);
+        }
+
+        .schedule-panel[hidden] {
+            display: none;
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 16px;
+        }
+
+        .schedule-grid .input-group {
+            margin-bottom: 0;
+        }
+
+        .schedule-grid .input-group.span-2 {
+            grid-column: 1 / -1;
+        }
+
+        .schedule-note {
+            margin-bottom: 16px;
+        }
+
+        .mode-picker {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .mode-option {
+            width: 100%;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            text-align: left;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .mode-option:hover {
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .mode-option.active {
+            border-color: var(--accent);
+            background: rgba(224, 176, 139, 0.08);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .mode-option[hidden] {
+            display: none;
+        }
+
+        .mode-option-title {
+            display: block;
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+            color: var(--text-main);
+        }
+
+        .mode-option-desc {
+            display: block;
+            font-size: 0.84rem;
+            color: var(--text-sec);
+            line-height: 1.45;
         }
 
         .checkbox-line {
@@ -753,7 +867,83 @@
             margin-bottom: 16px;
         }
 
-        /* 响应式 */
+        .result-schedule[hidden] {
+            display: none;
+        }
+
+        .result-schedule-summary {
+            color: var(--text-main);
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .result-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .result-actions .btn-secondary {
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .room-preview {
+            margin: 0 0 18px 0;
+            padding: 16px;
+            border-radius: var(--radius-md);
+            background: var(--bg-muted);
+            border: 1px solid var(--border);
+        }
+
+        .room-preview[hidden] {
+            display: none;
+        }
+
+        .room-preview-name {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--text-main);
+        }
+
+        .room-preview-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .room-preview-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-sec);
+        }
+
+        .room-preview-note,
+        .room-preview-warning {
+            font-size: 0.84rem;
+            line-height: 1.5;
+        }
+
+        .room-preview-note {
+            color: var(--text-sec);
+        }
+
+        .room-preview-warning {
+            margin-top: 8px;
+            color: var(--error);
+            font-weight: 600;
+        }
+
         @media (max-width: 900px) {
             .hero-section {
                 flex-direction: column;
@@ -865,9 +1055,12 @@
             .choice-card {
                 min-width: auto;
             }
+
+            .schedule-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
-        /* 减少动画偏好 */
         @media (prefers-reduced-motion: reduce) {
             .fullpage-container {
                 transition-duration: 0.2s;
@@ -876,7 +1069,6 @@
     </style>
 </head>
 <body>
-    <!-- 顶部工具栏 -->
     <div class="top-bar">
         <div class="logo">
             <img src="/images/baby-chick_1f424.gif" alt="Logo">
@@ -884,175 +1076,224 @@
         </div>
         <div class="top-tools">
             <div class="lang-switch" id="lang-switch">
-                <span class="active" id="lang-cn">CN</span>
-                <span>/</span>
-                <span id="lang-en">EN</span>
+                <button type="button" class="lang-option active" id="lang-en" data-lang-value="en">EN</button>
+                <button type="button" class="lang-option" id="lang-ar" data-lang-value="ar">AR</button>
             </div>
-            <button class="icon-btn" id="theme-toggle" title="切换主题">🌙</button>
+            <button class="icon-btn" id="theme-toggle" data-lang-title="themeToggleTitle" title="Toggle theme">🌙</button>
         </div>
     </div>
 
-    <!-- 页面指示器 -->
     <div class="page-indicator">
-        <button class="indicator-dot active" data-page="0" aria-label="第1页"></button>
-        <button class="indicator-dot" data-page="1" aria-label="第2页"></button>
+        <button class="indicator-dot active" data-page="0" data-lang-aria="pageOneAria" aria-label="Go to page 1"></button>
+        <button class="indicator-dot" data-page="1" data-lang-aria="pageTwoAria" aria-label="Go to page 2"></button>
     </div>
 
-    <!-- 全屏滚动容器 -->
     <div class="fullpage-container" id="fullpage">
-        <!-- 第一屏：欢迎页 -->
         <section class="page-section" data-page="0">
             <div class="hero-section">
                 <div class="hero-content">
                     <p class="hero-eyebrow" data-lang="heroEyebrow">COLLABORATIVE STUDY SPACE</p>
                     <h1 class="hero-title">
-                        <span data-lang="heroTitleWelcome">欢迎来到</span>
+                        <span data-lang="heroTitleWelcome">Welcome to</span>
                         <span>Co-Study</span>
                     </h1>
                     <p class="hero-desc" data-lang="heroDesc">
-                        创建专属自习室，邀请伙伴一起专注学习。支持房间命名、密码保护，让你的学习空间更加私密和个性化。
+                        Build a focused room, invite your people, and stay productive together with shared video, chat, and timers.
                     </p>
                     <div class="hero-features">
-                        <span class="feature-tag" data-lang="featureVideo">视频连线</span>
-                        <span class="feature-tag" data-lang="featureTimer">番茄钟</span>
-                        <span class="feature-tag" data-lang="featureChat">实时聊天</span>
-                        <span class="feature-tag" data-lang="featurePassword">密码保护</span>
+                        <span class="feature-tag" data-lang="featureVideo">Video chat</span>
+                        <span class="feature-tag" data-lang="featureTimer">Pomodoro</span>
+                        <span class="feature-tag" data-lang="featureChat">Live chat</span>
+                        <span class="feature-tag" data-lang="featurePassword">Password protection</span>
                     </div>
                     <div class="hero-actions">
-                        <button class="btn-primary" id="btn-scroll-down" data-lang="btnStart">开始使用</button>
-                        <button class="btn-secondary" id="btn-skip-to-form" data-lang="btnQuickJoin">快速加入</button>
+                        <button class="btn-primary" id="btn-scroll-down" data-lang="btnStart">Get started</button>
+                        <button class="btn-secondary" id="btn-skip-to-form" data-lang="btnQuickJoin">Quick join</button>
                     </div>
-                    <p class="hero-hint" data-lang="heroHint">使用滚轮、方向键或触摸滑动浏览</p>
+                    <p class="hero-hint" data-lang="heroHint">Scroll, use arrow keys, or swipe to move between sections.</p>
                 </div>
                 <div class="hero-visual">
-                    <!-- 装饰性点阵 -->
                     <div class="decorative-dots dots-1"></div>
                     <div class="decorative-dots dots-2"></div>
 
-
-                    <!-- 主卡片 -->
                     <div class="preview-card accent">
                         <div class="card-icon">📚</div>
                         <p data-lang="previewNew">NEW FEATURE</p>
-                        <strong data-lang="previewTitle1">自定义房间名称</strong>
+                        <strong data-lang="previewTitle1">Custom room names</strong>
                     </div>
 
-                    <!-- 双卡片行 -->
                     <div class="preview-row">
                         <div class="preview-card gradient-blue">
                             <p data-lang="previewTimer">POMODORO</p>
                             <div class="stats-display">
                                 <span class="number">25</span>
-                                <span class="label" data-lang="previewMinutes">分钟</span>
+                                <span class="label" data-lang="previewMinutes">min</span>
                             </div>
                         </div>
                         <div class="preview-card gradient-purple">
                             <p data-lang="previewFocus">FOCUS</p>
                             <div class="stats-display">
                                 <span class="number">∞</span>
-                                <span class="label" data-lang="previewUsers">人数</span>
+                                <span class="label" data-lang="previewUsers">users</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 底部卡片 -->
                     <div class="preview-card">
                         <p data-lang="previewSecure">SECURE</p>
-                        <strong data-lang="previewTitle2">可选密码保护</strong>
+                        <strong data-lang="previewTitle2">Optional passwords</strong>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- 第二屏：选择+表单合并页 -->
         <section class="page-section combined-section" data-page="1">
-            <!-- 左侧：选择卡片 -->
             <div class="combined-left">
                 <div class="section-header">
-                    <h2 data-lang="chooserTitle">选择你的方式</h2>
-                    <p data-lang="chooserDesc">创建全新自习室或加入已有房间，开始你的专注之旅</p>
+                    <h2 data-lang="chooserTitle">Choose your flow</h2>
+                    <p data-lang="chooserDesc">Create a new study room or jump into an existing one in seconds.</p>
                 </div>
                 <div class="choice-stack">
                     <article class="choice-card active" data-choice="create" tabindex="0" role="button">
                         <div class="choice-icon">✦</div>
                         <div class="choice-text">
-                            <h3 data-lang="createTitle">新建自习室</h3>
-                            <p data-lang="createDesc">创建一个属于你的学习空间，自定义名称并设置访问权限</p>
+                            <h3 data-lang="createTitle">Create a room</h3>
+                            <p data-lang="createDesc">Start a focused room with a custom name and optional password.</p>
                         </div>
                     </article>
                     <article class="choice-card" data-choice="join" tabindex="0" role="button">
                         <div class="choice-icon">➤</div>
                         <div class="choice-text">
-                            <h3 data-lang="joinTitle">加入自习室</h3>
-                            <p data-lang="joinDesc">已有房间代码？输入后即可加入伙伴的学习空间</p>
+                            <h3 data-lang="joinTitle">Join a room</h3>
+                            <p data-lang="joinDesc">Already have a code? Enter it and start focusing with your group.</p>
                         </div>
                     </article>
                 </div>
 
-                <!-- 功能亮点 -->
                 <div class="features-highlight">
                     <div class="feature-item">
                         <span class="feature-icon">🔒</span>
-                        <span class="feature-text" data-lang="featureSecure">端到端加密传输</span>
+                        <span class="feature-text" data-lang="featureSecure">Secure transport</span>
                     </div>
                     <div class="feature-item">
                         <span class="feature-icon">⚡</span>
-                        <span class="feature-text" data-lang="featureRealtime">实时音视频同步</span>
+                        <span class="feature-text" data-lang="featureRealtime">Realtime syncing</span>
                     </div>
                     <div class="feature-item">
                         <span class="feature-icon">🌍</span>
-                        <span class="feature-text" data-lang="featureGlobal">支持全球访问</span>
+                        <span class="feature-text" data-lang="featureGlobal">Saudi-ready, globally accessible</span>
                     </div>
                 </div>
             </div>
 
-            <!-- 右侧：表单区域 -->
             <div class="combined-right">
-                <!-- 创建表单 -->
-                <form class="form-card" id="create-form" autocomplete="off">
-                    <h3 class="form-title">📚 <span data-lang="createFormTitle">新建自习室</span></h3>
+                <form class="form-card" id="create-form" autocomplete="off" novalidate>
+                    <h3 class="form-title">📚 <span data-lang="createFormTitle">New study room</span></h3>
                     <div class="input-group">
-                        <label for="room-name" data-lang="labelRoomName">房间名称</label>
-                        <input type="text" id="room-name" name="roomName" maxlength="48"
-                               data-lang-placeholder="placeholderRoomName" placeholder="例如：英语角、考研小组" required>
+                        <label for="room-name" data-lang="labelRoomName">Room name</label>
+                        <input type="text" id="room-name" name="roomName" maxlength="48" data-lang-placeholder="placeholderRoomName" placeholder="e.g. Deep Work Squad" autocomplete="organization" required>
+                    </div>
+                    <div class="input-group">
+                        <label data-lang="labelMediaMode">Room media mode</label>
+                        <div class="mode-picker" id="media-mode-picker" role="radiogroup" aria-label="Room media mode">
+                            <button type="button" class="mode-option active" data-media-mode="mesh" aria-checked="true">
+                                <span class="mode-option-title" data-lang="mediaModeMeshTitle">Standard room</span>
+                                <span class="mode-option-desc" id="media-mode-mesh-desc">Recommended for up to 4 people. Uses browser-to-browser video.</span>
+                            </button>
+                            <button type="button" class="mode-option" id="media-mode-sfu" data-media-mode="sfu" aria-checked="false" hidden>
+                                <span class="mode-option-title" data-lang="mediaModeSfuTitle">Large room</span>
+                                <span class="mode-option-desc" data-lang="mediaModeSfuDesc">Uses the room media service for larger groups.</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="checkbox-line">
                         <input type="checkbox" id="require-password">
-                        <label for="require-password" data-lang="labelRequirePassword">需要密码保护</label>
+                        <label for="require-password" data-lang="labelRequirePassword">Require password</label>
                     </div>
                     <div class="input-group">
-                        <label for="room-password" data-lang="labelPassword">访问密码</label>
-                        <input type="password" id="room-password" name="roomPassword" maxlength="64"
-                               data-lang-placeholder="placeholderPassword" placeholder="设置4-64位密码" disabled>
+                        <label for="room-password" data-lang="labelPassword">Access password</label>
+                        <input type="password" id="room-password" name="roomPassword" maxlength="64" data-lang-placeholder="placeholderPassword" placeholder="Set a room password" autocomplete="new-password" disabled>
                     </div>
-                    <p class="form-note" data-lang="notePassword">密码会被安全加密存储，只有知道密码的人才能加入</p>
+                    <p class="form-note" data-lang="notePassword">Only people with the password will be able to join this room.</p>
+                    <div class="checkbox-line">
+                        <input type="checkbox" id="enable-schedule">
+                        <label for="enable-schedule" data-lang="labelEnableSchedule">Make this a scheduled room</label>
+                    </div>
+                    <div class="schedule-panel" id="schedule-fields" hidden>
+                        <p class="form-note schedule-note" data-lang="scheduleNote">Uses Riyadh time (GMT+3). Weekdays follow the Saudi Sunday-Thursday workweek.</p>
+                        <div class="schedule-grid">
+                            <div class="input-group">
+                                <label for="schedule-date" data-lang="labelScheduleDate">First session date</label>
+                                <input type="date" id="schedule-date" name="scheduleDate">
+                            </div>
+                            <div class="input-group">
+                                <label for="schedule-time" data-lang="labelScheduleTime">Start time</label>
+                                <input type="time" id="schedule-time" name="scheduleTime">
+                            </div>
+                            <div class="input-group">
+                                <label for="schedule-cadence" data-lang="labelScheduleCadence">Cadence</label>
+                                <select id="schedule-cadence" name="scheduleCadence">
+                                    <option value="once" data-lang="scheduleCadenceOnce">One time</option>
+                                    <option value="weekdays" data-lang="scheduleCadenceWeekdays">Sun-Thu</option>
+                                    <option value="daily" data-lang="scheduleCadenceDaily">Daily</option>
+                                    <option value="weekly" data-lang="scheduleCadenceWeekly">Weekly</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="schedule-focus" data-lang="labelScheduleFocus">Focus minutes</label>
+                                <input type="number" id="schedule-focus" name="scheduleFocus" min="1" max="240" value="25">
+                            </div>
+                            <div class="input-group">
+                                <label for="schedule-break" data-lang="labelScheduleBreak">Break minutes</label>
+                                <input type="number" id="schedule-break" name="scheduleBreak" min="1" max="120" value="5">
+                            </div>
+                            <div class="input-group span-2">
+                                <label for="schedule-goal-template" data-lang="labelScheduleGoal">Starting board goal</label>
+                                <input type="text" id="schedule-goal-template" name="scheduleGoalTemplate" maxlength="80" data-lang-placeholder="placeholderScheduleGoal" placeholder="Example: Finish the product launch deck">
+                            </div>
+                        </div>
+                    </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary" data-lang="btnCreateRoom">创建自习室</button>
+                        <button type="submit" class="btn-primary" data-lang="btnCreateRoom">Create room</button>
                     </div>
                     <p class="form-feedback" id="create-feedback"></p>
                     <div class="result-box" id="create-result" hidden>
-                        <div class="result-code" id="result-code"></div>
-                        <p data-lang="resultDesc">分享这个代码给你的伙伴，邀请他们加入</p>
-                        <button type="button" class="btn-primary" id="btn-enter-room" data-lang="btnEnterRoom">进入自习室</button>
+                        <div class="result-code" id="result-code" data-force-ltr></div>
+                        <p data-lang="resultDesc">Share this code with your study partners to bring them into the room.</p>
+                        <div class="result-schedule" id="result-schedule" hidden>
+                            <div class="result-schedule-summary" id="result-schedule-summary"></div>
+                            <div class="result-actions">
+                                <a class="btn-secondary" id="result-whatsapp-link" href="#" target="_blank" rel="noopener" data-lang="btnWhatsappInvite">WhatsApp invite</a>
+                                <button type="button" class="btn-secondary" id="result-calendar-btn" data-lang="btnAddCalendar">Add to calendar</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-primary" id="btn-enter-room" data-lang="btnEnterRoom">Enter room</button>
                     </div>
                 </form>
 
-                <!-- 加入表单 -->
-                <form class="form-card" id="join-form" hidden autocomplete="off">
-                    <h3 class="form-title">🚀 <span data-lang="joinFormTitle">加入自习室</span></h3>
+                <form class="form-card" id="join-form" hidden autocomplete="off" novalidate>
+                    <h3 class="form-title">🚀 <span data-lang="joinFormTitle">Join a study room</span></h3>
                     <div class="input-group">
-                        <label for="join-code" data-lang="labelJoinCode">房间代码</label>
-                        <input type="text" id="join-code" name="roomCode" maxlength="10"
-                               data-lang-placeholder="placeholderJoinCode" placeholder="例如：ABC123" required>
+                        <label for="join-code" data-lang="labelJoinCode">Room code</label>
+                        <input type="text" id="join-code" name="roomCode" maxlength="10" data-lang-placeholder="placeholderJoinCode" placeholder="e.g. ABC123" autocomplete="off" data-force-ltr required>
+                    </div>
+                    <div class="room-preview" id="join-room-preview" hidden>
+                        <div class="room-preview-name" id="join-room-preview-name">Room</div>
+                        <div class="room-preview-badges">
+                            <span class="room-preview-badge" id="join-room-preview-mode">Mesh room</span>
+                            <span class="room-preview-badge" id="join-room-preview-count">0 / 4 people</span>
+                            <span class="room-preview-badge" id="join-room-preview-access">Open access</span>
+                        </div>
+                        <p class="room-preview-note" id="join-room-preview-note"></p>
+                        <p class="room-preview-warning" id="join-room-preview-warning"></p>
                     </div>
                     <div class="input-group">
-                        <label for="join-password" data-lang="labelJoinPassword">房间密码（如需要）</label>
-                        <input type="password" id="join-password" name="roomPassword" maxlength="64"
-                               data-lang-placeholder="placeholderJoinPassword" placeholder="如果房间有密码请填写">
+                        <label for="join-password" data-lang="labelJoinPassword">Room password (if needed)</label>
+                        <input type="password" id="join-password" name="roomPassword" maxlength="64" data-lang-placeholder="placeholderJoinPassword" placeholder="Enter the password if the room is protected" autocomplete="current-password">
                     </div>
-                    <p class="form-note" data-lang="noteJoin">提交后会跳转到自习室，届时需要输入你的昵称</p>
+                    <p class="form-note" data-lang="noteJoin">You will be taken into the room next, where you can confirm your nickname.</p>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary" data-lang="btnJoinRoom">加入自习室</button>
+                        <button type="submit" class="btn-primary" data-lang="btnJoinRoom">Join room</button>
                     </div>
                     <p class="form-feedback" id="join-feedback"></p>
                 </form>
@@ -1065,171 +1306,249 @@
     (function() {
         'use strict';
 
-        // ===== 语言配置 =====
-        const langDict = {
-            cn: {
-                heroEyebrow: '协同学习空间',
-                heroTitleWelcome: '欢迎来到',
-                heroDesc: '创建专属自习室，邀请伙伴一起专注学习。支持房间命名、密码保护，让你的学习空间更加私密和个性化。',
-                featureVideo: '视频连线',
-                featureTimer: '番茄钟',
-                featureChat: '实时聊天',
-                featurePassword: '密码保护',
-                btnStart: '开始使用',
-                btnQuickJoin: '快速加入',
-                heroHint: '使用滚轮、方向键或触摸滑动浏览',
-                previewNew: '新功能',
-                previewSecure: '安全',
-                previewTitle1: '自定义房间名称',
-                previewTitle2: '可选密码保护',
-                previewTimer: '番茄钟',
-                previewMinutes: '分钟',
-                previewFocus: '专注',
-                previewUsers: '人数',
-                badgeSecure: '安全加密',
-                badgeRealtime: '实时同步',
-                chooserTitle: '选择你的方式',
-                chooserDesc: '创建全新自习室或加入已有房间，开始你的专注之旅',
-                createTitle: '新建自习室',
-                createDesc: '创建一个属于你的学习空间，自定义名称并设置访问权限',
-                createFeature1: '自定义房间名称',
-                createFeature2: '可选密码保护',
-                createFeature3: '生成分享代码',
-                joinTitle: '加入自习室',
-                joinDesc: '已有房间代码？输入后即可加入伙伴的学习空间',
-                joinFeature1: '输入房间代码',
-                joinFeature2: '填写访问密码',
-                joinFeature3: '即刻开始学习',
-                formTitleCreate: '创建新自习室',
-                formTitleJoin: '加入自习室',
-                modeCreate: '新建',
-                modeJoin: '加入',
-                createFormTitle: '新建自习室',
-                labelRoomName: '房间名称',
-                placeholderRoomName: '例如：英语角、考研小组',
-                labelRequirePassword: '需要密码保护',
-                labelPassword: '访问密码',
-                placeholderPassword: '设置4-64位密码',
-                notePassword: '密码会被安全加密存储，只有知道密码的人才能加入',
-                btnCreateRoom: '创建自习室',
-                resultDesc: '分享这个代码给你的伙伴，邀请他们加入',
-                btnEnterRoom: '进入自习室',
-                joinFormTitle: '加入自习室',
-                labelJoinCode: '房间代码',
-                placeholderJoinCode: '例如：ABC123',
-                labelJoinPassword: '房间密码（如需要）',
-                placeholderJoinPassword: '如果房间有密码请填写',
-                noteJoin: '提交后会跳转到自习室，届时需要输入你的昵称',
-                btnJoinRoom: '加入自习室',
-                errorNoName: '请输入房间名称',
-                errorNoCode: '请输入房间代码',
-                errorCreating: '正在创建...',
-                errorCreateFailed: '创建失败，请稍后重试',
-                successCreated: '房间已创建！',
-                redirecting: '正在跳转...',
-                visualFocusTitle: '专注学习',
-                visualFocusDesc: '与伙伴一起保持专注，互相监督，共同进步',
-                visualTimerTitle: '番茄工作法',
-                visualTimerDesc: '内置番茄钟，科学安排学习与休息时间',
-                visualChatTitle: '实时互动',
-                visualChatDesc: '文字聊天与视频连线，随时交流学习心得',
-                tipNameTitle: '房间名称建议',
-                tipNameDesc: '使用有意义的名称，如"考研英语组"、"周末自习"，方便伙伴识别',
-                tipPasswordTitle: '密码保护',
-                tipPasswordDesc: '设置密码可防止陌生人进入，密码采用安全加密存储',
-                tipShareTitle: '分享房间',
-                tipShareDesc: '创建后会生成6位房间代码，将代码和密码分享给伙伴即可',
-                securityBadge: '数据安全加密传输',
-                featureSecure: '端到端加密传输',
-                featureRealtime: '实时音视频同步',
-                featureGlobal: '支持全球访问'
-            },
+        const LANG_STORAGE_KEY = 'coStudyLang';
+        const translations = {
             en: {
+                pageTitle: 'Co-Study | Collaborative Study Rooms',
+                themeToggleTitle: 'Toggle theme',
+                pageOneAria: 'Go to page 1',
+                pageTwoAria: 'Go to page 2',
                 heroEyebrow: 'COLLABORATIVE STUDY SPACE',
                 heroTitleWelcome: 'Welcome to',
-                heroDesc: 'Create your own study room, invite friends to focus together. Supports custom room names and password protection for a private, personalized learning space.',
-                featureVideo: 'Video Chat',
+                heroDesc: 'Build a focused room, invite your people, and stay productive together with shared video, chat, and timers.',
+                featureVideo: 'Video chat',
                 featureTimer: 'Pomodoro',
-                featureChat: 'Live Chat',
-                featurePassword: 'Password',
-                btnStart: 'Get Started',
-                btnQuickJoin: 'Quick Join',
-                heroHint: 'Scroll, use arrow keys, or swipe to navigate',
+                featureChat: 'Live chat',
+                featurePassword: 'Password protection',
+                btnStart: 'Get started',
+                btnQuickJoin: 'Quick join',
+                heroHint: 'Scroll, use arrow keys, or swipe to move between sections.',
                 previewNew: 'NEW FEATURE',
                 previewSecure: 'SECURE',
-                previewTitle1: 'Custom Room Names',
-                previewTitle2: 'Optional Password',
+                previewTitle1: 'Custom room names',
+                previewTitle2: 'Optional passwords',
                 previewTimer: 'POMODORO',
                 previewMinutes: 'min',
                 previewFocus: 'FOCUS',
                 previewUsers: 'users',
-                badgeSecure: 'Encrypted',
-                badgeRealtime: 'Real-time',
-                chooserTitle: 'Choose Your Way',
-                chooserDesc: 'Create a new study room or join an existing one to start your focus journey',
-                createTitle: 'Create Room',
-                createDesc: 'Create your own study space with a custom name and access control',
-                createFeature1: 'Custom room name',
-                createFeature2: 'Optional password',
-                createFeature3: 'Shareable code',
-                joinTitle: 'Join Room',
-                joinDesc: "Have a room code? Enter it to join your friend's study space",
-                joinFeature1: 'Enter room code',
-                joinFeature2: 'Provide password',
-                joinFeature3: 'Start studying',
-                formTitleCreate: 'Create New Room',
-                formTitleJoin: 'Join Room',
-                modeCreate: 'Create',
-                modeJoin: 'Join',
-                createFormTitle: 'New Study Room',
-                labelRoomName: 'Room Name',
-                placeholderRoomName: 'e.g., English Corner, Study Group',
+                chooserTitle: 'Choose your flow',
+                chooserDesc: 'Create a new study room or jump into an existing one in seconds.',
+                createTitle: 'Create a room',
+                createDesc: 'Start a focused room with a custom name and optional password.',
+                joinTitle: 'Join a room',
+                joinDesc: 'Already have a code? Enter it and start focusing with your group.',
+                createFormTitle: 'New study room',
+                labelRoomName: 'Room name',
+                placeholderRoomName: 'e.g. Deep Work Squad',
+                labelMediaMode: 'Room media mode',
+                mediaModeMeshTitle: 'Standard room',
+                mediaModeMeshDesc: 'Recommended for up to {limit} people. Uses browser-to-browser video.',
+                mediaModeSfuTitle: 'Large room',
+                mediaModeSfuDesc: 'Uses the room media service for larger groups.',
+                mediaModeMeshBadge: 'Mesh room',
+                mediaModeSfuBadge: 'Large room',
+                roomAccessOpen: 'Open access',
+                roomAccessProtected: 'Password protected',
+                roomPreviewMeshNote: 'Best for up to {limit} people before video quality starts dropping.',
+                roomPreviewSfuNote: 'Media runs in the managed room session for larger groups.',
                 labelRequirePassword: 'Require password',
-                labelPassword: 'Access Password',
-                placeholderPassword: 'Set 4-64 character password',
-                notePassword: 'Password is securely encrypted. Only those with the password can join.',
-                btnCreateRoom: 'Create Room',
-                resultDesc: 'Share this code with your friends to invite them',
-                btnEnterRoom: 'Enter Room',
-                joinFormTitle: 'Join Study Room',
-                labelJoinCode: 'Room Code',
-                placeholderJoinCode: 'e.g., ABC123',
-                labelJoinPassword: 'Room Password (if required)',
-                placeholderJoinPassword: 'Enter password if room is protected',
-                noteJoin: "After submitting, you'll enter the room and set your nickname",
-                btnJoinRoom: 'Join Room',
-                errorNoName: 'Please enter a room name',
-                errorNoCode: 'Please enter a room code',
-                errorCreating: 'Creating...',
-                errorCreateFailed: 'Failed to create room. Please try again.',
-                successCreated: 'Room created!',
+                labelPassword: 'Access password',
+                placeholderPassword: 'Set a room password',
+                notePassword: 'Only people with the password will be able to join this room.',
+                labelEnableSchedule: 'Make this a scheduled room',
+                scheduleNote: 'Uses Riyadh time (GMT+3). Weekdays follow the Saudi Sunday-Thursday workweek.',
+                labelScheduleDate: 'First session date',
+                labelScheduleTime: 'Start time',
+                labelScheduleCadence: 'Cadence',
+                scheduleCadenceOnce: 'One time',
+                scheduleCadenceWeekdays: 'Sun-Thu',
+                scheduleCadenceDaily: 'Daily',
+                scheduleCadenceWeekly: 'Weekly',
+                labelScheduleFocus: 'Focus minutes',
+                labelScheduleBreak: 'Break minutes',
+                labelScheduleGoal: 'Starting board goal',
+                placeholderScheduleGoal: 'Example: Finish the product launch deck',
+                btnCreateRoom: 'Create room',
+                resultDesc: 'Share this code with your study partners to bring them into the room.',
+                btnWhatsappInvite: 'WhatsApp invite',
+                btnAddCalendar: 'Add to calendar',
+                btnEnterRoom: 'Enter room',
+                scheduleTimezoneLabel: 'Riyadh time',
+                scheduleNextLabel: 'Next session',
+                scheduleLiveLabel: 'Live now',
+                scheduleTimerPresetLabel: 'Timer',
+                inviteShareTitle: 'Join my scheduled Co-Study room',
+                inviteRoomCodeLabel: 'Room code',
+                inviteNextLabel: 'Next session',
+                inviteCadenceLabel: 'Cadence',
+                errorPasswordRequired: 'Please enter a room password.',
+                errorScheduleInvalid: 'Please add a valid Riyadh date and time for this scheduled room.',
+                joinFormTitle: 'Join a study room',
+                labelJoinCode: 'Room code',
+                placeholderJoinCode: 'e.g. ABC123',
+                labelJoinPassword: 'Room password (if needed)',
+                placeholderJoinPassword: 'Enter the password if the room is protected',
+                noteJoin: 'You will be taken into the room next, where you can confirm your nickname.',
+                btnJoinRoom: 'Join room',
+                errorNoName: 'Please enter a room name.',
+                errorNoCode: 'Please enter a room code.',
+                errorCheckingRoom: 'Checking room...',
+                errorCreating: 'Creating room...',
+                errorCreateFailed: 'Could not create the room right now. Please try again.',
+                errorJoinLookupFailed: 'Unable to verify this room right now. Please try again.',
+                errorRoomNotFound: 'That room code does not exist.',
+                errorRoomFull: 'This mesh room is full. Ask the host to create a large room.',
+                errorMediaUnavailable: 'Large-room media is unavailable on this deployment right now.',
+                errorMediaModeInvalid: 'That room media mode is not supported.',
+                errorRealtimeUnavailable: 'Realtime service is not available right now.',
+                successCreated: 'Room created successfully.',
                 redirecting: 'Redirecting...',
-                visualFocusTitle: 'Focus Together',
-                visualFocusDesc: 'Stay focused with your study partners, motivate each other',
-                visualTimerTitle: 'Pomodoro Timer',
-                visualTimerDesc: 'Built-in timer for balanced study and break sessions',
-                visualChatTitle: 'Real-time Chat',
-                visualChatDesc: 'Text chat and video calls for instant communication',
-                tipNameTitle: 'Naming Tips',
-                tipNameDesc: 'Use meaningful names like "TOEFL Prep" or "Weekend Study" for easy recognition',
-                tipPasswordTitle: 'Password Protection',
-                tipPasswordDesc: 'Set a password to keep strangers out. Passwords are securely encrypted.',
-                tipShareTitle: 'Share Your Room',
-                tipShareDesc: 'Get a 6-digit code after creation. Share it with friends to invite them.',
-                securityBadge: 'Secure & Encrypted',
-                featureSecure: 'End-to-end Encryption',
-                featureRealtime: 'Real-time A/V Sync',
-                featureGlobal: 'Global Access'
+                featureSecure: 'Secure transport',
+                featureRealtime: 'Realtime syncing',
+                featureGlobal: 'Saudi-ready, globally accessible',
+                errorRoomCodeGeneration: 'Could not generate a room code. Please try again.',
+                rateLimited: 'Too many attempts. Slow down and try again in a moment.'
+            },
+            ar: {
+                pageTitle: 'كو-ستدي | غرف مذاكرة تعاونية',
+                themeToggleTitle: 'تبديل المظهر',
+                pageOneAria: 'الانتقال إلى الصفحة الأولى',
+                pageTwoAria: 'الانتقال إلى الصفحة الثانية',
+                heroEyebrow: 'مساحة مذاكرة تعاونية',
+                heroTitleWelcome: 'مرحباً بك في',
+                heroDesc: 'أنشئ غرفة تركيز خاصة بك، وادعُ شركاءك، وواصل الإنجاز مع الفيديو والدردشة والمؤقت في مكان واحد.',
+                featureVideo: 'محادثة فيديو',
+                featureTimer: 'بومودورو',
+                featureChat: 'دردشة مباشرة',
+                featurePassword: 'حماية بكلمة مرور',
+                btnStart: 'ابدأ الآن',
+                btnQuickJoin: 'دخول سريع',
+                heroHint: 'استخدم التمرير أو الأسهم أو السحب للتنقل بين الأقسام.',
+                previewNew: 'ميزة جديدة',
+                previewSecure: 'آمن',
+                previewTitle1: 'أسماء غرف مخصصة',
+                previewTitle2: 'كلمات مرور اختيارية',
+                previewTimer: 'بومودورو',
+                previewMinutes: 'دقيقة',
+                previewFocus: 'تركيز',
+                previewUsers: 'مستخدمين',
+                chooserTitle: 'اختر طريقتك',
+                chooserDesc: 'أنشئ غرفة جديدة أو ادخل إلى غرفة موجودة خلال ثوانٍ.',
+                createTitle: 'أنشئ غرفة',
+                createDesc: 'ابدأ غرفة تركيز باسم مخصص وكلمة مرور اختيارية.',
+                joinTitle: 'ادخل غرفة',
+                joinDesc: 'إذا كان لديك رمز، فأدخله وابدأ التركيز مع مجموعتك مباشرة.',
+                createFormTitle: 'غرفة مذاكرة جديدة',
+                labelRoomName: 'اسم الغرفة',
+                placeholderRoomName: 'مثال: جلسة عمل عميق',
+                labelMediaMode: 'وضع وسائط الغرفة',
+                mediaModeMeshTitle: 'غرفة عادية',
+                mediaModeMeshDesc: 'موصى بها لما يصل إلى {limit} أشخاص. تستخدم فيديو مباشرًا بين المتصفحات.',
+                mediaModeSfuTitle: 'غرفة كبيرة',
+                mediaModeSfuDesc: 'تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.',
+                mediaModeMeshBadge: 'غرفة Mesh',
+                mediaModeSfuBadge: 'غرفة كبيرة',
+                roomAccessOpen: 'دخول مفتوح',
+                roomAccessProtected: 'محمية بكلمة مرور',
+                roomPreviewMeshNote: 'مناسبة لما يصل إلى {limit} أشخاص قبل أن تبدأ جودة الفيديو بالانخفاض.',
+                roomPreviewSfuNote: 'تعمل الوسائط داخل الجلسة المُدارة للغرفة للمجموعات الأكبر.',
+                labelRequirePassword: 'تفعيل كلمة مرور',
+                labelPassword: 'كلمة مرور الدخول',
+                placeholderPassword: 'ضع كلمة مرور للغرفة',
+                notePassword: 'لن يتمكن من دخول الغرفة إلا من يملك كلمة المرور.',
+                labelEnableSchedule: 'اجعلها غرفة مجدولة',
+                scheduleNote: 'تستخدم توقيت الرياض (غرينتش+3). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.',
+                labelScheduleDate: 'تاريخ أول جلسة',
+                labelScheduleTime: 'وقت البداية',
+                labelScheduleCadence: 'التكرار',
+                scheduleCadenceOnce: 'مرة واحدة',
+                scheduleCadenceWeekdays: 'الأحد - الخميس',
+                scheduleCadenceDaily: 'يوميًا',
+                scheduleCadenceWeekly: 'أسبوعيًا',
+                labelScheduleFocus: 'دقائق التركيز',
+                labelScheduleBreak: 'دقائق الاستراحة',
+                labelScheduleGoal: 'هدف اللوحة عند البداية',
+                placeholderScheduleGoal: 'مثال: إنهاء عرض الإطلاق',
+                btnCreateRoom: 'إنشاء الغرفة',
+                resultDesc: 'شارك هذا الرمز مع شركائك ليدخلوا إلى الغرفة مباشرة.',
+                btnWhatsappInvite: 'دعوة واتساب',
+                btnAddCalendar: 'أضف إلى التقويم',
+                btnEnterRoom: 'الدخول إلى الغرفة',
+                scheduleTimezoneLabel: 'توقيت الرياض',
+                scheduleNextLabel: 'الجلسة القادمة',
+                scheduleLiveLabel: 'الجلسة جارية الآن',
+                scheduleTimerPresetLabel: 'المؤقت',
+                inviteShareTitle: 'انضم إلى غرفة Co-Study المجدولة',
+                inviteRoomCodeLabel: 'رمز الغرفة',
+                inviteNextLabel: 'الجلسة القادمة',
+                inviteCadenceLabel: 'التكرار',
+                errorPasswordRequired: 'فضلاً أدخل كلمة مرور للغرفة.',
+                errorScheduleInvalid: 'أضف تاريخًا ووقتًا صحيحين بتوقيت الرياض لهذه الغرفة المجدولة.',
+                joinFormTitle: 'الدخول إلى غرفة مذاكرة',
+                labelJoinCode: 'رمز الغرفة',
+                placeholderJoinCode: 'مثال: ABC123',
+                labelJoinPassword: 'كلمة مرور الغرفة (عند الحاجة)',
+                placeholderJoinPassword: 'أدخل كلمة المرور إذا كانت الغرفة محمية',
+                noteJoin: 'سيتم نقلك إلى الغرفة بعدها لتأكيد اسمك داخل الجلسة.',
+                btnJoinRoom: 'دخول الغرفة',
+                errorNoName: 'فضلاً أدخل اسم الغرفة.',
+                errorNoCode: 'فضلاً أدخل رمز الغرفة.',
+                errorCheckingRoom: 'جارٍ التحقق من الغرفة...',
+                errorCreating: 'جارٍ إنشاء الغرفة...',
+                errorCreateFailed: 'تعذر إنشاء الغرفة حالياً. حاول مرة أخرى.',
+                errorJoinLookupFailed: 'تعذر التحقق من هذه الغرفة حالياً. حاول مرة أخرى.',
+                errorRoomNotFound: 'رمز الغرفة هذا غير موجود.',
+                errorRoomFull: 'غرفة الـ Mesh هذه ممتلئة. اطلب من المضيف إنشاء غرفة كبيرة.',
+                errorMediaUnavailable: 'وسائط الغرف الكبيرة غير متاحة في هذا النشر حالياً.',
+                errorMediaModeInvalid: 'وضع وسائط الغرفة هذا غير مدعوم.',
+                errorRealtimeUnavailable: 'خدمة الاتصال الفوري غير متاحة حالياً.',
+                successCreated: 'تم إنشاء الغرفة بنجاح.',
+                redirecting: 'جارٍ التحويل...',
+                featureSecure: 'نقل آمن',
+                featureRealtime: 'مزامنة فورية',
+                featureGlobal: 'مناسبة للسعودية ومتاحة عالمياً',
+                errorRoomCodeGeneration: 'تعذر إنشاء رمز الغرفة. حاول مرة أخرى.',
+                rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.'
             }
         };
+        const errorKeyMap = {
+            ROOM_NAME_REQUIRED: 'errorNoName',
+            ROOM_CODE_GENERATION_FAILED: 'errorRoomCodeGeneration',
+            PASSWORD_HASH_FAILED: 'errorCreateFailed',
+            ROOM_MEDIA_MODE_INVALID: 'errorMediaModeInvalid',
+            ROOM_MEDIA_UNAVAILABLE: 'errorMediaUnavailable',
+            ROOM_FULL: 'errorRoomFull',
+            SCHEDULE_INVALID: 'errorScheduleInvalid',
+            RATE_LIMITED: 'rateLimited'
+        };
 
-        let currentLang = 'cn';
+        const MEDIA_MODE_MESH = 'mesh';
+        const MEDIA_MODE_SFU = 'sfu';
+        const DEFAULT_MESH_PARTICIPANT_LIMIT = 4;
+        const DEFAULT_SCHEDULE_TIMEZONE = 'Asia/Riyadh';
+        const DEFAULT_SCHEDULE_CADENCE = 'weekdays';
+        const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000;
+        const SCHEDULE_DAY_MS = 24 * 60 * 60 * 1000;
+        const SCHEDULE_JOIN_EARLY_WINDOW_MS = 15 * 60 * 1000;
+        const MAX_SCHEDULE_LOOKAHEAD_MS = 370 * SCHEDULE_DAY_MS;
+        const MAX_SCHEDULE_ITERATIONS = 5000;
+        let currentLang = getStoredLanguage();
         let currentPage = 0;
         let currentMode = 'create';
         let isScrolling = false;
         let touchStartY = 0;
         let createdRoomCode = '';
         let createdRoomPassword = '';
+        let createdRoomData = null;
+        let selectedMediaMode = MEDIA_MODE_MESH;
+        let runtimeConfig = {
+            sfuAvailable: false,
+            supportedMediaModes: [MEDIA_MODE_MESH],
+            meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT
+        };
+        let joinPreviewRoom = null;
+        let landingScheduleRefreshTimer = null;
+        let isDark = false;
 
         const totalPages = 2;
         const container = document.getElementById('fullpage');
@@ -1239,56 +1558,771 @@
         const joinForm = document.getElementById('join-form');
         const requirePasswordCheckbox = document.getElementById('require-password');
         const roomPasswordInput = document.getElementById('room-password');
+        const enableScheduleCheckbox = document.getElementById('enable-schedule');
+        const scheduleFields = document.getElementById('schedule-fields');
+        const scheduleDateInput = document.getElementById('schedule-date');
+        const scheduleTimeInput = document.getElementById('schedule-time');
+        const scheduleCadenceInput = document.getElementById('schedule-cadence');
+        const scheduleFocusInput = document.getElementById('schedule-focus');
+        const scheduleBreakInput = document.getElementById('schedule-break');
+        const scheduleGoalTemplateInput = document.getElementById('schedule-goal-template');
         const joinCodeInput = document.getElementById('join-code');
+        const mediaModeButtons = document.querySelectorAll('[data-media-mode]');
+        const mediaModeMeshDesc = document.getElementById('media-mode-mesh-desc');
+        const mediaModeSfuButton = document.getElementById('media-mode-sfu');
+        const joinRoomPreview = document.getElementById('join-room-preview');
+        const joinRoomPreviewName = document.getElementById('join-room-preview-name');
+        const joinRoomPreviewMode = document.getElementById('join-room-preview-mode');
+        const joinRoomPreviewCount = document.getElementById('join-room-preview-count');
+        const joinRoomPreviewAccess = document.getElementById('join-room-preview-access');
+        const joinRoomPreviewNote = document.getElementById('join-room-preview-note');
+        const joinRoomPreviewWarning = document.getElementById('join-room-preview-warning');
+        const resultSchedule = document.getElementById('result-schedule');
+        const resultScheduleSummary = document.getElementById('result-schedule-summary');
+        const resultWhatsappLink = document.getElementById('result-whatsapp-link');
+        const resultCalendarBtn = document.getElementById('result-calendar-btn');
+        const languageButtons = document.querySelectorAll('[data-lang-value]');
+        const themeToggle = document.getElementById('theme-toggle');
 
-        // Socket 连接
         let socket = null;
         if (window.io) {
             socket = io();
         }
 
-        // ===== 语言切换 =====
-        function applyLanguage() {
-            document.getElementById('lang-cn').className = currentLang === 'cn' ? 'active' : '';
-            document.getElementById('lang-en').className = currentLang === 'en' ? 'active' : '';
+        function getStoredLanguage() {
+            try {
+                return localStorage.getItem(LANG_STORAGE_KEY) === 'ar' ? 'ar' : 'en';
+            } catch (_err) {
+                return 'en';
+            }
+        }
 
-            document.querySelectorAll('[data-lang]').forEach(el => {
-                const key = el.dataset.lang;
-                if (langDict[currentLang][key]) {
-                    el.textContent = langDict[currentLang][key];
-                }
-            });
+        function setStoredLanguage(lang) {
+            try {
+                localStorage.setItem(LANG_STORAGE_KEY, lang);
+            } catch (_err) {}
+        }
 
-            document.querySelectorAll('[data-lang-placeholder]').forEach(el => {
-                const key = el.dataset.langPlaceholder;
-                if (langDict[currentLang][key]) {
-                    el.placeholder = langDict[currentLang][key];
-                }
+        function copy() {
+            return translations[currentLang] || translations.en;
+        }
+
+        function interpolate(template, values = {}) {
+            return `${template || ''}`.replace(/\{(\w+)\}/g, (_match, key) => {
+                return values[key] === undefined ? '' : String(values[key]);
             });
         }
 
-        document.getElementById('lang-switch').addEventListener('click', () => {
-            currentLang = currentLang === 'cn' ? 'en' : 'cn';
+        function normalizeMediaMode(mode) {
+            return mode === MEDIA_MODE_SFU ? MEDIA_MODE_SFU : MEDIA_MODE_MESH;
+        }
+
+        function getMeshParticipantLimit() {
+            return Number.isInteger(runtimeConfig.meshParticipantLimit) && runtimeConfig.meshParticipantLimit > 0
+                ? runtimeConfig.meshParticipantLimit
+                : DEFAULT_MESH_PARTICIPANT_LIMIT;
+        }
+
+        function formatMediaModeLabel(mode) {
+            return normalizeMediaMode(mode) === MEDIA_MODE_SFU
+                ? copy().mediaModeSfuBadge
+                : copy().mediaModeMeshBadge;
+        }
+
+        function formatParticipantCount(count, limit) {
+            const safeCount = Number.isInteger(count) && count >= 0 ? count : 0;
+            const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : null;
+            const total = safeLimit ? `${safeCount} / ${safeLimit}` : `${safeCount}`;
+            return currentLang === 'ar' ? `${total} مشاركين` : `${total} people`;
+        }
+
+        function getRiyadhNowParts() {
+            const now = new Date(Date.now() + RIYADH_OFFSET_MS);
+            return {
+                year: now.getUTCFullYear(),
+                month: now.getUTCMonth() + 1,
+                day: now.getUTCDate(),
+                hour: now.getUTCHours(),
+                minute: now.getUTCMinutes()
+            };
+        }
+
+        function shiftRiyadhDate(parts, days) {
+            const probe = new Date(Date.UTC(parts.year, parts.month - 1, parts.day) + (days * 24 * 60 * 60 * 1000));
+            return {
+                year: probe.getUTCFullYear(),
+                month: probe.getUTCMonth() + 1,
+                day: probe.getUTCDate(),
+                dayOfWeek: probe.getUTCDay()
+            };
+        }
+
+        function formatDateValue(parts) {
+            return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+        }
+
+        function formatTimeValue(hour, minute) {
+            return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        }
+
+        function setDefaultScheduleFields() {
+            if (!scheduleDateInput || !scheduleTimeInput || !scheduleCadenceInput) {
+                return;
+            }
+
+            const now = getRiyadhNowParts();
+            const roundedMinute = now.minute <= 30 ? 30 : 0;
+            let nextHour = now.hour;
+            let nextDate = {
+                year: now.year,
+                month: now.month,
+                day: now.day
+            };
+
+            if (roundedMinute === 0) {
+                nextHour += 1;
+            }
+            if (nextHour >= 24) {
+                nextHour = nextHour % 24;
+                nextDate = shiftRiyadhDate(nextDate, 1);
+            }
+
+            scheduleDateInput.value = formatDateValue(nextDate);
+            scheduleTimeInput.value = formatTimeValue(nextHour, roundedMinute);
+            scheduleCadenceInput.value = DEFAULT_SCHEDULE_CADENCE;
+            scheduleFocusInput.value = '25';
+            scheduleBreakInput.value = '5';
+        }
+
+        function toggleScheduleFields() {
+            if (!enableScheduleCheckbox || !scheduleFields) {
+                return;
+            }
+            scheduleFields.hidden = !enableScheduleCheckbox.checked;
+        }
+
+        function formatScheduleCadenceLabel(cadence) {
+            const normalized = typeof cadence === 'string' ? cadence.trim().toLowerCase() : DEFAULT_SCHEDULE_CADENCE;
+            if (normalized === 'once') return copy().scheduleCadenceOnce;
+            if (normalized === 'daily') return copy().scheduleCadenceDaily;
+            if (normalized === 'weekly') return copy().scheduleCadenceWeekly;
+            return copy().scheduleCadenceWeekdays;
+        }
+
+        function formatRiyadhDateTime(timestamp) {
+            if (!timestamp) return '';
+            try {
+                return new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-SA', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                    timeZone: DEFAULT_SCHEDULE_TIMEZONE
+                }).format(new Date(timestamp));
+            } catch (_error) {
+                return new Date(timestamp).toISOString();
+            }
+        }
+
+        function parseScheduleDateString(value) {
+            if (typeof value !== 'string') return null;
+            const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!match) return null;
+
+            const year = Number.parseInt(match[1], 10);
+            const month = Number.parseInt(match[2], 10);
+            const day = Number.parseInt(match[3], 10);
+            const probe = new Date(Date.UTC(year, month - 1, day));
+            if (
+                probe.getUTCFullYear() !== year
+                || probe.getUTCMonth() !== month - 1
+                || probe.getUTCDate() !== day
+            ) {
+                return null;
+            }
+
+            return { year, month, day };
+        }
+
+        function parseScheduleTimeString(value) {
+            if (typeof value !== 'string') return null;
+            const match = value.trim().match(/^(\d{2}):(\d{2})$/);
+            if (!match) return null;
+
+            const hour = Number.parseInt(match[1], 10);
+            const minute = Number.parseInt(match[2], 10);
+            if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+                return null;
+            }
+
+            return { hour, minute };
+        }
+
+        function getRiyadhDatePartsFromTimestamp(timestamp) {
+            const date = new Date(timestamp + RIYADH_OFFSET_MS);
+            return {
+                year: date.getUTCFullYear(),
+                month: date.getUTCMonth() + 1,
+                day: date.getUTCDate(),
+                dayOfWeek: date.getUTCDay()
+            };
+        }
+
+        function timestampFromRiyadhParts(parts) {
+            return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour - 3, parts.minute, 0, 0);
+        }
+
+        function isSaudiWeekday(dayOfWeek) {
+            return dayOfWeek >= 0 && dayOfWeek <= 4;
+        }
+
+        function getScheduleStartTimestamp(schedule) {
+            const dateParts = parseScheduleDateString(schedule && schedule.startDate);
+            const timeParts = parseScheduleTimeString(schedule && schedule.startTime);
+            if (!dateParts || !timeParts) return null;
+            return timestampFromRiyadhParts({
+                year: dateParts.year,
+                month: dateParts.month,
+                day: dateParts.day,
+                hour: timeParts.hour,
+                minute: timeParts.minute
+            });
+        }
+
+        function getScheduleWindowMs(schedule) {
+            const focusMinutes = Number.parseInt(schedule && schedule.focusMinutes, 10) || 25;
+            const breakMinutes = Number.parseInt(schedule && schedule.breakMinutes, 10) || 5;
+            const explicitWindowMinutes = Number.parseInt(schedule && schedule.sessionWindowMinutes, 10) || 0;
+            return Math.max(30, explicitWindowMinutes || (focusMinutes + breakMinutes)) * 60 * 1000;
+        }
+
+        function getNextScheduleOccurrence(schedule, currentTimestamp) {
+            if (!schedule || currentTimestamp === null || currentTimestamp === undefined) {
+                return null;
+            }
+
+            const cadence = typeof schedule.cadence === 'string'
+                ? schedule.cadence.trim().toLowerCase()
+                : DEFAULT_SCHEDULE_CADENCE;
+            if (cadence === 'once') {
+                return null;
+            }
+
+            const currentDate = getRiyadhDatePartsFromTimestamp(currentTimestamp);
+            const timeParts = parseScheduleTimeString(schedule.startTime);
+            if (!timeParts) {
+                return null;
+            }
+
+            if (cadence === 'daily') {
+                const nextDate = shiftRiyadhDate(currentDate, 1);
+                return timestampFromRiyadhParts({
+                    ...nextDate,
+                    hour: timeParts.hour,
+                    minute: timeParts.minute
+                });
+            }
+
+            if (cadence === 'weekly') {
+                const nextDate = shiftRiyadhDate(currentDate, 7);
+                return timestampFromRiyadhParts({
+                    ...nextDate,
+                    hour: timeParts.hour,
+                    minute: timeParts.minute
+                });
+            }
+
+            let nextDate = shiftRiyadhDate(currentDate, 1);
+            while (!isSaudiWeekday(nextDate.dayOfWeek)) {
+                nextDate = shiftRiyadhDate(nextDate, 1);
+            }
+            return timestampFromRiyadhParts({
+                ...nextDate,
+                hour: timeParts.hour,
+                minute: timeParts.minute
+            });
+        }
+
+        function fallbackScheduleRuntimeState(schedule, now = Date.now()) {
+            if (!schedule) {
+                return {
+                    isLiveNow: false,
+                    currentOccurrenceAt: null,
+                    nextOccurrenceAt: null,
+                    countdownTargetAt: null
+                };
+            }
+
+            const durationMs = getScheduleWindowMs(schedule);
+            const activeStart = typeof schedule.currentOccurrenceAt === 'number'
+                ? schedule.currentOccurrenceAt
+                : (typeof schedule.countdownTargetAt === 'number' ? schedule.countdownTargetAt : null);
+
+            if (typeof activeStart === 'number' && now >= activeStart && now < activeStart + durationMs) {
+                return {
+                    isLiveNow: true,
+                    currentOccurrenceAt: schedule.currentOccurrenceAt || activeStart,
+                    nextOccurrenceAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null,
+                    countdownTargetAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null
+                };
+            }
+
+            if (typeof activeStart === 'number' && now < activeStart) {
+                return {
+                    isLiveNow: false,
+                    currentOccurrenceAt: typeof schedule.currentOccurrenceAt === 'number' ? schedule.currentOccurrenceAt : null,
+                    nextOccurrenceAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null,
+                    countdownTargetAt: activeStart
+                };
+            }
+
+            if (typeof schedule.nextOccurrenceAt === 'number' && schedule.nextOccurrenceAt > now) {
+                return {
+                    isLiveNow: false,
+                    currentOccurrenceAt: null,
+                    nextOccurrenceAt: schedule.nextOccurrenceAt,
+                    countdownTargetAt: schedule.nextOccurrenceAt
+                };
+            }
+
+            return {
+                isLiveNow: false,
+                currentOccurrenceAt: null,
+                nextOccurrenceAt: null,
+                countdownTargetAt: null
+            };
+        }
+
+        function resolveScheduleRuntimeState(schedule, now = Date.now()) {
+            if (!schedule) {
+                return fallbackScheduleRuntimeState(schedule, now);
+            }
+
+            const startedAt = getScheduleStartTimestamp(schedule);
+            if (startedAt === null) {
+                return fallbackScheduleRuntimeState(schedule, now);
+            }
+
+            const sessionWindowMs = getScheduleWindowMs(schedule);
+            let occurrenceAt = startedAt;
+            let iterations = 0;
+
+            while (
+                occurrenceAt !== null
+                && iterations < MAX_SCHEDULE_ITERATIONS
+                && occurrenceAt <= now + MAX_SCHEDULE_LOOKAHEAD_MS
+            ) {
+                const nextOccurrenceAt = getNextScheduleOccurrence(schedule, occurrenceAt);
+                const closeAt = nextOccurrenceAt || (occurrenceAt + sessionWindowMs);
+
+                if (now >= occurrenceAt - SCHEDULE_JOIN_EARLY_WINDOW_MS && now < closeAt) {
+                    return {
+                        isLiveNow: now >= occurrenceAt && now < occurrenceAt + sessionWindowMs,
+                        currentOccurrenceAt: occurrenceAt,
+                        nextOccurrenceAt: nextOccurrenceAt || null,
+                        countdownTargetAt: now < occurrenceAt ? occurrenceAt : (nextOccurrenceAt || null)
+                    };
+                }
+
+                if (occurrenceAt > now) {
+                    return {
+                        isLiveNow: false,
+                        currentOccurrenceAt: null,
+                        nextOccurrenceAt: occurrenceAt,
+                        countdownTargetAt: occurrenceAt
+                    };
+                }
+
+                occurrenceAt = nextOccurrenceAt;
+                iterations += 1;
+            }
+
+            return fallbackScheduleRuntimeState(schedule, now);
+        }
+
+        function buildScheduleSummaryLine(schedule) {
+            if (!schedule) return '';
+            const runtimeState = resolveScheduleRuntimeState(schedule);
+            const nextTarget = runtimeState.countdownTargetAt || runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
+            const summaryBits = [
+                formatScheduleCadenceLabel(schedule.cadence),
+                copy().scheduleTimezoneLabel,
+                `${copy().scheduleTimerPresetLabel}: ${schedule.focusMinutes || 25}/${schedule.breakMinutes || 5}`
+            ];
+
+            if (runtimeState.isLiveNow) {
+                summaryBits.push(copy().scheduleLiveLabel);
+            } else if (nextTarget) {
+                summaryBits.push(`${copy().scheduleNextLabel}: ${formatRiyadhDateTime(nextTarget)}`);
+            }
+
+            return summaryBits.filter(Boolean).join(' · ');
+        }
+
+        function buildRoomLink(roomCode) {
+            return `${window.location.origin}/index.html?room=${encodeURIComponent(roomCode)}`;
+        }
+
+        function escapeIcsText(value) {
+            return `${value || ''}`
+                .replace(/\\/g, '\\\\')
+                .replace(/\r?\n/g, '\\n')
+                .replace(/,/g, '\\,')
+                .replace(/;/g, '\\;');
+        }
+
+        function formatUtcForIcs(timestamp) {
+            const date = new Date(timestamp);
+            const year = date.getUTCFullYear();
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(date.getUTCDate()).padStart(2, '0');
+            const hour = String(date.getUTCHours()).padStart(2, '0');
+            const minute = String(date.getUTCMinutes()).padStart(2, '0');
+            const second = String(date.getUTCSeconds()).padStart(2, '0');
+            return `${year}${month}${day}T${hour}${minute}${second}Z`;
+        }
+
+        function buildCalendarPayload(roomData) {
+            if (!roomData || !roomData.schedule) {
+                return null;
+            }
+            const schedule = roomData.schedule;
+            const runtimeState = resolveScheduleRuntimeState(schedule);
+            const nextStart = runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
+            if (!nextStart) {
+                return null;
+            }
+
+            const durationMinutes = Math.max(30, Number(schedule.focusMinutes || 25) + Number(schedule.breakMinutes || 5));
+            const endAt = nextStart + (durationMinutes * 60 * 1000);
+            const link = buildRoomLink(roomData.roomId || roomData.code);
+            const lines = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//Co-Study//Scheduled Room//EN',
+                'BEGIN:VEVENT',
+                `UID:${escapeIcsText((roomData.roomId || roomData.code || 'room').toLowerCase())}@co-study`,
+                `DTSTAMP:${formatUtcForIcs(Date.now())}`,
+                `SUMMARY:${escapeIcsText(roomData.name || roomData.roomId || 'Co-Study Session')}`,
+                `DESCRIPTION:${escapeIcsText(`${copy().inviteShareTitle}\n${copy().inviteRoomCodeLabel}: ${roomData.roomId || roomData.code}\n${link}`)}`,
+                `URL:${escapeIcsText(link)}`,
+                `DTSTART:${formatUtcForIcs(nextStart)}`,
+                `DTEND:${formatUtcForIcs(endAt)}`
+            ];
+
+            if (schedule.cadence === 'daily') {
+                lines.push('RRULE:FREQ=DAILY');
+            } else if (schedule.cadence === 'weekly') {
+                lines.push('RRULE:FREQ=WEEKLY');
+            } else if (schedule.cadence === 'weekdays') {
+                lines.push('RRULE:FREQ=WEEKLY;BYDAY=SU,MO,TU,WE,TH');
+            }
+
+            lines.push('END:VEVENT', 'END:VCALENDAR');
+            return `${lines.join('\r\n')}\r\n`;
+        }
+
+        function downloadCalendar(roomData) {
+            const payload = buildCalendarPayload(roomData);
+            if (!payload) return;
+            const blob = new Blob([payload], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${(roomData.roomId || roomData.code || 'co-study-room').toLowerCase()}-schedule.ics`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function buildWhatsappInviteLink(roomData) {
+            if (!roomData) return '#';
+            const link = buildRoomLink(roomData.roomId || roomData.code);
+            const lines = [
+                copy().inviteShareTitle,
+                roomData.name || roomData.roomId || 'Co-Study',
+                `${copy().inviteRoomCodeLabel}: ${roomData.roomId || roomData.code}`
+            ];
+            if (roomData.schedule) {
+                const runtimeState = resolveScheduleRuntimeState(roomData.schedule);
+                const nextTarget = runtimeState.countdownTargetAt || runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
+                if (nextTarget) {
+                    lines.push(`${copy().inviteNextLabel}: ${formatRiyadhDateTime(nextTarget)}`);
+                }
+                lines.push(`${copy().inviteCadenceLabel}: ${formatScheduleCadenceLabel(roomData.schedule.cadence)}`);
+            }
+            lines.push(link);
+            return `https://wa.me/?text=${encodeURIComponent(lines.filter(Boolean).join('\n'))}`;
+        }
+
+        function clearLandingScheduleRefreshTimer() {
+            if (!landingScheduleRefreshTimer) return;
+            clearInterval(landingScheduleRefreshTimer);
+            landingScheduleRefreshTimer = null;
+        }
+
+        function refreshLandingScheduleViews() {
+            if (createdRoomData && createdRoomData.schedule) {
+                renderCreatedSchedule(createdRoomData);
+            }
+            if (joinPreviewRoom && joinPreviewRoom.schedule) {
+                renderJoinPreview(joinPreviewRoom);
+            }
+        }
+
+        function syncLandingScheduleRefreshTimer() {
+            const needsRefresh = !!(
+                (createdRoomData && createdRoomData.schedule)
+                || (joinPreviewRoom && joinPreviewRoom.schedule)
+            );
+
+            if (!needsRefresh) {
+                clearLandingScheduleRefreshTimer();
+                return;
+            }
+
+            if (landingScheduleRefreshTimer) {
+                return;
+            }
+
+            landingScheduleRefreshTimer = setInterval(refreshLandingScheduleViews, 30 * 1000);
+        }
+
+        function renderCreatedSchedule(roomData) {
+            createdRoomData = roomData || null;
+            if (!resultSchedule || !resultScheduleSummary || !resultWhatsappLink || !resultCalendarBtn) {
+                return;
+            }
+
+            if (!roomData || !roomData.schedule) {
+                resultSchedule.hidden = true;
+                resultScheduleSummary.textContent = '';
+                resultWhatsappLink.href = '#';
+                syncLandingScheduleRefreshTimer();
+                return;
+            }
+
+            resultSchedule.hidden = false;
+            resultScheduleSummary.textContent = buildScheduleSummaryLine(roomData.schedule);
+            resultWhatsappLink.href = buildWhatsappInviteLink(roomData);
+            syncLandingScheduleRefreshTimer();
+        }
+
+        function buildCreateSchedulePayload(roomName) {
+            if (!enableScheduleCheckbox || !enableScheduleCheckbox.checked) {
+                return { schedule: null, error: '' };
+            }
+
+            const startDate = scheduleDateInput && scheduleDateInput.value;
+            const startTime = scheduleTimeInput && scheduleTimeInput.value;
+            if (!startDate || !startTime) {
+                return { schedule: null, error: copy().errorScheduleInvalid };
+            }
+
+            return {
+                error: '',
+                schedule: {
+                    title: roomName,
+                    startDate,
+                    startTime,
+                    cadence: scheduleCadenceInput && scheduleCadenceInput.value ? scheduleCadenceInput.value : DEFAULT_SCHEDULE_CADENCE,
+                    focusMinutes: scheduleFocusInput && scheduleFocusInput.value ? scheduleFocusInput.value : '25',
+                    breakMinutes: scheduleBreakInput && scheduleBreakInput.value ? scheduleBreakInput.value : '5',
+                    boardGoalTemplate: scheduleGoalTemplateInput ? scheduleGoalTemplateInput.value.trim() : ''
+                }
+            };
+        }
+
+        function syncMediaModeUi() {
+            mediaModeButtons.forEach((button) => {
+                const mode = normalizeMediaMode(button.dataset.mediaMode);
+                const active = mode === selectedMediaMode;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-checked', active ? 'true' : 'false');
+            });
+            if (mediaModeSfuButton) {
+                mediaModeSfuButton.hidden = !runtimeConfig.sfuAvailable;
+            }
+            if (mediaModeMeshDesc) {
+                mediaModeMeshDesc.textContent = interpolate(copy().mediaModeMeshDesc, {
+                    limit: getMeshParticipantLimit()
+                });
+            }
+        }
+
+        function setSelectedMediaMode(mode) {
+            const nextMode = normalizeMediaMode(mode);
+            selectedMediaMode = nextMode === MEDIA_MODE_SFU && runtimeConfig.sfuAvailable
+                ? MEDIA_MODE_SFU
+                : MEDIA_MODE_MESH;
+            syncMediaModeUi();
+        }
+
+        function clearJoinPreview() {
+            joinPreviewRoom = null;
+            if (joinRoomPreview) {
+                joinRoomPreview.hidden = true;
+            }
+            syncLandingScheduleRefreshTimer();
+        }
+
+        function renderJoinPreview(room) {
+            joinPreviewRoom = room || null;
+            if (!room || !joinRoomPreview) {
+                clearJoinPreview();
+                return;
+            }
+
+            const mode = normalizeMediaMode(room.mediaMode);
+            const limit = mode === MEDIA_MODE_MESH
+                ? (Number.isInteger(room.participantLimit) && room.participantLimit > 0 ? room.participantLimit : getMeshParticipantLimit())
+                : null;
+            const count = Number.isInteger(room.participantCount) ? room.participantCount : 0;
+            const isFullMeshRoom = mode === MEDIA_MODE_MESH && limit !== null && count >= limit;
+            const largeRoomUnavailable = mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable;
+
+            joinRoomPreview.hidden = false;
+            joinRoomPreviewName.textContent = room.name || room.roomId || joinCodeInput.value.trim().toUpperCase();
+            joinRoomPreviewMode.textContent = formatMediaModeLabel(mode);
+            joinRoomPreviewCount.textContent = formatParticipantCount(count, limit);
+            joinRoomPreviewAccess.textContent = room.requirePassword ? copy().roomAccessProtected : copy().roomAccessOpen;
+            const mediaNote = mode === MEDIA_MODE_SFU
+                ? copy().roomPreviewSfuNote
+                : interpolate(copy().roomPreviewMeshNote, { limit: limit || getMeshParticipantLimit() });
+            const scheduleNote = room.schedule ? buildScheduleSummaryLine(room.schedule) : '';
+            joinRoomPreviewNote.textContent = [mediaNote, scheduleNote].filter(Boolean).join(' · ');
+            joinRoomPreviewWarning.textContent = largeRoomUnavailable
+                ? copy().errorMediaUnavailable
+                : (isFullMeshRoom ? copy().errorRoomFull : '');
+            syncLandingScheduleRefreshTimer();
+        }
+
+        function applyRuntimeConfig(payload = {}) {
+            const meshParticipantLimit = Number.isInteger(payload.meshParticipantLimit) && payload.meshParticipantLimit > 0
+                ? payload.meshParticipantLimit
+                : DEFAULT_MESH_PARTICIPANT_LIMIT;
+            runtimeConfig = {
+                sfuAvailable: !!payload.sfuAvailable,
+                supportedMediaModes: Array.isArray(payload.supportedMediaModes) && payload.supportedMediaModes.length
+                    ? payload.supportedMediaModes.map(normalizeMediaMode)
+                    : [MEDIA_MODE_MESH],
+                meshParticipantLimit
+            };
+            if (!runtimeConfig.sfuAvailable) {
+                selectedMediaMode = MEDIA_MODE_MESH;
+            }
+            syncMediaModeUi();
+            if (joinPreviewRoom) {
+                renderJoinPreview(joinPreviewRoom);
+            }
+            if (createdRoomData) {
+                renderCreatedSchedule(createdRoomData);
+            }
+        }
+
+        async function loadRuntimeConfig() {
+            if (typeof fetch !== 'function') {
+                applyRuntimeConfig();
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/runtime-config', {
+                    headers: { Accept: 'application/json' }
+                });
+                if (!response.ok) {
+                    throw new Error(`Runtime config request failed with ${response.status}`);
+                }
+                const payload = await response.json();
+                applyRuntimeConfig(payload);
+            } catch (_error) {
+                applyRuntimeConfig();
+            }
+        }
+
+        async function fetchRoomDetails(code) {
+            try {
+                const response = await fetch(`/api/rooms/${encodeURIComponent(code)}`, {
+                    headers: { Accept: 'application/json' }
+                });
+                if (response.status === 404) {
+                    clearJoinPreview();
+                    return { status: 'not_found' };
+                }
+                if (response.status === 429) {
+                    return { status: 'rate_limited' };
+                }
+                if (!response.ok) {
+                    return { status: 'error' };
+                }
+                const room = await response.json();
+                renderJoinPreview(room);
+                return { status: 'ok', room };
+            } catch (_error) {
+                return { status: 'error' };
+            }
+        }
+
+        function applyLanguage() {
+            const text = copy();
+            document.documentElement.lang = currentLang;
+            document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            document.body.dataset.lang = currentLang;
+            document.title = text.pageTitle;
+
+            languageButtons.forEach((button) => {
+                button.classList.toggle('active', button.dataset.langValue === currentLang);
+            });
+
+            document.querySelectorAll('[data-lang]').forEach((element) => {
+                const key = element.dataset.lang;
+                if (text[key]) element.textContent = text[key];
+            });
+
+            document.querySelectorAll('[data-lang-placeholder]').forEach((element) => {
+                const key = element.dataset.langPlaceholder;
+                if (text[key]) element.placeholder = text[key];
+            });
+
+            document.querySelectorAll('[data-lang-aria]').forEach((element) => {
+                const key = element.dataset.langAria;
+                if (text[key]) element.setAttribute('aria-label', text[key]);
+            });
+
+            document.querySelectorAll('[data-lang-title]').forEach((element) => {
+                const key = element.dataset.langTitle;
+                if (text[key]) {
+                    element.title = text[key];
+                    element.setAttribute('aria-label', text[key]);
+                }
+            });
+
+            syncMediaModeUi();
+            if (joinPreviewRoom) {
+                renderJoinPreview(joinPreviewRoom);
+            }
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang === 'ar' ? 'ar' : 'en';
+            setStoredLanguage(currentLang);
             applyLanguage();
-        });
+        }
 
-        // ===== 主题切换 =====
-        let isDark = false;
-        document.getElementById('theme-toggle').addEventListener('click', () => {
-            isDark = !isDark;
-            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-        });
+        function getErrorMessage(errorCode, fallbackKey) {
+            const text = copy();
+            const mappedKey = errorKeyMap[errorCode];
+            if (mappedKey && text[mappedKey]) return text[mappedKey];
+            return text[fallbackKey] || '';
+        }
 
-        // ===== 页面滚动 =====
         function goToPage(index) {
             if (index < 0 || index >= totalPages || isScrolling || index === currentPage) return;
-
             isScrolling = true;
             currentPage = index;
             container.style.transform = `translateY(-${currentPage * 100}vh)`;
 
-            dots.forEach((dot, i) => {
-                dot.classList.toggle('active', i === currentPage);
+            dots.forEach((dot, dotIndex) => {
+                dot.classList.toggle('active', dotIndex === currentPage);
             });
 
             setTimeout(() => {
@@ -1304,55 +2338,93 @@
             goToPage(Math.max(0, currentPage - 1));
         }
 
-        // 检查是否在输入框中
         function isTyping(target) {
             return target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
         }
 
-        // 滚轮事件
-        window.addEventListener('wheel', (e) => {
-            if (isTyping(e.target)) return;
-            if (Math.abs(e.deltaY) < 20) return;
-            e.preventDefault();
-            if (e.deltaY > 0) goNext();
+        function setMode(mode) {
+            currentMode = mode === 'join' ? 'join' : 'create';
+            choiceCards.forEach((card) => {
+                card.classList.toggle('active', card.dataset.choice === currentMode);
+            });
+            createForm.hidden = currentMode !== 'create';
+            joinForm.hidden = currentMode !== 'join';
+            if (currentMode === 'join') {
+                const code = joinCodeInput.value.trim().toUpperCase();
+                if (code) {
+                    void fetchRoomDetails(code);
+                }
+            }
+        }
+
+        function checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const roomCode = params.get('room');
+            if (roomCode) {
+                joinCodeInput.value = roomCode.toUpperCase();
+                setMode('join');
+                goToPage(1);
+                void fetchRoomDetails(joinCodeInput.value);
+            }
+        }
+
+        languageButtons.forEach((button) => {
+            button.addEventListener('click', () => setLanguage(button.dataset.langValue));
+        });
+
+        mediaModeButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                setSelectedMediaMode(button.dataset.mediaMode);
+            });
+        });
+
+        themeToggle.addEventListener('click', () => {
+            isDark = !isDark;
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        });
+
+        window.addEventListener('wheel', (event) => {
+            if (isTyping(event.target) || Math.abs(event.deltaY) < 20) return;
+            event.preventDefault();
+            if (event.deltaY > 0) goNext();
             else goPrev();
         }, { passive: false });
 
-        // 键盘事件
-        window.addEventListener('keydown', (e) => {
-            if (isTyping(e.target)) return;
-            switch (e.key) {
+        window.addEventListener('keydown', (event) => {
+            if (isTyping(event.target)) return;
+            switch (event.key) {
                 case 'ArrowDown':
                 case 'PageDown':
                 case ' ':
-                    e.preventDefault();
+                    event.preventDefault();
                     goNext();
                     break;
                 case 'ArrowUp':
                 case 'PageUp':
-                    e.preventDefault();
+                    event.preventDefault();
                     goPrev();
                     break;
                 case 'Home':
-                    e.preventDefault();
+                    event.preventDefault();
                     goToPage(0);
                     break;
                 case 'End':
-                    e.preventDefault();
+                    event.preventDefault();
                     goToPage(totalPages - 1);
+                    break;
+                default:
                     break;
             }
         });
 
-        // 触摸事件
-        window.addEventListener('touchstart', (e) => {
-            if (isTyping(e.target)) return;
-            touchStartY = e.touches[0].clientY;
+        window.addEventListener('touchstart', (event) => {
+            if (isTyping(event.target)) return;
+            touchStartY = event.touches[0].clientY;
         }, { passive: true });
 
-        window.addEventListener('touchend', (e) => {
+        window.addEventListener('touchend', (event) => {
             if (touchStartY === 0) return;
-            const deltaY = e.changedTouches[0].clientY - touchStartY;
+            const deltaY = event.changedTouches[0].clientY - touchStartY;
             if (Math.abs(deltaY) > 60) {
                 if (deltaY < 0) goNext();
                 else goPrev();
@@ -1360,86 +2432,116 @@
             touchStartY = 0;
         }, { passive: true });
 
-        // 点击指示器
-        dots.forEach(dot => {
+        dots.forEach((dot) => {
             dot.addEventListener('click', () => {
                 goToPage(parseInt(dot.dataset.page, 10));
             });
         });
 
-        // 按钮导航
         document.getElementById('btn-scroll-down').addEventListener('click', goNext);
         document.getElementById('btn-skip-to-form').addEventListener('click', () => {
             setMode('join');
             goToPage(1);
         });
 
-        // ===== 选择模式 =====
-        function setMode(mode) {
-            currentMode = mode;
-
-            choiceCards.forEach(card => {
-                card.classList.toggle('active', card.dataset.choice === mode);
-            });
-
-            if (mode === 'create') {
-                createForm.hidden = false;
-                joinForm.hidden = true;
-            } else {
-                createForm.hidden = true;
-                joinForm.hidden = false;
-            }
-        }
-
-        choiceCards.forEach(card => {
-            card.addEventListener('click', () => {
-                setMode(card.dataset.choice);
-            });
-            card.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
+        choiceCards.forEach((card) => {
+            card.addEventListener('click', () => setMode(card.dataset.choice));
+            card.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
                     card.click();
                 }
             });
         });
 
-        // ===== 密码复选框 =====
         requirePasswordCheckbox.addEventListener('change', () => {
             const enabled = requirePasswordCheckbox.checked;
             roomPasswordInput.disabled = !enabled;
-            if (!enabled) {
-                roomPasswordInput.value = '';
-            }
+            if (!enabled) roomPasswordInput.value = '';
         });
 
-        // 房间代码输入格式化
+        if (enableScheduleCheckbox) {
+            enableScheduleCheckbox.addEventListener('change', () => {
+                if (enableScheduleCheckbox.checked) {
+                    setDefaultScheduleFields();
+                }
+                toggleScheduleFields();
+            });
+        }
+        if (scheduleFocusInput) {
+            scheduleFocusInput.addEventListener('input', () => {
+                scheduleFocusInput.value = String(Math.max(1, Math.min(240, parseInt(scheduleFocusInput.value || '25', 10) || 25)));
+            });
+        }
+        if (scheduleBreakInput) {
+            scheduleBreakInput.addEventListener('input', () => {
+                scheduleBreakInput.value = String(Math.max(1, Math.min(120, parseInt(scheduleBreakInput.value || '5', 10) || 5)));
+            });
+        }
+        if (resultCalendarBtn) {
+            resultCalendarBtn.addEventListener('click', () => {
+                if (createdRoomData) {
+                    downloadCalendar(createdRoomData);
+                }
+            });
+        }
+
         joinCodeInput.addEventListener('input', () => {
             joinCodeInput.value = joinCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+            clearJoinPreview();
         });
 
-        // ===== 创建房间表单 =====
-        createForm.addEventListener('submit', (e) => {
-            e.preventDefault();
+        joinCodeInput.addEventListener('blur', () => {
+            const code = joinCodeInput.value.trim().toUpperCase();
+            if (!code) {
+                clearJoinPreview();
+                return;
+            }
+            void fetchRoomDetails(code);
+        });
 
+        createForm.addEventListener('submit', (event) => {
+            event.preventDefault();
             const feedback = document.getElementById('create-feedback');
             const result = document.getElementById('create-result');
             const roomNameInput = document.getElementById('room-name');
             const roomName = roomNameInput.value.trim();
             const password = roomPasswordInput.value.trim();
-            const requirePassword = requirePasswordCheckbox.checked && password.length > 0;
+            const requirePassword = requirePasswordCheckbox.checked;
+            const schedulePayload = buildCreateSchedulePayload(roomName);
+
+            result.hidden = true;
+            renderCreatedSchedule(null);
 
             if (!roomName) {
-                feedback.textContent = langDict[currentLang].errorNoName;
+                feedback.textContent = copy().errorNoName;
                 feedback.className = 'form-feedback error';
                 roomNameInput.focus();
                 return;
             }
 
-            feedback.textContent = langDict[currentLang].errorCreating;
+            if (requirePassword && !password) {
+                feedback.textContent = copy().errorPasswordRequired;
+                feedback.className = 'form-feedback error';
+                roomPasswordInput.focus();
+                return;
+            }
+            if (schedulePayload.error) {
+                feedback.textContent = schedulePayload.error;
+                feedback.className = 'form-feedback error';
+                if (scheduleDateInput && !scheduleDateInput.value) {
+                    scheduleDateInput.focus();
+                } else if (scheduleTimeInput && !scheduleTimeInput.value) {
+                    scheduleTimeInput.focus();
+                }
+                return;
+            }
+
+            feedback.textContent = copy().errorCreating;
             feedback.className = 'form-feedback';
 
             if (!socket) {
-                feedback.textContent = langDict[currentLang].errorCreateFailed;
+                feedback.textContent = copy().errorRealtimeUnavailable;
                 feedback.className = 'form-feedback error';
                 return;
             }
@@ -1447,26 +2549,29 @@
             socket.emit('create-room', {
                 roomName,
                 password,
-                requirePassword
-            }, (response) => {
-                if (!response || !response.ok) {
-                    feedback.textContent = response?.error || langDict[currentLang].errorCreateFailed;
+                requirePassword,
+                mediaMode: selectedMediaMode,
+                schedule: schedulePayload.schedule
+            }, (response = {}) => {
+                if (!response.ok) {
+                    feedback.textContent = getErrorMessage(response.errorCode, 'errorCreateFailed');
                     feedback.className = 'form-feedback error';
                     return;
                 }
 
                 createdRoomCode = response.room.roomId || response.room.code;
                 createdRoomPassword = requirePassword ? password : '';
+                createdRoomData = response.room || null;
 
-                feedback.textContent = langDict[currentLang].successCreated;
+                feedback.textContent = copy().successCreated;
                 feedback.className = 'form-feedback success';
 
                 document.getElementById('result-code').textContent = createdRoomCode;
+                renderCreatedSchedule(createdRoomData);
                 result.hidden = false;
             });
         });
 
-        // 进入房间按钮
         document.getElementById('btn-enter-room').addEventListener('click', () => {
             if (!createdRoomCode) return;
             sessionStorage.setItem('coStudyRoomCode', createdRoomCode);
@@ -1478,18 +2583,59 @@
             window.location.href = `/index.html?room=${encodeURIComponent(createdRoomCode)}`;
         });
 
-        // ===== 加入房间表单 =====
-        joinForm.addEventListener('submit', (e) => {
-            e.preventDefault();
+        joinForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
 
             const feedback = document.getElementById('join-feedback');
             const code = joinCodeInput.value.trim().toUpperCase();
             const password = document.getElementById('join-password').value.trim();
+            let room = null;
 
             if (!code) {
-                feedback.textContent = langDict[currentLang].errorNoCode;
+                feedback.textContent = copy().errorNoCode;
                 feedback.className = 'form-feedback error';
                 joinCodeInput.focus();
+                return;
+            }
+
+            feedback.textContent = copy().errorCheckingRoom;
+            feedback.className = 'form-feedback';
+
+            {
+                const lookup = await fetchRoomDetails(code);
+                if (lookup.status === 'not_found') {
+                    feedback.textContent = copy().errorRoomNotFound;
+                    feedback.className = 'form-feedback error';
+                    joinCodeInput.focus();
+                    return;
+                }
+                if (lookup.status === 'rate_limited') {
+                    feedback.textContent = copy().rateLimited;
+                    feedback.className = 'form-feedback error';
+                    return;
+                }
+                if (lookup.status !== 'ok') {
+                    feedback.textContent = copy().errorJoinLookupFailed;
+                    feedback.className = 'form-feedback error';
+                    return;
+                }
+                room = lookup.room;
+            }
+
+            if (room && room.mediaMode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable) {
+                feedback.textContent = copy().errorMediaUnavailable;
+                feedback.className = 'form-feedback error';
+                return;
+            }
+            if (room && room.mediaMode === MEDIA_MODE_MESH && room.participantLimit && room.participantCount >= room.participantLimit) {
+                feedback.textContent = copy().errorRoomFull;
+                feedback.className = 'form-feedback error';
+                return;
+            }
+            if (room && room.requirePassword && !password) {
+                feedback.textContent = copy().errorPasswordRequired;
+                feedback.className = 'form-feedback error';
+                document.getElementById('join-password').focus();
                 return;
             }
 
@@ -1500,25 +2646,16 @@
                 sessionStorage.removeItem('coStudyRoomPassword');
             }
 
-            feedback.textContent = langDict[currentLang].redirecting;
+            feedback.textContent = copy().redirecting;
             feedback.className = 'form-feedback';
-
             window.location.href = `/index.html?room=${encodeURIComponent(code)}`;
         });
 
-        // 从 URL 读取房间代码
-        function checkUrlParams() {
-            const params = new URLSearchParams(window.location.search);
-            const roomCode = params.get('room');
-            if (roomCode) {
-                joinCodeInput.value = roomCode.toUpperCase();
-                setMode('join');
-                goToPage(1);
-            }
-        }
-
-        // 初始化
+        void loadRuntimeConfig();
+        setDefaultScheduleFields();
+        toggleScheduleFields();
         applyLanguage();
+        setMode(currentMode);
         checkUrlParams();
     })();
     </script>

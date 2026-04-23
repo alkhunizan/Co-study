@@ -1,12 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Co-Study | 完美专注空间</title>
+    <title>Co-Study | Focus Room</title>
     <link rel="icon" type="image/gif" href="/images/baby-chick_1f424.gif">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Noto+Sans+Arabic:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
-        /* --- 1. 核心变量系统 --- */
         :root {
             --bg-body: #F5F2EB;
             --bg-card: #FFFFFF;
@@ -18,7 +20,6 @@
             --accent: #E0B08B; 
             --accent-glow: rgba(224, 176, 139, 0.3);
 
-            /* 优先级颜色*/
             --prio-high: #FF7675;
             --prio-med: #FDCB6E;
             --prio-low: #55EFC4;
@@ -45,13 +46,70 @@
         * { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
         
         body {
-            font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
             background-color: var(--bg-body);
             color: var(--text-main);
             height: 100vh;
             display: flex; flex-direction: column;
             overflow: hidden;
             transition: background 0.3s, color 0.3s;
+        }
+
+        html[lang="ar"] body {
+            direction: ltr;
+            font-family: 'Tajawal', 'Noto Sans Arabic', 'Inter', sans-serif;
+        }
+
+        html[lang="ar"] .join-card,
+        html[lang="ar"] .join-sub,
+        html[lang="ar"] .join-label,
+        html[lang="ar"] .room-meta,
+        html[lang="ar"] .presence-names,
+        html[lang="ar"] .card,
+        html[lang="ar"] .user-panel,
+        html[lang="ar"] .status-control,
+        html[lang="ar"] .chat-msgs,
+        html[lang="ar"] .chat-input-area,
+        html[lang="ar"] .ambient-popover,
+        html[lang="ar"] .ambient-header,
+        html[lang="ar"] .ambient-list,
+        html[lang="ar"] .focus-summary-text,
+        html[lang="ar"] .card-title,
+        html[lang="ar"] .user-status-text,
+        html[lang="ar"] .status-preview,
+        html[lang="ar"] .media-state-panel,
+        html[lang="ar"] .media-state-text,
+        html[lang="ar"] .media-state-detail,
+        html[lang="ar"] .schedule-card,
+        html[lang="ar"] .schedule-meta,
+        html[lang="ar"] .schedule-stat {
+            direction: rtl;
+            text-align: right;
+        }
+
+        html[lang="ar"] input:not([data-force-ltr]) {
+            direction: rtl;
+            text-align: right;
+        }
+
+        html[lang="ar"] [data-force-ltr] {
+            direction: ltr;
+            text-align: left;
+        }
+
+        html[lang="ar"] #shared-board-card {
+            direction: ltr;
+            text-align: left;
+        }
+
+        html[lang="ar"] #shared-board-card .board-goal-label,
+        html[lang="ar"] #shared-board-card .todo-feedback,
+        html[lang="ar"] #shared-board-card .todo-empty,
+        html[lang="ar"] #shared-board-card .todo-text,
+        html[lang="ar"] #shared-board-card .card-title,
+        html[lang="ar"] #shared-board-card .card-sub {
+            direction: rtl;
+            text-align: right;
         }
 
         .room-meta {
@@ -78,6 +136,91 @@
             color: var(--text-sec);
             flex: 1;
             min-width: 180px;
+        }
+        .user-panel,
+        .status-control {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .user-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            font-weight: 700;
+        }
+        .user-count {
+            color: var(--text-sec);
+            font-weight: 600;
+        }
+        .user-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .user-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.45);
+            border: 1px solid rgba(255,255,255,0.4);
+        }
+        .user-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(0,0,0,0.15);
+            box-shadow: 0 0 0 4px rgba(120, 201, 255, 0.12);
+            flex: 0 0 auto;
+            margin-top: 0.4rem;
+        }
+        .user-dot.online {
+            background: #53d47a;
+        }
+        .user-body {
+            min-width: 0;
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .user-name-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .user-name {
+            font-weight: 700;
+            word-break: break-word;
+        }
+        .user-self {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 10px;
+            border-radius: 999px;
+            background: rgba(111, 144, 255, 0.14);
+            color: var(--accent);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+        .user-status-text,
+        .user-empty {
+            color: var(--text-sec);
+            font-size: 0.85rem;
+            line-height: 1.45;
+        }
+        .user-empty {
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.38);
+            border: 1px dashed rgba(0,0,0,0.08);
         }
 
         .join-overlay {
@@ -108,6 +251,10 @@
             border: 1px solid var(--border);
         }
         .join-icon { font-size: 2.5rem; }
+        .join-card .lang-switch {
+            align-self: flex-end;
+            margin-bottom: 4px;
+        }
         .join-sub { color: var(--text-sec); font-size: 0.9rem; line-height: 1.5; }
         .join-label { font-weight: 600; font-size: 0.85rem; }
         .join-input {
@@ -151,66 +298,45 @@
         .icon-btn { background: var(--bg-card); border: none; width: 40px; height: 40px; border-radius: 12px; color: var(--text-main); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-card); transition: 0.2s; font-size: 1.1rem; }
         .icon-btn:hover { transform: translateY(-2px); color: var(--accent); }
 
-        .lang-switch { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9rem; background: var(--bg-card); padding: 4px 12px; border-radius: 20px; box-shadow: var(--shadow-card); cursor: pointer; user-select: none; }
-        .lang-switch span { opacity: 0.4; transition: 0.2s; }
-        .lang-switch span.active { opacity: 1; color: var(--accent); }
-
-        /* --- Layout --- */
-        main { flex: 1; display: grid; grid-template-columns: 320px 1fr 320px; gap: 24px; padding: 10px 40px 30px 40px; overflow: hidden; }
-        .card { background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 24px; display: flex; flex-direction: column; height: 100%; overflow-y: auto; border: 1px solid var(--border); transition: 0.3s; scrollbar-width: thin; scrollbar-color: rgba(224,176,139,0.55) transparent; }
-        .card::-webkit-scrollbar { width: 8px; }
-        .card::-webkit-scrollbar-track { background: transparent; border-radius: 999px; }
-        .card::-webkit-scrollbar-thumb { background: linear-gradient(180deg, rgba(224,176,139,0.95), rgba(224,176,139,0.6)); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
-        .card::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(224,176,139,1), rgba(224,176,139,0.75)); }
-
-        .user-panel, .status-control { width: 100%; background: var(--bg-input); border-radius: 20px; border: 1px solid var(--border); padding: 18px; box-shadow: inset 0 2px 6px rgba(0,0,0,0.02); }
-        .user-panel { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
-        .user-panel-header { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 0.95rem; }
-        .user-count { color: var(--text-sec); font-size: 0.85rem; }
-        .user-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 8px; }
-        .user-item { display: flex; align-items: flex-start; gap: 10px; padding-bottom: 8px; border-bottom: 1px dashed var(--border); }
-        .user-item:last-child { border-bottom: none; padding-bottom: 0; }
-        .user-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
-        .user-dot.online { background: #1dd1a1; box-shadow: 0 0 0 3px rgba(29,209,161,0.15); }
-        .user-dot.offline { background: #b2bec3; box-shadow: 0 0 0 3px rgba(178,190,195,0.2); }
-        .user-body { flex: 1; min-width: 0; }
-        .user-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .user-name { font-weight: 600; font-size: 0.9rem; }
-        .user-self { font-size: 0.75rem; color: var(--accent); background: rgba(224,176,139,0.15); padding: 2px 8px; border-radius: 999px; }
-        .user-status-text { margin-top: 2px; font-size: 0.8rem; color: var(--text-sec); word-break: break-word; }
-        .user-empty { font-size: 0.85rem; color: var(--text-sec); text-align: center; padding: 12px 0; }
-
-        .status-control { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
-        .status-label { font-size: 0.9rem; font-weight: 600; }
-        .status-presets { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-        .status-btn { border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; background: var(--bg-card); font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s ease; color: var(--text-main); font-weight: 500; }
-        .status-btn.active { border-color: var(--accent); color: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .status-btn:hover { transform: translateY(-1px); }
-        .status-input { width: 100%; border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px; font-size: 0.9rem; background: var(--bg-card); transition: border 0.2s, box-shadow 0.2s; color: var(--text-main); }
-        .status-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-        .status-options { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 0.85rem; color: var(--text-sec); }
-        .status-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-        .status-toggle input { accent-color: var(--accent); }
-        .status-preview { font-size: 0.82rem; color: var(--text-main); padding: 8px 12px; background: var(--bg-input); border-radius: 12px; border: 1px dashed var(--border); font-weight: 500; }
-
-        /* --- Todo List --- */
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .card-title { font-size: 1.1rem; font-weight: 700; }
-        .progress-track { height: 6px; background: var(--bg-input); border-radius: 3px; margin-bottom: 20px; overflow: hidden; }
-        .progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 3px; transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
-
-        .todo-input-wrapper { background: var(--bg-input); border-radius: 16px; padding: 5px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; border: 1px solid transparent; transition: 0.3s; }
-        .todo-input-wrapper:focus-within { background: var(--bg-card); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-        .todo-input { flex: 1; border: none; background: transparent; padding: 10px; color: var(--text-main); font-size: 0.9rem; }
-        .btn-add { width: 32px; height: 32px; border-radius: 10px; border: none; background: var(--accent); color: white; cursor: pointer; flex-shrink: 0; }
-
-        .todo-list { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 4px; min-height: 0; }
-        
-        .todo-item {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 14px; display: flex; align-items: center; gap: 12px;
-            cursor: grab; position: relative; transition: all 0.2s ease;
-        }
+        .lang-switch { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9rem; background: var(--bg-card); padding: 4px 6px; border-radius: 20px; box-shadow: var(--shadow-card); user-select: none; }
+        .lang-option { border: none; background: transparent; color: var(--text-sec); padding: 4px 8px; border-radius: 14px; cursor: pointer; font: inherit; }
+        .lang-option.active { color: var(--accent); background: rgba(224,176,139,0.12); }
+        .board-goal-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+        .board-goal-label { font-size: 0.82rem; font-weight: 600; color: var(--text-sec); }
+        .board-goal-input,
+        .todo-input { width: 100%; border: 1px solid var(--border); border-radius: 16px; padding: 12px 16px; background: var(--bg-input); font-size: 0.95rem; color: var(--text-main); transition: border 0.2s, box-shadow 0.2s, background 0.2s; }
+        .board-goal-input:focus,
+        .todo-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); background: var(--bg-card); }
+        .board-goal-input:disabled,
+        .todo-input:disabled { opacity: 0.65; cursor: not-allowed; }
+        .schedule-card { margin-bottom: 16px; padding: 16px; border-radius: 20px; background: var(--bg-input); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+        .schedule-card[hidden] { display: none; }
+        .schedule-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .schedule-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .schedule-title { font-size: 0.82rem; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.06em; }
+        .schedule-subtitle { font-size: 0.95rem; font-weight: 600; color: var(--text-main); line-height: 1.4; }
+        .schedule-countdown { font-size: 0.9rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
+        .schedule-meta { font-size: 0.82rem; color: var(--text-sec); line-height: 1.5; }
+        .schedule-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .schedule-stat { padding: 10px 12px; border-radius: 16px; background: var(--bg-card); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+        .schedule-stat strong { font-size: 1.1rem; line-height: 1; }
+        .schedule-stat span { font-size: 0.78rem; color: var(--text-sec); }
+        .schedule-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+        .schedule-btn, .schedule-link { border: none; border-radius: 999px; padding: 9px 16px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: rgba(224,176,139,0.14); color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+        .schedule-btn:hover, .schedule-link:hover { background: rgba(224,176,139,0.22); }
+        .todo-input-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .btn-add { width: 42px; height: 42px; border: none; border-radius: 14px; background: var(--accent); color: #fff; font-size: 1.35rem; cursor: pointer; flex-shrink: 0; box-shadow: var(--shadow-card); }
+        .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+        .todo-priority-picker { display: flex; gap: 10px; margin: 0 0 12px 5px; }
+        .todo-priority-btn { border: none; background: transparent; padding: 0; cursor: pointer; }
+        .todo-priority-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .todo-priority-picker .color-dot { width: 16px; height: 16px; }
+        .todo-priority-picker .color-dot.active { transform: scale(1.3); }
+        .todo-feedback { min-height: 18px; font-size: 0.82rem; color: var(--prio-high); margin-bottom: 8px; }
+        .todo-list { display: flex; flex-direction: column; gap: 10px; min-height: 120px; overflow-y: auto; padding-right: 4px; }
+        .todo-empty { padding: 14px 16px; border-radius: 18px; border: 1px dashed var(--border); background: rgba(0,0,0,0.02); color: var(--text-sec); font-size: 0.88rem; }
+        .todo-item { display: flex; align-items: center; gap: 12px; background: var(--bg-input); border-radius: 18px; padding: 12px 14px; border: 1px solid transparent; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; cursor: grab; }
+        .todo-item-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; }
         .todo-item:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
         .todo-item.dragging { 
             opacity: 0.6; 
@@ -222,7 +348,11 @@
 
         .prio-line { width: 4px; height: 20px; border-radius: 2px; background: #ddd; }
         .check-circle { width: 20px; height: 20px; border: 2px solid var(--text-sec); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: 0.2s; }
-        .todo-text { font-size: 0.95rem; color: var(--text-main); transition: 0.3s; }
+        .check-circle:disabled { opacity: 0.5; cursor: not-allowed; }
+        .todo-text { flex: 1; min-width: 0; font-size: 0.95rem; color: var(--text-main); transition: 0.3s; word-break: break-word; }
+        .todo-delete { border: none; background: transparent; color: var(--text-sec); font-size: 1.1rem; line-height: 1; padding: 6px; border-radius: 10px; cursor: pointer; flex-shrink: 0; }
+        .todo-delete:hover { color: var(--prio-high); background: rgba(0,0,0,0.05); }
+        .todo-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .todo-item.done .check-circle { background: var(--accent); border-color: var(--accent); }
         .todo-item.done .check-circle::after { content: '✓'; color: white; font-size: 12px; }
@@ -231,6 +361,16 @@
         /* --- Timer & Video --- */
         .center-col { display: flex; flex-direction: column; gap: 20px; height: 100%; overflow: hidden; }
         .video-box { flex: 1; min-height: 280px; background: #000; border-radius: var(--radius-card); position: relative; display: flex; gap: 2px; overflow: hidden; padding: 2px; }
+        .video-box.sfu-mode .cam-feed { display: none; }
+        .sfu-frame { flex: 1; width: 100%; height: 100%; border: 0; border-radius: 20px; display: none; }
+        .video-box.sfu-mode .sfu-frame { display: block; }
+        .media-state-panel { position: absolute; right: 16px; bottom: 16px; max-width: min(340px, calc(100% - 32px)); border-radius: 18px; padding: 14px 16px; background: rgba(0,0,0,0.58); color: #fff; display: flex; flex-direction: column; gap: 8px; z-index: 3; backdrop-filter: blur(6px); }
+        .media-state-panel[hidden] { display: none; }
+        .media-state-text { font-size: 0.92rem; font-weight: 700; line-height: 1.4; }
+        .media-state-detail { font-size: 0.8rem; line-height: 1.5; opacity: 0.85; }
+        .media-state-detail[hidden] { display: none; }
+        .media-state-btn { align-self: flex-start; border: none; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: var(--accent); color: #fff; }
+        .media-state-btn[hidden] { display: none; }
         .cam-feed { flex: 1; background: #1a1a1a; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; position: relative; overflow: hidden; }
         .cam-feed video { width: 100%; height: 100%; object-fit: cover; border-radius: 20px; display: none; }
         .remote-grid { flex: 1; width: 100%; align-self: stretch; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); grid-auto-rows: minmax(180px, 1fr); gap: 12px; padding: 15px; box-sizing: border-box; align-content: stretch; justify-items: center; }
@@ -333,21 +473,27 @@
             .timer-main-row .focus-summary { width: 100%; min-width: auto; }
             .timer-main-row .focus-summary-text { flex-direction: column; align-items: flex-start; gap: 4px; }
             .timer-main-row .focus-summary strong { font-size: 1.5rem; }
+            .schedule-head { flex-direction: column; }
+            .schedule-stats { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
 <div class="join-overlay" id="join-overlay">
     <form class="join-card" id="join-form">
+        <div class="lang-switch" aria-label="Language selector">
+            <button type="button" class="lang-option active" data-lang-value="en">EN</button>
+            <button type="button" class="lang-option" data-lang-value="ar">AR</button>
+        </div>
         <div class="join-icon">📚</div>
-        <h2 data-lang="joinTitle">Join the co-study space</h2>
+        <h2 data-lang="joinTitle">Join the focus room</h2>
         <p class="join-sub" data-lang="joinSubtitle">Enter your nickname and room code to start focusing together.</p>
         <label class="join-label" for="join-name" data-lang="joinName">Your nickname</label>
-        <input type="text" id="join-name" class="join-input" maxlength="20" data-lang-placeholder="joinNamePlaceholder" placeholder="Name shown to others">
+        <input type="text" id="join-name" class="join-input" maxlength="20" autocomplete="nickname" data-lang-placeholder="joinNamePlaceholder" placeholder="Name shown to others">
         <label class="join-label" for="join-room" data-lang="joinRoom">Room code</label>
-        <input type="text" id="join-room" class="join-input" maxlength="10" data-lang-placeholder="joinRoomPlaceholder" placeholder="e.g. ABC123">
+        <input type="text" id="join-room" class="join-input" maxlength="10" autocomplete="off" data-force-ltr data-lang-placeholder="joinRoomPlaceholder" placeholder="e.g. ABC123">
         <label class="join-label" for="join-password" data-lang="joinPassword">Room password (if required)</label>
-        <input type="password" id="join-password" class="join-input" maxlength="64" data-lang-placeholder="joinPasswordPlaceholder" placeholder="Leave empty if no password">
+        <input type="password" id="join-password" class="join-input" maxlength="64" autocomplete="current-password" data-lang-placeholder="joinPasswordPlaceholder" placeholder="Leave empty if no password">
         <div class="join-error" id="join-error"></div>
         <button class="join-submit" type="submit" data-lang="joinButton">Enter room</button>
     </form>
@@ -363,17 +509,22 @@
             <div class="color-dot" style="background:#FAB1A0" onclick="setTheme('#FAB1A0', this)"></div>
             <div class="color-dot" style="background:#74B9FF" onclick="setTheme('#74B9FF', this)"></div>
         </div>
-        <div class="lang-switch" onclick="toggleLang()">
-            <span class="active" id="lang-cn">CN</span> / <span id="lang-en">EN</span>
+        <div class="lang-switch">
+            <button type="button" class="lang-option active" id="lang-en" data-lang-value="en">EN</button>
+            <button type="button" class="lang-option" id="lang-ar" data-lang-value="ar">AR</button>
         </div>
-        <button class="icon-btn" onclick="toggleDark()">🌙</button>
-        <button class="icon-btn" onclick="shareRoom()" style="background:var(--accent); color:white;">🔗</button>
+        <button class="icon-btn" id="theme-toggle" data-lang-title="themeToggleTitle" title="Toggle theme" onclick="toggleDark()">🌙</button>
+        <button class="icon-btn" id="share-room-btn" data-lang-title="shareRoomTitle" title="Share room link" onclick="shareRoom()" style="background:var(--accent); color:white;">🔗</button>
     </div>
 </header>
 <div class="room-meta">
     <div class="room-pill" id="room-pill">
         <span data-lang="roomLabel">Room</span>
         <strong id="room-code-val">---</strong>
+    </div>
+    <div class="room-pill" id="media-mode-pill">
+        <span data-lang="mediaModeLabel">Media</span>
+        <strong id="media-mode-value">Mesh room</strong>
     </div>
     <div class="room-pill" id="presence-pill">
         <span data-lang="onlineLabel">Online</span>
@@ -383,99 +534,145 @@
 </div>
 
 <main>
-    <div class="card">
+    <div class="card" id="shared-board-card">
         <div class="user-panel">
             <div class="user-panel-header">
-                <span data-lang="userListTitle">房间成员</span>
+                <span data-lang="userListTitle">Room members</span>
                 <span class="user-count">(<span id="user-list-count">0</span>)</span>
             </div>
             <div class="user-list" id="user-list"></div>
         </div>
         <div class="status-control">
-            <label class="status-label" data-lang="myStatus">我的状态</label>
+            <label class="status-label" data-lang="myStatus">My status</label>
             <div class="status-presets">
-                <button class="status-btn" type="button" data-status="meal">🍜 <span data-lang="statusMeal">吃饭中</span></button>
-                <button class="status-btn" type="button" data-status="away">🚶 <span data-lang="statusAway">暂时离开</span></button>
-                <button class="status-btn" type="button" data-status="studying">📖 <span data-lang="statusStudying">学习中</span></button>
-                <button class="status-btn" type="button" data-status="working">💼 <span data-lang="statusWorking">工作中</span></button>
+                <button class="status-btn" type="button" data-status="meal">🍜 <span data-lang="statusMeal">Meal break</span></button>
+                <button class="status-btn" type="button" data-status="away">🚶 <span data-lang="statusAway">Away</span></button>
+                <button class="status-btn" type="button" data-status="studying">📖 <span data-lang="statusStudying">Studying</span></button>
+                <button class="status-btn" type="button" data-status="working">💼 <span data-lang="statusWorking">Working</span></button>
             </div>
-            <input type="text" id="status-custom" class="status-input" maxlength="20" data-lang-placeholder="statusCustomPlaceholder" placeholder="自定义状态...">
+            <input type="text" id="status-custom" class="status-input" maxlength="20" data-lang-placeholder="statusCustomPlaceholder" placeholder="Custom status...">
             <div class="status-options">
                 <label class="status-toggle">
                     <input type="checkbox" id="status-auto-sync">
-                    <span data-lang="statusAutoSync">🔄 跟随计时器</span>
+                    <span data-lang="statusAutoSync">🔄 Sync with timer</span>
                 </label>
                 <label class="status-toggle">
                     <input type="checkbox" id="status-share" checked>
-                    <span data-lang="statusShare">🔒 与房间共享</span>
+                    <span data-lang="statusShare">🔒 Share with room</span>
                 </label>
             </div>
             <div class="status-preview" id="status-preview">--</div>
         </div>
+        <div class="schedule-card" id="schedule-card" hidden>
+            <div class="schedule-head">
+                <div class="schedule-copy">
+                    <span class="schedule-title" data-lang="scheduleCardTitle">Scheduled room</span>
+                    <div class="schedule-subtitle" id="schedule-subtitle"></div>
+                </div>
+                <div class="schedule-countdown" id="schedule-countdown"></div>
+            </div>
+            <div class="schedule-meta" id="schedule-meta"></div>
+            <div class="schedule-stats">
+                <div class="schedule-stat">
+                    <strong id="schedule-on-time">0</strong>
+                    <span data-lang="scheduleOnTimeStat">On time</span>
+                </div>
+                <div class="schedule-stat">
+                    <strong id="schedule-missed">0</strong>
+                    <span data-lang="scheduleMissedStat">Missed</span>
+                </div>
+                <div class="schedule-stat">
+                    <strong id="schedule-streak">0</strong>
+                    <span data-lang="scheduleStreakStat">Streak</span>
+                </div>
+            </div>
+            <div class="schedule-actions">
+                <button type="button" class="schedule-btn" id="schedule-calendar-btn" data-lang="scheduleAddCalendar">Add to calendar</button>
+                <a class="schedule-link" id="schedule-whatsapp-link" href="#" target="_blank" rel="noopener" data-lang="scheduleWhatsappInvite">WhatsApp invite</a>
+            </div>
+        </div>
+        <div class="board-goal-group">
+            <label class="board-goal-label" for="room-goal" data-lang="roomGoalLabel">Room goal</label>
+            <input type="text" class="board-goal-input" id="room-goal" maxlength="80" data-lang-placeholder="roomGoalPlaceholder" placeholder="What is everyone focusing on?">
+        </div>
         <div class="card-header">
-            <div class="card-title" data-lang="todoTitle">To-Do List</div>
+            <div class="card-title" data-lang="todoTitle">Shared board</div>
             <div class="card-sub"><span id="done-cnt">0</span>/<span id="total-cnt">0</span></div>
         </div>
         <div class="progress-track"><div class="progress-fill" id="prog-bar"></div></div>
 
         <div class="todo-input-wrapper">
-            <input type="text" class="todo-input" id="new-task" data-lang-placeholder="todoPlaceholder" placeholder="Add task...">
-            <button class="btn-add" onclick="addTask()">+</button>
+            <input type="text" class="todo-input" id="new-task" maxlength="120" data-lang-placeholder="todoPlaceholder" placeholder="Add shared task...">
+            <button class="btn-add" id="add-task-btn" type="button">+</button>
         </div>
-        <div style="display:flex; gap:10px; margin-bottom:15px; padding-left:5px;">
-            <div class="color-dot active" style="width:16px;height:16px;background:var(--prio-high)" onclick="setPrio(3, this)"></div>
-            <div class="color-dot" style="width:16px;height:16px;background:var(--prio-med)" onclick="setPrio(2, this)"></div>
-            <div class="color-dot" style="width:16px;height:16px;background:var(--prio-low)" onclick="setPrio(1, this)"></div>
+        <div class="todo-priority-picker" id="todo-priority-picker">
+            <button class="todo-priority-btn" type="button" data-priority="3" data-lang-title="priorityHigh" title="High priority" aria-label="High priority">
+                <span class="color-dot active" style="background:var(--prio-high)"></span>
+            </button>
+            <button class="todo-priority-btn" type="button" data-priority="2" data-lang-title="priorityMedium" title="Medium priority" aria-label="Medium priority">
+                <span class="color-dot" style="background:var(--prio-med)"></span>
+            </button>
+            <button class="todo-priority-btn" type="button" data-priority="1" data-lang-title="priorityLow" title="Low priority" aria-label="Low priority">
+                <span class="color-dot" style="background:var(--prio-low)"></span>
+            </button>
         </div>
+        <div class="todo-feedback" id="board-feedback"></div>
         <div class="todo-list" id="todo-list"></div>
     </div>
 
     <div class="center-col">
         <div class="video-box">
-            <div class="video-box-collapsed-banner" id="video-collapse-banner" hidden>📹 <span data-lang="videoCollapsedBanner">暂无视频流</span></div>
+            <div class="video-box-collapsed-banner" id="video-collapse-banner" hidden>📹 <span data-lang="videoCollapsedBanner">No video stream</span></div>
             <div class="cam-feed" id="local-cam">
                 <div class="status-badge"><div class="status-dot" id="ai-dot"></div><span data-lang="aiMonitor">AI Focus Monitor</span></div>
-                <div class="ai-status" id="ai-status-text">AI 准备就绪</div>
+                <div class="ai-status" id="ai-status-text">AI ready</div>
                 <video id="local-video" autoplay muted playsinline></video>
-                <div class="cam-placeholder" data-lang="camMe">My Camera</div>
+                <div class="cam-placeholder" data-lang="camMe">My camera</div>
                 <div class="cam-controls">
-                    <button class="cam-btn" id="camera-toggle">开启摄像头</button>
+                    <button class="cam-btn" id="camera-toggle" data-lang="cameraToggleOn">Enable camera</button>
                 </div>
             </div>
             <div class="cam-feed" id="remote-cam">
-                <div class="remote-name" id="remote-name" data-lang="camPeer">Peer Camera</div>
+                <div class="remote-name" id="remote-name" data-lang="camPeer">Peer camera</div>
                 <div class="remote-grid" id="remote-grid"></div>
                 <div class="cam-placeholder" id="remote-placeholder" data-lang="remoteWaiting">Waiting for your buddy to enable camera</div>
                 <div class="remote-status" id="remote-status"></div>
+            </div>
+            <iframe id="sfu-frame" class="sfu-frame"
+                    allow="camera; microphone; display-capture; fullscreen; autoplay"></iframe>
+            <div class="media-state-panel" id="media-state-panel" hidden>
+                <div class="media-state-text" id="media-state-text"></div>
+                <div class="media-state-detail" id="media-state-detail" hidden></div>
+                <button type="button" class="media-state-btn" id="media-retry-btn" data-lang="mediaRetry" hidden>Retry</button>
             </div>
         </div>
 
         <div class="timer-box">
             <div class="timer-tabs">
-                <div class="timer-tab active" id="tab-focus" data-lang="focusMode">Focus Mode</div>
-                <div class="timer-tab" id="tab-break" data-lang="breakMode">Break Mode</div>
+                <div class="timer-tab active" id="tab-focus" data-lang="focusMode">Focus mode</div>
+                <div class="timer-tab" id="tab-break" data-lang="breakMode">Break mode</div>
             </div>
 
             <div class="timer-main-row">
                 <div class="time-display" id="timer-disp">25:00</div>
                 <div class="focus-summary">
                     <div class="focus-summary-text">
-                        <span data-lang="focusTodayLabel">今日专注</span>
-                        <strong id="focus-total">00:00</strong>
+                        <span data-lang="focusTodayLabel">Today's focus</span>
+                        <strong id="focus-total">0 min</strong>
                     </div>
-                    <button type="button" class="focus-reset-btn" id="focus-reset-btn" data-lang="focusReset">重置</button>
+                    <button type="button" class="focus-reset-btn" id="focus-reset-btn" data-lang="focusReset">Reset</button>
                 </div>
             </div>
 
             <div class="timer-config-bar">
                 <div class="config-item">
                     <span data-lang="timerSet">Focus</span>:
-                    <input type="number" id="cfg-f" value="25" class="config-input"> m
+                    <input type="number" id="cfg-f" value="25" class="config-input"> <span data-lang="minutesShort">m</span>
                 </div>
                 <div style="width:1px; height:15px; background:#ccc; margin:0 5px;"></div>
                 <div class="config-item">
                     <span data-lang="timerBreak">Break</span>:
-                    <input type="number" id="cfg-b" value="5" class="config-input"> m
+                    <input type="number" id="cfg-b" value="5" class="config-input"> <span data-lang="minutesShort">m</span>
                 </div>
             </div>
 
@@ -487,7 +684,7 @@
     </div>
 
     <div class="card">
-        <div class="card-header"><div class="card-title" data-lang="chatTitle">Chat Room</div></div>
+        <div class="card-header"><div class="card-title" data-lang="chatTitle">Chat room</div></div>
         <div class="chat-container">
             <div class="chat-msgs" id="chat-msgs"></div>
             <form class="chat-input-area" id="chat-form">
@@ -496,25 +693,25 @@
             </form>
         </div>
         <div class="ambient-control">
-            <button id="ambient-toggle" class="ambient-btn" type="button">🎵 <span data-lang="ambientSound">环境音</span> ▼</button>
+            <button id="ambient-toggle" class="ambient-btn" type="button">🎵 <span data-lang="ambientSound">Ambient sound</span> ▼</button>
             <div id="ambient-popover" class="ambient-popover" hidden>
                 <div class="ambient-header">
-                    <span data-lang="ambientTitle">选择环境音</span>
+                    <span data-lang="ambientTitle">Choose ambient sound</span>
                     <label class="ambient-status-toggle">
                         <input type="checkbox" id="ambient-status-share" checked>
-                        <span data-lang="ambientShowStatus">同步到状态</span>
+                        <span data-lang="ambientShowStatus">Show in status</span>
                     </label>
                 </div>
                 <ul class="ambient-list" id="ambient-list">
-                    <li data-sound="rain"><span>🌧️</span> <span data-lang="soundRain">雨声</span></li>
-                    <li data-sound="forest"><span>🌲</span> <span data-lang="soundForest">森林</span></li>
-                    <li data-sound="fire"><span>🔥</span> <span data-lang="soundFire">篝火</span></li>
-                    <li data-sound="cafe"><span>☕</span> <span data-lang="soundCafe">咖啡馆</span></li>
-                    <li data-sound="ocean"><span>🌊</span> <span data-lang="soundOcean">海浪</span></li>
-                    <li data-sound="none" class="ambient-off"><span>✖️</span> <span data-lang="soundNone">关闭</span></li>
+                    <li data-sound="rain"><span>🌧️</span> <span data-lang="soundRain">Rain</span></li>
+                    <li data-sound="forest"><span>🌲</span> <span data-lang="soundForest">Forest</span></li>
+                    <li data-sound="fire"><span>🔥</span> <span data-lang="soundFire">Fireplace</span></li>
+                    <li data-sound="cafe"><span>☕</span> <span data-lang="soundCafe">Cafe</span></li>
+                    <li data-sound="ocean"><span>🌊</span> <span data-lang="soundOcean">Ocean</span></li>
+                    <li data-sound="none" class="ambient-off"><span>✖️</span> <span data-lang="soundNone">Off</span></li>
                 </ul>
                 <label class="ambient-volume">
-                    <span data-lang="ambientVolume">音量</span>
+                    <span data-lang="ambientVolume">Volume</span>
                     <input type="range" id="ambient-volume" min="0" max="1" step="0.05" value="0.5">
                 </label>
             </div>
@@ -524,7 +721,6 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-    // --- 1. 主题与配色 ---
     function setTheme(color, el) {
         document.documentElement.style.setProperty('--accent', color);
         document.documentElement.style.setProperty('--accent-glow', color + '4D');
@@ -538,15 +734,326 @@
         document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     }
 
-    const langDict = JSON.parse('{"cn": {"todoTitle": "\u5f85\u529e\u6e05\u5355", "chatTitle": "\u804a\u5929\u5ba4", "noiseTitle": "\u73af\u5883\u97f3", "camMe": "\u6211\u7684\u955c\u5934", "camPeer": "\u540c\u4f34\u955c\u5934", "aiMonitor": "AI \u667a\u80fd\u76d1\u7763", "focusMode": "\u4e13\u6ce8\u6a21\u5f0f", "breakMode": "\u4f11\u606f\u6a21\u5f0f", "todoPlaceholder": "\u6dfb\u52a0\u5f85\u529e...", "chatPlaceholder": "\u8f93\u5165\u6d88\u606f...", "timerSet": "\u4e13\u6ce8", "timerBreak": "\u4f11\u606f", "noiseRain": "\u96e8\u58f0", "noiseForest": "\u68ee\u6797", "noiseFire": "\u7bdd\u706b", "noiseCafe": "\u5496\u5561\u9986", "joinTitle": "\u52a0\u5165\u5171\u540c\u5b66\u4e60\u7a7a\u95f4", "joinSubtitle": "\u8f93\u5165\u60a8\u7684\u6635\u79f0\u548c\u623f\u95f4\u4ee3\u7801\uff0c\u5f00\u59cb\u96c6\u4e2d\u6ce8\u610f\u529b\u3002", "joinName": "\u4f60\u7684\u6635\u79f0", "joinNamePlaceholder": "\u5411\u4ed6\u4eba\u663e\u793a\u7684\u540d\u5b57", "joinRoom": "\u623f\u95f4\u4ee3\u7801", "joinRoomPlaceholder": "\u4f8b\u5982 ABC123", "joinPassword": "\u623f\u95f4\u5bc6\u7801\uff08\u5982\u9700\u8981\uff09", "joinPasswordPlaceholder": "\u65e0\u5bc6\u7801\u5219\u7559\u7a7a", "joinButton": "\u8fdb\u5165\u623f\u95f4", "roomLabel": "\u623f\u95f4", "onlineLabel": "\u5728\u7ebf", "presenceEmpty": "\u7b49\u5f85\u5c0f\u4f19\u4f34\u52a0\u5165...", "chatEmpty": "\u804a\u5929\u5185\u5bb9\u5c06\u5728\u8fd9\u91cc\u663e\u793a", "shareSuccess": "\u623f\u95f4\u94fe\u63a5\u5df2\u590d\u5236\uff01", "shareFallback": "\u590d\u5236\u6b64\u94fe\u63a5\u5e76\u5206\u4eab", "disconnectMsg": "\u8fde\u63a5\u4e22\u5931\uff0c\u6b63\u5728\u5c1d\u8bd5\u91cd\u65b0\u8fde\u63a5...", "joinNameError": "\u8bf7\u8f93\u5165\u6635\u79f0", "serviceError": "\u5b9e\u65f6\u670d\u52a1\u4e0d\u53ef\u7528", "connectError": "\u8fde\u63a5\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5", "joinFailed": "\u65e0\u6cd5\u52a0\u5165\uff0c\u8bf7\u91cd\u8bd5", "remoteWaiting": "\u7b49\u5f85\u540c\u4f34\u5f00\u542f\u6444\u50cf\u5934", "remoteOffline": "\u5bf9\u65b9\u6444\u50cf\u5934\u5df2\u5173\u95ed", "cameraToggleOn": "\u5f00\u542f\u6444\u50cf\u5934", "cameraToggleOff": "\u5173\u95ed\u6444\u50cf\u5934", "cameraToggleStarting": "\u6b63\u5728\u5f00\u542f...", "cameraError": "\u65e0\u6cd5\u8bbf\u95ee\u6444\u50cf\u5934", "aiReady": "AI \u51c6\u5907\u5c31\u7eea", "aiFocused": "\u72b6\u6001\uff1a\u4e13\u6ce8", "aiAway": "\u72b6\u6001\uff1a\u53ef\u80fd\u79bb\u5e2d", "aiNeedCamera": "\u5f00\u542f\u6444\u50cf\u5934\u4ee5\u542f\u7528 AI \u76d1\u7763", "aiUnsupported": "AI \u529f\u80fd\u6682\u4e0d\u652f\u6301\u5f53\u524d\u6d4f\u89c8\u5668", "userListTitle": "\u623f\u95f4\u6210\u5458", "myStatus": "\u6211\u7684\u72b6\u6001", "statusFocus": "\u4e13\u6ce8\u4e2d", "statusBreak": "\u4f11\u606f\u4e2d", "statusStudying": "\u5b66\u4e60\u4e2d", "statusWorking": "\u5de5\u4f5c\u4e2d", "statusMeal": "\u5403\u996d\u4e2d", "statusAway": "\u6682\u65f6\u79bb\u5f00", "statusAutoSync": "\ud83d\udd04 \u8ddf\u968f\u8ba1\u65f6\u5668", "statusShare": "\ud83d\udd12 \u4e0e\u623f\u95f4\u5171\u4eab", "statusCustomPlaceholder": "\u81ea\u5b9a\u4e49\u72b6\u6001...", "ambientSound": "\u73af\u5883\u97f3", "ambientTitle": "\u9009\u62e9\u73af\u5883\u97f3", "ambientShowStatus": "\u540c\u6b65\u5230\u72b6\u6001", "ambientVolume": "\u97f3\u91cf", "soundRain": "\u96e8\u58f0", "soundForest": "\u68ee\u6797", "soundFire": "\u7bdd\u706b", "soundCafe": "\u5496\u5561\u9986", "soundOcean": "\u6d77\u6d6a", "soundNone": "\u5173\u95ed", "soundListening": "\u8046\u542c", "videoCollapsedBanner": "\u6682\u65e0\u89c6\u9891\u6d41", "statusHidden": "\u672a\u5206\u4eab", "userJoined": "\u52a0\u5165\u4e86\u623f\u95f4", "userLeft": "\u79bb\u5f00\u4e86\u623f\u95f4", "focusTodayLabel": "\u4eca\u65e5\u4e13\u6ce8", "focusReset": "\u91cd\u7f6e"}, "en": {"todoTitle": "To-Do List", "chatTitle": "Chat Room", "noiseTitle": "Ambience", "camMe": "My Camera", "camPeer": "Peer Camera", "aiMonitor": "AI Focus Monitor", "focusMode": "Focus Mode", "breakMode": "Break Mode", "todoPlaceholder": "Add task...", "chatPlaceholder": "Type a message...", "timerSet": "Focus", "timerBreak": "Break", "noiseRain": "Rain", "noiseForest": "Forest", "noiseFire": "Fire", "noiseCafe": "Cafe", "joinTitle": "Join the co-study space", "joinSubtitle": "Enter your nickname and room code to start focusing together.", "joinName": "Your nickname", "joinNamePlaceholder": "Name shown to others", "joinRoom": "Room code", "joinRoomPlaceholder": "e.g. ABC123", "joinPassword": "Room password (if required)", "joinPasswordPlaceholder": "Leave empty if no password", "joinButton": "Enter room", "roomLabel": "Room", "onlineLabel": "Online", "presenceEmpty": "Waiting for friends to join...", "chatEmpty": "Messages will appear here", "shareSuccess": "Room link copied!", "shareFallback": "Copy this link and share it", "disconnectMsg": "Connection lost, attempting to reconnect...", "joinNameError": "Please enter a nickname", "serviceError": "Realtime service is unavailable", "connectError": "Connection failed, try again soon", "joinFailed": "Unable to join, please try again", "remoteWaiting": "Waiting for your buddy to enable camera", "remoteOffline": "Peer camera is offline", "cameraToggleOn": "Enable camera", "cameraToggleOff": "Disable camera", "cameraToggleStarting": "Starting...", "cameraError": "Unable to access the camera", "aiReady": "AI ready", "aiFocused": "Status: Focused", "aiAway": "Status: Possibly away", "aiNeedCamera": "Turn on the camera to enable AI monitoring", "aiUnsupported": "AI requires a newer browser", "userListTitle": "Room Members", "myStatus": "My Status", "statusFocus": "Focusing", "statusBreak": "On break", "statusStudying": "Studying", "statusWorking": "Working", "statusMeal": "Meal break", "statusAway": "Away", "statusAutoSync": "\ud83d\udd04 Auto sync with timer", "statusShare": "\ud83d\udd12 Share with room", "statusCustomPlaceholder": "Custom status...", "ambientSound": "Ambient", "ambientTitle": "Choose ambient sound", "ambientShowStatus": "Show in status", "ambientVolume": "Volume", "soundRain": "Rain", "soundForest": "Forest", "soundFire": "Fire", "soundCafe": "Cafe", "soundOcean": "Ocean", "soundNone": "Off", "soundListening": "Listening to", "videoCollapsedBanner": "No video stream", "statusHidden": "Not shared", "userJoined": "joined the room", "userLeft": "left the room", "focusTodayLabel": "Today\'s Focus", "focusReset": "Reset"}}');
-    let curLang = 'cn';
+    const LANG_STORAGE_KEY = 'coStudyLang';
+    const translations = {
+        en: {
+            pageTitle: 'Co-Study | Focus Room',
+            themeToggleTitle: 'Toggle theme',
+            shareRoomTitle: 'Share room link',
+            todoTitle: 'Shared board',
+            chatTitle: 'Chat Room',
+            noiseTitle: 'Ambience',
+            camMe: 'My camera',
+            camPeer: 'Peer camera',
+            aiMonitor: 'AI Focus Monitor',
+            focusMode: 'Focus mode',
+            breakMode: 'Break mode',
+            todoPlaceholder: 'Add shared task...',
+            roomGoalLabel: 'Room goal',
+            roomGoalPlaceholder: 'What is everyone focusing on?',
+            scheduleCardTitle: 'Scheduled room',
+            scheduleOnTimeStat: 'On time',
+            scheduleMissedStat: 'Missed',
+            scheduleStreakStat: 'Streak',
+            scheduleAddCalendar: 'Add to calendar',
+            scheduleWhatsappInvite: 'WhatsApp invite',
+            scheduleTimezoneLabel: 'Riyadh time',
+            scheduleNextLabel: 'Next session',
+            scheduleLiveLabel: 'Live now',
+            scheduleTimerPresetLabel: 'Timer',
+            scheduleCadenceOnce: 'One time',
+            scheduleCadenceWeekdays: 'Sun-Thu',
+            scheduleCadenceDaily: 'Daily',
+            scheduleCadenceWeekly: 'Weekly',
+            inviteShareTitle: 'Join my scheduled Co-Study room',
+            inviteRoomCodeLabel: 'Room code',
+            inviteNextLabel: 'Next session',
+            inviteCadenceLabel: 'Cadence',
+            sharedTaskEmpty: 'Shared tasks will appear here.',
+            todoDeleteTitle: 'Delete task',
+            priorityHigh: 'High priority',
+            priorityMedium: 'Medium priority',
+            priorityLow: 'Low priority',
+            chatPlaceholder: 'Type a message...',
+            timerSet: 'Focus',
+            timerBreak: 'Break',
+            minutesShort: 'm',
+            joinTitle: 'Join the focus room',
+            joinSubtitle: 'Enter your nickname and room code to start focusing together.',
+            joinName: 'Your nickname',
+            joinNamePlaceholder: 'Name shown to others',
+            joinRoom: 'Room code',
+            joinRoomPlaceholder: 'e.g. ABC123',
+            joinPassword: 'Room password (if required)',
+            joinPasswordPlaceholder: 'Leave empty if no password',
+            joinButton: 'Enter room',
+            roomLabel: 'Room',
+            mediaModeLabel: 'Media',
+            mediaModeMeshBadge: 'Mesh room',
+            mediaModeSfuBadge: 'Large room',
+            onlineLabel: 'Online',
+            presenceEmpty: 'Waiting for friends to join...',
+            chatEmpty: 'Messages will appear here',
+            shareSuccess: 'Room link copied.',
+            shareFallback: 'Copy this link and share it',
+            disconnectMsg: 'Connection lost. Trying to reconnect...',
+            joinNameError: 'Please enter a nickname.',
+            roomCodeError: 'Please enter a room code.',
+            serviceError: 'Realtime service is unavailable.',
+            connectError: 'Connection failed. Please try again shortly.',
+            joinFailed: 'Unable to join the room.',
+            roomNotFound: 'That room code does not exist.',
+            remoteWaiting: 'Waiting for your buddy to enable camera',
+            remoteOffline: 'Peer camera is offline',
+            cameraToggleOn: 'Enable camera',
+            cameraToggleOff: 'Disable camera',
+            cameraToggleStarting: 'Starting...',
+            cameraError: 'Unable to access the camera.',
+            aiReady: 'AI ready',
+            aiFocused: 'Status: focused',
+            aiAway: 'Status: possibly away',
+            aiNeedCamera: 'Turn on the camera to enable AI monitoring.',
+            aiUnsupported: 'AI monitoring needs a newer browser.',
+            userListTitle: 'Room members',
+            myStatus: 'My status',
+            statusFocus: 'Focusing',
+            statusBreak: 'On break',
+            statusStudying: 'Studying',
+            statusWorking: 'Working',
+            statusMeal: 'Meal break',
+            statusAway: 'Away',
+            statusAutoSync: '🔄 Sync with timer',
+            statusShare: '🔒 Share with room',
+            statusCustomPlaceholder: 'Custom status...',
+            ambientSound: 'Ambient sound',
+            ambientTitle: 'Choose ambient sound',
+            ambientShowStatus: 'Show in status',
+            ambientVolume: 'Volume',
+            soundRain: 'Rain',
+            soundForest: 'Forest',
+            soundFire: 'Fireplace',
+            soundCafe: 'Cafe',
+            soundOcean: 'Ocean',
+            soundNone: 'Off',
+            soundListening: 'Listening to',
+            videoCollapsedBanner: 'No video stream',
+            statusHidden: 'Hidden',
+            userJoined: 'joined the room',
+            userLeft: 'left the room',
+            focusTodayLabel: 'Today\'s focus',
+            focusReset: 'Reset',
+            meLabel: 'Me',
+            focusMinutesSuffix: 'min',
+            guestLabel: 'Guest',
+            roomNameRequired: 'Please enter a room name.',
+            roomCodeGenerationFailed: 'Could not generate a room code. Please try again.',
+            passwordHashFailed: 'Could not secure the room password right now.',
+            roomPasswordRequired: 'This room requires a password.',
+            roomPasswordMisconfigured: 'This room password is misconfigured.',
+            roomPasswordInvalid: 'The room password is incorrect.',
+            roomPasswordVerificationFailed: 'The room password could not be verified.',
+            usernameTaken: 'That nickname is already in use.',
+            roomNotJoined: 'Join a room first before sending messages.',
+            roomFull: 'This mesh room is full. Ask the host to create a large room.',
+            roomMediaUnavailable: 'Large-room media is unavailable on this deployment right now.',
+            roomMediaModeInvalid: 'That room media mode is not supported.',
+            messageRequired: 'Please enter a message.',
+            boardTaskRequired: 'Please enter a task.',
+            boardTaskNotFound: 'That task no longer exists.',
+            boardReorderInvalid: 'Could not reorder tasks. Refresh the board and try again.',
+            boardErrorGeneric: 'Board update failed.',
+            rateLimited: 'Too many attempts. Slow down and try again in a moment.',
+            mediaMeshConnecting: 'Connecting video...',
+            mediaMeshReconnecting: 'Reconnecting video...',
+            mediaMeshWeak: 'Weak connection detected',
+            mediaSfuLoading: 'Loading room media...',
+            mediaSfuManaged: 'Room media is handled in the embedded session.',
+            mediaSfuUnavailable: 'Room media unavailable.',
+            mediaRetry: 'Retry',
+            aiSfuUnavailable: 'AI focus monitoring is available in mesh rooms only.'
+        },
+        ar: {
+            pageTitle: 'كو-ستدي | غرفة تركيز',
+            themeToggleTitle: 'تبديل المظهر',
+            shareRoomTitle: 'مشاركة رابط الغرفة',
+            todoTitle: 'اللوحة المشتركة',
+            chatTitle: 'غرفة الدردشة',
+            noiseTitle: 'الأصوات المحيطة',
+            camMe: 'كاميرتي',
+            camPeer: 'كاميرا الشريك',
+            aiMonitor: 'مراقبة التركيز بالذكاء الاصطناعي',
+            focusMode: 'وضع التركيز',
+            breakMode: 'وضع الاستراحة',
+            todoPlaceholder: 'أضف مهمة مشتركة...',
+            roomGoalLabel: 'هدف الغرفة',
+            roomGoalPlaceholder: 'على ماذا سيركز الجميع؟',
+            scheduleCardTitle: 'غرفة مجدولة',
+            scheduleOnTimeStat: 'في الوقت',
+            scheduleMissedStat: 'مفوّت',
+            scheduleStreakStat: 'السلسلة',
+            scheduleAddCalendar: 'أضف إلى التقويم',
+            scheduleWhatsappInvite: 'دعوة واتساب',
+            scheduleTimezoneLabel: 'توقيت الرياض',
+            scheduleNextLabel: 'الجلسة القادمة',
+            scheduleLiveLabel: 'الجلسة جارية الآن',
+            scheduleTimerPresetLabel: 'المؤقت',
+            scheduleCadenceOnce: 'مرة واحدة',
+            scheduleCadenceWeekdays: 'الأحد - الخميس',
+            scheduleCadenceDaily: 'يوميًا',
+            scheduleCadenceWeekly: 'أسبوعيًا',
+            inviteShareTitle: 'انضم إلى غرفة Co-Study المجدولة',
+            inviteRoomCodeLabel: 'رمز الغرفة',
+            inviteNextLabel: 'الجلسة القادمة',
+            inviteCadenceLabel: 'التكرار',
+            sharedTaskEmpty: 'ستظهر المهام المشتركة هنا.',
+            todoDeleteTitle: 'حذف المهمة',
+            priorityHigh: 'أولوية عالية',
+            priorityMedium: 'أولوية متوسطة',
+            priorityLow: 'أولوية منخفضة',
+            chatPlaceholder: 'اكتب رسالة...',
+            timerSet: 'تركيز',
+            timerBreak: 'استراحة',
+            minutesShort: 'د',
+            joinTitle: 'الدخول إلى غرفة التركيز',
+            joinSubtitle: 'أدخل اسمك ورمز الغرفة لتبدأوا التركيز معاً.',
+            joinName: 'اسمك داخل الغرفة',
+            joinNamePlaceholder: 'الاسم الذي سيظهر للآخرين',
+            joinRoom: 'رمز الغرفة',
+            joinRoomPlaceholder: 'مثال: ABC123',
+            joinPassword: 'كلمة مرور الغرفة (عند الحاجة)',
+            joinPasswordPlaceholder: 'اتركها فارغة إذا لم تكن هناك كلمة مرور',
+            joinButton: 'الدخول إلى الغرفة',
+            roomLabel: 'الغرفة',
+            mediaModeLabel: 'الوسائط',
+            mediaModeMeshBadge: 'غرفة Mesh',
+            mediaModeSfuBadge: 'غرفة كبيرة',
+            onlineLabel: 'المتصلون',
+            presenceEmpty: 'في انتظار دخول بقية المجموعة...',
+            chatEmpty: 'ستظهر الرسائل هنا',
+            shareSuccess: 'تم نسخ رابط الغرفة.',
+            shareFallback: 'انسخ هذا الرابط وشاركه',
+            disconnectMsg: 'انقطع الاتصال. تتم محاولة إعادة الربط...',
+            joinNameError: 'فضلاً أدخل الاسم.',
+            roomCodeError: 'فضلاً أدخل رمز الغرفة.',
+            serviceError: 'خدمة الاتصال الفوري غير متاحة.',
+            connectError: 'فشل الاتصال. حاول مرة أخرى بعد قليل.',
+            joinFailed: 'تعذر دخول الغرفة.',
+            roomNotFound: 'رمز الغرفة هذا غير موجود.',
+            remoteWaiting: 'في انتظار أن يفعّل شريكك الكاميرا',
+            remoteOffline: 'كاميرا الشريك متوقفة',
+            cameraToggleOn: 'تشغيل الكاميرا',
+            cameraToggleOff: 'إيقاف الكاميرا',
+            cameraToggleStarting: 'جارٍ التشغيل...',
+            cameraError: 'تعذر الوصول إلى الكاميرا.',
+            aiReady: 'الذكاء الاصطناعي جاهز',
+            aiFocused: 'الحالة: مركز',
+            aiAway: 'الحالة: قد يكون مبتعداً',
+            aiNeedCamera: 'فعّل الكاميرا لتشغيل مراقبة التركيز.',
+            aiUnsupported: 'هذه الميزة تحتاج متصفحاً أحدث.',
+            userListTitle: 'أعضاء الغرفة',
+            myStatus: 'حالتي',
+            statusFocus: 'في تركيز',
+            statusBreak: 'في استراحة',
+            statusStudying: 'أذاكر',
+            statusWorking: 'أعمل',
+            statusMeal: 'استراحة طعام',
+            statusAway: 'مبتعد',
+            statusAutoSync: '🔄 مزامنة مع المؤقت',
+            statusShare: '🔒 مشاركة مع الغرفة',
+            statusCustomPlaceholder: 'حالة مخصصة...',
+            ambientSound: 'الصوت المحيط',
+            ambientTitle: 'اختر الصوت المحيط',
+            ambientShowStatus: 'إظهاره في الحالة',
+            ambientVolume: 'مستوى الصوت',
+            soundRain: 'مطر',
+            soundForest: 'غابة',
+            soundFire: 'مدفأة',
+            soundCafe: 'مقهى',
+            soundOcean: 'بحر',
+            soundNone: 'إيقاف',
+            soundListening: 'يستمع إلى',
+            videoCollapsedBanner: 'لا يوجد بث فيديو',
+            statusHidden: 'مخفي',
+            userJoined: 'دخل الغرفة',
+            userLeft: 'غادر الغرفة',
+            focusTodayLabel: 'تركيز اليوم',
+            focusReset: 'إعادة ضبط',
+            meLabel: 'أنا',
+            focusMinutesSuffix: 'دقيقة',
+            guestLabel: 'زائر',
+            roomNameRequired: 'فضلاً أدخل اسم الغرفة.',
+            roomCodeGenerationFailed: 'تعذر إنشاء رمز للغرفة. حاول مرة أخرى.',
+            passwordHashFailed: 'تعذر تأمين كلمة مرور الغرفة حالياً.',
+            roomPasswordRequired: 'هذه الغرفة تحتاج كلمة مرور.',
+            roomPasswordMisconfigured: 'إعداد كلمة المرور في هذه الغرفة غير صحيح.',
+            roomPasswordInvalid: 'كلمة مرور الغرفة غير صحيحة.',
+            roomPasswordVerificationFailed: 'تعذر التحقق من كلمة مرور الغرفة.',
+            usernameTaken: 'هذا الاسم مستخدم بالفعل.',
+            roomNotJoined: 'ادخل إلى غرفة أولاً قبل إرسال الرسائل.',
+            roomFull: 'غرفة الـ Mesh هذه ممتلئة. اطلب من المضيف إنشاء غرفة كبيرة.',
+            roomMediaUnavailable: 'وسائط الغرف الكبيرة غير متاحة في هذا النشر حالياً.',
+            roomMediaModeInvalid: 'وضع وسائط الغرفة هذا غير مدعوم.',
+            messageRequired: 'فضلاً اكتب رسالة.',
+            boardTaskRequired: 'فضلاً اكتب مهمة.',
+            boardTaskNotFound: 'هذه المهمة لم تعد موجودة.',
+            boardReorderInvalid: 'تعذر إعادة ترتيب المهام. حدّث اللوحة وحاول مرة أخرى.',
+            boardErrorGeneric: 'تعذر تحديث اللوحة.',
+            rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.',
+            mediaMeshConnecting: 'جارٍ توصيل الفيديو...',
+            mediaMeshReconnecting: 'جارٍ إعادة توصيل الفيديو...',
+            mediaMeshWeak: 'تم اكتشاف اتصال ضعيف',
+            mediaSfuLoading: 'جارٍ تحميل وسائط الغرفة...',
+            mediaSfuManaged: 'تتم إدارة وسائط الغرفة داخل الجلسة المضمنة.',
+            mediaSfuUnavailable: 'وسائط الغرفة غير متاحة.',
+            mediaRetry: 'إعادة المحاولة',
+            aiSfuUnavailable: 'مراقبة التركيز بالذكاء الاصطناعي متاحة في غرف الـ Mesh فقط.'
+        }
+    };
+    const langDict = translations;
+    const SERVER_ERROR_KEYS = {
+        ROOM_NAME_REQUIRED: 'roomNameRequired',
+        ROOM_CODE_GENERATION_FAILED: 'roomCodeGenerationFailed',
+        PASSWORD_HASH_FAILED: 'passwordHashFailed',
+        NICKNAME_REQUIRED: 'joinNameError',
+        ROOM_CODE_REQUIRED: 'roomCodeError',
+        ROOM_NOT_FOUND: 'roomNotFound',
+        ROOM_PASSWORD_REQUIRED: 'roomPasswordRequired',
+        ROOM_PASSWORD_MISCONFIGURED: 'roomPasswordMisconfigured',
+        ROOM_PASSWORD_INVALID: 'roomPasswordInvalid',
+        ROOM_PASSWORD_VERIFICATION_FAILED: 'roomPasswordVerificationFailed',
+        USERNAME_TAKEN: 'usernameTaken',
+        ROOM_NOT_JOINED: 'roomNotJoined',
+        ROOM_FULL: 'roomFull',
+        ROOM_MEDIA_UNAVAILABLE: 'roomMediaUnavailable',
+        ROOM_MEDIA_MODE_INVALID: 'roomMediaModeInvalid',
+        MESSAGE_REQUIRED: 'messageRequired',
+        RATE_LIMITED: 'rateLimited',
+        BOARD_TASK_REQUIRED: 'boardTaskRequired',
+        BOARD_TASK_NOT_FOUND: 'boardTaskNotFound',
+        BOARD_REORDER_INVALID: 'boardReorderInvalid'
+    };
+    const MEDIA_MODE_MESH = 'mesh';
+    const MEDIA_MODE_SFU = 'sfu';
+    const DEFAULT_MESH_PARTICIPANT_LIMIT = 4;
+    const SFU_LOAD_TIMEOUT_MS = 6000;
+    let curLang = getStoredLanguage();
 
+    const sharedBoardCard = document.getElementById('shared-board-card');
+    const roomGoalInput = document.getElementById('room-goal');
     const todoList = document.getElementById('todo-list');
+    const newTaskInput = document.getElementById('new-task');
+    const addTaskBtn = document.getElementById('add-task-btn');
+    const priorityButtons = document.querySelectorAll('.todo-priority-btn');
+    const boardFeedbackEl = document.getElementById('board-feedback');
+    const doneCountEl = document.getElementById('done-cnt');
+    const totalCountEl = document.getElementById('total-cnt');
+    const progressBarEl = document.getElementById('prog-bar');
     const chatMsgs = document.getElementById('chat-msgs');
     const chatInput = document.getElementById('chat-input');
     const chatSendBtn = document.getElementById('chat-send');
     const chatForm = document.getElementById('chat-form');
     const roomCodeVal = document.getElementById('room-code-val');
+    const mediaModeValueEl = document.getElementById('media-mode-value');
     const presenceCountEl = document.getElementById('presence-count');
     const presenceNamesEl = document.getElementById('presence-names');
     const joinOverlay = document.getElementById('join-overlay');
@@ -570,6 +1077,15 @@
     const statusShareToggle = document.getElementById('status-share');
     const statusPresetButtons = document.querySelectorAll('.status-btn');
     const statusPreviewEl = document.getElementById('status-preview');
+    const scheduleCardEl = document.getElementById('schedule-card');
+    const scheduleSubtitleEl = document.getElementById('schedule-subtitle');
+    const scheduleCountdownEl = document.getElementById('schedule-countdown');
+    const scheduleMetaEl = document.getElementById('schedule-meta');
+    const scheduleOnTimeEl = document.getElementById('schedule-on-time');
+    const scheduleMissedEl = document.getElementById('schedule-missed');
+    const scheduleStreakEl = document.getElementById('schedule-streak');
+    const scheduleCalendarBtn = document.getElementById('schedule-calendar-btn');
+    const scheduleWhatsappLink = document.getElementById('schedule-whatsapp-link');
     const ambientToggleBtn = document.getElementById('ambient-toggle');
     const ambientPopover = document.getElementById('ambient-popover');
     const ambientListEl = document.getElementById('ambient-list');
@@ -577,6 +1093,11 @@
     const ambientStatusShareToggle = document.getElementById('ambient-status-share');
     const videoBoxEl = document.querySelector('.video-box');
     const videoCollapseBanner = document.getElementById('video-collapse-banner');
+    const mediaStatePanel = document.getElementById('media-state-panel');
+    const mediaStateTextEl = document.getElementById('media-state-text');
+    const mediaStateDetailEl = document.getElementById('media-state-detail');
+    const mediaRetryBtn = document.getElementById('media-retry-btn');
+    const languageButtons = document.querySelectorAll('[data-lang-value]');
 
     let socket = null;
     let username = '';
@@ -588,13 +1109,44 @@
     const remoteCameraStates = new Map();
     const remoteVideoSlots = new Map();
     const pendingIceCandidates = new Map();
-    const STUN_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+    const DEFAULT_ICE_SERVERS = [
+        { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
+    ];
+    let rtcConfiguration = { iceServers: cloneIceServers(DEFAULT_ICE_SERVERS) };
+    let rtcConfigurationPromise = Promise.resolve(rtcConfiguration);
+    const DEFAULT_SCHEDULE_TIMEZONE = 'Asia/Riyadh';
+    const DEFAULT_SCHEDULE_CADENCE = 'weekdays';
+    const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000;
+    const SCHEDULE_DAY_MS = 24 * 60 * 60 * 1000;
+    const SCHEDULE_JOIN_EARLY_WINDOW_MS = 15 * 60 * 1000;
+    const MAX_SCHEDULE_LOOKAHEAD_MS = 370 * SCHEDULE_DAY_MS;
+    const MAX_SCHEDULE_ITERATIONS = 5000;
+    let runtimeConfig = {
+        sfuAvailable: false,
+        supportedMediaModes: [MEDIA_MODE_MESH],
+        meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT
+    };
+    let sfuBaseUrl = '';
+    let roomMediaMode = MEDIA_MODE_MESH;
+    let roomParticipantLimit = DEFAULT_MESH_PARTICIPANT_LIMIT;
+    let roomSchedule = null;
+    let scheduleCountdownTimer = null;
+    const sfuFrame = document.getElementById('sfu-frame');
+    const videoBox = document.querySelector('.video-box');
+    let sfuFrameLoadTimer = null;
+    let sfuFrameLoaded = false;
     let localStream = null;
     let cameraEnabled = false;
     let aiMonitorTimer = null;
     let aiDetector = null;
+    const BOARD_GOAL_MAX_LENGTH = 80;
+    const BOARD_TASK_MAX_LENGTH = 120;
     const STATUS_STORAGE_KEY = 'coStudyStatusState';
     const AMBIENT_STORAGE_KEY = 'coStudyAmbientState';
+    let selectedBoardPriority = 3;
+    let boardEnabled = false;
+    let boardFeedbackKey = '';
+    let boardState = { goal: '', tasks: [] };
     const STATUS_PRESET_MAP = { meal: 'statusMeal', away: 'statusAway', studying: 'statusStudying', working: 'statusWorking' };
     const statusState = { manualText: '', manualPreset: null, autoSync: false, isShared: true, lastUpdated: null };
     const ambientSoundState = { type: null, enabled: false, volume: 0.5, showInStatus: true, audio: null, cache: {} };
@@ -619,7 +1171,6 @@
     let focusStats = { date: null, totalSeconds: 0 };
     let focusStatsResetTimer = null;
 
-    // 客户端持久化ID，用于跨刷新识别同一用户
     const CLIENT_ID_STORAGE_KEY = 'coStudyClientId';
     let clientId = null;
 
@@ -631,7 +1182,6 @@
             clientId = null;
         }
         if (!clientId) {
-            // 生成唯一的客户端ID
             if (window.crypto && typeof window.crypto.randomUUID === 'function') {
                 clientId = window.crypto.randomUUID();
             } else {
@@ -644,14 +1194,10 @@
         return clientId;
     }
 
-    // 从 sessionStorage 获取房间密码（由 landing 页面设置）
-    // 或者从加入表单的密码输入框获取
     function getRoomPassword() {
-        // 首先尝试从表单获取
         if (joinPasswordInput && joinPasswordInput.value.trim()) {
             return joinPasswordInput.value.trim();
         }
-        // 然后尝试从 sessionStorage 获取（不删除，成功后再删除）
         try {
             return sessionStorage.getItem('coStudyRoomPassword') || '';
         } catch (_err) {
@@ -659,14 +1205,12 @@
         }
     }
 
-    // 清除已使用的 sessionStorage 密码
     function clearStoredPassword() {
         try {
             sessionStorage.removeItem('coStudyRoomPassword');
         } catch (_err) {}
     }
 
-    // 保存密码到 sessionStorage（用于刷新场景）
     function storeRoomPassword(value) {
         try {
             if (value) {
@@ -675,7 +1219,6 @@
         } catch (_err) {}
     }
 
-    // 从 sessionStorage 获取房间代码（不删除，成功后再删除）
     function getStoredRoomCode() {
         try {
             return sessionStorage.getItem('coStudyRoomCode') || '';
@@ -684,7 +1227,6 @@
         }
     }
 
-    // 清除已使用的 sessionStorage 房间代码
     function clearStoredRoomCode() {
         try {
             sessionStorage.removeItem('coStudyRoomCode');
@@ -698,34 +1240,835 @@
         console.log(`[${timestamp}] [${category}]`, message, data || '');
     }
 
+    function getStoredLanguage() {
+        try {
+            return localStorage.getItem(LANG_STORAGE_KEY) === 'ar' ? 'ar' : 'en';
+        } catch (_err) {
+            return 'en';
+        }
+    }
+
+    function setStoredLanguage(lang) {
+        try {
+            localStorage.setItem(LANG_STORAGE_KEY, lang);
+        } catch (_err) {}
+    }
+
+    function cloneIceServers(iceServers = []) {
+        return iceServers.map(serverEntry => ({
+            ...serverEntry,
+            urls: Array.isArray(serverEntry.urls) ? [...serverEntry.urls] : serverEntry.urls
+        }));
+    }
+
+    function fallbackRtcConfiguration() {
+        return { iceServers: cloneIceServers(DEFAULT_ICE_SERVERS) };
+    }
+
+    function sanitizeRuntimeIceServer(entry) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+
+        let urls = [];
+        if (typeof entry.urls === 'string') {
+            const trimmedUrl = entry.urls.trim();
+            if (trimmedUrl) urls = [trimmedUrl];
+        } else if (Array.isArray(entry.urls)) {
+            urls = entry.urls
+                .filter(value => typeof value === 'string')
+                .map(value => value.trim())
+                .filter(Boolean);
+        }
+
+        if (!urls.length) return null;
+
+        const sanitized = {
+            urls: typeof entry.urls === 'string' && urls.length === 1 ? urls[0] : urls
+        };
+        if (typeof entry.username === 'string' && entry.username.trim()) {
+            sanitized.username = entry.username.trim();
+        }
+        if (typeof entry.credential === 'string' && entry.credential.trim()) {
+            sanitized.credential = entry.credential.trim();
+        }
+        if (typeof entry.credentialType === 'string' && entry.credentialType.trim()) {
+            sanitized.credentialType = entry.credentialType.trim();
+        }
+
+        return sanitized;
+    }
+
+    function resolveRtcConfiguration(payload) {
+        if (!payload || !Array.isArray(payload.iceServers)) {
+            return fallbackRtcConfiguration();
+        }
+
+        const sanitizedIceServers = payload.iceServers
+            .map(sanitizeRuntimeIceServer)
+            .filter(Boolean);
+
+        if (!sanitizedIceServers.length) {
+            return fallbackRtcConfiguration();
+        }
+
+        return { iceServers: cloneIceServers(sanitizedIceServers) };
+    }
+
+    async function loadRtcConfiguration() {
+        const fallback = fallbackRtcConfiguration();
+        if (typeof fetch !== 'function') {
+            rtcConfiguration = fallback;
+            return rtcConfiguration;
+        }
+
+        try {
+            const response = await fetch('/api/runtime-config', {
+                headers: { Accept: 'application/json' }
+            });
+            if (!response.ok) {
+                throw new Error(`Runtime config request failed with ${response.status}`);
+            }
+            const payload = await response.json();
+            rtcConfiguration = resolveRtcConfiguration(payload);
+            applyRuntimeConfig(payload);
+            if (sfuBaseUrl) {
+                debugLog('SFU', 'SFU base URL configured', sfuBaseUrl);
+            }
+            debugLog('RTC-CONFIG', 'Loaded runtime ICE configuration', rtcConfiguration.iceServers);
+            return rtcConfiguration;
+        } catch (err) {
+            console.warn('Falling back to default ICE servers.', err);
+            debugLog('RTC-CONFIG', 'Using fallback ICE configuration', err.message);
+            rtcConfiguration = fallback;
+            applyRuntimeConfig();
+            return rtcConfiguration;
+        }
+    }
+
+    function ensureRtcConfigurationReady() {
+        return rtcConfigurationPromise.catch(() => rtcConfiguration);
+    }
+
+    function currentCopy() {
+        return translations[curLang] || translations.en;
+    }
+
+    function getErrorMessage(errorCode, fallbackKey) {
+        const key = SERVER_ERROR_KEYS[errorCode] || fallbackKey;
+        return currentCopy()[key] || currentCopy()[fallbackKey] || '';
+    }
+
+    function formatFocusMinutes(totalMinutes) {
+        return `${totalMinutes} ${currentCopy().focusMinutesSuffix}`;
+    }
+
+    function formatScheduleCadenceLabel(cadence) {
+        if (cadence === 'once') return currentCopy().scheduleCadenceOnce;
+        if (cadence === 'daily') return currentCopy().scheduleCadenceDaily;
+        if (cadence === 'weekly') return currentCopy().scheduleCadenceWeekly;
+        return currentCopy().scheduleCadenceWeekdays;
+    }
+
+    function formatRiyadhDateTime(timestamp) {
+        if (!timestamp) return '';
+        try {
+            return new Intl.DateTimeFormat(curLang === 'ar' ? 'ar-SA' : 'en-SA', {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+                timeZone: DEFAULT_SCHEDULE_TIMEZONE
+            }).format(new Date(timestamp));
+        } catch (_error) {
+            return new Date(timestamp).toISOString();
+        }
+    }
+
+    function formatCountdown(ms) {
+        const safeMs = Math.max(0, ms);
+        const totalSeconds = Math.floor(safeMs / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function clearScheduleCountdownTimer() {
+        if (!scheduleCountdownTimer) return;
+        clearInterval(scheduleCountdownTimer);
+        scheduleCountdownTimer = null;
+    }
+
+    function buildRoomLink(targetRoomId = roomId) {
+        return `${window.location.origin}/index.html?room=${encodeURIComponent(targetRoomId)}`;
+    }
+
+    function escapeIcsText(value) {
+        return `${value || ''}`
+            .replace(/\\/g, '\\\\')
+            .replace(/\r?\n/g, '\\n')
+            .replace(/,/g, '\\,')
+            .replace(/;/g, '\\;');
+    }
+
+    function formatUtcForIcs(timestamp) {
+        const date = new Date(timestamp);
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const hour = String(date.getUTCHours()).padStart(2, '0');
+        const minute = String(date.getUTCMinutes()).padStart(2, '0');
+        const second = String(date.getUTCSeconds()).padStart(2, '0');
+        return `${year}${month}${day}T${hour}${minute}${second}Z`;
+    }
+
+    function normalizeScheduleCadence(cadence) {
+        const normalized = typeof cadence === 'string' ? cadence.trim().toLowerCase() : DEFAULT_SCHEDULE_CADENCE;
+        return ['once', 'daily', 'weekly', 'weekdays'].includes(normalized) ? normalized : DEFAULT_SCHEDULE_CADENCE;
+    }
+
+    function parseScheduleDateString(value) {
+        if (typeof value !== 'string') return null;
+        const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return null;
+
+        const year = Number.parseInt(match[1], 10);
+        const month = Number.parseInt(match[2], 10);
+        const day = Number.parseInt(match[3], 10);
+        const probe = new Date(Date.UTC(year, month - 1, day));
+        if (
+            probe.getUTCFullYear() !== year
+            || probe.getUTCMonth() !== month - 1
+            || probe.getUTCDate() !== day
+        ) {
+            return null;
+        }
+
+        return { year, month, day };
+    }
+
+    function parseScheduleTimeString(value) {
+        if (typeof value !== 'string') return null;
+        const match = value.trim().match(/^(\d{2}):(\d{2})$/);
+        if (!match) return null;
+
+        const hour = Number.parseInt(match[1], 10);
+        const minute = Number.parseInt(match[2], 10);
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+            return null;
+        }
+
+        return { hour, minute };
+    }
+
+    function getRiyadhPartsFromTimestamp(timestamp) {
+        const date = new Date(timestamp + RIYADH_OFFSET_MS);
+        return {
+            year: date.getUTCFullYear(),
+            month: date.getUTCMonth() + 1,
+            day: date.getUTCDate(),
+            hour: date.getUTCHours(),
+            minute: date.getUTCMinutes(),
+            dayOfWeek: date.getUTCDay()
+        };
+    }
+
+    function getRiyadhDatePartsFromTimestamp(timestamp) {
+        const parts = getRiyadhPartsFromTimestamp(timestamp);
+        return {
+            year: parts.year,
+            month: parts.month,
+            day: parts.day,
+            dayOfWeek: parts.dayOfWeek
+        };
+    }
+
+    function timestampFromRiyadhParts(parts) {
+        return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour - 3, parts.minute, 0, 0);
+    }
+
+    function shiftRiyadhDate(parts, days) {
+        const probe = new Date(Date.UTC(parts.year, parts.month - 1, parts.day) + (days * SCHEDULE_DAY_MS));
+        return {
+            year: probe.getUTCFullYear(),
+            month: probe.getUTCMonth() + 1,
+            day: probe.getUTCDate(),
+            dayOfWeek: probe.getUTCDay()
+        };
+    }
+
+    function isSaudiWeekday(dayOfWeek) {
+        return dayOfWeek >= 0 && dayOfWeek <= 4;
+    }
+
+    function getScheduleStartTimestamp(schedule) {
+        const dateParts = parseScheduleDateString(schedule && schedule.startDate);
+        const timeParts = parseScheduleTimeString(schedule && schedule.startTime);
+        if (!dateParts || !timeParts) return null;
+        return timestampFromRiyadhParts({
+            year: dateParts.year,
+            month: dateParts.month,
+            day: dateParts.day,
+            hour: timeParts.hour,
+            minute: timeParts.minute
+        });
+    }
+
+    function getScheduleWindowMs(schedule) {
+        const focusMinutes = Number.parseInt(schedule && schedule.focusMinutes, 10) || 25;
+        const breakMinutes = Number.parseInt(schedule && schedule.breakMinutes, 10) || 5;
+        const explicitWindowMinutes = Number.parseInt(schedule && schedule.sessionWindowMinutes, 10) || 0;
+        return Math.max(30, explicitWindowMinutes || (focusMinutes + breakMinutes)) * 60 * 1000;
+    }
+
+    function getNextScheduleOccurrence(schedule, currentTimestamp) {
+        if (!schedule || currentTimestamp === null || currentTimestamp === undefined) {
+            return null;
+        }
+
+        const cadence = normalizeScheduleCadence(schedule.cadence);
+        if (cadence === 'once') {
+            return null;
+        }
+
+        const currentDate = getRiyadhDatePartsFromTimestamp(currentTimestamp);
+        const timeParts = parseScheduleTimeString(schedule.startTime);
+        if (!timeParts) {
+            return null;
+        }
+
+        if (cadence === 'daily') {
+            const nextDate = shiftRiyadhDate(currentDate, 1);
+            return timestampFromRiyadhParts({
+                ...nextDate,
+                hour: timeParts.hour,
+                minute: timeParts.minute
+            });
+        }
+
+        if (cadence === 'weekly') {
+            const nextDate = shiftRiyadhDate(currentDate, 7);
+            return timestampFromRiyadhParts({
+                ...nextDate,
+                hour: timeParts.hour,
+                minute: timeParts.minute
+            });
+        }
+
+        let nextDate = shiftRiyadhDate(currentDate, 1);
+        while (!isSaudiWeekday(nextDate.dayOfWeek)) {
+            nextDate = shiftRiyadhDate(nextDate, 1);
+        }
+        return timestampFromRiyadhParts({
+            ...nextDate,
+            hour: timeParts.hour,
+            minute: timeParts.minute
+        });
+    }
+
+    function fallbackScheduleRuntimeState(schedule = roomSchedule, now = Date.now()) {
+        if (!schedule) {
+            return {
+                isLive: false,
+                currentOccurrenceAt: null,
+                nextOccurrenceAt: null,
+                countdownTargetAt: null,
+                nextTargetAt: null
+            };
+        }
+
+        const durationMs = getScheduleWindowMs(schedule);
+        const activeStart = typeof schedule.currentOccurrenceAt === 'number'
+            ? schedule.currentOccurrenceAt
+            : (typeof schedule.countdownTargetAt === 'number' ? schedule.countdownTargetAt : null);
+
+        if (typeof activeStart === 'number' && now >= activeStart && now < activeStart + durationMs) {
+            return {
+                isLive: true,
+                currentOccurrenceAt: schedule.currentOccurrenceAt || activeStart,
+                nextOccurrenceAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null,
+                countdownTargetAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null,
+                nextTargetAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null
+            };
+        }
+
+        if (typeof activeStart === 'number' && now < activeStart) {
+            return {
+                isLive: false,
+                currentOccurrenceAt: typeof schedule.currentOccurrenceAt === 'number' ? schedule.currentOccurrenceAt : null,
+                nextOccurrenceAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null,
+                countdownTargetAt: activeStart,
+                nextTargetAt: activeStart
+            };
+        }
+
+        if (typeof schedule.nextOccurrenceAt === 'number' && schedule.nextOccurrenceAt > now) {
+            return {
+                isLive: false,
+                currentOccurrenceAt: null,
+                nextOccurrenceAt: schedule.nextOccurrenceAt,
+                countdownTargetAt: schedule.nextOccurrenceAt,
+                nextTargetAt: schedule.nextOccurrenceAt
+            };
+        }
+
+        return {
+            isLive: false,
+            currentOccurrenceAt: null,
+            nextOccurrenceAt: null,
+            countdownTargetAt: null,
+            nextTargetAt: null
+        };
+    }
+
+    function resolveScheduleRuntimeState(schedule = roomSchedule, now = Date.now()) {
+        if (!schedule) {
+            return fallbackScheduleRuntimeState(schedule, now);
+        }
+
+        const startedAt = getScheduleStartTimestamp(schedule);
+        if (startedAt === null) {
+            return fallbackScheduleRuntimeState(schedule, now);
+        }
+
+        const sessionWindowMs = getScheduleWindowMs(schedule);
+        let occurrenceAt = startedAt;
+        let iterations = 0;
+
+        while (
+            occurrenceAt !== null
+            && iterations < MAX_SCHEDULE_ITERATIONS
+            && occurrenceAt <= now + MAX_SCHEDULE_LOOKAHEAD_MS
+        ) {
+            const nextOccurrenceAt = getNextScheduleOccurrence(schedule, occurrenceAt);
+            const closeAt = nextOccurrenceAt || (occurrenceAt + sessionWindowMs);
+
+            if (now >= occurrenceAt - SCHEDULE_JOIN_EARLY_WINDOW_MS && now < closeAt) {
+                const isLive = now >= occurrenceAt && now < occurrenceAt + sessionWindowMs;
+                const nextTargetAt = now < occurrenceAt ? occurrenceAt : (nextOccurrenceAt || null);
+                return {
+                    isLive,
+                    currentOccurrenceAt: occurrenceAt,
+                    nextOccurrenceAt: nextOccurrenceAt || null,
+                    countdownTargetAt: nextTargetAt,
+                    nextTargetAt
+                };
+            }
+
+            if (occurrenceAt > now) {
+                return {
+                    isLive: false,
+                    currentOccurrenceAt: null,
+                    nextOccurrenceAt: occurrenceAt,
+                    countdownTargetAt: occurrenceAt,
+                    nextTargetAt: occurrenceAt
+                };
+            }
+
+            occurrenceAt = nextOccurrenceAt;
+            iterations += 1;
+        }
+
+        return fallbackScheduleRuntimeState(schedule, now);
+    }
+
+    function buildScheduleCalendarPayload() {
+        if (!roomSchedule || !roomId) return null;
+        const runtimeState = resolveScheduleRuntimeState(roomSchedule);
+        const startAt = runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
+        if (!startAt) return null;
+        const durationMinutes = Math.max(30, Number(roomSchedule.focusMinutes || 25) + Number(roomSchedule.breakMinutes || 5));
+        const endAt = startAt + (durationMinutes * 60 * 1000);
+        const link = buildRoomLink(roomId);
+        const lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Co-Study//Scheduled Room//EN',
+            'BEGIN:VEVENT',
+            `UID:${escapeIcsText((roomId || 'room').toLowerCase())}@co-study`,
+            `DTSTAMP:${formatUtcForIcs(Date.now())}`,
+            `SUMMARY:${escapeIcsText(roomSchedule.title || roomId || 'Co-Study Session')}`,
+            `DESCRIPTION:${escapeIcsText(`${currentCopy().inviteShareTitle}\n${currentCopy().inviteRoomCodeLabel}: ${roomId}\n${link}`)}`,
+            `URL:${escapeIcsText(link)}`,
+            `DTSTART:${formatUtcForIcs(startAt)}`,
+            `DTEND:${formatUtcForIcs(endAt)}`
+        ];
+        if (roomSchedule.cadence === 'daily') {
+            lines.push('RRULE:FREQ=DAILY');
+        } else if (roomSchedule.cadence === 'weekly') {
+            lines.push('RRULE:FREQ=WEEKLY');
+        } else if (roomSchedule.cadence === 'weekdays') {
+            lines.push('RRULE:FREQ=WEEKLY;BYDAY=SU,MO,TU,WE,TH');
+        }
+        lines.push('END:VEVENT', 'END:VCALENDAR');
+        return `${lines.join('\r\n')}\r\n`;
+    }
+
+    function downloadScheduleCalendar() {
+        const payload = buildScheduleCalendarPayload();
+        if (!payload) return;
+        const blob = new Blob([payload], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${(roomId || 'co-study-room').toLowerCase()}-schedule.ics`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function buildScheduleWhatsappLink() {
+        if (!roomSchedule || !roomId) return '#';
+        const runtimeState = resolveScheduleRuntimeState(roomSchedule);
+        const nextTarget = runtimeState.countdownTargetAt || runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
+        const lines = [
+            currentCopy().inviteShareTitle,
+            roomSchedule.title || roomId,
+            `${currentCopy().inviteRoomCodeLabel}: ${roomId}`
+        ];
+        if (nextTarget) {
+            lines.push(`${currentCopy().inviteNextLabel}: ${formatRiyadhDateTime(nextTarget)}`);
+        }
+        lines.push(`${currentCopy().inviteCadenceLabel}: ${formatScheduleCadenceLabel(roomSchedule.cadence)}`);
+        lines.push(buildRoomLink(roomId));
+        return `https://wa.me/?text=${encodeURIComponent(lines.filter(Boolean).join('\n'))}`;
+    }
+
+    function getScheduleRuntimeState(schedule = roomSchedule, now = Date.now()) {
+        return resolveScheduleRuntimeState(schedule, now);
+    }
+
+    function updateScheduleMeta(runtimeState = getScheduleRuntimeState(roomSchedule)) {
+        if (!scheduleMetaEl || !roomSchedule) return;
+
+        const metaBits = [
+            `${formatScheduleCadenceLabel(roomSchedule.cadence)} · ${currentCopy().scheduleTimezoneLabel}`,
+            `${currentCopy().scheduleTimerPresetLabel}: ${roomSchedule.focusMinutes || 25}/${roomSchedule.breakMinutes || 5}`
+        ];
+
+        if (runtimeState.isLive) {
+            metaBits.push(currentCopy().scheduleLiveLabel);
+        } else if (runtimeState.nextTargetAt) {
+            metaBits.push(`${currentCopy().scheduleNextLabel}: ${formatRiyadhDateTime(runtimeState.nextTargetAt)}`);
+        }
+
+        scheduleMetaEl.textContent = metaBits.join(' · ');
+        if (scheduleWhatsappLink) {
+            scheduleWhatsappLink.href = buildScheduleWhatsappLink();
+        }
+    }
+
+    function updateScheduleCountdown() {
+        if (!roomSchedule || !scheduleCountdownEl) return;
+        const runtimeState = getScheduleRuntimeState(roomSchedule);
+        updateScheduleMeta(runtimeState);
+        if (runtimeState.isLive) {
+            scheduleCountdownEl.textContent = currentCopy().scheduleLiveLabel;
+            return;
+        }
+        if (!runtimeState.nextTargetAt) {
+            scheduleCountdownEl.textContent = '';
+            return;
+        }
+        const diff = runtimeState.nextTargetAt - Date.now();
+        if (diff <= 0) {
+            scheduleCountdownEl.textContent = currentCopy().scheduleLiveLabel;
+            return;
+        }
+        scheduleCountdownEl.textContent = `${currentCopy().scheduleNextLabel}: ${formatCountdown(diff)}`;
+    }
+
+    function renderScheduleCard() {
+        if (!scheduleCardEl || !scheduleSubtitleEl || !scheduleMetaEl) return;
+        if (!roomSchedule) {
+            scheduleCardEl.hidden = true;
+            clearScheduleCountdownTimer();
+            if (scheduleWhatsappLink) scheduleWhatsappLink.href = '#';
+            return;
+        }
+
+        scheduleCardEl.hidden = false;
+        scheduleSubtitleEl.textContent = roomSchedule.title || `${formatScheduleCadenceLabel(roomSchedule.cadence)} · ${currentCopy().scheduleTimezoneLabel}`;
+        const runtimeState = getScheduleRuntimeState(roomSchedule);
+        updateScheduleMeta(runtimeState);
+        if (scheduleOnTimeEl) scheduleOnTimeEl.textContent = String(roomSchedule.attendance?.joinedOnTimeCount || 0);
+        if (scheduleMissedEl) scheduleMissedEl.textContent = String(roomSchedule.attendance?.missedCount || 0);
+        if (scheduleStreakEl) scheduleStreakEl.textContent = String(roomSchedule.attendance?.currentStreak || 0);
+        updateScheduleCountdown();
+        clearScheduleCountdownTimer();
+        scheduleCountdownTimer = setInterval(updateScheduleCountdown, 1000);
+    }
+
+    function applyScheduleDefaults(schedule) {
+        if (!schedule) return;
+        if (timerRunning) return;
+        const focusInput = document.getElementById('cfg-f');
+        const breakInput = document.getElementById('cfg-b');
+        if (focusInput && schedule.focusMinutes) {
+            focusInput.value = String(schedule.focusMinutes);
+        }
+        if (breakInput && schedule.breakMinutes) {
+            breakInput.value = String(schedule.breakMinutes);
+        }
+        resetTimer();
+    }
+
+    function normalizeMediaMode(mode) {
+        return mode === MEDIA_MODE_SFU ? MEDIA_MODE_SFU : MEDIA_MODE_MESH;
+    }
+
+    function getMeshParticipantLimit(limit = runtimeConfig.meshParticipantLimit) {
+        return Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_MESH_PARTICIPANT_LIMIT;
+    }
+
+    function isMeshRoom() {
+        return normalizeMediaMode(roomMediaMode) === MEDIA_MODE_MESH;
+    }
+
+    function isSfuRoom() {
+        return normalizeMediaMode(roomMediaMode) === MEDIA_MODE_SFU;
+    }
+
+    function formatMediaModeLabel(mode = roomMediaMode) {
+        return normalizeMediaMode(mode) === MEDIA_MODE_SFU
+            ? currentCopy().mediaModeSfuBadge
+            : currentCopy().mediaModeMeshBadge;
+    }
+
+    function setMediaState(messageKey = '', options = {}) {
+        if (!mediaStatePanel || !mediaStateTextEl || !mediaStateDetailEl || !mediaRetryBtn) return;
+        const detailKey = options.detailKey || '';
+        const showRetry = !!options.showRetry;
+
+        if (!messageKey && !detailKey) {
+            mediaStatePanel.hidden = true;
+            mediaStateTextEl.textContent = '';
+            mediaStateDetailEl.textContent = '';
+            mediaStateDetailEl.hidden = true;
+            mediaRetryBtn.hidden = true;
+            return;
+        }
+
+        mediaStatePanel.hidden = false;
+        mediaStateTextEl.textContent = messageKey ? (currentCopy()[messageKey] || '') : '';
+        mediaStateDetailEl.textContent = detailKey ? (currentCopy()[detailKey] || '') : '';
+        mediaStateDetailEl.hidden = !detailKey;
+        mediaRetryBtn.hidden = !showRetry;
+    }
+
+    function updateMediaModeBadge() {
+        if (!mediaModeValueEl) return;
+        mediaModeValueEl.textContent = formatMediaModeLabel();
+    }
+
+    function clearSfuFrameLoadTimer() {
+        if (!sfuFrameLoadTimer) return;
+        clearTimeout(sfuFrameLoadTimer);
+        sfuFrameLoadTimer = null;
+    }
+
+    function closeAllPeerConnections() {
+        peerConnections.forEach((pc) => pc.close());
+        peerConnections.clear();
+        pendingIceCandidates.clear();
+    }
+
+    function clearAllMeshMedia() {
+        closeAllPeerConnections();
+        remoteCameraStates.clear();
+        clearRemoteStream();
+    }
+
+    function disableCamera(options = {}) {
+        const { notify = true, preserveStatusText = false } = options;
+        if (!cameraEnabled && !localStream) {
+            if (!preserveStatusText && !isSfuRoom()) {
+                aiStatusEl.textContent = langDict[curLang].aiNeedCamera;
+            }
+            return;
+        }
+        cameraEnabled = false;
+        if (localVideo.srcObject) {
+            localVideo.srcObject.getTracks().forEach(track => track.stop());
+            localVideo.srcObject = null;
+        }
+        localVideo.style.display = 'none';
+        localStream = null;
+        if (notify && isMeshRoom()) {
+            notifyCameraStatus(false);
+        }
+        updateCameraToggleLabel();
+        updateRemotePlaceholder();
+        peerConnections.forEach((pc, peerId) => {
+            pc.getSenders().forEach(sender => {
+                if (sender.track && sender.track.kind === 'video') {
+                    try { sender.replaceTrack(null); } catch (_) {}
+                    try { pc.removeTrack(sender); } catch (_) {}
+                }
+            });
+            const meta = pc.__meta || {};
+            meta.recvonlyVideoTransceiver = null;
+            ensureRecvPlaceholder(pc, meta, peerId);
+        });
+        stopAiMonitor();
+        if (!preserveStatusText) {
+            aiStatusEl.textContent = isSfuRoom() ? langDict[curLang].aiSfuUnavailable : langDict[curLang].aiNeedCamera;
+        }
+    }
+
+    function unmountSfuFrame() {
+        clearSfuFrameLoadTimer();
+        sfuFrameLoaded = false;
+        if (sfuFrame) {
+            sfuFrame.onload = null;
+            sfuFrame.onerror = null;
+            sfuFrame.src = 'about:blank';
+        }
+        if (videoBox) {
+            videoBox.classList.remove('sfu-mode');
+        }
+        if (!isSfuRoom()) {
+            setMediaState('');
+        }
+    }
+
+    function applyRoomMediaMode(mode, options = {}) {
+        roomMediaMode = normalizeMediaMode(mode);
+        roomParticipantLimit = roomMediaMode === MEDIA_MODE_MESH
+            ? getMeshParticipantLimit(options.participantLimit)
+            : null;
+        updateMediaModeBadge();
+
+        if (isSfuRoom()) {
+            disableCamera({ notify: false, preserveStatusText: true });
+            clearAllMeshMedia();
+            if (videoBox) {
+                videoBox.classList.add('sfu-mode');
+            }
+            aiStatusEl.textContent = langDict[curLang].aiSfuUnavailable;
+            setAiDotState('neutral');
+            setMediaState('mediaSfuLoading', { detailKey: 'aiSfuUnavailable', showRetry: false });
+        } else {
+            unmountSfuFrame();
+            aiStatusEl.textContent = cameraEnabled ? langDict[curLang].aiReady : langDict[curLang].aiNeedCamera;
+            if (!cameraEnabled) {
+                setAiDotState('neutral');
+            }
+        }
+        updateCameraToggleLabel();
+    }
+
+    function applyJoinedRoom(room = {}) {
+        if (room.roomId) {
+            roomId = room.roomId;
+            joinRoomInput.value = room.roomId;
+        }
+        applyRoomMediaMode(room.mediaMode, { participantLimit: room.participantLimit });
+        roomSchedule = room.schedule || null;
+        applyScheduleDefaults(roomSchedule);
+        renderScheduleCard();
+        updateRoomBadge();
+    }
+
+    function applyRuntimeConfig(payload = {}) {
+        const trimmedSfuBaseUrl = typeof payload.sfuBaseUrl === 'string'
+            ? payload.sfuBaseUrl.trim().replace(/\/$/, '')
+            : '';
+        runtimeConfig = {
+            sfuAvailable: !!payload.sfuAvailable && !!trimmedSfuBaseUrl,
+            supportedMediaModes: Array.isArray(payload.supportedMediaModes) && payload.supportedMediaModes.length
+                ? payload.supportedMediaModes.map(normalizeMediaMode)
+                : [MEDIA_MODE_MESH],
+            meshParticipantLimit: getMeshParticipantLimit(payload.meshParticipantLimit)
+        };
+        roomParticipantLimit = isMeshRoom() ? getMeshParticipantLimit(roomParticipantLimit) : null;
+        sfuBaseUrl = runtimeConfig.sfuAvailable ? trimmedSfuBaseUrl : '';
+        updateMediaModeBadge();
+    }
+
+    function updateMeshConnectionState() {
+        if (!isMeshRoom()) return;
+        const pcs = [...peerConnections.values()];
+        const hasFailed = pcs.some((pc) => ['failed', 'disconnected'].includes(pc.connectionState) || ['failed', 'disconnected'].includes(pc.iceConnectionState));
+        if (hasFailed) {
+            setMediaState('mediaMeshReconnecting');
+            return;
+        }
+        const hasConnecting = pcs.some((pc) => ['new', 'connecting'].includes(pc.connectionState) || ['new', 'checking'].includes(pc.iceConnectionState));
+        if (hasConnecting) {
+            setMediaState('mediaMeshConnecting');
+            return;
+        }
+        const hasWeak = pcs.some((pc) => ['completed'].includes(pc.iceConnectionState) && pc.connectionState !== 'connected');
+        if (hasWeak) {
+            setMediaState('mediaMeshWeak');
+            return;
+        }
+        setMediaState('');
+    }
+
     function applyLanguage() {
-        document.getElementById('lang-cn').className = curLang === 'cn' ? 'active' : '';
-        document.getElementById('lang-en').className = curLang === 'en' ? 'active' : '';
+        const text = currentCopy();
+        document.documentElement.lang = curLang;
+        document.documentElement.dir = curLang === 'ar' ? 'rtl' : 'ltr';
+        document.body.dataset.lang = curLang;
+        document.title = text.pageTitle;
+
+        languageButtons.forEach((button) => {
+            button.classList.toggle('active', button.dataset.langValue === curLang);
+        });
+
         document.querySelectorAll('[data-lang]').forEach(el => {
             const key = el.dataset.lang;
-            if (langDict[curLang][key]) el.textContent = langDict[curLang][key];
+            if (text[key]) el.textContent = text[key];
         });
         document.querySelectorAll('[data-lang-placeholder]').forEach(el => {
             const key = el.dataset.langPlaceholder;
-            if (langDict[curLang][key]) el.placeholder = langDict[curLang][key];
+            if (text[key]) el.placeholder = text[key];
+        });
+        document.querySelectorAll('[data-lang-title]').forEach(el => {
+            const key = el.dataset.langTitle;
+            if (text[key]) {
+                el.title = text[key];
+                el.setAttribute('aria-label', text[key]);
+            }
         });
         updateRemotePlaceholder();
         const hasRemoteBuddy = hasRemoteBuddyOnline();
         if (!remoteVideoSlots.size && remoteStatusEl) {
-            remoteStatusEl.textContent = hasRemoteBuddy ? langDict[curLang].remoteOffline : '';
+            remoteStatusEl.textContent = hasRemoteBuddy ? text.remoteOffline : '';
         }
         updateCameraToggleLabel();
-        if (!cameraEnabled) {
-            aiStatusEl.textContent = aiDetector ? langDict[curLang].aiNeedCamera : langDict[curLang].aiUnsupported;
+        if (isSfuRoom()) {
+            aiStatusEl.textContent = text.aiSfuUnavailable;
+        } else if (!cameraEnabled) {
+            aiStatusEl.textContent = aiDetector ? text.aiNeedCamera : text.aiUnsupported;
         }
         updateRemoteNameLabel();
         updateRoomBadge();
+        updateMediaModeBadge();
+        if (!mediaStatePanel.hidden && mediaStateTextEl.textContent) {
+            if (isSfuRoom() && sfuFrameLoaded) {
+                setMediaState('mediaSfuManaged', { detailKey: 'aiSfuUnavailable' });
+            } else if (isSfuRoom()) {
+                setMediaState('mediaSfuLoading', { detailKey: 'aiSfuUnavailable' });
+            } else {
+                updateMeshConnectionState();
+            }
+        }
         updatePresenceList();
+        updateFocusSummary();
+        renderScheduleCard();
+        renderBoardFeedback();
+        renderBoard({ preserveGoalDraft: isBoardGoalFocused() });
         const placeholder = chatMsgs.querySelector('[data-placeholder]');
-        if (placeholder) placeholder.textContent = langDict[curLang].chatEmpty;
+        if (placeholder) placeholder.textContent = text.chatEmpty;
         applyStatusLanguage();
-        // Re-render system messages with current language
         updateChatSystemMessages();
+    }
+
+    function setLanguage(lang) {
+        curLang = lang === 'ar' ? 'ar' : 'en';
+        setStoredLanguage(curLang);
+        applyLanguage();
     }
 
     function updateChatSystemMessages() {
@@ -740,14 +2083,8 @@
         });
     }
 
-    function toggleLang() {
-        curLang = curLang === 'cn' ? 'en' : 'cn';
-        applyLanguage();
-    }
-
-    // --- Status & Ambient Helpers ---
     function getSelfLabel() {
-        return curLang === 'cn' ? '我' : 'Me';
+        return currentCopy().meLabel;
     }
 
     function getPresetLabel(preset) {
@@ -780,7 +2117,6 @@
             return;
         }
         const text = buildStatusText();
-        // 如果没有任何状态内容，就不显示任何东西（空字符串），而不是显示 '--'
         statusPreviewEl.textContent = text || '';
     }
 
@@ -923,7 +2259,7 @@
             nameRow.className = 'user-name-row';
             const nameEl = document.createElement('span');
             nameEl.className = 'user-name';
-            nameEl.textContent = record.name || 'Guest';
+            nameEl.textContent = record.name || currentCopy().guestLabel;
             nameRow.appendChild(nameEl);
             if (selfId && record.id === selfId) {
                 const tag = document.createElement('span');
@@ -1111,7 +2447,7 @@
         ensureFocusStatsFresh();
         const total = Math.max(0, focusStats.totalSeconds || 0);
         const totalMinutes = Math.floor(total / 60);
-        focusTotalEl.textContent = `${totalMinutes}分钟`;
+        focusTotalEl.textContent = formatFocusMinutes(totalMinutes);
     }
 
     function saveFocusStats() {
@@ -1169,68 +2505,246 @@
         scheduleFocusStatsReset();
     }
 
-    // --- 2. 待办任务 ---
-    let curPrio = 3;
-
-    function setPrio(val, el) {
-        curPrio = val;
-        el.parentElement.querySelectorAll('.color-dot').forEach(d => d.style.transform = 'scale(1)');
-        el.style.transform = 'scale(1.3)';
+    function createEmptyBoardState() {
+        return { goal: '', tasks: [] };
     }
 
-    function addTask() {
-        const input = document.getElementById('new-task');
-        if(!input.value.trim()) return;
-        const div = document.createElement('div');
-        div.className = 'todo-item';
-        div.draggable = true;
-        div.dataset.prio = curPrio;
-        const color = curPrio===3 ? 'var(--prio-high)' : (curPrio===2 ? 'var(--prio-med)' : 'var(--prio-low)');
-        div.innerHTML = `
-            <div class="prio-line" style="background:${color}"></div>
-            <div class="check-circle" onclick="toggleDone(this)"></div>
-            <span class="todo-text">${input.value}</span>
-        `;
-        div.addEventListener('dragstart', () => div.classList.add('dragging'));
-        div.addEventListener('dragend', () => div.classList.remove('dragging'));
-        const items = [...todoList.children];
-        let inserted = false;
-        for (let item of items) {
-            const itemPrio = parseInt(item.dataset.prio || 0, 10);
-            if (curPrio > itemPrio) {
-                todoList.insertBefore(div, item);
-                inserted = true;
-                break;
-            }
+    function normalizeBoardTask(task = {}) {
+        const text = typeof task.text === 'string' ? task.text.trim().slice(0, BOARD_TASK_MAX_LENGTH) : '';
+        if (!text) return null;
+        const priority = [1, 2, 3].includes(Number(task.priority)) ? Number(task.priority) : 2;
+        const fallbackId = `board-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        return {
+            id: typeof task.id === 'string' && task.id.trim() ? task.id.trim() : fallbackId,
+            text,
+            priority,
+            done: !!task.done
+        };
+    }
+
+    function normalizeBoardState(board = {}) {
+        const goal = typeof board.goal === 'string' ? board.goal.trim().slice(0, BOARD_GOAL_MAX_LENGTH) : '';
+        const tasks = Array.isArray(board.tasks) ? board.tasks.map(normalizeBoardTask).filter(Boolean) : [];
+        return { goal, tasks };
+    }
+
+    function renderBoardFeedback() {
+        if (!boardFeedbackEl) return;
+        boardFeedbackEl.textContent = boardFeedbackKey ? (currentCopy()[boardFeedbackKey] || currentCopy().boardErrorGeneric || '') : '';
+    }
+
+    function setBoardFeedbackKey(key = '') {
+        boardFeedbackKey = key || '';
+        renderBoardFeedback();
+    }
+
+    function clearBoardFeedback() {
+        setBoardFeedbackKey('');
+    }
+
+    function isBoardGoalFocused() {
+        return document.activeElement === roomGoalInput;
+    }
+
+    function updateBoardPriorityUI() {
+        priorityButtons.forEach((button) => {
+            const dot = button.querySelector('.color-dot');
+            const isActive = Number(button.dataset.priority) === selectedBoardPriority;
+            if (dot) dot.classList.toggle('active', isActive);
+        });
+    }
+
+    function setBoardPriority(priority) {
+        selectedBoardPriority = [1, 2, 3].includes(Number(priority)) ? Number(priority) : 2;
+        updateBoardPriorityUI();
+    }
+
+    function getBoardPriorityColor(priority) {
+        if (priority === 3) return 'var(--prio-high)';
+        if (priority === 1) return 'var(--prio-low)';
+        return 'var(--prio-med)';
+    }
+
+    function updateBoardStats() {
+        const total = boardState.tasks.length;
+        const done = boardState.tasks.filter((task) => task.done).length;
+        if (totalCountEl) totalCountEl.textContent = String(total);
+        if (doneCountEl) doneCountEl.textContent = String(done);
+        if (progressBarEl) progressBarEl.style.width = `${total ? (done / total) * 100 : 0}%`;
+    }
+
+    function buildBoardTaskNode(task) {
+        const item = document.createElement('div');
+        item.className = `todo-item${task.done ? ' done' : ''}`;
+        item.draggable = boardEnabled;
+        item.dataset.taskId = task.id;
+        item.dataset.prio = String(task.priority);
+
+        const main = document.createElement('div');
+        main.className = 'todo-item-main';
+
+        const prioLine = document.createElement('div');
+        prioLine.className = 'prio-line';
+        prioLine.style.background = getBoardPriorityColor(task.priority);
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'check-circle';
+        toggleBtn.disabled = !boardEnabled;
+        toggleBtn.addEventListener('click', () => toggleBoardTask(task.id, !task.done));
+
+        const text = document.createElement('span');
+        text.className = 'todo-text';
+        text.textContent = task.text;
+
+        main.appendChild(prioLine);
+        main.appendChild(toggleBtn);
+        main.appendChild(text);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'todo-delete';
+        deleteBtn.textContent = '×';
+        deleteBtn.disabled = !boardEnabled;
+        deleteBtn.title = currentCopy().todoDeleteTitle;
+        deleteBtn.setAttribute('aria-label', currentCopy().todoDeleteTitle);
+        deleteBtn.addEventListener('click', () => deleteBoardTask(task.id));
+
+        item.appendChild(main);
+        item.appendChild(deleteBtn);
+
+        if (boardEnabled) {
+            item.addEventListener('dragstart', () => item.classList.add('dragging'));
+            item.addEventListener('dragend', () => {
+                item.classList.remove('dragging');
+                syncBoardOrderFromDom();
+            });
         }
-        if (!inserted) todoList.appendChild(div);
-        input.value = '';
-        updateStats();
+
+        return item;
     }
 
-    function toggleDone(btn) {
-        const item = btn.parentElement;
-        item.classList.toggle('done');
-        updateStats();
+    function renderBoard(options = {}) {
+        if (!todoList) return;
+        const preserveGoalDraft = options.preserveGoalDraft === true;
+        if (roomGoalInput && !preserveGoalDraft) {
+            roomGoalInput.value = boardState.goal;
+        }
+        todoList.innerHTML = '';
+        if (!boardState.tasks.length) {
+            const empty = document.createElement('div');
+            empty.className = 'todo-empty';
+            empty.textContent = currentCopy().sharedTaskEmpty;
+            todoList.appendChild(empty);
+        } else {
+            boardState.tasks.forEach((task) => todoList.appendChild(buildBoardTaskNode(task)));
+        }
+        updateBoardStats();
+        updateBoardPriorityUI();
     }
 
-    function updateStats() {
-        const all = document.querySelectorAll('.todo-item');
-        const done = document.querySelectorAll('.todo-item.done');
-        document.getElementById('total-cnt').textContent = all.length;
-        document.getElementById('done-cnt').textContent = done.length;
-        document.getElementById('prog-bar').style.width = (all.length ? (done.length/all.length*100) : 0) + '%';
+    function setBoardState(nextBoard, options = {}) {
+        boardState = normalizeBoardState(nextBoard);
+        renderBoard(options);
     }
 
-    todoList.addEventListener('dragover', e => {
-        e.preventDefault();
-        const afterEl = getDragAfterElement(todoList, e.clientY);
-        const dragging = document.querySelector('.dragging');
-        if (dragging) {
+    function setBoardEnabled(enabled) {
+        boardEnabled = !!enabled;
+        if (sharedBoardCard) sharedBoardCard.classList.toggle('is-disabled', !boardEnabled);
+        if (roomGoalInput) roomGoalInput.disabled = !boardEnabled;
+        if (newTaskInput) newTaskInput.disabled = !boardEnabled;
+        if (addTaskBtn) addTaskBtn.disabled = !boardEnabled;
+        priorityButtons.forEach((button) => {
+            button.disabled = !boardEnabled;
+        });
+        renderBoard({ preserveGoalDraft: isBoardGoalFocused() });
+        if (!boardEnabled) clearBoardFeedback();
+    }
+
+    function resetBoardState() {
+        boardState = createEmptyBoardState();
+        renderBoard();
+        setBoardEnabled(false);
+    }
+
+    function emitBoardMutation(eventName, payload, options = {}) {
+        if (!socket || !roomId || !boardEnabled) return;
+        socket.emit(eventName, payload, (ack = {}) => {
+            if (ack.ok) {
+                clearBoardFeedback();
+                return;
+            }
+            setBoardFeedbackKey(SERVER_ERROR_KEYS[ack.errorCode] || options.fallbackKey || 'boardErrorGeneric');
+            if (typeof options.onError === 'function') {
+                options.onError(ack);
+            }
+        });
+    }
+
+    function commitBoardGoal() {
+        if (!roomGoalInput || !boardEnabled) return;
+        const goal = roomGoalInput.value.trim().slice(0, BOARD_GOAL_MAX_LENGTH);
+        roomGoalInput.value = goal;
+        if (goal === boardState.goal) return;
+        emitBoardMutation('board-set-goal', { goal }, { fallbackKey: 'boardErrorGeneric' });
+    }
+
+    function addBoardTask() {
+        if (!newTaskInput || !boardEnabled) return;
+        const text = newTaskInput.value.trim().slice(0, BOARD_TASK_MAX_LENGTH);
+        if (!text) {
+            setBoardFeedbackKey('boardTaskRequired');
+            return;
+        }
+        newTaskInput.value = '';
+        emitBoardMutation('board-add-task', { text, priority: selectedBoardPriority }, {
+            fallbackKey: 'boardErrorGeneric',
+            onError: () => {
+                newTaskInput.value = text;
+            }
+        });
+    }
+
+    function toggleBoardTask(taskId, done) {
+        emitBoardMutation('board-toggle-task', { taskId, done }, { fallbackKey: 'boardErrorGeneric' });
+    }
+
+    function deleteBoardTask(taskId) {
+        emitBoardMutation('board-delete-task', { taskId }, { fallbackKey: 'boardErrorGeneric' });
+    }
+
+    function syncBoardOrderFromDom() {
+        if (!todoList || !socket || !roomId || !boardEnabled) return;
+        const orderedTaskIds = [...todoList.querySelectorAll('.todo-item')].map((item) => item.dataset.taskId).filter(Boolean);
+        const currentOrder = boardState.tasks.map((task) => task.id);
+        if (orderedTaskIds.length !== currentOrder.length) {
+            renderBoard();
+            return;
+        }
+        if (orderedTaskIds.every((taskId, index) => taskId === currentOrder[index])) {
+            return;
+        }
+        socket.emit('board-reorder-tasks', { taskIds: orderedTaskIds }, (ack = {}) => {
+            if (ack.ok) {
+                clearBoardFeedback();
+                return;
+            }
+            setBoardFeedbackKey(SERVER_ERROR_KEYS[ack.errorCode] || 'boardErrorGeneric');
+            renderBoard();
+        });
+    }
+
+    if (todoList) {
+        todoList.addEventListener('dragover', (event) => {
+            if (!boardEnabled) return;
+            event.preventDefault();
+            const afterEl = getDragAfterElement(todoList, event.clientY);
+            const dragging = todoList.querySelector('.dragging');
+            if (!dragging) return;
             if (afterEl == null) todoList.appendChild(dragging);
             else todoList.insertBefore(dragging, afterEl);
-        }
-    });
+        });
+    }
 
     function getDragAfterElement(container, y) {
         const draggableElements = [...container.querySelectorAll('.todo-item:not(.dragging)')];
@@ -1242,7 +2756,6 @@
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
-    // --- 3. 计时器 ---
     let timer = null;
     let mode = 'focus';
     let timeLeft = 25 * 60;
@@ -1274,7 +2787,6 @@
                     timeLeft--;
                     updateDisp();
                 } else {
-                    // 播放提示音：专注时间结束播放workend，休息时间结束播放breakend
                     const notificationType = mode === 'focus' ? 'focusEnd' : 'breakEnd';
                     playTimerNotification(notificationType);
 
@@ -1304,7 +2816,6 @@
         refreshStatusState();
     }
 
-    // --- 4. 房间通信 ---
     function generateRoomCode() {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         return Array.from({length: 6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
@@ -1312,6 +2823,7 @@
 
     function updateRoomBadge() {
         roomCodeVal.textContent = roomId || '---';
+        updateMediaModeBadge();
     }
 
     function updatePresenceText() {
@@ -1342,6 +2854,9 @@
         }
         updateRemoteNameLabel();
         renderUserList();
+        if (!isMeshRoom()) {
+            return;
+        }
         const myId = socket && socket.id;
         if (socket) {
             list.forEach(p => {
@@ -1374,6 +2889,7 @@
                 clearRemoteStream(id);
             }
         });
+        updateMeshConnectionState();
     }
 
     function getRemoteDisplayName(userId) {
@@ -1435,7 +2951,7 @@
             bubble.classList.add(isMine ? 'r' : 'l');
             const authorEl = document.createElement('span');
             authorEl.className = 'msg-author';
-            authorEl.textContent = message.author || (isMine ? username : 'Guest');
+            authorEl.textContent = message.author || (isMine ? username : currentCopy().guestLabel);
             const bodyEl = document.createElement('div');
             bodyEl.textContent = message.text;
             bubble.appendChild(authorEl);
@@ -1474,9 +2990,13 @@
     function handleJoinSubmit(e) {
         e.preventDefault();
         const name = joinNameInput.value.trim();
-        const targetRoom = (joinRoomInput.value.trim() || generateRoomCode()).toUpperCase();
+        const targetRoom = joinRoomInput.value.trim().toUpperCase();
         if (!name) {
-            showJoinError(langDict[curLang].joinNameError);
+            showJoinError(currentCopy().joinNameError);
+            return;
+        }
+        if (!targetRoom) {
+            showJoinError(currentCopy().roomCodeError);
             return;
         }
         showJoinError('');
@@ -1491,57 +3011,86 @@
         }
         joinOverlay.classList.add('hidden');
         setChatEnabled(false);
+        setBoardEnabled(false);
         connectSocket();
     }
 
     function connectSocket() {
         if (!window.io) {
-            showJoinError(langDict[curLang].serviceError);
+            showJoinError(currentCopy().serviceError);
             joinOverlay.classList.remove('hidden');
             return;
         }
         if (socket) socket.disconnect();
+        setBoardEnabled(false);
         socket = io({ auth: { clientId: ensureClientId() } });
+        const joinActiveRoom = () => {
+            socket.emit('join-room', { roomId, username, clientId: ensureClientId(), password: getRoomPassword() }, (res = {}) => {
+                if (!res.ok) {
+                    setChatEnabled(false);
+                    setBoardEnabled(false);
+                    showJoinError(getErrorMessage(res.errorCode, 'joinFailed'));
+                    joinOverlay.classList.remove('hidden');
+                    return;
+                }
+                storeRoomPassword(getRoomPassword());
+                clearStoredRoomCode();
+                showJoinError('');
+                applyJoinedRoom(res.room || {});
+                setChatEnabled(true);
+                setBoardState(res.room?.board || createEmptyBoardState());
+                setBoardEnabled(true);
+                renderMessages(res.room?.messages || []);
+                updatePresenceList(res.room?.participants || []);
+                broadcastStatus();
+                if (isSfuRoom()) {
+                    mountSfuFrame(roomId, username);
+                } else {
+                    unmountSfuFrame();
+                }
+                if (isMeshRoom() && cameraEnabled && localStream) {
+                    notifyCameraStatus(true);
+                    participantsMap.forEach((participant, id) => {
+                        if (id !== socket.id && shouldInitiate(id)) createOffer(id);
+                    });
+                    updateMeshConnectionState();
+                }
+            });
+        };
+        socket.on('connect', () => {
+            if (isMeshRoom()) {
+                setMediaState('mediaMeshConnecting');
+            } else if (isSfuRoom()) {
+                setMediaState('mediaSfuLoading', { detailKey: 'aiSfuUnavailable', showRetry: false });
+            }
+            joinActiveRoom();
+        });
         socket.on('connect_error', () => {
             setChatEnabled(false);
-            showJoinError(langDict[curLang].connectError);
+            setBoardEnabled(false);
+            showJoinError(currentCopy().connectError);
             joinOverlay.classList.remove('hidden');
         });
         socket.on('chat-message', msg => appendMessage(msg));
         socket.on('presence', list => updatePresenceList(list || []));
+        socket.on('board-state', (board) => {
+            clearBoardFeedback();
+            setBoardState(board, { preserveGoalDraft: isBoardGoalFocused() });
+        });
         socket.on('status-update', handleStatusUpdate);
         socket.on('camera-status', handleCameraStatusEvent);
         socket.on('rtc-offer', handleIncomingOffer);
         socket.on('rtc-answer', handleIncomingAnswer);
-    socket.on('rtc-ice', handleIncomingIce);
+        socket.on('rtc-ice', handleIncomingIce);
         socket.on('disconnect', () => {
             setChatEnabled(false);
-            appendMessage({ type: 'system', text: langDict[curLang].disconnectMsg });
-            peerConnections.forEach(pc => pc.close());
-            peerConnections.clear();
-            pendingIceCandidates.clear();
-            clearRemoteStream();
-        });
-        socket.emit('join-room', { roomId, username, clientId: ensureClientId(), password: getRoomPassword() }, (res) => {
-            if (!res || !res.ok) {
-                setChatEnabled(false);
-                showJoinError((res && res.error) || langDict[curLang].joinFailed);
-                joinOverlay.classList.remove('hidden');
-                return;
-            }
-            // 成功加入后保存密码（用于刷新场景）并清除房间代码
-            storeRoomPassword(getRoomPassword());
-            clearStoredRoomCode();
-            showJoinError('');
-            setChatEnabled(true);
-            renderMessages(res.room?.messages || []);
-            updatePresenceList(res.room?.participants || []);
-            broadcastStatus();
-            if (cameraEnabled && localStream) {
-                notifyCameraStatus(true);
-                participantsMap.forEach((participant, id) => {
-                    if (id !== socket.id && shouldInitiate(id)) createOffer(id);
-                });
+            setBoardEnabled(false);
+            appendMessage({ type: 'system', text: currentCopy().disconnectMsg });
+            clearAllMeshMedia();
+            if (isMeshRoom()) {
+                setMediaState('mediaMeshReconnecting');
+            } else if (isSfuRoom()) {
+                setMediaState('mediaSfuUnavailable', { detailKey: 'aiSfuUnavailable', showRetry: true });
             }
         });
     }
@@ -1549,12 +3098,23 @@
     function sendMessage() {
         if (!socket || !roomId) {
             joinOverlay.classList.remove('hidden');
+            showJoinError(currentCopy().roomNotJoined);
             return;
         }
         const text = chatInput.value.trim();
         if (!text) return;
-        socket.emit('send-message', { roomId, text }, (ack) => {
-            if (ack && ack.ok) chatInput.value = '';
+        socket.emit('send-message', { roomId, text }, (ack = {}) => {
+            if (ack.ok) {
+                chatInput.value = '';
+                return;
+            }
+            const errorText = getErrorMessage(ack.errorCode, 'messageRequired');
+            if (ack.errorCode === 'ROOM_NOT_JOINED' || ack.errorCode === 'ROOM_NOT_FOUND') {
+                showJoinError(errorText);
+                joinOverlay.classList.remove('hidden');
+            } else if (errorText) {
+                appendMessage({ type: 'system', text: errorText });
+            }
         });
     }
 
@@ -1563,6 +3123,42 @@
     joinRoomInput.addEventListener('input', () => {
         joinRoomInput.value = joinRoomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     });
+    languageButtons.forEach((button) => {
+        button.addEventListener('click', () => setLanguage(button.dataset.langValue));
+    });
+    if (roomGoalInput) {
+        roomGoalInput.addEventListener('input', () => {
+            roomGoalInput.value = roomGoalInput.value.slice(0, BOARD_GOAL_MAX_LENGTH);
+            clearBoardFeedback();
+        });
+        roomGoalInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                roomGoalInput.blur();
+            }
+        });
+        roomGoalInput.addEventListener('blur', () => commitBoardGoal());
+    }
+    if (newTaskInput) {
+        newTaskInput.addEventListener('input', () => {
+            newTaskInput.value = newTaskInput.value.slice(0, BOARD_TASK_MAX_LENGTH);
+            clearBoardFeedback();
+        });
+        newTaskInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addBoardTask();
+            }
+        });
+    }
+    if (addTaskBtn) {
+        addTaskBtn.addEventListener('click', () => addBoardTask());
+    }
+    if (priorityButtons && priorityButtons.length) {
+        priorityButtons.forEach((button) => {
+            button.addEventListener('click', () => setBoardPriority(button.dataset.priority));
+        });
+    }
     if (statusPresetButtons && statusPresetButtons.length) {
         statusPresetButtons.forEach(btn => {
             btn.addEventListener('click', () => setStatusPreset(btn.dataset.status));
@@ -1624,10 +3220,20 @@
     if (focusResetBtn) {
         focusResetBtn.addEventListener('click', () => resetFocusStats());
     }
+    if (scheduleCalendarBtn) {
+        scheduleCalendarBtn.addEventListener('click', () => downloadScheduleCalendar());
+    }
     if (cameraToggleBtn) {
         cameraToggleBtn.addEventListener('click', e => {
             e.preventDefault();
             toggleCamera();
+        });
+    }
+    if (mediaRetryBtn) {
+        mediaRetryBtn.addEventListener('click', () => {
+            if (isSfuRoom() && roomId) {
+                mountSfuFrame(roomId, username);
+            }
         });
     }
 
@@ -1638,11 +3244,59 @@
             cameraToggleBtn.textContent = langDict[curLang].cameraToggleStarting;
             return;
         }
+        if (isSfuRoom()) {
+            cameraToggleBtn.disabled = true;
+            cameraToggleBtn.textContent = langDict[curLang].mediaModeSfuBadge;
+            return;
+        }
         cameraToggleBtn.disabled = false;
         cameraToggleBtn.textContent = cameraEnabled ? langDict[curLang].cameraToggleOff : langDict[curLang].cameraToggleOn;
     }
 
+    async function mountSfuFrame(roomCode, displayName) {
+        await ensureRtcConfigurationReady();
+        if (!isSfuRoom()) {
+            unmountSfuFrame();
+            return;
+        }
+        if (!sfuBaseUrl || !sfuFrame || !videoBox) {
+            setMediaState('mediaSfuUnavailable', { detailKey: 'aiSfuUnavailable', showRetry: true });
+            return;
+        }
+        clearSfuFrameLoadTimer();
+        sfuFrameLoaded = false;
+        videoBox.classList.add('sfu-mode');
+        setMediaState('mediaSfuLoading', { detailKey: 'aiSfuUnavailable', showRetry: false });
+        const params = new URLSearchParams({
+            room: roomCode,
+            name: displayName || '',
+            audio: 'false',
+            video: 'true',
+            screen: 'false',
+            chat: 'false',
+            hide: 'false',
+            notify: 'false'
+        });
+        sfuFrame.onload = () => {
+            sfuFrameLoaded = true;
+            clearSfuFrameLoadTimer();
+            setMediaState('mediaSfuManaged', { detailKey: 'aiSfuUnavailable', showRetry: false });
+        };
+        sfuFrame.onerror = () => {
+            sfuFrameLoaded = false;
+            clearSfuFrameLoadTimer();
+            setMediaState('mediaSfuUnavailable', { detailKey: 'aiSfuUnavailable', showRetry: true });
+        };
+        sfuFrame.src = `${sfuBaseUrl}/join?${params.toString()}`;
+        sfuFrameLoadTimer = setTimeout(() => {
+            if (!sfuFrameLoaded) {
+                setMediaState('mediaSfuUnavailable', { detailKey: 'aiSfuUnavailable', showRetry: true });
+            }
+        }, SFU_LOAD_TIMEOUT_MS);
+    }
+
     async function toggleCamera() {
+        if (!isMeshRoom()) return;
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             alert(langDict[curLang].cameraError);
             return;
@@ -1684,43 +3338,14 @@
         }
     }
 
-    function disableCamera() {
-        if (!cameraEnabled) return;
-        cameraEnabled = false;
-        if (localVideo.srcObject) {
-            localVideo.srcObject.getTracks().forEach(track => track.stop());
-            localVideo.srcObject = null;
-        }
-        localVideo.style.display = 'none';
-        localStream = null;
-        notifyCameraStatus(false);
-        updateCameraToggleLabel();
-        updateRemotePlaceholder();
-        peerConnections.forEach((pc, peerId) => {
-            pc.getSenders().forEach(sender => {
-                if (sender.track && sender.track.kind === 'video') {
-                    try { sender.replaceTrack(null); } catch (_) {}
-                    try { pc.removeTrack(sender); } catch (_) {}
-                }
-            });
-            // 关闭摄像头后重新添加recvonly占位符，确保仍能接收对方视频
-            const meta = pc.__meta || {};
-            meta.recvonlyVideoTransceiver = null; // 清除旧引用
-            ensureRecvPlaceholder(pc, meta, peerId);
-        });
-        stopAiMonitor();
-        aiStatusEl.textContent = langDict[curLang].aiNeedCamera;
-    }
-
     function notifyCameraStatus(flag) {
-        if (socket) socket.emit('camera-status', { camera: !!flag });
+        if (socket && isMeshRoom()) socket.emit('camera-status', { camera: !!flag });
     }
 
     function shouldInitiate(targetId) {
         if (!socket || !socket.id) return true;
         const remoteId = typeof targetId === 'string' ? targetId : (targetId ? String(targetId) : '');
         if (!remoteId) return true;
-        // 使用简单的字符串比较，所有浏览器结果一致
         return socket.id < remoteId;
     }
 
@@ -1728,18 +3353,20 @@
         if (!socket || !socket.id) return true;
         const remoteId = typeof targetId === 'string' ? targetId : (targetId ? String(targetId) : '');
         if (!remoteId) return true;
-        // 使用简单的字符串比较，所有浏览器结果一致
         return socket.id > remoteId;
     }
 
     function ensurePeerConnection(targetId) {
+        if (!isMeshRoom()) {
+            return null;
+        }
         if (peerConnections.has(targetId)) {
             debugLog('PEER', `Reusing existing connection for ${targetId}`);
             return peerConnections.get(targetId);
         }
 
         debugLog('PEER', `Creating new PeerConnection for ${targetId}`);
-        const pc = new RTCPeerConnection(STUN_CONFIG);
+        const pc = new RTCPeerConnection(rtcConfiguration);
         const meta = {
             makingOffer: false,
             ignoreOffer: false,
@@ -1774,10 +3401,12 @@
             if (['failed', 'disconnected'].includes(pc.connectionState)) {
                 clearRemoteStream(targetId);
             }
+            updateMeshConnectionState();
         };
 
         pc.oniceconnectionstatechange = () => {
             debugLog('ICE-STATE', `ICE connection state for ${targetId}: ${pc.iceConnectionState}`);
+            updateMeshConnectionState();
         };
 
         pc.onicegatheringstatechange = () => {
@@ -1790,7 +3419,6 @@
 
         pc.onnegotiationneeded = async () => {
             debugLog('NEGOTIATE', `Negotiation needed for ${targetId}`);
-            // 防止重复触发：如果正在创建 offer 或不在 stable 状态，则跳过
             if (meta.makingOffer || pc.signalingState !== 'stable') {
                 debugLog('NEGOTIATE', `Skipping negotiation for ${targetId} (already in progress or not stable)`);
                 return;
@@ -1798,7 +3426,6 @@
             try {
                 meta.makingOffer = true;
                 const offer = await pc.createOffer();
-                // 再次检查状态，防止异步期间状态变化
                 if (pc.signalingState !== 'stable') {
                     debugLog('NEGOTIATE', `Signaling state changed during offer creation for ${targetId}, aborting`);
                     meta.makingOffer = false;
@@ -1818,12 +3445,10 @@
         peerConnections.set(targetId, pc);
         debugLog('PEER', `PeerConnection created and stored for ${targetId}`);
 
-        // 立即尝试添加本地流（如果存在）
         attachLocalStream(pc).then(attached => {
             if (attached) {
                 debugLog('PEER', `Local stream attached during connection creation for ${targetId}`);
             } else if (!localStream) {
-                // 没有本地流时，添加recvonly占位符以确保能接收对方视频
                 ensureRecvPlaceholder(pc, meta, targetId);
             }
         });
@@ -1850,7 +3475,6 @@
         });
 
         const meta = pc.__meta || {};
-        // 如果之前有recvonly占位transceiver，升级为sendrecv
         if (meta.recvonlyVideoTransceiver && meta.recvonlyVideoTransceiver.sender) {
             debugLog('STREAM', 'Upgrading placeholder transceiver to sendrecv');
             try {
@@ -1880,7 +3504,6 @@
         }
     }
 
-    // 确保有recvonly占位transceiver，让没有摄像头的用户也能接收视频
     function ensureRecvPlaceholder(pc, meta, targetId) {
         if (!pc || typeof pc.addTransceiver !== 'function') return;
         const hasActiveSender = pc.getSenders().some(sender => sender.track && sender.track.kind === 'video');
@@ -1927,10 +3550,11 @@
     }
 
     async function createOffer(targetId) {
+        if (!isMeshRoom()) return;
+        await ensureRtcConfigurationReady();
         const pc = ensurePeerConnection(targetId);
         if (!pc) return;
         const meta = pc.__meta || {};
-        // 添加信令状态检查，防止冲突
         if (meta.makingOffer || pc.signalingState !== 'stable') {
             debugLog('OFFER', `Skipping manual offer for ${targetId} (already in progress or not stable)`);
             return;
@@ -1938,7 +3562,6 @@
         try {
             meta.makingOffer = true;
             const offer = await pc.createOffer();
-            // 再次检查状态
             if (pc.signalingState !== 'stable') {
                 debugLog('OFFER', `Signaling state changed during manual offer creation for ${targetId}, aborting`);
                 meta.makingOffer = false;
@@ -1954,7 +3577,9 @@
     }
 
     async function handleIncomingOffer({ from, sdp }) {
+        if (!isMeshRoom()) return;
         debugLog('OFFER', `Received offer from ${from}`);
+        await ensureRtcConfigurationReady();
         const pc = ensurePeerConnection(from);
         const meta = pc.__meta || { polite: true };
         const offer = new RTCSessionDescription(sdp);
@@ -1991,7 +3616,9 @@
     }
 
     async function handleIncomingAnswer({ from, sdp }) {
+        if (!isMeshRoom()) return;
         debugLog('ANSWER', `Received answer from ${from}`);
+        await ensureRtcConfigurationReady();
         const pc = ensurePeerConnection(from);
         if (!pc) {
             debugLog('ERROR', `No peer connection found for ${from}`);
@@ -2014,6 +3641,8 @@
     }
 
     async function handleIncomingIce({ from, candidate }) {
+        if (!isMeshRoom()) return;
+        await ensureRtcConfigurationReady();
         const pc = ensurePeerConnection(from);
         if (!candidate || !pc) {
             debugLog('ICE', 'Ignoring ICE: no candidate or no peer connection');
@@ -2144,6 +3773,7 @@
         if (remoteStatusEl) remoteStatusEl.textContent = '';
         updateRemotePlaceholder();
         updateRemoteNameLabel();
+        updateMeshConnectionState();
 
         slot.videoEl.onloadedmetadata = () => {
             debugLog('STREAM', `Remote video metadata loaded for ${userId}`, {
@@ -2188,9 +3818,11 @@
             const hasRemoteBuddy = hasRemoteBuddyOnline();
             remoteStatusEl.textContent = remoteVideoSlots.size || !hasRemoteBuddy ? '' : langDict[curLang].remoteOffline;
         }
+        updateMeshConnectionState();
     }
 
     function handleCameraStatusEvent(payload = {}) {
+        if (!isMeshRoom()) return;
         const { userId, camera } = payload;
         if (socket && userId === socket.id) return;
         remoteCameraStates.set(userId, !!camera);
@@ -2207,6 +3839,12 @@
     }
 
     function initAiDetector() {
+        if (isSfuRoom()) {
+            aiDetector = null;
+            aiStatusEl.textContent = langDict[curLang].aiSfuUnavailable;
+            setAiDotState('neutral');
+            return false;
+        }
         if (!('FaceDetector' in window)) {
             aiDetector = null;
             aiStatusEl.textContent = langDict[curLang].aiUnsupported;
@@ -2227,6 +3865,7 @@
     }
 
     function startAiMonitor() {
+        if (!isMeshRoom()) return;
         if (!initAiDetector()) return;
         if (aiMonitorTimer) return;
         aiMonitorTimer = setInterval(runAiScan, 4000);
@@ -2243,6 +3882,11 @@
     }
 
     async function runAiScan() {
+        if (!isMeshRoom()) {
+            aiStatusEl.textContent = langDict[curLang].aiSfuUnavailable;
+            setAiDotState('neutral');
+            return;
+        }
         if (!cameraEnabled || !localVideo.videoWidth) {
             aiStatusEl.textContent = langDict[curLang].aiNeedCamera;
             setAiDotState('neutral');
@@ -2285,8 +3929,8 @@
     }
 
     (function initShell(){
+        rtcConfigurationPromise = loadRtcConfiguration();
         const params = new URLSearchParams(window.location.search);
-        // 优先从URL获取房间代码，其次从sessionStorage获取
         let incomingRoom = (params.get('room') || '').trim().toUpperCase();
         if (!incomingRoom) {
             incomingRoom = getStoredRoomCode().toUpperCase();
@@ -2301,6 +3945,7 @@
         if (savedName) joinNameInput.value = savedName;
         showChatPlaceholder();
         updateDisp();
+        applyRoomMediaMode(MEDIA_MODE_MESH, { participantLimit: getMeshParticipantLimit() });
         updateRemotePlaceholder();
         initAiDetector();
         updateCameraToggleLabel();
@@ -2308,11 +3953,14 @@
         loadStatusState();
         loadAmbientState();
         loadFocusStats();
+        setBoardState(createEmptyBoardState());
+        setBoardPriority(3);
+        renderScheduleCard();
         applyLanguage();
         updatePresenceList([]);
         setChatEnabled(false);
+        setBoardEnabled(false);
 
-        // 如果有保存的昵称和URL中有房间号，自动加入（刷新页面场景）
         if (savedName && incomingRoom) {
             username = savedName;
             roomId = incomingRoom;

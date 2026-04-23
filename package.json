@@ -2,17 +2,36 @@
   "name": "co-study",
   "version": "1.0.0",
   "main": "server.js",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "start": "node server.js",
-    "https": "node server-https.js"
+    "https": "node server-https.js",
+    "backup:rooms": "node scripts/backup-rooms.js",
+    "restore:rooms": "node scripts/restore-rooms.js",
+    "verify:deploy": "node scripts/verify-deploy.js",
+    "audit:prod": "npm audit --omit=dev",
+    "check": "node --check server.js && node --check server-https.js && node --check co-study-server.js && node --check room-store.js && node --check schedule-utils.js && node --check scripts/room-state-utils.js && node --check scripts/backup-rooms.js && node --check scripts/restore-rooms.js && node --check scripts/verify-deploy.js && node --check tests/helpers/server-control.js && node --check tests/helpers/fake-sfu-fixture.js && node --check tests/integration/server.integration.test.js && node --check tests/smoke/app.smoke.spec.js",
+    "test:integration": "node --test tests/integration/server.integration.test.js",
+    "test:smoke": "playwright test --config=playwright.config.js",
+    "test:ci": "npm run check && npm run audit:prod && npm run test:integration && npm run test:smoke"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
+  "overrides": {
+    "path-to-regexp": "^8.4.2",
+    "socket.io-parser": "^4.2.6"
+  },
   "dependencies": {
-    "express": "^5.1.0",
-    "selfsigned": "^4.0.0",
-    "socket.io": "^4.8.1"
+    "express": "^5.2.1",
+    "selfsigned": "^5.5.0",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "socket.io-client": "^4.8.3"
   }
 }

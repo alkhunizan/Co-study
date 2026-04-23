@@ -1,121 +1,163 @@
 # Co-Study <img src="images/baby-chick_1f424.gif" width="32" height="32" alt="Logo">
 
-[中文文档](./README_CN.md)
+[Arabic Documentation](./README_AR.md)
 
-A multi-user online study room with video chat, helping you and your friends stay focused together.
+Co-Study is a browser-based focus room for small groups who want shared video, live chat, timers, and lightweight accountability.
 
-## ✨ Features
+This Saudi release ships with:
+- English as the default UI
+- Arabic as the secondary selectable UI
+- Shared language preference via `coStudyLang`
+- Arabic-targeted RTL text handling without mirroring the full layout
 
-### Room Management
-- 🏠 **Custom Room Names** - Create rooms with meaningful names like "TOEFL Prep" or "Study Group"
-- 🔐 **Password Protection** - Secure your room with PBKDF2 encrypted passwords
-- 🔗 **Easy Sharing** - Auto-generated 6-digit room codes for quick sharing
-- 🚀 **Landing Page** - Beautiful fullpage scroll landing with create/join options
+## Features
 
-### Collaboration
-- 🎥 **Multi-user Video Chat** - Real-time video connection via WebRTC, supports multiple users
-- 💬 **Real-time Chat** - Text chat with room members, join/leave notifications
-- 🔄 **Status Sharing** - Share your studying/working/break status with the room
+- Custom room names with shareable room codes
+- Optional password protection with PBKDF2 hashing
+- Multi-user WebRTC video and live Socket.IO chat
+- Pomodoro timer with daily focus tracking
+- Shared room board, room status sharing, and ambient sounds
+- Reusable scheduled rooms with Riyadh-based cadence, countdowns, calendar export, and WhatsApp-ready invites
+- Disk-backed room persistence for chat history and board state
+- TURN-ready runtime ICE config
+- Managed media modes: mesh rooms for up to 4 people, plus iframe-based SFU rooms when `SFU_BASE_URL` is configured
+- AI focus monitoring through the browser FaceDetector API
+- Health/readiness endpoints, abuse controls, and manual room-state backup/restore
 
-### Productivity
-- ⏰ **Pomodoro Timer** - Auto-switching between focus/break modes with sound notifications
-- 📊 **Daily Focus Stats** - Track your daily focus time in minutes, auto-resets at midnight
-- 📋 **To-Do List** - Priority labels (high/medium/low) and drag-to-reorder support
-
-### Experience
-- 🎵 **Ambient Sounds** - Rain, forest, fireplace, cafe, ocean waves
-- 🤖 **AI Focus Monitor** - Detects if you're away using browser FaceDetector API
-- 🌍 **Multi-language** - Switch between Chinese/English with one click
-- 🎨 **Theme Customization** - Dark/light mode + 5 color themes
-- 📱 **Responsive Design** - Works on desktop and mobile devices
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Local Development
 
 ```bash
-# Clone the repository
 git clone https://github.com/sdxdlgz/Co-study.git
 cd Co-study
-
-# Install dependencies
 npm install
-
-# Start HTTPS server (required for WebRTC)
 npm start
 ```
 
-Visit `https://localhost:3443` (accept the self-signed certificate warning)
+Open `http://localhost:3000`.
 
-> **Note**: WebRTC video features require HTTPS. The server auto-generates a self-signed certificate.
+### Local Secure-Context Testing
 
-### VPS Deployment
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment guide with Nginx + Let's Encrypt.
-
-## 🛠️ Tech Stack
-
-- **Frontend**: Vanilla JavaScript + HTML5 + CSS3 (no framework)
-- **Backend**: Node.js + Express + Socket.IO
-- **Security**: PBKDF2 password hashing with crypto.timingSafeEqual
-- **Real-time**: WebRTC (Perfect Negotiation) + Socket.IO signaling
-- **HTTPS**: Self-signed certificates via selfsigned package
-- **AI Detection**: Browser FaceDetector API
-- **Process Manager**: PM2 (production)
-- **Reverse Proxy**: Nginx (production)
-
-## 📝 How to Use
-
-1. **Create or Join** - Visit the landing page, create a new room or join with a code
-2. **Set Password** (optional) - Protect your room with a password
-3. **Share Room Code** - Send the 6-digit code to your study partners
-4. **Enter Room** - Input your nickname to join the study space
-5. **Enable Video** - Click "Enable camera" to video chat with room members
-6. **Focus** - Use Pomodoro timer to track your focus time
-7. **Manage Tasks** - Add to-dos, set priorities, drag to reorder
-8. **Set Status** - Choose preset status or custom, sync with timer
-9. **Ambient Sound** - Pick your favorite white noise to help focus
-
-## 🔒 Privacy & Security
-
-- All video calls are peer-to-peer (P2P), media never passes through server
-- Room passwords are hashed with PBKDF2 (100,000 iterations, SHA-512)
-- Password verification uses timing-safe comparison to prevent timing attacks
-- Server only handles signaling and room state sync
-- Disabling camera makes you invisible to others
-- Local data (settings, stats) stored in browser localStorage
-- Session persistence via cookies for seamless page refreshes
-
-## 📁 Project Structure
-
+```bash
+npm run https
 ```
+
+Open `https://localhost:3443` and accept the local certificate warning. This entrypoint exists for browser APIs that require a secure context during local testing.
+
+### Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the production Nginx + PM2 setup.
+
+### Verification
+
+```bash
+npm run check
+npm run audit:prod
+npm run test:integration
+npm run test:smoke
+npm run test:ci
+```
+
+`test:ci` matches the GitHub Actions quality gate for pushes and pull requests.
+
+## Operator Commands
+
+```bash
+npm run backup:rooms
+npm run restore:rooms -- /absolute/path/to/backup.json
+npm run verify:deploy -- https://your-domain.com
+```
+
+Room restore is an offline operator action: stop the app first, restore the snapshot, then start the app and run `verify:deploy`.
+
+## Stack
+
+- Frontend: Vanilla JavaScript, HTML, CSS
+- Backend: Node.js, Express, Socket.IO
+- Realtime media: WebRTC
+- Security: PBKDF2 password hashing with timing-safe verification
+- Local secure-context dev: Self-signed HTTPS via `selfsigned`
+- Production transport: Nginx public HTTPS -> local HTTP app
+- Production process manager: PM2
+
+## Project Structure
+
+```text
 Co-study/
-├── landing.html        # Landing page (fullpage scroll, create/join)
-├── index.html          # Study room page (video, timer, chat, todos)
-├── server.js           # HTTPS server with self-signed cert
-├── server-https.js     # Alternative HTTPS server
-├── audio/              # Ambient sound files (.mp3, .wav)
-├── images/             # Image assets (logo, etc.)
-├── DEPLOYMENT.md       # VPS deployment guide
-├── nginx.conf          # Nginx configuration example
-├── ecosystem.config.js # PM2 configuration
-└── README.md           # This file
+|-- landing.html
+|-- index.html
+|-- server.js
+|-- server-https.js
+|-- co-study-server.js
+|-- room-store.js
+|-- schedule-utils.js
+|-- scripts/
+|-- tests/
+|-- audio/
+|-- images/
+|-- data/
+|-- DEPLOYMENT.md
+|-- nginx.conf
+|-- ecosystem.config.js
+|-- README.md
+`-- README_AR.md
 ```
 
-## 🔧 Configuration
+## Configuration
 
-Environment variables:
-- `PORT` - HTTP port (default: 3000)
-- `HTTPS_PORT` - HTTPS port (default: 3443)
+- `PORT`: Local HTTP application port for `server.js`. Defaults to `3000`.
+- `HTTPS_PORT`: Local HTTPS port for `server-https.js`. Defaults to `3443`.
+- `TRUST_PROXY`: Set to `1` behind Nginx so Express trusts `X-Forwarded-*`. Defaults to `0`.
+- `ALLOWED_ORIGINS`: Optional comma-separated allowlist of exact `http(s)://origin` values. If unset, the app allows same-origin browser traffic only.
+- `ICE_SERVERS_JSON`: Optional JSON array of WebRTC ICE servers. If omitted or invalid, the app falls back to the built-in Google STUN servers.
+- `MESH_PARTICIPANT_LIMIT`: Optional hard cap for mesh rooms. Defaults to `4`.
+- `ROOM_STATE_FILE`: Optional JSON file path for persisted room state. Defaults to `./data/rooms.json`.
+- `ROOM_STATE_BACKUP_DIR`: Optional directory for manual room-state backups. Defaults to `./data/backups`.
+- `SFU_BASE_URL`: Optional absolute `http(s)` base URL for the SFU iframe integration.
 
-## 📄 License
+Scheduled-room notes:
+- Scheduled rooms reuse the same room code instead of expiring as ad hoc rooms.
+- Schedule cadence supports `once`, `daily`, `weekdays` (Saudi Sunday-Thursday), and `weekly`.
+- Timer defaults and the starting board goal template are stored with the room schedule.
+- Attendance is room-level only in this v1: on-time count, missed count, and current streak.
 
-MIT License
+TURN example:
 
-## 🤝 Contributing
+```json
+[
+  { "urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+  { "urls": "turn:turn.example.com:3478", "username": "turn-user", "credential": "turn-password" }
+]
+```
 
-Issues and Pull Requests are welcome!
+WebRTC requires TURN credentials to be delivered to the browser at runtime. That is expected in this v1 setup.
 
----
+Managed media notes:
+- `mesh` is the default room mode and is capped by `MESH_PARTICIPANT_LIMIT`.
+- `sfu` rooms are only available when `SFU_BASE_URL` is configured.
+- Rooms do not switch modes after creation.
+- AI focus monitoring stays available in mesh rooms only.
 
-Made with ❤️ by [sdxdlgz](https://github.com/sdxdlgz)
+Room persistence stores room metadata, protected-room password hashes, chat history, shared board state, and scheduled-room metadata/attendance on disk. Live presence, socket IDs, camera state, and other transient participant state remain memory-only.
+
+This persistence layer is designed for a single app instance. Keep PM2 at one process, back up the state file, and do restores while the app is stopped.
+
+## Manual Media QA
+
+- 2-person mesh room with camera on both sides
+- 4-person mesh room at the capacity limit
+- 5th participant blocked from a full mesh room
+- SFU room creation and embedded media load
+- Password-protected rooms in both mesh and SFU modes
+- Disconnect and rejoin during an active room
+- TURN-assisted networks on restrictive connections
+- Desktop Chrome, Android Chrome, and iPhone Safari
+
+## License
+
+MIT
+
+## Contributing
+
+Issues and pull requests are welcome.
