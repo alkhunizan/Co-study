@@ -964,6 +964,7 @@ function createCoStudyServer(options = {}) {
     app.use(sessionMiddleware);
     app.use('/audio', express.static(path.join(__dirname, 'audio')));
     app.use('/images', express.static(path.join(__dirname, 'images')));
+    app.use('/design-system', express.static(path.join(__dirname, 'design-system')));
 
     app.get('/api/health', (_req, res) => {
         res.json({
