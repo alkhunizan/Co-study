@@ -1,0 +1,27 @@
+/* Shared base for all preview cards. Import in each card. */
+@import url("../colors_and_type.css");
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 20px 24px;
+  min-height: 100vh;
+}
+.row { display: flex; align-items: stretch; gap: 16px; flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.label { font-size: 11px; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
+.mono { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); }
+.swatch {
+  width: 100%; min-height: 64px; border-radius: 14px;
+  border: 1px solid rgba(28,24,20,0.06);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 10px 12px; color: var(--ink); position: relative;
+}
+.swatch .name { font-size: 12px; font-weight: 600; }
+.swatch .hex { font-family: var(--font-mono); font-size: 10.5px; opacity: 0.7; margin-top: 2px; }
+.swatch.dark { color: var(--ink-inv); border-color: rgba(255,255,255,0.06); }
+.swatch.dark .hex { opacity: 0.7; }

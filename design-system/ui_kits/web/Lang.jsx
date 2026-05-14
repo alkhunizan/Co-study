@@ -1,0 +1,200 @@
+/* global window */
+const COPY = {
+  en: {
+    eyebrow: "Body-doubling, the Gulf way",
+    heroTitle: ["A quiet room.", "Open all night."],
+    heroSub: "Drop in, camera on, work alongside other students. Pomodoros tick in sync. No instructor, no meeting, no expectations.",
+    featureLive: "Camera-on focus",
+    featurePomo: "Shared Pomodoro",
+    featureChat: "Mics-off chat",
+    featureSchedule: "Scheduled rooms",
+    cta: "Open a room",
+    ctaAlt: "Join a room",
+    hint: "Scroll or use ↓ to continue",
+
+    chooserTitle: "Choose your flow",
+    chooserSub: "Open a new room or join one that's already running.",
+    createTitle: "Open a room",
+    createDesc: "Set a name, optional password, optional schedule.",
+    joinTitle: "Join a room",
+    joinDesc: "Got a code from your study group? Drop it in.",
+
+    formCreateTitle: "New focus room",
+    labelName: "Room name",
+    placeName: "e.g. Deep work · 9pm crew",
+    labelPassword: "Require password",
+    placePassword: "Set a room password",
+    labelSchedule: "Make this a scheduled room",
+    scheduleNote: "Uses Riyadh time. Weekdays follow Sun–Thu.",
+    labelDate: "First session",
+    labelTime: "Start time",
+    labelCadence: "Cadence",
+    cadOnce: "One time",
+    cadWeekdays: "Sun–Thu",
+    cadDaily: "Daily",
+    cadWeekly: "Weekly",
+    btnCreate: "Open room",
+
+    formJoinTitle: "Join a focus room",
+    labelCode: "Room code",
+    placeCode: "e.g. A7K-2QF",
+    labelJoinPw: "Password if required",
+    placeJoinPw: "Leave empty if open",
+    btnJoin: "Enter room",
+
+    // Room
+    roomLabel: "Room",
+    mediaMesh: "Mesh room",
+    onlineLabel: "Online",
+    members: "Room members",
+    myStatus: "My status",
+    statusStudying: "Studying",
+    statusWorking: "Working",
+    statusMeal: "Meal break",
+    statusAway: "Stepping away",
+    boardTitle: "Shared board",
+    boardGoal: "Room goal",
+    boardGoalPlace: "What is everyone focusing on today?",
+    addTask: "Add a shared task...",
+    todoEmpty: "Shared tasks will appear here.",
+    focusMode: "Focus",
+    breakMode: "Break",
+    todayFocus: "Today",
+    chatTitle: "Chat",
+    chatPlace: "Type a message...",
+    ambient: "Ambient sound",
+    soundRain: "Rain",
+    soundForest: "Forest",
+    soundFire: "Fireplace",
+    soundCafe: "Cafe",
+    soundOcean: "Ocean",
+    soundOff: "Off",
+    aiMonitor: "AI focus monitor",
+    aiReady: "Watching quietly",
+    enableCam: "Enable camera",
+    disableCam: "Disable camera",
+    leave: "Leave",
+    share: "Share",
+    schedTitle: "Scheduled room",
+    schedNext: "Next session",
+    schedIn: "in",
+    schedOnTime: "On time",
+    schedMissed: "Missed",
+    schedStreak: "Streak",
+    sysJoined: (n) => `${n} joined the room.`,
+    sysStarted: (n) => `${n} started a Pomodoro.`,
+    msg1: "yallah, 25 min focus then break.",
+    msg2: "🤝",
+    msg3: "halfway through orgo problem set",
+  },
+  ar: {
+    eyebrow: "ادخل الغرفة، اشتغل مع غيرك",
+    heroTitle: ["غرفة هادئة،", "مفتوحة طول الليل."],
+    heroSub: "ادخل، شغّل الكاميرا، واشتغل مع طلاب غيرك. البومودورو يمشي مع الكل. ما في محاضر، ولا اجتماع، ولا توقّعات.",
+    featureLive: "كاميرا شغّالة",
+    featurePomo: "بومودورو مشترك",
+    featureChat: "دردشة بدون مايك",
+    featureSchedule: "غرف مجدولة",
+    cta: "افتح غرفة",
+    ctaAlt: "ادخل غرفة",
+    hint: "نزّل أو استخدم ↓ للمتابعة",
+
+    chooserTitle: "اختر طريقتك",
+    chooserSub: "افتح غرفة جديدة أو ادخل وحدة شغّالة.",
+    createTitle: "افتح غرفة",
+    createDesc: "اسم، وكلمة مرور اختيارية، وجدولة اختيارية.",
+    joinTitle: "ادخل غرفة",
+    joinDesc: "عندك رمز من مجموعتك؟ ادخله هنا.",
+
+    formCreateTitle: "غرفة تركيز جديدة",
+    labelName: "اسم الغرفة",
+    placeName: "مثال: جلسة عميقة · ٩ مساءً",
+    labelPassword: "اطلب كلمة مرور",
+    placePassword: "ضع كلمة مرور للغرفة",
+    labelSchedule: "اجعلها غرفة مجدولة",
+    scheduleNote: "تستخدم توقيت الرياض. أيام الأسبوع من الأحد إلى الخميس.",
+    labelDate: "أول جلسة",
+    labelTime: "وقت البداية",
+    labelCadence: "التكرار",
+    cadOnce: "مرة واحدة",
+    cadWeekdays: "الأحد – الخميس",
+    cadDaily: "يوميًا",
+    cadWeekly: "أسبوعيًا",
+    btnCreate: "افتح الغرفة",
+
+    formJoinTitle: "ادخل غرفة تركيز",
+    labelCode: "رمز الغرفة",
+    placeCode: "مثال: A7K-2QF",
+    labelJoinPw: "كلمة المرور (عند الحاجة)",
+    placeJoinPw: "اتركها فارغة إذا الغرفة مفتوحة",
+    btnJoin: "دخول الغرفة",
+
+    roomLabel: "الغرفة",
+    mediaMesh: "غرفة عادية",
+    onlineLabel: "متصلين",
+    members: "أعضاء الغرفة",
+    myStatus: "حالتي",
+    statusStudying: "أذاكر",
+    statusWorking: "أشتغل",
+    statusMeal: "استراحة طعام",
+    statusAway: "غايب لحظة",
+    boardTitle: "اللوحة المشتركة",
+    boardGoal: "هدف الغرفة",
+    boardGoalPlace: "وش الكل مركز عليه اليوم؟",
+    addTask: "أضف مهمة مشتركة...",
+    todoEmpty: "تظهر المهام المشتركة هنا.",
+    focusMode: "تركيز",
+    breakMode: "استراحة",
+    todayFocus: "اليوم",
+    chatTitle: "الدردشة",
+    chatPlace: "اكتب رسالة...",
+    ambient: "صوت محيط",
+    soundRain: "مطر",
+    soundForest: "غابة",
+    soundFire: "مدفأة",
+    soundCafe: "مقهى",
+    soundOcean: "بحر",
+    soundOff: "إيقاف",
+    aiMonitor: "مراقب التركيز",
+    aiReady: "يراقب بهدوء",
+    enableCam: "شغّل الكاميرا",
+    disableCam: "أوقف الكاميرا",
+    leave: "خروج",
+    share: "مشاركة",
+    schedTitle: "غرفة مجدولة",
+    schedNext: "الجلسة القادمة",
+    schedIn: "بعد",
+    schedOnTime: "في الوقت",
+    schedMissed: "فوّتت",
+    schedStreak: "السلسلة",
+    sysJoined: (n) => `${n} انضم إلى الغرفة.`,
+    sysStarted: (n) => `${n} بدأ بومودورو.`,
+    msg1: "يلا، ٢٥ دقيقة تركيز ثم استراحة.",
+    msg2: "🤝",
+    msg3: "نص الواجب خلصته",
+  }
+};
+
+const LangCtx = React.createContext({ lang: 'en', t: COPY.en, setLang: () => {} });
+
+function LangProvider({ children }) {
+  const [lang, setLangState] = React.useState('en');
+  const setLang = (l) => {
+    setLangState(l);
+    document.documentElement.lang = l;
+    document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
+  };
+  React.useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  }, []);
+  const value = { lang, setLang, t: COPY[lang] };
+  return React.createElement(LangCtx.Provider, { value }, children);
+}
+
+const useLang = () => React.useContext(LangCtx);
+
+window.LangProvider = LangProvider;
+window.useLang = useLang;
+window.LangCtx = LangCtx;
+window.COPY = COPY;

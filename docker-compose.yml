@@ -1,0 +1,13 @@
+services:
+  co-study:
+    build: .
+    image: co-study:local
+    container_name: co-study
+    ports:
+      - "3030:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    restart: unless-stopped

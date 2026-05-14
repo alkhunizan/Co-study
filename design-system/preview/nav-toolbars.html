@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+body { padding: 20px 24px; }
+.top { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; margin-bottom: 14px; box-shadow: var(--sh-1); }
+.logo { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em; }
+.logo .mark { width: 24px; height: 24px; border-radius: 7px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; color: var(--ink); font-weight: 800; font-size: 12px; font-family: var(--font-body); }
+.logo .ar { color: var(--accent-3); font-family: var(--font-display-ar); }
+.tools { display: flex; gap: 10px; align-items: center; }
+.lang { display: inline-flex; align-items: center; gap: 2px; background: var(--inset); padding: 4px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.lang span { padding: 4px 10px; border-radius: 999px; color: var(--ink-2); cursor: pointer; }
+.lang span.on { background: var(--card); color: var(--accent-3); box-shadow: var(--sh-1); }
+.icbtn { width: 36px; height: 36px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; color: var(--ink); font-size: 14px; }
+.cta { padding: 8px 18px; border-radius: 999px; background: var(--accent); color: var(--ink); font-weight: 600; font-size: 13px; box-shadow: var(--sh-1); }
+
+.toolbar { display: flex; gap: 6px; padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--sh-2); align-items: center; width: fit-content; }
+.tb { padding: 8px 14px; border-radius: 999px; font-size: 13px; color: var(--ink-2); font-weight: 500; }
+.tb.on { background: var(--accent-soft); color: var(--accent-3); font-weight: 600; }
+.tb-mic { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--inset); }
+.tb-end { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--danger); color: #fff; border-radius: 50%; }
+</style></head><body>
+<div class="top">
+  <div class="logo"><span class="mark">H</span> Hala<em style="font-style:italic;color:var(--accent-3);font-family:'Newsreader',serif;font-weight:500">study</em> <span class="ar">·  هلا</span></div>
+  <div class="tools">
+    <div class="lang"><span>EN</span><span class="on">AR</span></div>
+    <button class="icbtn">◐</button>
+    <button class="cta">Open a room</button>
+  </div>
+</div>
+<div style="display:flex;justify-content:center;margin-top:18px">
+  <div class="toolbar">
+    <span class="tb on">Focus · 25:00</span>
+    <span class="tb">Board</span>
+    <span class="tb">Chat</span>
+    <span class="tb-mic icbtn">🎤</span>
+    <span class="tb-end">×</span>
+  </div>
+</div>
+</body></html>

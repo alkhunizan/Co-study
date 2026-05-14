@@ -10,7 +10,9 @@ function buildSelfSignedCertificate() {
         days: 365,
         keySize: 2048,
         extensions: [
-            { name: 'basicConstraints', cA: true },
+            { name: 'basicConstraints', cA: false },
+            { name: 'keyUsage', digitalSignature: true, keyEncipherment: true },
+            { name: 'extKeyUsage', serverAuth: true },
             {
                 name: 'subjectAltName',
                 altNames: [
@@ -34,17 +36,22 @@ function getLocalIPv4() {
     return '127.0.0.1';
 }
 
-console.log('Generating self-signed certificate for local HTTPS...');
-const cert = buildSelfSignedCertificate();
+(async () => {
+    console.log('Generating self-signed certificate for local HTTPS...');
+    const cert = await buildSelfSignedCertificate();
 
-const appServer = createCoStudyServer({
-    mode: 'https',
-    createServer: (app) => https.createServer({ key: cert.private, cert: cert.cert }, app)
-});
+    const appServer = createCoStudyServer({
+        mode: 'https',
+        createServer: (app) => https.createServer({ key: cert.private, cert: cert.cert }, app)
+    });
 
-appServer.listen(({ config }) => {
-    const localIP = getLocalIPv4();
-    console.log(`Co-Study local HTTPS listening on https://localhost:${config.port}`);
-    console.log(`LAN: https://${localIP}:${config.port}`);
-    console.log('This entrypoint is for local secure-context testing only. Production should run server.js behind Nginx TLS.');
+    appServer.listen(({ config }) => {
+        const localIP = getLocalIPv4();
+        console.log(`Co-Study local HTTPS listening on https://localhost:${config.port}`);
+        console.log(`LAN: https://${localIP}:${config.port}`);
+        console.log('This entrypoint is for local secure-context testing only. Production should run server.js behind Nginx TLS.');
+    });
+})().catch((err) => {
+    console.error('Failed to start HTTPS server:', err);
+    process.exit(1);
 });
