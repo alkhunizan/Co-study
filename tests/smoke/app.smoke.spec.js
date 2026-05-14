@@ -18,6 +18,8 @@ async function createSmokePage(browser) {
             delete window.FaceDetector;
         } catch (_error) {}
 
+        try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
+
         const baseMediaDevices = navigator.mediaDevices || {};
         const stubbedMediaDevices = Object.create(baseMediaDevices);
         stubbedMediaDevices.getUserMedia = async () => {
