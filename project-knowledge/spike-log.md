@@ -68,3 +68,36 @@
 2. **`server-https.js` fix — happy with the change?** The cert generation was already in source, just broken. The fix is two extension tweaks + a Promise wrapper. Not a new dependency, not a new architecture. I'm assuming "fix what's already there" is in spec; flag if you'd rather we leave HTTPS for a Day-5 deployment-shaped task and rebase Day-2 on the mesh path.
 3. **MiroTalk telemetry beacon to `stats.mirotalk.com`** still firing by default. Recommend `STATS_ENABLED=false` on the container env before any beta user touches it. Trivial restart, but a privacy decision.
 
+---
+
+## 2026-05-14 — Day 3 of Week 1
+
+**Goal for this session:** Pomodoro state syncs across two clients in an integrated (SFU) room.
+
+**Status: GREEN.** Two clients in an SFU room. Tab A flips its timer mode focus → break; Tab B receives the matching `status-update` events with A's `userId` and the full sanitized payload, ack'd by the server in both directions. Mode sequence captured by B: `['focus', 'break']`. Verified end-to-end in [day3-pomodoro.mjs](../day3-pomodoro.mjs).
+
+**What worked:**
+- **"Pomodoro state" was already designed and wired** — same pattern as Day 2's SFU bridge. There is no dedicated `pomodoro` model in the repo; the synchronized session state rides the existing `user-status` socket event. Server contract at [co-study-server.js:1469-1481](../co-study-server.js#L1469): client emits `user-status` with `{ status: payload }`, server `sanitizeStatus`-es it ([co-study-server.js:483](../co-study-server.js#L483)) and broadcasts `status-update { userId, status: safeStatus }` to the room. The payload carries `timerMode: 'focus'|'break'|null` plus `text`, `manualPreset`, `autoSync`, `ambientType`, `updatedAt`.
+- **UI controls already plumb to this surface** — the "Share with room" toggle gates broadcast; "Sync with timer" toggle makes the broadcast auto-flip when the local timer transitions. Bound at [index.html:2218-2299](../index.html#L2218) (`buildStatusPayload` + `broadcastStatus`).
+- **Day-3 spike test:** [day3-pomodoro.mjs](../day3-pomodoro.mjs) drives the canonical proof. Same Playwright + fake-media + HTTPS setup as Day 2. Two contexts join the same SFU room (room code `386DQM` for the run captured below), Tab B instruments its `socket.on('status-update', …)` into `window.__statusUpdates`, then Tab A emits `user-status` payloads with `timerMode: 'focus'` then `'break'` 3s apart. Both transitions ack `{ok:true}` from the server, and Tab B captures both events with A's exact `userId` (`3p-KI0fzMFS03v2NAAAv`) and the matching payload. Each emit-to-receive round-trip was sub-200ms.
+- **Run finishes in ~10s end-to-end** thanks to ack-driven waits (`waitForFunction` on `window.__statusUpdates`) instead of arbitrary `waitForTimeout`. Determinism > polling.
+- **No regressions.** Day 2's HTTPS dev server (`server-https.js`) + `halastudy-sfu` container both still up unchanged from earlier in the day; same `SFU_BASE_URL=https://127.0.0.1:3010` boot.
+
+**What broke:**
+- Initial grep for `pomodoro` returned nothing in the live code — only in design mockups, this spike log, and the `/spike-day` command doc. **The product term "Pomodoro" doesn't map to a `pomodoro` model in code; it maps to `user-status` with `timerMode`.** Worth a one-line note in [DESIGN.md](../DESIGN.md) (or wherever vocabulary lives) so the next contributor doesn't grep wrong.
+- The local timer UI (focus/break tabs at [index.html:678-680](../index.html#L678)) is **client-only and never broadcasts a countdown.** Each client runs its own clock; the "sync" is state-transition events, not a synchronized timer. Acceptable for the wedge (Halastudy isn't a competitive timer race), but worth documenting as a deliberate scope choice if anyone files a feature request for "show the same countdown on every screen."
+- **Headless fake-media gotcha from Day 2 still applies** to the WebRTC layer — local cameras show 1280x720 but remote MediaStreamTracks come in `muted:true`. That's irrelevant to Day 3 (Pomodoro syncs via socket.io, not WebRTC), but it'd bite again if Day 5 UI tests assume frame flow.
+
+**What I changed:**
+- Added [day3-pomodoro.mjs](../day3-pomodoro.mjs) — two-context Playwright proof of state sync, parallels `day2-twotab.mjs` structurally.
+- Appended this log entry.
+- No edits to co-study core, room model, server, or client. The feature was already shipped.
+
+**Next session starts with:**
+- Day 4 — mid-sprint check-in. **No new code.** Open the spike log, write an explicit red/yellow/green for each of P1 (does anyone want this?), P2 (does the media stack carry the load?), P3 (can we get distribution?) per PLAN.md §4. If anything is red, write the pivot decision. From this room: P2 is green (Day 2 + Day 3 proven), but P1 and P3 are still un-tested because the spike has been pure tech-stack work — Day 4 is when the human signals should land.
+
+**Open questions for Aziz:**
+1. **The user-status / Pomodoro vocabulary mismatch** — should I add a one-paragraph "what 'Pomodoro' maps to in code" note to DESIGN.md or CLAUDE.md so the next grep-driven contributor doesn't waste an hour? Trivial PR.
+2. **P1 + P3 signals — yours.** Day 4 is the mid-sprint check, and right now we only have proofs for P2. Did any of the user-interview / distribution-outreach work happen on the side this week? If not, Day 4 will be honest about that and call P1/P3 yellow-pending instead of green.
+3. **Should Day-5 UI work use the existing focus/break tabs as-is, or rework toward Halastudy's "quiet by default, camera is the signal" wedge?** The current UI is StudyStream-flavored — a timer tab takes up real estate near the camera. Halastudy's wedge says the camera IS the signal; the timer is supporting chrome. Could be a 30-min CSS reorg, or a full DESIGN.md §11 sweep on Day 5.
+
