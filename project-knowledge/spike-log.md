@@ -101,3 +101,88 @@
 2. **P1 + P3 signals — yours.** Day 4 is the mid-sprint check, and right now we only have proofs for P2. Did any of the user-interview / distribution-outreach work happen on the side this week? If not, Day 4 will be honest about that and call P1/P3 yellow-pending instead of green.
 3. **Should Day-5 UI work use the existing focus/break tabs as-is, or rework toward Halastudy's "quiet by default, camera is the signal" wedge?** The current UI is StudyStream-flavored — a timer tab takes up real estate near the camera. Halastudy's wedge says the camera IS the signal; the timer is supporting chrome. Could be a 30-min CSS reorg, or a full DESIGN.md §11 sweep on Day 5.
 
+---
+
+## 2026-05-14 — Day 4 of Week 1 (mid-sprint check)
+
+**Goal for this session:** Self-check with explicit red/yellow/green for P1, P2, P3 per PLAN.md §4. Write a pivot decision if any proof is red. **No code today.**
+
+**Status: yellow overall** — P2 is solidly green, but P1 and P3 are unknown-unknowns. No pivot triggered (nothing is provably red), but the spike is in danger of finishing Day 7 with only tech proofs and no demand or distribution signal, which is the failure mode CLAUDE.md §1 implicitly warns against ("v1 scope is the 6-week MVP wedge").
+
+---
+
+### P2 — Does the media stack carry the load? **GREEN.**
+
+Evidence: Days 1, 2, 3 in this log.
+
+| Sub-proof | Receipt |
+|---|---|
+| co-study + mirotalk/sfu boot side-by-side, no port 40001 conflict | Day 1 entry; both processes still running 4+ hours later as of this entry |
+| Cross-origin HTTPS iframe bridge works end-to-end | Day 2 entry; [day2-twotab.mjs](../day2-twotab.mjs); two browser contexts both attach remote MediaStreamTracks with `readyState: "live"` |
+| Shared session state syncs across two clients in <200ms | Day 3 entry; [day3-pomodoro.mjs](../day3-pomodoro.mjs); mode sequence `['focus','break']` captured deterministically |
+
+**Open gaps (downgrade P2 from green → yellow if either fails):**
+1. **Real-browser two-tab video confirmation** — 60-sec test for Aziz at `https://127.0.0.1:3443` (open question #1 from Day 2). Headless `--use-fake-device-for-media-stream` produces `track.muted:true` on the remote, so frame transport is only protocol-proven, not pixel-proven. **If both videos render in a real browser → P2 stays green.** If not, demote to yellow and dig into mediasoup `announcedIp` / ICE.
+2. **MiroTalk telemetry beacon** to `stats.mirotalk.com` — informational; doesn't affect P2 grade but does affect any user testing privacy posture. `STATS_ENABLED=false` recommended before beta.
+
+---
+
+### P1 — Does anyone want this? **YELLOW-PENDING (Aziz to fill).**
+
+**What I can grade:** nothing. P1 is a human-evaluation step per CLAUDE.md §7 ("Interviews (P1) — human-evaluation step. No transcript signal.").
+
+**What's not in the log:** zero user-interview notes this week. All four days went to tech-stack and process work.
+
+**Cheapest probe to convert yellow → green by Day 7:**
+- 5 × 15-min student interviews, GCC/Saudi cohort (per CLAUDE.md §1 "live-camera body-doubling for GCC/Saudi students").
+- Halastudy's wedge — *"quiet by default, camera is the signal, audio is the exception"* — is directly testable in conversation. Does it ring true or weird? Do students currently study-with-a-friend on FaceTime/WhatsApp video calls? What breaks that workflow?
+- Capture verbatim quotes (Day 6 explicitly asks for 5).
+- 75 minutes of work over 2-3 days.
+
+**Aziz to fill in below:**
+
+> **P1 grade:** _(R / Y / G)_
+> **Evidence:** _(1-2 sentences — who you talked to, what you heard)_
+> **Most surprising quote:** _("…")_
+
+---
+
+### P3 — Can we get distribution? **YELLOW-PENDING (Aziz to fill), trending red.**
+
+**What I can grade:** nothing. P3 is a human-evaluation step per CLAUDE.md §7.
+
+**Why "trending red":** Day 6 success criterion in PLAN.md §3 is *"named beta list of 30+ humans, updated risk register entries."* As of today (Day 4), names on the list: **0**. Three days remain. Hitting 30 from zero in 72 hours requires committing to ONE channel and seeding ~10 conversations per day; if no channel is chosen by end of Day 5, P3 is de-facto red.
+
+**Cheapest probe to convert yellow → green by Day 7:**
+- Pick ONE channel: X/Twitter thread + DMs, WhatsApp groups (Aziz already runs several per CLAUDE.md global), r/saudiarabia, university Telegram groups, or a Halastudy landing page with a waitlist form.
+- Best leverage: WhatsApp groups Aziz already has access to + an X thread. Both zero-cost, audience already warm.
+- Even a soft signal counts: a "yes I'd try this" reply is a name on the list. Don't gate on credit-card commitment.
+
+**Aziz to fill in below:**
+
+> **P3 grade:** _(R / Y / G)_
+> **Channel chosen:** _(one)_
+> **Names on list so far:** _(integer)_
+> **Most surprising response:** _("…")_
+
+---
+
+### Pivot decision
+
+**Not triggered.** PLAN.md §4 says write a pivot decision *if any proof is red*. Nothing is provably red. P2 is green with receipts; P1/P3 are yellow-pending until Aziz writes the human-evaluation rows above.
+
+**Conditional pivot threshold:** if at end-of-Day-5 (tomorrow) both P1 and P3 are still yellow-pending with no human signal whatsoever, that counts as de-facto red for the spike's go/no-go, and Day 7's decision should default to **no-go OR scope-cut to a landing-page-only wedge** that focuses Week 2 on demand validation instead of feature build. Writing this threshold here so the Day 7 evaluator doesn't have to relitigate it.
+
+---
+
+**What I changed today:**
+- This Day 4 entry (no code).
+
+**Next session starts with:**
+- Day 5 — quiet mode + room create/join/leave UI flow end-to-end on localhost, DESIGN.md §11 ship checklist, zero §10 hard-no's. Best done in a real browser with the DESIGN.md doc open alongside; the existing [landing.html](../landing.html) and [index.html](../index.html) UI already have most of this but have pre-existing unstaged modifications in the working tree (out-of-scope of every PR so far) — those need to be reviewed before Day 5 can be honestly graded against DESIGN.md.
+
+**Open questions for Aziz:**
+1. **Fill in P1 and P3 rows above** — even a one-line "haven't started" is better than the empty rows, because the Day 7 go/no-go evaluator will read this entry verbatim.
+2. **Real-browser two-tab confirmation for P2** — still the cheapest test you can run; closes the only Day-2 open gap.
+3. **Pre-existing modified files** (`index.html`, `landing.html`, `package.json`, etc.) — these have been sitting in the working tree across Day 2 and Day 3 PRs and are blocking an honest Day 5 grade. Need a 5-minute triage: stash them, commit them, or revert. Day 5 starts with this triage if you haven't done it by then.
+
