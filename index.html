@@ -31,7 +31,19 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
-        
+
+        /* DESIGN.md §11.8 — respect reduced-motion preference. */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
         body {
             font-family: 'Inter', 'Segoe UI', sans-serif;
             background-color: var(--bg-body);
@@ -328,14 +340,14 @@
         .schedule-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
         .schedule-title { font-size: 0.82rem; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.06em; }
         .schedule-subtitle { font-size: 0.95rem; font-weight: 600; color: var(--text-main); line-height: 1.4; }
-        .schedule-countdown { font-size: 0.9rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
+        .schedule-countdown { font-size: 0.9rem; font-weight: 700; color: var(--accent-3); white-space: nowrap; }
         .schedule-meta { font-size: 0.82rem; color: var(--text-sec); line-height: 1.5; }
         .schedule-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
         .schedule-stat { padding: 10px 12px; border-radius: 16px; background: var(--bg-card); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
         .schedule-stat strong { font-size: 1.1rem; line-height: 1; }
         .schedule-stat span { font-size: 0.78rem; color: var(--text-sec); }
         .schedule-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-        .schedule-btn, .schedule-link { border: none; border-radius: 999px; padding: 9px 16px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: rgba(224,176,139,0.14); color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+        .schedule-btn, .schedule-link { border: none; border-radius: 999px; padding: 9px 16px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: rgba(224,176,139,0.14); color: var(--accent-3); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         .schedule-btn:hover, .schedule-link:hover { background: rgba(224,176,139,0.22); }
         .todo-input-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
         .btn-add { width: 42px; height: 42px; border: none; border-radius: 14px; background: var(--accent); color: var(--ink); font-size: 1.35rem; cursor: pointer; flex-shrink: 0; box-shadow: var(--sh-lamp); }
@@ -377,7 +389,7 @@
         .video-box.sfu-mode .cam-feed { display: none; }
         .sfu-frame { flex: 1; width: 100%; height: 100%; border: 0; border-radius: 20px; display: none; }
         .video-box.sfu-mode .sfu-frame { display: block; }
-        .media-state-panel { position: absolute; right: 16px; bottom: 16px; max-width: min(340px, calc(100% - 32px)); border-radius: 18px; padding: 14px 16px; background: rgba(0,0,0,0.58); color: #fff; display: flex; flex-direction: column; gap: 8px; z-index: 3; backdrop-filter: blur(6px); }
+        .media-state-panel { position: absolute; inset-inline-end: 16px; bottom: 16px; max-width: min(340px, calc(100% - 32px)); border-radius: 18px; padding: 14px 16px; background: rgba(0,0,0,0.58); color: #fff; display: flex; flex-direction: column; gap: 8px; z-index: 3; backdrop-filter: blur(6px); }
         .media-state-panel[hidden] { display: none; }
         .media-state-text { font-size: 0.92rem; font-weight: 700; line-height: 1.4; }
         .media-state-detail { font-size: 0.8rem; line-height: 1.5; opacity: 0.85; }
@@ -390,23 +402,23 @@
         .remote-tile { width: 100%; height: 100%; border-radius: 18px; overflow: hidden; position: relative; background: #0a0a0a; box-shadow: 0 12px 25px rgba(0,0,0,0.4); transition: transform 0.2s ease, box-shadow 0.2s ease; }
         .remote-tile:hover { transform: translateY(-3px); box-shadow: 0 15px 35px rgba(0,0,0,0.6); }
         .remote-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .remote-tile-name { position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .remote-tile-name { position: absolute; top: 12px; inset-inline-start: 12px; background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
         .cam-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 1rem; opacity: 0.85; }
         .cam-controls { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 5; }
         .cam-btn { border: none; border-radius: 999px; padding: 10px 20px; font-size: 0.9rem; cursor: pointer; background: rgba(0,0,0,0.6); color: #fff; backdrop-filter: blur(6px); }
         .cam-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .status-badge { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; }
+        .status-badge { position: absolute; top: 15px; inset-inline-start: 15px; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; }
         .status-dot { width: 6px; height: 6px; background: #4cd137; border-radius: 50%; animation: pulse 2s infinite; }
         .status-dot.warn { background: #FDCB6E; }
         .status-dot.neutral { background: #636E72; }
-        .ai-status { position: absolute; top: 45px; left: 15px; font-size: 0.75rem; opacity: 0.8; }
-        .remote-name { position: absolute; top: 15px; left: 15px; font-size: 0.85rem; background: rgba(0,0,0,0.5); padding: 4px 12px; border-radius: 999px; }
-        .remote-status { position: absolute; bottom: 15px; left: 15px; right: 15px; background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 12px; font-size: 0.8rem; text-align: center; }
+        .ai-status { position: absolute; top: 45px; inset-inline-start: 15px; font-size: 0.75rem; opacity: 0.8; }
+        .remote-name { position: absolute; top: 15px; inset-inline-start: 15px; font-size: 0.85rem; background: rgba(0,0,0,0.5); padding: 4px 12px; border-radius: 999px; }
+        .remote-status { position: absolute; bottom: 15px; inset-inline: 15px; background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 12px; font-size: 0.8rem; text-align: center; }
         .video-box.collapsed { background: #050505; }
         .video-box.collapsed #remote-cam { min-height: 60px; flex: 0; background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.2); }
         .video-box.collapsed #remote-grid { display: none; }
         .video-box.collapsed #remote-placeholder { display: flex; position: relative; }
-        .video-box-collapsed-banner { position: absolute; left: 12px; right: 12px; top: 12px; bottom: 90px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #fff; font-size: 0.95rem; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); border-radius: 18px; z-index: 4; pointer-events: none; padding: 0 20px; text-align: center; }
+        .video-box-collapsed-banner { position: absolute; inset-inline: 12px; top: 12px; bottom: 90px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #fff; font-size: 0.95rem; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); border-radius: 18px; z-index: 4; pointer-events: none; padding: 0 20px; text-align: center; }
         .video-box-collapsed-banner[hidden] { display: none; }
 
         .timer-box { background: var(--bg-card); padding: 25px; border-radius: var(--radius-card); box-shadow: var(--shadow-card); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -489,7 +501,7 @@
             .status-presets { flex-direction: column; align-items: stretch; }
             .status-options { flex-direction: column; align-items: flex-start; gap: 6px; }
             .ambient-control { justify-content: center; }
-            .ambient-popover { position: fixed; bottom: 10px; right: 10px; width: calc(100% - 20px); max-width: 360px; }
+            .ambient-popover { position: fixed; bottom: 10px; inset-inline-end: 10px; width: calc(100% - 20px); max-width: 360px; }
             .timer-main-row { flex-direction: column; gap: 15px; }
             .timer-main-row .time-display { font-size: 3.5rem; }
             .timer-main-row .focus-summary { width: 100%; min-width: auto; }
