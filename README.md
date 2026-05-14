@@ -1,14 +1,15 @@
-# Co-Study <img src="images/baby-chick_1f424.gif" width="32" height="32" alt="Logo">
+# Halastudy <span style="font-family:Newsreader,serif">هلا</span>
 
-[Arabic Documentation](./README_AR.md)
+[Arabic Documentation](./README_AR.md) · [Design System](./design-system/README.md)
 
-Co-Study is a browser-based focus room for small groups who want shared video, live chat, timers, and lightweight accountability.
+**Halastudy** (formerly Co-Study) is the warm, late-night study room of the Gulf — a body-doubling focus app where students drop in, camera on, mic off, and work alongside each other. Built Arabic-first with full RTL parity.
 
-This Saudi release ships with:
-- English as the default UI
-- Arabic as the secondary selectable UI
-- Shared language preference via `coStudyLang`
-- Arabic-targeted RTL text handling without mirroring the full layout
+This release ships with:
+- Arabic as the default UI with full RTL layout mirroring
+- English as a secondary selectable UI
+- Shared language preference via `coStudyLang` (key retained for backward compat)
+- Logical CSS properties throughout so the layout auto-flips on language change
+- The Halastudy design system (`/design-system/`) — karak-amber accent, Newsreader + Tajawal + Amiri typography, single-accent palette, Gulf night-sky dark mode
 
 ## Features
 
@@ -29,8 +30,8 @@ This Saudi release ships with:
 ### Local Development
 
 ```bash
-git clone https://github.com/sdxdlgz/Co-study.git
-cd Co-study
+git clone https://github.com/alkhunizan/Co-study.git
+cd Co-study   # repo dir kept; product rebranded to Halastudy
 npm install
 npm start
 ```

@@ -19,7 +19,7 @@ sudo npm install -g pm2
 
 ```bash
 cd /var/www
-sudo git clone https://github.com/sdxdlgz/Co-study.git
+sudo git clone https://github.com/alkhunizan/Co-study.git
 cd Co-study
 sudo npm ci
 ```

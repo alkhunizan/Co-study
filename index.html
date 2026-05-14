@@ -1,46 +1,33 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Co-Study | Focus Room</title>
-    <link rel="icon" type="image/gif" href="/images/baby-chick_1f424.gif">
+    <title>Halastudy | غرفة التركيز</title>
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Noto+Sans+Arabic:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <!-- Halastudy webfonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/design-system/colors_and_type.css">
     <style>
+        /* Halastudy aliases — base tokens live in /design-system/colors_and_type.css.
+           Neumorphic shadows (DESIGN.md §10 hard-no) replaced with the warm-ink
+           soft-shadow system. Hot-pink/seafoam priorities replaced with the
+           Halastudy semantic palette (warm-shifted). */
         :root {
-            --bg-body: #F5F2EB;
-            --bg-card: #FFFFFF;
-            --bg-input: #F7F7F7;
-            --text-main: #2D3436;
-            --text-sec: #636E72;
-            --border: #EFEFEF;
-            
-            --accent: #E0B08B; 
-            --accent-glow: rgba(224, 176, 139, 0.3);
+            --bg-body:        var(--paper);
+            --bg-card:        var(--card);
+            --bg-input:       var(--inset);
+            --text-main:      var(--ink);
+            --text-sec:       var(--ink-2);
+            --border:         var(--line);
 
-            --prio-high: #FF7675;
-            --prio-med: #FDCB6E;
-            --prio-low: #55EFC4;
+            --shadow-card:    var(--sh-2);
+            --shadow-btn:     var(--sh-2);       /* was neumorphic; now soft elevation */
+            --shadow-btn-inset: var(--sh-inner); /* press state */
 
-            --shadow-card: 0 8px 30px rgba(0,0,0,0.04);
-            --shadow-btn: 6px 6px 12px #d1d1d1, -6px -6px 12px #ffffff;
-            --shadow-btn-inset: inset 4px 4px 8px #d1d1d1, inset -4px -4px 8px #ffffff;
-
-            --radius-card: 24px;
-        }
-
-        [data-theme="dark"] {
-            --bg-body: #18191A;
-            --bg-card: #242526;
-            --bg-input: #3A3B3C;
-            --text-main: #E4E6EB;
-            --text-sec: #B0B3B8;
-            --border: #3E4042;
-            --shadow-card: 0 8px 30px rgba(0,0,0,0.3);
-            --shadow-btn: 5px 5px 10px #121212, -5px -5px 10px #303030;
-            --shadow-btn-inset: inset 4px 4px 8px #121212, inset -4px -4px 8px #303030;
+            --radius-card:    var(--r-xl);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
@@ -247,7 +234,7 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            text-align: left;
+            text-align: start;
             border: 1px solid var(--border);
         }
         .join-icon { font-size: 2.5rem; }
@@ -274,26 +261,52 @@
             border: none;
             border-radius: 16px;
             background: var(--accent);
-            color: #fff;
+            color: var(--ink);
             padding: 14px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: var(--shadow-card);
+            box-shadow: var(--sh-lamp);
             margin-top: 6px;
         }
         .join-error { min-height: 18px; font-size: 0.85rem; color: var(--prio-high); }
 
         /* --- Header --- */
         header { padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .logo { font-size: 1.4rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
-        .logo span { color: var(--accent); }
-        .header-tools { display: flex; align-items: center; gap: 20px; }
+        /* Halastudy wordmark — see /design-system/assets/logo-wordmark.html */
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--ink);
+        }
+        html[lang="ar"] .logo { font-family: var(--font-body-ar); font-weight: 700; }
+        .logo-mark {
+            width: 28px; height: 28px;
+            border-radius: 7px;
+            background: var(--accent);
+            color: var(--ink);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 15px;
+        }
+        .logo-word em {
+            font-style: italic;
+            font-weight: 500;
+            color: var(--accent-3);
+        }
+        .header-tools { display: flex; align-items: center; gap: 14px; }
 
-        .color-palette { display: flex; gap: 8px; background: var(--bg-card); padding: 6px 10px; border-radius: 20px; box-shadow: var(--shadow-card); }
+        /* .color-palette removed (5-dot picker dropped). .color-dot kept for
+           the todo priority picker where it's scoped use makes sense. */
         .color-dot { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s; }
         .color-dot:hover { transform: scale(1.2); }
-        .color-dot.active { border-color: var(--text-main); transform: scale(1.1); }
+        .color-dot.active { border-color: var(--ink); transform: scale(1.1); }
 
         .icon-btn { background: var(--bg-card); border: none; width: 40px; height: 40px; border-radius: 12px; color: var(--text-main); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-card); transition: 0.2s; font-size: 1.1rem; }
         .icon-btn:hover { transform: translateY(-2px); color: var(--accent); }
@@ -325,15 +338,15 @@
         .schedule-btn, .schedule-link { border: none; border-radius: 999px; padding: 9px 16px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: rgba(224,176,139,0.14); color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         .schedule-btn:hover, .schedule-link:hover { background: rgba(224,176,139,0.22); }
         .todo-input-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-        .btn-add { width: 42px; height: 42px; border: none; border-radius: 14px; background: var(--accent); color: #fff; font-size: 1.35rem; cursor: pointer; flex-shrink: 0; box-shadow: var(--shadow-card); }
+        .btn-add { width: 42px; height: 42px; border: none; border-radius: 14px; background: var(--accent); color: var(--ink); font-size: 1.35rem; cursor: pointer; flex-shrink: 0; box-shadow: var(--sh-lamp); }
         .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
-        .todo-priority-picker { display: flex; gap: 10px; margin: 0 0 12px 5px; }
+        .todo-priority-picker { display: flex; gap: 10px; margin-block-end: 12px; margin-inline-start: 5px; }
         .todo-priority-btn { border: none; background: transparent; padding: 0; cursor: pointer; }
         .todo-priority-btn:disabled { opacity: 0.45; cursor: not-allowed; }
         .todo-priority-picker .color-dot { width: 16px; height: 16px; }
         .todo-priority-picker .color-dot.active { transform: scale(1.3); }
         .todo-feedback { min-height: 18px; font-size: 0.82rem; color: var(--prio-high); margin-bottom: 8px; }
-        .todo-list { display: flex; flex-direction: column; gap: 10px; min-height: 120px; overflow-y: auto; padding-right: 4px; }
+        .todo-list { display: flex; flex-direction: column; gap: 10px; min-height: 120px; overflow-y: auto; padding-inline-end: 4px; }
         .todo-empty { padding: 14px 16px; border-radius: 18px; border: 1px dashed var(--border); background: rgba(0,0,0,0.02); color: var(--text-sec); font-size: 0.88rem; }
         .todo-item { display: flex; align-items: center; gap: 12px; background: var(--bg-input); border-radius: 18px; padding: 12px 14px; border: 1px solid transparent; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; cursor: grab; }
         .todo-item-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; }
@@ -369,7 +382,7 @@
         .media-state-text { font-size: 0.92rem; font-weight: 700; line-height: 1.4; }
         .media-state-detail { font-size: 0.8rem; line-height: 1.5; opacity: 0.85; }
         .media-state-detail[hidden] { display: none; }
-        .media-state-btn { align-self: flex-start; border: none; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: var(--accent); color: #fff; }
+        .media-state-btn { align-self: flex-start; border: none; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: var(--accent); color: var(--ink); }
         .media-state-btn[hidden] { display: none; }
         .cam-feed { flex: 1; background: #1a1a1a; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; position: relative; overflow: hidden; }
         .cam-feed video { width: 100%; height: 100%; object-fit: cover; border-radius: 20px; display: none; }
@@ -428,14 +441,14 @@
         .chat-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 5px; }
         .msg { padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; max-width: 85%; line-height: 1.4; }
         .msg.l { background: var(--bg-input); align-self: flex-start; border-bottom-left-radius: 2px; }
-        .msg.r { background: var(--accent); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg.r { background: var(--accent); color: var(--ink); align-self: flex-end; border-bottom-right-radius: 2px; }
         .msg-author { font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px; display: block; }
         .msg.system { align-self: center; background: transparent; color: var(--text-sec); font-size: 0.8rem; }
 
         .chat-input-area { position: relative; margin-top: 10px; background: var(--bg-input); border-radius: 24px; display: flex; align-items: center; padding: 6px; }
         .chat-input { flex: 1; border: none; background: transparent; padding: 8px 12px; font-size: 0.9rem; color: var(--text-main); min-width: 0; }
         .chat-input:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-send { width: 36px; height: 36px; background: var(--accent); border: none; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; }
+        .btn-send { width: 36px; height: 36px; background: var(--accent); border: none; border-radius: 50%; color: var(--ink); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; }
         .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-send:hover { transform: rotate(-10deg) scale(1.1); }
 
@@ -447,9 +460,18 @@
         .ambient-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
         .ambient-status-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-sec); }
         .ambient-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 210px; overflow-y: auto; }
-        .ambient-list li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; cursor: pointer; transition: background 0.2s, color 0.2s; }
-        .ambient-list li:hover { background: var(--bg-input); }
-        .ambient-list li.active { background: rgba(224,176,139,0.12); color: var(--accent); }
+        .ambient-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; cursor: pointer; transition: background 0.2s, color 0.2s; color: var(--ink-2); }
+        .ambient-list li:hover { background: var(--bg-input); color: var(--ink); }
+        .ambient-list li.active { background: var(--accent-soft); color: var(--accent-3); font-weight: 600; }
+        .ambient-icon {
+            width: 28px; height: 28px;
+            border-radius: 8px;
+            background: var(--accent-soft);
+            color: var(--accent-3);
+            display: inline-flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .ambient-list li.active .ambient-icon { background: var(--accent); color: var(--ink); }
         .ambient-off { color: var(--prio-high); }
         .ambient-volume { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 0.78rem; }
         .ambient-volume input { width: 100%; }
@@ -482,8 +504,8 @@
 <div class="join-overlay" id="join-overlay">
     <form class="join-card" id="join-form">
         <div class="lang-switch" aria-label="Language selector">
-            <button type="button" class="lang-option active" data-lang-value="en">EN</button>
-            <button type="button" class="lang-option" data-lang-value="ar">AR</button>
+            <button type="button" class="lang-option active" data-lang-value="ar">AR</button>
+            <button type="button" class="lang-option" data-lang-value="en">EN</button>
         </div>
         <div class="join-icon">📚</div>
         <h2 data-lang="joinTitle">Join the focus room</h2>
@@ -500,21 +522,26 @@
 </div>
 
 <header>
-    <div class="logo"><img src="/images/baby-chick_1f424.gif" alt="Logo" style="height: 1.6em; vertical-align: middle;"> Co-Study</div>
+    <a href="/" class="logo" aria-label="Halastudy home" style="text-decoration:none;color:inherit;">
+        <span class="logo-mark" aria-hidden="true">H</span>
+        <span class="logo-word">Hala<em>study</em></span>
+    </a>
     <div class="header-tools">
-        <div class="color-palette">
-            <div class="color-dot active" style="background:#E0B08B" onclick="setTheme('#E0B08B', this)"></div>
-            <div class="color-dot" style="background:#81ECEC" onclick="setTheme('#81ECEC', this)"></div>
-            <div class="color-dot" style="background:#A29BFE" onclick="setTheme('#A29BFE', this)"></div>
-            <div class="color-dot" style="background:#FAB1A0" onclick="setTheme('#FAB1A0', this)"></div>
-            <div class="color-dot" style="background:#74B9FF" onclick="setTheme('#74B9FF', this)"></div>
-        </div>
+        <!-- Removed: 5-dot color picker. DESIGN.md §10 hard-no — Halastudy ships ONE accent. -->
         <div class="lang-switch">
-            <button type="button" class="lang-option active" id="lang-en" data-lang-value="en">EN</button>
-            <button type="button" class="lang-option" id="lang-ar" data-lang-value="ar">AR</button>
+            <button type="button" class="lang-option active" id="lang-ar" data-lang-value="ar">AR</button>
+            <button type="button" class="lang-option" id="lang-en" data-lang-value="en">EN</button>
         </div>
-        <button class="icon-btn" id="theme-toggle" data-lang-title="themeToggleTitle" title="Toggle theme" onclick="toggleDark()">🌙</button>
-        <button class="icon-btn" id="share-room-btn" data-lang-title="shareRoomTitle" title="Share room link" onclick="shareRoom()" style="background:var(--accent); color:white;">🔗</button>
+        <button class="icon-btn" id="theme-toggle" data-lang-title="themeToggleTitle" title="Toggle theme" onclick="toggleDark()" aria-label="Toggle theme">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+            </svg>
+        </button>
+        <button class="icon-btn" id="share-room-btn" data-lang-title="shareRoomTitle" title="Share room link" onclick="shareRoom()" style="background:var(--accent); color:var(--ink); border-color:transparent; box-shadow:var(--sh-lamp);" aria-label="Share">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+        </button>
     </div>
 </header>
 <div class="room-meta">
@@ -702,13 +729,15 @@
                         <span data-lang="ambientShowStatus">Show in status</span>
                     </label>
                 </div>
+                <!-- Ambient sounds — migrated from emoji-as-icon to Lucide line icons.
+                     README §Iconography: "the ambient-sound list migrates to Lucide". -->
                 <ul class="ambient-list" id="ambient-list">
-                    <li data-sound="rain"><span>🌧️</span> <span data-lang="soundRain">Rain</span></li>
-                    <li data-sound="forest"><span>🌲</span> <span data-lang="soundForest">Forest</span></li>
-                    <li data-sound="fire"><span>🔥</span> <span data-lang="soundFire">Fireplace</span></li>
-                    <li data-sound="cafe"><span>☕</span> <span data-lang="soundCafe">Cafe</span></li>
-                    <li data-sound="ocean"><span>🌊</span> <span data-lang="soundOcean">Ocean</span></li>
-                    <li data-sound="none" class="ambient-off"><span>✖️</span> <span data-lang="soundNone">Off</span></li>
+                    <li data-sound="rain"><span class="ambient-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg></span> <span data-lang="soundRain">Rain</span></li>
+                    <li data-sound="forest"><span class="ambient-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"/><path d="M7 16v6"/><path d="M13 19h6"/><path d="M16 19v3"/><path d="M14 17a3 3 0 0 0 3-3"/><path d="M22 11a5 5 0 0 0-5-5"/></svg></span> <span data-lang="soundForest">Forest</span></li>
+                    <li data-sound="fire"><span class="ambient-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span> <span data-lang="soundFire">Fireplace</span></li>
+                    <li data-sound="cafe"><span class="ambient-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg></span> <span data-lang="soundCafe">Cafe</span></li>
+                    <li data-sound="ocean"><span class="ambient-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1S6.5 5.5 8 5.5 9.6 7 11 7s2-1.5 3.5-1.5S16.5 7 18 7s2-1.5 3.5-1.5"/><path d="M2 12c.6.5 1.2 1 2.5 1s1.6-1.5 3.5-1.5S9.6 13 11 13s2-1.5 3.5-1.5S16.5 13 18 13s2-1.5 3.5-1.5"/><path d="M2 18c.6.5 1.2 1 2.5 1s1.6-1.5 3.5-1.5S9.6 19 11 19s2-1.5 3.5-1.5S16.5 19 18 19s2-1.5 3.5-1.5"/></svg></span> <span data-lang="soundOcean">Ocean</span></li>
+                    <li data-sound="none" class="ambient-off"><span class="ambient-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span> <span data-lang="soundNone">Off</span></li>
                 </ul>
                 <label class="ambient-volume">
                     <span data-lang="ambientVolume">Volume</span>
@@ -721,12 +750,48 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-    function setTheme(color, el) {
-        document.documentElement.style.setProperty('--accent', color);
-        document.documentElement.style.setProperty('--accent-glow', color + '4D');
-        document.querySelectorAll('.color-palette .color-dot').forEach(d => d.classList.remove('active'));
-        el.classList.add('active');
-    }
+    /* -------------------------------------------------------------------
+     * Halastudy storage-key migration (was: coStudy*).
+     * One-shot copy-forward. Idempotent — sentinel prevents re-running.
+     * Old keys are preserved read-only for one release. Remove after next
+     * clean release.
+     * ----------------------------------------------------------------- */
+    (function migrateCoStudyToHalastudy() {
+        try {
+            const SENTINEL = 'halastudy:migratedFromCoStudy:v1';
+            if (localStorage.getItem(SENTINEL)) return;
+            const localMap = {
+                coStudyLang:          'halastudyLang',
+                coStudyStatusState:   'halastudyStatusState',
+                coStudyAmbientState:  'halastudyAmbientState',
+                coStudyFocusStats:    'halastudyFocusStats',
+                coStudyClientId:      'halastudyClientId',
+                coStudyName:          'halastudyName',
+            };
+            const sessionMap = {
+                coStudyRoomPassword:  'halastudyRoomPassword',
+                coStudyRoomCode:      'halastudyRoomCode',
+            };
+            Object.entries(localMap).forEach(([oldK, newK]) => {
+                const v = localStorage.getItem(oldK);
+                if (v !== null && localStorage.getItem(newK) === null) {
+                    localStorage.setItem(newK, v);
+                }
+            });
+            Object.entries(sessionMap).forEach(([oldK, newK]) => {
+                const v = sessionStorage.getItem(oldK);
+                if (v !== null && sessionStorage.getItem(newK) === null) {
+                    sessionStorage.setItem(newK, v);
+                }
+            });
+            localStorage.setItem(SENTINEL, String(Date.now()));
+        } catch (e) { /* storage unavailable — skip */ }
+    })();
+
+    /* setTheme() is dead code — the 5-dot color picker was removed (one
+       accent only, per DESIGN.md §10). Kept as a noop to avoid breaking
+       any external integrations that might still call it. */
+    function setTheme() { /* noop: single-accent system */ }
 
     let isDark = false;
     function toggleDark() {
@@ -734,10 +799,10 @@
         document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     }
 
-    const LANG_STORAGE_KEY = 'coStudyLang';
+    const LANG_STORAGE_KEY = 'halastudyLang';
     const translations = {
         en: {
-            pageTitle: 'Co-Study | Focus Room',
+            pageTitle: 'Halastudy | Focus Room',
             themeToggleTitle: 'Toggle theme',
             shareRoomTitle: 'Share room link',
             todoTitle: 'Shared board',
@@ -765,7 +830,7 @@
             scheduleCadenceWeekdays: 'Sun-Thu',
             scheduleCadenceDaily: 'Daily',
             scheduleCadenceWeekly: 'Weekly',
-            inviteShareTitle: 'Join my scheduled Co-Study room',
+            inviteShareTitle: 'Join my scheduled Halastudy room',
             inviteRoomCodeLabel: 'Room code',
             inviteNextLabel: 'Next session',
             inviteCadenceLabel: 'Cadence',
@@ -873,7 +938,7 @@
             aiSfuUnavailable: 'AI focus monitoring is available in mesh rooms only.'
         },
         ar: {
-            pageTitle: 'كو-ستدي | غرفة تركيز',
+            pageTitle: 'هلا ستدي | غرفة تركيز',
             themeToggleTitle: 'تبديل المظهر',
             shareRoomTitle: 'مشاركة رابط الغرفة',
             todoTitle: 'اللوحة المشتركة',
@@ -901,7 +966,7 @@
             scheduleCadenceWeekdays: 'الأحد - الخميس',
             scheduleCadenceDaily: 'يوميًا',
             scheduleCadenceWeekly: 'أسبوعيًا',
-            inviteShareTitle: 'انضم إلى غرفة Co-Study المجدولة',
+            inviteShareTitle: 'انضم إلى غرفة هلا ستدي المجدولة',
             inviteRoomCodeLabel: 'رمز الغرفة',
             inviteNextLabel: 'الجلسة القادمة',
             inviteCadenceLabel: 'التكرار',
@@ -1141,8 +1206,8 @@
     let aiDetector = null;
     const BOARD_GOAL_MAX_LENGTH = 80;
     const BOARD_TASK_MAX_LENGTH = 120;
-    const STATUS_STORAGE_KEY = 'coStudyStatusState';
-    const AMBIENT_STORAGE_KEY = 'coStudyAmbientState';
+    const STATUS_STORAGE_KEY = 'halastudyStatusState';
+    const AMBIENT_STORAGE_KEY = 'halastudyAmbientState';
     let selectedBoardPriority = 3;
     let boardEnabled = false;
     let boardFeedbackKey = '';
@@ -1165,13 +1230,13 @@
     let timerRunning = false;
     let statusBroadcastTimer = null;
 
-    const FOCUS_STATS_KEY = 'coStudyFocusStats';
+    const FOCUS_STATS_KEY = 'halastudyFocusStats';
     const focusTotalEl = document.getElementById('focus-total');
     const focusResetBtn = document.getElementById('focus-reset-btn');
     let focusStats = { date: null, totalSeconds: 0 };
     let focusStatsResetTimer = null;
 
-    const CLIENT_ID_STORAGE_KEY = 'coStudyClientId';
+    const CLIENT_ID_STORAGE_KEY = 'halastudyClientId';
     let clientId = null;
 
     function ensureClientId() {
@@ -1199,7 +1264,7 @@
             return joinPasswordInput.value.trim();
         }
         try {
-            return sessionStorage.getItem('coStudyRoomPassword') || '';
+            return sessionStorage.getItem('halastudyRoomPassword') || '';
         } catch (_err) {
             return '';
         }
@@ -1207,21 +1272,21 @@
 
     function clearStoredPassword() {
         try {
-            sessionStorage.removeItem('coStudyRoomPassword');
+            sessionStorage.removeItem('halastudyRoomPassword');
         } catch (_err) {}
     }
 
     function storeRoomPassword(value) {
         try {
             if (value) {
-                sessionStorage.setItem('coStudyRoomPassword', value);
+                sessionStorage.setItem('halastudyRoomPassword', value);
             }
         } catch (_err) {}
     }
 
     function getStoredRoomCode() {
         try {
-            return sessionStorage.getItem('coStudyRoomCode') || '';
+            return sessionStorage.getItem('halastudyRoomCode') || '';
         } catch (_err) {
             return '';
         }
@@ -1229,7 +1294,7 @@
 
     function clearStoredRoomCode() {
         try {
-            sessionStorage.removeItem('coStudyRoomCode');
+            sessionStorage.removeItem('halastudyRoomCode');
         } catch (_err) {}
     }
 
@@ -1242,7 +1307,7 @@
 
     function getStoredLanguage() {
         try {
-            return localStorage.getItem(LANG_STORAGE_KEY) === 'ar' ? 'ar' : 'en';
+            return localStorage.getItem(LANG_STORAGE_KEY) === 'en' ? 'en' : 'ar';
         } catch (_err) {
             return 'en';
         }
@@ -1680,11 +1745,11 @@
         const lines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
-            'PRODID:-//Co-Study//Scheduled Room//EN',
+            'PRODID:-//Halastudy//Scheduled Room//EN',
             'BEGIN:VEVENT',
             `UID:${escapeIcsText((roomId || 'room').toLowerCase())}@co-study`,
             `DTSTAMP:${formatUtcForIcs(Date.now())}`,
-            `SUMMARY:${escapeIcsText(roomSchedule.title || roomId || 'Co-Study Session')}`,
+            `SUMMARY:${escapeIcsText(roomSchedule.title || roomId || 'Halastudy Session')}`,
             `DESCRIPTION:${escapeIcsText(`${currentCopy().inviteShareTitle}\n${currentCopy().inviteRoomCodeLabel}: ${roomId}\n${link}`)}`,
             `URL:${escapeIcsText(link)}`,
             `DTSTART:${formatUtcForIcs(startAt)}`,
@@ -2066,7 +2131,7 @@
     }
 
     function setLanguage(lang) {
-        curLang = lang === 'ar' ? 'ar' : 'en';
+        curLang = lang === 'en' ? 'en' : 'ar';
         setStoredLanguage(curLang);
         applyLanguage();
     }
@@ -3003,7 +3068,7 @@
         username = name;
         roomId = targetRoom;
         joinRoomInput.value = targetRoom;
-        localStorage.setItem('coStudyName', username);
+        localStorage.setItem('halastudyName', username);
         updateRoomBadge();
         const baseUrl = window.location.origin + window.location.pathname;
         if (window.history && window.history.replaceState) {

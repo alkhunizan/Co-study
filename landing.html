@@ -1,42 +1,32 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Co-Study | Collaborative Study Rooms</title>
-    <link rel="icon" type="image/gif" href="/images/baby-chick_1f424.gif">
+    <title>Halastudy | هلا — A quiet room. Open all night.</title>
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Noto+Sans+Arabic:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <!-- Halastudy webfonts: Newsreader (display), Inter (UI), Tajawal (AR body), Amiri (AR display), JetBrains Mono (numerals) -->
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/design-system/colors_and_type.css">
     <style>
+        /* Halastudy aliases — the heavy lifting lives in /design-system/colors_and_type.css.
+           These aliases keep the existing landing markup compatible with the design tokens. */
         :root {
-            --bg-body: #F5F2EB;
-            --bg-card: #FFFFFF;
-            --bg-muted: #F8F3ED;
-            --text-main: #2D3436;
-            --text-sec: #636E72;
-            --accent: #E0B08B;
-            --accent-strong: #C28A62;
-            --accent-glow: rgba(224, 176, 139, 0.3);
-            --border: #E2D7C8;
-            --error: #e74c3c;
-            --success: #27ae60;
-            --shadow-soft: 0 40px 80px rgba(45, 52, 54, 0.15);
-            --shadow-light: 0 20px 40px rgba(0, 0, 0, 0.08);
-            --radius-xl: 32px;
-            --radius-lg: 24px;
-            --radius-md: 16px;
-        }
-
-        [data-theme="dark"] {
-            --bg-body: #18191A;
-            --bg-card: #242526;
-            --bg-muted: #3A3B3C;
-            --text-main: #E4E6EB;
-            --text-sec: #B0B3B8;
-            --border: #3E4042;
-            --shadow-soft: 0 40px 80px rgba(0, 0, 0, 0.4);
-            --shadow-light: 0 20px 40px rgba(0, 0, 0, 0.25);
+            --bg-body:       var(--paper);
+            --bg-card:       var(--card);
+            --bg-muted:      var(--inset);
+            --text-main:     var(--ink);
+            --text-sec:      var(--ink-2);
+            --accent-strong: var(--accent-2);
+            --border:        var(--line);
+            --error:         var(--danger);
+            --shadow-soft:   var(--sh-4);
+            --shadow-light:  var(--sh-2);
+            --radius-xl:     var(--r-2xl);
+            --radius-lg:     var(--r-xl);
+            --radius-md:     var(--r-md);
         }
 
         * {
@@ -91,12 +81,12 @@
         }
 
         body::before {
+            /* Single lamp glow — DESIGN.md §2 rule of one image / accent moment */
             content: '';
             position: fixed;
             inset: 0;
             background:
-                radial-gradient(circle at 15% 20%, rgba(224, 176, 139, 0.12), transparent 50%),
-                radial-gradient(circle at 85% 80%, rgba(116, 185, 255, 0.08), transparent 45%);
+                radial-gradient(60% 60% at 22% 26%, var(--accent-glow), transparent 60%);
             pointer-events: none;
             z-index: -1;
         }
@@ -119,7 +109,7 @@
 
         .page-indicator {
             position: fixed;
-            right: 24px;
+            inset-inline-end: 24px;
             top: 50%;
             transform: translateY(-50%);
             display: flex;
@@ -162,16 +152,35 @@
             background: linear-gradient(to bottom, var(--bg-body), transparent);
         }
 
+        /* Halastudy wordmark — Newsreader display, karak amber "H" chip.
+           Mirrors design-system/assets/logo-wordmark.html. */
         .logo {
-            font-size: 1.3rem;
-            font-weight: 800;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--ink);
         }
-
-        .logo img {
-            height: 1.5em;
+        html[lang="ar"] .logo { font-family: var(--font-body-ar); font-weight: 700; }
+        .logo-mark {
+            width: 28px; height: 28px;
+            border-radius: 7px;
+            background: var(--accent);
+            color: var(--ink);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 15px;
+        }
+        .logo-word em {
+            font-style: italic;
+            font-weight: 500;
+            color: var(--accent-3);
         }
 
         .top-tools {
@@ -233,7 +242,7 @@
             max-width: 1200px;
             width: 100%;
             margin: 0 auto;
-            padding-left: 40px;
+            padding-inline-start: 40px;
         }
 
         .hero-content {
@@ -251,14 +260,29 @@
         }
 
         .hero-title {
-            font-size: clamp(2.2rem, 5vw, 3.5rem);
-            font-weight: 800;
-            line-height: 1.15;
-            margin-bottom: 20px;
+            font-family: var(--font-display);
+            font-size: clamp(2.5rem, 5.5vw, 4rem);
+            font-weight: 600;
+            letter-spacing: -0.025em;
+            line-height: 1.05;
+            margin-bottom: 22px;
+            color: var(--ink);
         }
 
-        .hero-title span {
-            color: var(--accent-strong);
+        html[lang="ar"] .hero-title {
+            font-family: var(--font-display-ar);
+            letter-spacing: 0;
+        }
+
+        .hero-title span { display: block; }
+        .hero-title span + span {
+            font-style: italic;
+            font-weight: 500;
+            color: var(--accent-3);
+        }
+        html[lang="ar"] .hero-title span + span {
+            font-style: normal;
+            font-weight: 700;
         }
 
         .hero-desc {
@@ -294,19 +318,23 @@
             padding: 14px 28px;
             border-radius: 999px;
             background: var(--accent);
-            color: #fff;
+            color: var(--ink);
             border: none;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: var(--shadow-light);
-            transition: all 0.3s ease;
+            box-shadow: var(--sh-lamp);
+            transition: transform var(--dur-base) var(--ease-soft),
+                        box-shadow var(--dur-base) var(--ease-soft),
+                        background var(--dur-fast);
         }
 
         .btn-primary:hover {
+            background: var(--accent-2);
             transform: translateY(-2px);
-            box-shadow: var(--shadow-soft);
         }
+
+        .btn-primary:active { transform: scale(0.98); }
 
         .btn-secondary {
             padding: 14px 28px;
@@ -339,7 +367,7 @@
             max-width: 420px;
             position: relative;
             padding-top: 30px;
-            padding-left: 20px;
+            padding-inline-start: 20px;
         }
 
         .preview-card {
@@ -374,16 +402,120 @@
             border: none;
         }
 
-        .preview-card.gradient-blue {
-            background: linear-gradient(145deg, #d4e6f7, #a8d4f0);
-            color: #1a4568;
-            border: none;
+        /* Removed: .preview-card.gradient-blue, .preview-card.gradient-purple.
+           DESIGN.md §10 hard-no — single-accent system. Numeric cards now use
+           tabular mono + ink, matching the Halastudy timer pattern. */
+        .preview-card.stat-mono .number {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.04em;
+            color: var(--ink);
+            font-weight: 700;
+            font-size: 2rem;
+        }
+        .preview-card.stat-mono p {
+            color: var(--ink-2);
         }
 
-        .preview-card.gradient-purple {
-            background: linear-gradient(145deg, #e8dff5, #d4c4eb);
-            color: #4a3568;
-            border: none;
+        /* Hero camera-grid mockup */
+        .preview-card.cam-preview {
+            padding: 20px;
+            box-shadow: var(--sh-4);
+        }
+        .preview-card.cam-preview::before { display: none; }
+        .cam-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            font-size: 0.78rem;
+        }
+        .cam-meta .live-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--danger);
+            animation: hcPulse 1.6s infinite;
+        }
+        .cam-meta .live-label {
+            font-size: 0.66rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            color: var(--danger);
+        }
+        .cam-meta .cam-count {
+            margin-inline-start: auto;
+            color: var(--ink-2);
+            font-size: 0.78rem;
+        }
+        .cam-meta .cam-code {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            color: var(--ink);
+        }
+        .cam-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 6px;
+            height: 180px;
+        }
+        .cam-tile {
+            border-radius: 14px;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(70% 70% at 50% 50%, #3a342d 0%, #14110d 100%);
+            border: 2px solid transparent;
+        }
+        .cam-tile.cam-focused {
+            border-color: var(--accent);
+            background: radial-gradient(70% 70% at 40% 30%, #806852 0%, #2a241e 100%);
+            box-shadow: 0 0 20px rgba(229, 182, 140, 0.25);
+        }
+        .cam-tile.cam-self {
+            background: radial-gradient(80% 60% at 40% 30%, #5a4a3a 0%, #1c1814 100%);
+        }
+        .cam-tile.cam-empty {
+            background: var(--inset);
+            border: 1px dashed var(--line-strong);
+        }
+        .cam-tile::before {
+            content: attr(data-name);
+            position: absolute;
+            top: 8px;
+            inset-inline-start: 8px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #F0E7DA;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(8px);
+            padding: 3px 8px;
+            border-radius: 999px;
+        }
+        .cam-tile.cam-empty::before {
+            color: var(--ink-3);
+            background: transparent;
+            backdrop-filter: none;
+            top: 50%;
+            inset-inline-start: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.7rem;
+        }
+        .cam-tile.cam-self::after {
+            content: 'YOU';
+            position: absolute;
+            inset-block-end: 8px;
+            inset-inline-end: 8px;
+            background: var(--accent);
+            color: var(--ink);
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+        @keyframes hcPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
         }
 
         .preview-card p {
@@ -520,7 +652,7 @@
         }
 
         .section-header {
-            text-align: left;
+            text-align: start;
             margin-bottom: 24px;
             position: relative;
             z-index: 1;
@@ -562,7 +694,7 @@
             content: '';
             position: absolute;
             top: 0;
-            left: 0;
+            inset-inline-start: 0;
             bottom: 0;
             width: 4px;
             background: var(--accent);
@@ -762,7 +894,7 @@
             background: var(--bg-card);
             border-radius: var(--radius-md);
             padding: 14px 16px;
-            text-align: left;
+            text-align: start;
             cursor: pointer;
             transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
         }
@@ -954,7 +1086,7 @@
                 max-width: 100%;
                 flex-direction: column;
                 padding-top: 10px;
-                padding-left: 0;
+                padding-inline-start: 0;
             }
 
             .preview-row {
@@ -1025,7 +1157,7 @@
             }
 
             .page-indicator {
-                right: 12px;
+                inset-inline-end: 12px;
             }
 
             .hero-actions {
@@ -1070,16 +1202,21 @@
 </head>
 <body>
     <div class="top-bar">
-        <div class="logo">
-            <img src="/images/baby-chick_1f424.gif" alt="Logo">
-            Co-Study
-        </div>
+        <a href="/" class="logo" aria-label="Halastudy home" style="text-decoration:none;color:inherit;">
+            <span class="logo-mark" aria-hidden="true">H</span>
+            <span class="logo-word">Hala<em>study</em></span>
+        </a>
         <div class="top-tools">
             <div class="lang-switch" id="lang-switch">
-                <button type="button" class="lang-option active" id="lang-en" data-lang-value="en">EN</button>
-                <button type="button" class="lang-option" id="lang-ar" data-lang-value="ar">AR</button>
+                <button type="button" class="lang-option active" id="lang-ar" data-lang-value="ar">AR</button>
+                <button type="button" class="lang-option" id="lang-en" data-lang-value="en">EN</button>
             </div>
-            <button class="icon-btn" id="theme-toggle" data-lang-title="themeToggleTitle" title="Toggle theme">🌙</button>
+            <button class="icon-btn" id="theme-toggle" data-lang-title="themeToggleTitle" title="Toggle theme" aria-label="Toggle theme">
+                <!-- Lucide moon — DESIGN.md §icons, 1.5px stroke -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+                </svg>
+            </button>
         </div>
     </div>
 
@@ -1092,56 +1229,59 @@
         <section class="page-section" data-page="0">
             <div class="hero-section">
                 <div class="hero-content">
-                    <p class="hero-eyebrow" data-lang="heroEyebrow">COLLABORATIVE STUDY SPACE</p>
+                    <p class="hero-eyebrow" data-lang="heroEyebrow">Body-doubling, the Gulf way</p>
                     <h1 class="hero-title">
-                        <span data-lang="heroTitleWelcome">Welcome to</span>
-                        <span>Co-Study</span>
+                        <span data-lang="heroTitleLine1">A quiet room.</span>
+                        <span data-lang="heroTitleLine2">Open all night.</span>
                     </h1>
                     <p class="hero-desc" data-lang="heroDesc">
-                        Build a focused room, invite your people, and stay productive together with shared video, chat, and timers.
+                        Drop in, camera on, work alongside other students. Pomodoros tick in sync. No instructor, no meeting, no expectations.
                     </p>
                     <div class="hero-features">
-                        <span class="feature-tag" data-lang="featureVideo">Video chat</span>
-                        <span class="feature-tag" data-lang="featureTimer">Pomodoro</span>
-                        <span class="feature-tag" data-lang="featureChat">Live chat</span>
-                        <span class="feature-tag" data-lang="featurePassword">Password protection</span>
+                        <span class="feature-tag" data-lang="featureVideo">Camera-on focus</span>
+                        <span class="feature-tag" data-lang="featureTimer">Shared Pomodoro</span>
+                        <span class="feature-tag" data-lang="featureChat">Mics-off chat</span>
+                        <span class="feature-tag" data-lang="featurePassword">Scheduled rooms</span>
                     </div>
                     <div class="hero-actions">
-                        <button class="btn-primary" id="btn-scroll-down" data-lang="btnStart">Get started</button>
-                        <button class="btn-secondary" id="btn-skip-to-form" data-lang="btnQuickJoin">Quick join</button>
+                        <button class="btn-primary" id="btn-scroll-down" data-lang="btnStart">Open a room</button>
+                        <button class="btn-secondary" id="btn-skip-to-form" data-lang="btnQuickJoin">Join a room</button>
                     </div>
-                    <p class="hero-hint" data-lang="heroHint">Scroll, use arrow keys, or swipe to move between sections.</p>
+                    <p class="hero-hint" data-lang="heroHint">Scroll or use ↓ to continue.</p>
                 </div>
                 <div class="hero-visual">
                     <div class="decorative-dots dots-1"></div>
                     <div class="decorative-dots dots-2"></div>
 
-                    <div class="preview-card accent">
-                        <div class="card-icon">📚</div>
-                        <p data-lang="previewNew">NEW FEATURE</p>
-                        <strong data-lang="previewTitle1">Custom room names</strong>
+                    <!-- Live mini camera grid preview — mirrors the in-room aesthetic.
+                         Per DESIGN.md §3 "Editorial hero", right column is ONE visual artifact. -->
+                    <div class="preview-card cam-preview">
+                        <div class="cam-meta">
+                            <span class="live-dot" aria-hidden="true"></span>
+                            <span class="live-label">LIVE</span>
+                            <span class="cam-count">3 / 4 · <span data-lang="previewRoomLabel">Room</span> <b class="cam-code">A7K-2QF</b></span>
+                        </div>
+                        <div class="cam-grid">
+                            <div class="cam-tile cam-focused" data-name="Nora"></div>
+                            <div class="cam-tile cam-self" data-name="You"></div>
+                            <div class="cam-tile" data-name="Layan"></div>
+                            <div class="cam-tile cam-empty" data-lang-attr-name="previewSeatOpen" data-name="Open seat"></div>
+                        </div>
                     </div>
 
                     <div class="preview-row">
-                        <div class="preview-card gradient-blue">
-                            <p data-lang="previewTimer">POMODORO</p>
+                        <div class="preview-card stat-mono">
+                            <p data-lang="previewTimer">FOCUS</p>
                             <div class="stats-display">
-                                <span class="number">25</span>
-                                <span class="label" data-lang="previewMinutes">min</span>
+                                <span class="number">22:14</span>
                             </div>
                         </div>
-                        <div class="preview-card gradient-purple">
-                            <p data-lang="previewFocus">FOCUS</p>
+                        <div class="preview-card stat-mono">
+                            <p data-lang="previewFocus">TODAY</p>
                             <div class="stats-display">
-                                <span class="number">∞</span>
-                                <span class="label" data-lang="previewUsers">users</span>
+                                <span class="number" style="font-family:var(--font-display);font-weight:600;letter-spacing:-0.02em;">3<span class="label" style="font-size:0.55em;color:var(--ink-3);margin-inline-start:4px;">h</span> 42<span class="label" style="font-size:0.55em;color:var(--ink-3);margin-inline-start:4px;">m</span></span>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="preview-card">
-                        <p data-lang="previewSecure">SECURE</p>
-                        <strong data-lang="previewTitle2">Optional passwords</strong>
                     </div>
                 </div>
             </div>
@@ -1303,43 +1443,85 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+    /* -------------------------------------------------------------------
+     * Halastudy storage-key migration (was: coStudy*).
+     * One-shot copy-forward. Runs before any storage reads. Idempotent —
+     * a sentinel flag prevents re-running. Old keys are preserved (read-only)
+     * for one release so a user who briefly downgrades doesn't lose state.
+     * Drop the old keys + this block after the next release ships clean.
+     * ----------------------------------------------------------------- */
+    (function migrateCoStudyToHalastudy() {
+        try {
+            const SENTINEL = 'halastudy:migratedFromCoStudy:v1';
+            if (localStorage.getItem(SENTINEL)) return;
+            const localMap = {
+                coStudyLang:          'halastudyLang',
+                coStudyStatusState:   'halastudyStatusState',
+                coStudyAmbientState:  'halastudyAmbientState',
+                coStudyFocusStats:    'halastudyFocusStats',
+                coStudyClientId:      'halastudyClientId',
+                coStudyName:          'halastudyName',
+            };
+            const sessionMap = {
+                coStudyRoomPassword:  'halastudyRoomPassword',
+                coStudyRoomCode:      'halastudyRoomCode',
+            };
+            Object.entries(localMap).forEach(([oldK, newK]) => {
+                const v = localStorage.getItem(oldK);
+                if (v !== null && localStorage.getItem(newK) === null) {
+                    localStorage.setItem(newK, v);
+                }
+            });
+            Object.entries(sessionMap).forEach(([oldK, newK]) => {
+                const v = sessionStorage.getItem(oldK);
+                if (v !== null && sessionStorage.getItem(newK) === null) {
+                    sessionStorage.setItem(newK, v);
+                }
+            });
+            localStorage.setItem(SENTINEL, String(Date.now()));
+        } catch (e) { /* storage unavailable — skip */ }
+    })();
+
     (function() {
         'use strict';
 
-        const LANG_STORAGE_KEY = 'coStudyLang';
+        const LANG_STORAGE_KEY = 'halastudyLang';
         const translations = {
             en: {
-                pageTitle: 'Co-Study | Collaborative Study Rooms',
+                pageTitle: 'Halastudy | A quiet room. Open all night.',
                 themeToggleTitle: 'Toggle theme',
                 pageOneAria: 'Go to page 1',
                 pageTwoAria: 'Go to page 2',
-                heroEyebrow: 'COLLABORATIVE STUDY SPACE',
-                heroTitleWelcome: 'Welcome to',
-                heroDesc: 'Build a focused room, invite your people, and stay productive together with shared video, chat, and timers.',
-                featureVideo: 'Video chat',
-                featureTimer: 'Pomodoro',
-                featureChat: 'Live chat',
-                featurePassword: 'Password protection',
-                btnStart: 'Get started',
-                btnQuickJoin: 'Quick join',
-                heroHint: 'Scroll, use arrow keys, or swipe to move between sections.',
-                previewNew: 'NEW FEATURE',
+                heroEyebrow: 'Body-doubling, the Gulf way',
+                heroTitleLine1: 'A quiet room.',
+                heroTitleLine2: 'Open all night.',
+                heroDesc: 'Drop in, camera on, work alongside other students. Pomodoros tick in sync. No instructor, no meeting, no expectations.',
+                featureVideo: 'Camera-on focus',
+                featureTimer: 'Shared Pomodoro',
+                featureChat: 'Mics-off chat',
+                featurePassword: 'Scheduled rooms',
+                btnStart: 'Open a room',
+                btnQuickJoin: 'Join a room',
+                heroHint: 'Scroll or use ↓ to continue.',
+                previewNew: 'LIVE',
                 previewSecure: 'SECURE',
                 previewTitle1: 'Custom room names',
                 previewTitle2: 'Optional passwords',
-                previewTimer: 'POMODORO',
+                previewTimer: 'FOCUS',
                 previewMinutes: 'min',
-                previewFocus: 'FOCUS',
+                previewFocus: 'TODAY',
                 previewUsers: 'users',
+                previewRoomLabel: 'Room',
+                previewSeatOpen: 'Open seat',
                 chooserTitle: 'Choose your flow',
-                chooserDesc: 'Create a new study room or jump into an existing one in seconds.',
-                createTitle: 'Create a room',
-                createDesc: 'Start a focused room with a custom name and optional password.',
+                chooserDesc: 'Open a new room or join one that’s already running.',
+                createTitle: 'Open a room',
+                createDesc: 'Set a name, optional password, optional schedule.',
                 joinTitle: 'Join a room',
-                joinDesc: 'Already have a code? Enter it and start focusing with your group.',
-                createFormTitle: 'New study room',
+                joinDesc: 'Got a code from your study group? Drop it in.',
+                createFormTitle: 'New focus room',
                 labelRoomName: 'Room name',
-                placeholderRoomName: 'e.g. Deep Work Squad',
+                placeholderRoomName: 'e.g. Deep work · 9pm crew',
                 labelMediaMode: 'Room media mode',
                 mediaModeMeshTitle: 'Standard room',
                 mediaModeMeshDesc: 'Recommended for up to {limit} people. Uses browser-to-browser video.',
@@ -1368,16 +1550,17 @@
                 labelScheduleBreak: 'Break minutes',
                 labelScheduleGoal: 'Starting board goal',
                 placeholderScheduleGoal: 'Example: Finish the product launch deck',
-                btnCreateRoom: 'Create room',
+                btnCreateRoom: 'Open room',
                 resultDesc: 'Share this code with your study partners to bring them into the room.',
                 btnWhatsappInvite: 'WhatsApp invite',
                 btnAddCalendar: 'Add to calendar',
                 btnEnterRoom: 'Enter room',
+                roomCreatedTitle: 'Room is open',
                 scheduleTimezoneLabel: 'Riyadh time',
                 scheduleNextLabel: 'Next session',
                 scheduleLiveLabel: 'Live now',
                 scheduleTimerPresetLabel: 'Timer',
-                inviteShareTitle: 'Join my scheduled Co-Study room',
+                inviteShareTitle: 'Join my scheduled Halastudy room',
                 inviteRoomCodeLabel: 'Room code',
                 inviteNextLabel: 'Next session',
                 inviteCadenceLabel: 'Cadence',
@@ -1410,35 +1593,38 @@
                 rateLimited: 'Too many attempts. Slow down and try again in a moment.'
             },
             ar: {
-                pageTitle: 'كو-ستدي | غرف مذاكرة تعاونية',
+                pageTitle: 'هلا ستدي | غرفة هادئة. مفتوحة طول الليل.',
                 themeToggleTitle: 'تبديل المظهر',
                 pageOneAria: 'الانتقال إلى الصفحة الأولى',
                 pageTwoAria: 'الانتقال إلى الصفحة الثانية',
-                heroEyebrow: 'مساحة مذاكرة تعاونية',
-                heroTitleWelcome: 'مرحباً بك في',
-                heroDesc: 'أنشئ غرفة تركيز خاصة بك، وادعُ شركاءك، وواصل الإنجاز مع الفيديو والدردشة والمؤقت في مكان واحد.',
-                featureVideo: 'محادثة فيديو',
-                featureTimer: 'بومودورو',
-                featureChat: 'دردشة مباشرة',
-                featurePassword: 'حماية بكلمة مرور',
-                btnStart: 'ابدأ الآن',
-                btnQuickJoin: 'دخول سريع',
-                heroHint: 'استخدم التمرير أو الأسهم أو السحب للتنقل بين الأقسام.',
-                previewNew: 'ميزة جديدة',
+                heroEyebrow: 'ادخل الغرفة، اشتغل مع غيرك',
+                heroTitleLine1: 'غرفة هادئة،',
+                heroTitleLine2: 'مفتوحة طول الليل.',
+                heroDesc: 'ادخل، شغّل الكاميرا، واشتغل مع طلاب غيرك. البومودورو يمشي مع الكل. ما في محاضِر، ولا اجتماع، ولا توقّعات.',
+                featureVideo: 'كاميرا شغّالة',
+                featureTimer: 'بومودورو مشترك',
+                featureChat: 'دردشة بدون مايك',
+                featurePassword: 'غرف مجدولة',
+                btnStart: 'افتح غرفة',
+                btnQuickJoin: 'ادخل غرفة',
+                heroHint: 'نزّل أو استخدم ↓ للمتابعة.',
+                previewNew: 'مباشر',
                 previewSecure: 'آمن',
                 previewTitle1: 'أسماء غرف مخصصة',
                 previewTitle2: 'كلمات مرور اختيارية',
-                previewTimer: 'بومودورو',
+                previewTimer: 'تركيز',
                 previewMinutes: 'دقيقة',
-                previewFocus: 'تركيز',
+                previewFocus: 'اليوم',
                 previewUsers: 'مستخدمين',
+                previewRoomLabel: 'الغرفة',
+                previewSeatOpen: 'مقعد فاضي',
                 chooserTitle: 'اختر طريقتك',
-                chooserDesc: 'أنشئ غرفة جديدة أو ادخل إلى غرفة موجودة خلال ثوانٍ.',
-                createTitle: 'أنشئ غرفة',
-                createDesc: 'ابدأ غرفة تركيز باسم مخصص وكلمة مرور اختيارية.',
+                chooserDesc: 'افتح غرفة جديدة أو ادخل وحدة شغّالة.',
+                createTitle: 'افتح غرفة',
+                createDesc: 'اسم، وكلمة مرور اختيارية، وجدولة اختيارية.',
                 joinTitle: 'ادخل غرفة',
-                joinDesc: 'إذا كان لديك رمز، فأدخله وابدأ التركيز مع مجموعتك مباشرة.',
-                createFormTitle: 'غرفة مذاكرة جديدة',
+                joinDesc: 'عندك رمز من مجموعتك؟ ادخله هنا.',
+                createFormTitle: 'غرفة تركيز جديدة',
                 labelRoomName: 'اسم الغرفة',
                 placeholderRoomName: 'مثال: جلسة عمل عميق',
                 labelMediaMode: 'وضع وسائط الغرفة',
@@ -1469,7 +1655,7 @@
                 labelScheduleBreak: 'دقائق الاستراحة',
                 labelScheduleGoal: 'هدف اللوحة عند البداية',
                 placeholderScheduleGoal: 'مثال: إنهاء عرض الإطلاق',
-                btnCreateRoom: 'إنشاء الغرفة',
+                btnCreateRoom: 'افتح الغرفة',
                 resultDesc: 'شارك هذا الرمز مع شركائك ليدخلوا إلى الغرفة مباشرة.',
                 btnWhatsappInvite: 'دعوة واتساب',
                 btnAddCalendar: 'أضف إلى التقويم',
@@ -1478,7 +1664,7 @@
                 scheduleNextLabel: 'الجلسة القادمة',
                 scheduleLiveLabel: 'الجلسة جارية الآن',
                 scheduleTimerPresetLabel: 'المؤقت',
-                inviteShareTitle: 'انضم إلى غرفة Co-Study المجدولة',
+                inviteShareTitle: 'انضم إلى غرفة هلا ستدي المجدولة',
                 inviteRoomCodeLabel: 'رمز الغرفة',
                 inviteNextLabel: 'الجلسة القادمة',
                 inviteCadenceLabel: 'التكرار',
@@ -1591,7 +1777,7 @@
 
         function getStoredLanguage() {
             try {
-                return localStorage.getItem(LANG_STORAGE_KEY) === 'ar' ? 'ar' : 'en';
+                return localStorage.getItem(LANG_STORAGE_KEY) === 'en' ? 'en' : 'ar';
             } catch (_err) {
                 return 'en';
             }
@@ -1997,11 +2183,11 @@
             const lines = [
                 'BEGIN:VCALENDAR',
                 'VERSION:2.0',
-                'PRODID:-//Co-Study//Scheduled Room//EN',
+                'PRODID:-//Halastudy//Scheduled Room//EN',
                 'BEGIN:VEVENT',
-                `UID:${escapeIcsText((roomData.roomId || roomData.code || 'room').toLowerCase())}@co-study`,
+                `UID:${escapeIcsText((roomData.roomId || roomData.code || 'room').toLowerCase())}@halastudy`,
                 `DTSTAMP:${formatUtcForIcs(Date.now())}`,
-                `SUMMARY:${escapeIcsText(roomData.name || roomData.roomId || 'Co-Study Session')}`,
+                `SUMMARY:${escapeIcsText(roomData.name || roomData.roomId || 'Halastudy Session')}`,
                 `DESCRIPTION:${escapeIcsText(`${copy().inviteShareTitle}\n${copy().inviteRoomCodeLabel}: ${roomData.roomId || roomData.code}\n${link}`)}`,
                 `URL:${escapeIcsText(link)}`,
                 `DTSTART:${formatUtcForIcs(nextStart)}`,
@@ -2027,7 +2213,7 @@
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `${(roomData.roomId || roomData.code || 'co-study-room').toLowerCase()}-schedule.ics`;
+            link.download = `${(roomData.roomId || roomData.code || 'halastudy-room').toLowerCase()}-schedule.ics`;
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -2039,7 +2225,7 @@
             const link = buildRoomLink(roomData.roomId || roomData.code);
             const lines = [
                 copy().inviteShareTitle,
-                roomData.name || roomData.roomId || 'Co-Study',
+                roomData.name || roomData.roomId || 'Halastudy',
                 `${copy().inviteRoomCodeLabel}: ${roomData.roomId || roomData.code}`
             ];
             if (roomData.schedule) {
