@@ -1,0 +1,260 @@
+/* ============================================================
+   Halastudy | هلا — Design Tokens
+   Warm late-night study room of the Gulf
+   Light + dark (Gulf night sky) modes, full RTL parity
+   ============================================================ */
+
+/* ----- Webfonts (Google Fonts CDN — see README for font notes) ----- */
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ───────── Color · Light (default) ─────────
+     Mood: "a study lamp on a desk at 1am — warm, focused, yours" */
+
+  /* Surfaces — warm paper, not white */
+  --paper:        #F5F2EB;   /* page background — aged cream */
+  --paper-2:      #FAF7F1;   /* raised paper, muted blocks */
+  --card:         #FFFFFF;   /* card / form surface */
+  --inset:        #F8F3ED;   /* input fill, recessed wells */
+  --overlay:      rgba(28, 24, 20, 0.55);   /* modal scrim */
+
+  /* Ink — warm-black, never pure */
+  --ink:          #2D3436;   /* primary text */
+  --ink-2:        #636E72;   /* secondary text */
+  --ink-3:        #9AA0A4;   /* tertiary, captions, placeholders */
+  --ink-inv:      #FAF7F1;   /* text on dark / accent fills */
+
+  /* Borders / hairlines */
+  --line:         #E2D7C8;   /* default border, warm */
+  --line-2:       #EFE7DA;   /* faint divider */
+  --line-strong:  #C7B9A4;   /* emphasized border */
+
+  /* Accent — Karak amber (Gulf qahwa light) */
+  --accent:       #E0B08B;
+  --accent-2:     #C28A62;   /* deeper, for press / strong text */
+  --accent-3:     #A56B43;   /* darkest, for tiny text on cream */
+  --accent-soft:  rgba(224, 176, 139, 0.12);
+  --accent-glow:  rgba(224, 176, 139, 0.30);
+
+  /* Semantic — kept warm, editorial */
+  --success:      #5A8C5C;   /* sage */
+  --success-soft: rgba(90, 140, 92, 0.12);
+  --danger:       #C75545;   /* terracotta */
+  --danger-soft:  rgba(199, 85, 69, 0.12);
+  --warn:         #D4A256;   /* deeper amber */
+  --warn-soft:    rgba(212, 162, 86, 0.14);
+  --info:         #6C8FAD;   /* dusk blue — used sparingly */
+  --info-soft:    rgba(108, 143, 173, 0.12);
+
+  /* Priority — for shared boards / chips */
+  --prio-high:    #C75545;
+  --prio-med:     #D4A256;
+  --prio-low:     #7AA681;
+
+  /* Live signals */
+  --live-rec:     #C75545;
+  --live-on:      #5A8C5C;
+
+  /* ───────── Type ─────────
+     EN: Newsreader (display, editorial) + Inter (UI/body)
+     AR: Amiri (display) + Tajawal (body/UI)
+     Mono: JetBrains Mono */
+
+  --font-display:    'Newsreader', 'Amiri', Georgia, 'Times New Roman', serif;
+  --font-display-ar: 'Amiri', 'Tajawal', 'Newsreader', serif;
+  --font-body:       'Inter', 'Tajawal', 'Segoe UI', system-ui, sans-serif;
+  --font-body-ar:    'Tajawal', 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-mono:       'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Type scale (px, rem-equivalent in comments) — editorial-leaning */
+  --t-display-xl: 64px;  /* hero, splash */
+  --t-display:    48px;  /* section openers */
+  --t-h1:         36px;
+  --t-h2:         28px;
+  --t-h3:         22px;
+  --t-h4:         18px;
+  --t-body-lg:    18px;
+  --t-body:       16px;
+  --t-body-sm:    14px;
+  --t-caption:    13px;
+  --t-micro:      11px;  /* eyebrows, tags */
+
+  /* Line height */
+  --lh-tight:     1.1;
+  --lh-snug:      1.25;
+  --lh-normal:    1.5;
+  --lh-loose:     1.7;
+
+  /* Letter spacing */
+  --ls-tight:     -0.02em;
+  --ls-normal:    0;
+  --ls-eyebrow:   0.18em;   /* uppercase eyebrows */
+  --ls-num:       0.06em;   /* tabular numerals, timer */
+
+  /* Weights */
+  --w-regular:    400;
+  --w-medium:     500;
+  --w-semibold:   600;
+  --w-bold:       700;
+  --w-black:      800;
+
+  /* ───────── Space + radii + shadow ───────── */
+
+  --s-1:   4px;
+  --s-2:   8px;
+  --s-3:   12px;
+  --s-4:   16px;
+  --s-5:   20px;
+  --s-6:   24px;
+  --s-7:   32px;
+  --s-8:   40px;
+  --s-9:   48px;
+  --s-10:  64px;
+  --s-11:  96px;
+
+  --r-xs:    6px;    /* small chips */
+  --r-sm:    10px;   /* tags, micro */
+  --r-md:    16px;   /* inputs */
+  --r-lg:    20px;   /* tiles */
+  --r-xl:    24px;   /* cards */
+  --r-2xl:   32px;   /* big cards / modal */
+  --r-pill:  999px;
+
+  /* Shadows — soft, layered. No hard drop. */
+  --sh-1:    0 1px 2px rgba(28, 24, 20, 0.04), 0 2px 6px rgba(28, 24, 20, 0.03);
+  --sh-2:    0 4px 12px rgba(28, 24, 20, 0.06), 0 1px 2px rgba(28, 24, 20, 0.04);
+  --sh-3:    0 8px 30px rgba(28, 24, 20, 0.08);
+  --sh-4:    0 20px 40px rgba(28, 24, 20, 0.10), 0 4px 10px rgba(28, 24, 20, 0.04);
+  --sh-5:    0 40px 80px rgba(28, 24, 20, 0.16);   /* hero / floating modal */
+  --sh-inner: inset 0 1px 2px rgba(28, 24, 20, 0.05);
+  --sh-focus: 0 0 0 3px var(--accent-glow);
+  --sh-lamp: 0 30px 80px -10px rgba(224, 176, 139, 0.35),
+             0 6px 18px rgba(28, 24, 20, 0.08);
+
+  /* Motion */
+  --ease-soft:     cubic-bezier(0.32, 0.72, 0.32, 1);     /* default */
+  --ease-pour:     cubic-bezier(0.16, 1, 0.3, 1);          /* doors / sheets */
+  --ease-page:     cubic-bezier(0.645, 0.045, 0.355, 1);   /* page swap */
+  --dur-fast:      120ms;
+  --dur-base:      220ms;
+  --dur-slow:      380ms;
+  --dur-cinema:    600ms;
+
+  /* Layout */
+  --content-max:   1200px;
+  --gutter:        clamp(20px, 5vw, 60px);
+}
+
+/* ───────── Color · Dark — Gulf night sky × warm lamp ─────────
+   The brand is "a lamp on at 1am" — the lamp is warm amber, but the
+   NIGHT around it is cool deep indigo, not coffee-warm. That contrast
+   is what makes the lamp feel like a lamp. */
+[data-theme="dark"] {
+  --paper:        #0E1218;   /* deep Gulf night-sky charcoal */
+  --paper-2:      #141923;
+  --card:         #1B2230;   /* card surface, slight blue undertone */
+  --inset:        #161C27;
+  --overlay:      rgba(6, 9, 14, 0.72);
+
+  --ink:          #ECE6D8;   /* warm off-white — book paper at night */
+  --ink-2:        #98A2B0;   /* cool grey-blue */
+  --ink-3:        #5A6573;
+  --ink-inv:      #0E1218;
+
+  --line:         #242D3B;
+  --line-2:       #1A2230;
+  --line-strong:  #3A4453;
+
+  --accent:       #E5B68C;   /* lamp glow stays warm */
+  --accent-2:     #F2C19A;
+  --accent-3:     #F5D2B5;
+  --accent-soft:  rgba(229, 182, 140, 0.10);
+  --accent-glow:  rgba(229, 182, 140, 0.28);
+
+  --success:      #7AA681;
+  --success-soft: rgba(122, 166, 129, 0.14);
+  --danger:       #D77968;
+  --danger-soft:  rgba(215, 121, 104, 0.16);
+  --warn:         #E0B872;
+  --warn-soft:    rgba(224, 184, 114, 0.14);
+  --info:         #8DA8C0;
+  --info-soft:    rgba(141, 168, 192, 0.14);
+
+  --prio-high:    #D77968;
+  --prio-med:     #E0B872;
+  --prio-low:     #95B89C;
+
+  --sh-1:    0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --sh-2:    0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --sh-3:    0 8px 30px rgba(0, 0, 0, 0.5);
+  --sh-4:    0 20px 40px rgba(0, 0, 0, 0.55);
+  --sh-5:    0 40px 80px rgba(0, 0, 0, 0.65);
+  --sh-lamp: 0 30px 80px -10px rgba(229, 182, 140, 0.28),
+             0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
+/* ============================================================
+   Semantic recipes — drop-in element styles
+   ============================================================ */
+
+html[lang="ar"], [dir="rtl"] {
+  font-family: var(--font-body-ar);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--t-body);
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Display + heading recipes (apply via class for opt-in) */
+.h-display-xl,
+.h-display,
+.h-h1,
+.h-h2 {
+  font-family: var(--font-display);
+  font-weight: var(--w-semibold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  color: var(--ink);
+}
+html[lang="ar"] .h-display-xl,
+html[lang="ar"] .h-display,
+html[lang="ar"] .h-h1,
+html[lang="ar"] .h-h2,
+[dir="rtl"] .h-display-xl,
+[dir="rtl"] .h-display,
+[dir="rtl"] .h-h1,
+[dir="rtl"] .h-h2 {
+  font-family: var(--font-display-ar);
+  letter-spacing: 0;
+}
+
+.h-display-xl { font-size: var(--t-display-xl); font-weight: var(--w-bold); }
+.h-display    { font-size: var(--t-display); }
+.h-h1         { font-size: var(--t-h1); }
+.h-h2         { font-size: var(--t-h2); }
+.h-h3         { font-size: var(--t-h3); font-weight: var(--w-semibold); line-height: var(--lh-snug); }
+.h-h4         { font-size: var(--t-h4); font-weight: var(--w-semibold); line-height: var(--lh-snug); }
+
+.t-body-lg    { font-size: var(--t-body-lg); line-height: var(--lh-loose); color: var(--ink-2); }
+.t-body       { font-size: var(--t-body); line-height: var(--lh-normal); }
+.t-body-sm    { font-size: var(--t-body-sm); line-height: var(--lh-normal); color: var(--ink-2); }
+.t-caption    { font-size: var(--t-caption); color: var(--ink-2); }
+.t-eyebrow    {
+  font-size: var(--t-micro);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-eyebrow);
+  font-weight: var(--w-semibold);
+  color: var(--accent-2);
+}
+.t-mono       { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-num); }
+.t-num        { font-variant-numeric: tabular-nums; letter-spacing: var(--ls-num); }
+
+/* Eastern Arabic numerals utility — opt-in for moments of warmth */
+.num-eastern  { font-feature-settings: "lnum" 0; }
+[lang="ar-u-nu-arab"] { font-feature-settings: "lnum" 0; }

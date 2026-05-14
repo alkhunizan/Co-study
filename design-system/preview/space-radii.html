@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+body { padding: 24px 28px; }
+.section { display: flex; gap: 24px; align-items: flex-start; }
+.col { flex: 1; }
+.title { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; color: var(--ink-2); margin-bottom: 12px; }
+.radii { display: flex; gap: 10px; align-items: flex-end; }
+.radii .r { background: var(--card); border: 1px solid var(--line); height: 72px; flex: 1; box-shadow: var(--sh-1); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-2); }
+.space { display: flex; align-items: center; gap: 4px; }
+.space .bar { background: var(--accent); height: 16px; border-radius: 4px; }
+.row { display: flex; flex-direction: column; gap: 10px; }
+.row .item { display: grid; grid-template-columns: 60px 1fr 60px; gap: 12px; align-items: center; }
+.row .lbl { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); text-align: end; }
+.row .nm { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-2); }
+</style></head><body>
+<div class="section">
+  <div class="col">
+    <div class="title">Radii</div>
+    <div class="radii">
+      <div class="r" style="border-radius:6px">6 · xs</div>
+      <div class="r" style="border-radius:10px">10 · sm</div>
+      <div class="r" style="border-radius:16px">16 · md</div>
+      <div class="r" style="border-radius:20px">20 · lg</div>
+      <div class="r" style="border-radius:24px">24 · xl</div>
+      <div class="r" style="border-radius:32px">32 · 2xl</div>
+      <div class="r" style="border-radius:999px">999 · pill</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="title">Spacing scale (px)</div>
+    <div class="row">
+      <div class="item"><span class="lbl">4</span><span class="space"><span class="bar" style="width:4px"></span></span><span class="nm">--s-1</span></div>
+      <div class="item"><span class="lbl">8</span><span class="space"><span class="bar" style="width:8px"></span></span><span class="nm">--s-2</span></div>
+      <div class="item"><span class="lbl">16</span><span class="space"><span class="bar" style="width:16px"></span></span><span class="nm">--s-4</span></div>
+      <div class="item"><span class="lbl">24</span><span class="space"><span class="bar" style="width:24px"></span></span><span class="nm">--s-6</span></div>
+      <div class="item"><span class="lbl">32</span><span class="space"><span class="bar" style="width:32px"></span></span><span class="nm">--s-7</span></div>
+      <div class="item"><span class="lbl">48</span><span class="space"><span class="bar" style="width:48px"></span></span><span class="nm">--s-9</span></div>
+      <div class="item"><span class="lbl">64</span><span class="space"><span class="bar" style="width:64px"></span></span><span class="nm">--s-10</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

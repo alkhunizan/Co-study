@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+body { padding: 22px 28px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.label { font-size: 13px; font-weight: 600; color: var(--ink); }
+.input { width: 100%; padding: 12px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--inset); font-family: var(--font-body); font-size: 15px; color: var(--ink); transition: border 120ms, box-shadow 120ms, background 120ms; }
+.input::placeholder { color: var(--ink-3); }
+.input.focused { background: var(--card); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.input.error { border-color: var(--danger); background: var(--card); }
+.help { font-size: 12px; color: var(--ink-2); }
+.help.err { color: var(--danger); }
+.code-input { font-family: var(--font-mono); letter-spacing: 0.2em; font-size: 18px; text-align: center; padding: 14px; }
+.checkbox { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.checkbox .box { width: 18px; height: 18px; border-radius: 6px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; color: var(--ink); font-size: 12px; font-weight: 700; }
+</style></head><body>
+<div class="grid">
+  <div class="field">
+    <label class="label">Room name</label>
+    <input class="input" placeholder="e.g. Deep work · 9pm crew">
+    <span class="help">48 chars max · this is what your room is called</span>
+  </div>
+  <div class="field">
+    <label class="label">Room code</label>
+    <input class="input code-input focused" value="ABC123">
+    <span class="help">Focused state · 3px accent glow ring</span>
+  </div>
+  <div class="field">
+    <label class="label">Access password</label>
+    <input class="input" type="password" value="••••••••">
+    <span class="help">Optional · PBKDF2 hashed server-side</span>
+  </div>
+  <div class="field">
+    <label class="label">First session date</label>
+    <input class="input error" value="2026-13-01">
+    <span class="help err">Use a valid Riyadh date.</span>
+  </div>
+</div>
+<div style="display:flex;gap:12px;margin-top:18px">
+  <div class="checkbox"><span class="box">✓</span> Require password</div>
+  <div class="checkbox" style="opacity:0.7"><span class="box" style="background:transparent;border:1.5px solid var(--line-strong)"></span> Make this a scheduled room</div>
+</div>
+</body></html>

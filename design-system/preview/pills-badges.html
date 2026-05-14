@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+body { padding: 22px 28px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.lbl { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; color: var(--ink-2); width: 100px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 500; }
+.tag-accent { background: var(--accent-soft); color: var(--accent-3); padding: 7px 14px; font-weight: 600; }
+.tag-line { border: 1px solid var(--line); background: var(--card); color: var(--ink-2); }
+.tag-solid { background: var(--accent); color: var(--ink); font-weight: 600; }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.b-success { background: var(--success-soft); color: #3F6A41; }
+.b-success .dot { background: var(--success); }
+.b-warn { background: var(--warn-soft); color: #7A5A2A; }
+.b-warn .dot { background: var(--warn); }
+.b-danger { background: var(--danger-soft); color: #8B3D31; }
+.b-danger .dot { background: var(--danger); }
+.b-live { background: var(--card); border: 1px solid var(--line); color: var(--ink-2); }
+.b-live .dot { background: var(--danger); animation: pulse 1.6s infinite; }
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity: 0.4 } }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; font-family: var(--font-mono); }
+.chip-high { background: rgba(199,85,69,0.14); color: #8B3D31; }
+.chip-med { background: rgba(212,162,86,0.18); color: #7A5A2A; }
+.chip-low { background: rgba(122,166,129,0.16); color: #3F6A41; }
+.eastern { font-feature-settings: "lnum" 0; }
+</style></head><body>
+<div class="row"><span class="lbl">Tags</span>
+  <span class="pill tag-accent">Video chat</span>
+  <span class="pill tag-accent">Pomodoro</span>
+  <span class="pill tag-accent">Live chat</span>
+  <span class="pill tag-line">Password protected</span>
+  <span class="pill tag-solid">Sun · Thu</span>
+</div>
+<div class="row"><span class="lbl">Status</span>
+  <span class="pill b-success"><span class="dot"></span> Focusing · 18 min in</span>
+  <span class="pill b-warn"><span class="dot"></span> On break</span>
+  <span class="pill b-danger"><span class="dot"></span> Camera off</span>
+  <span class="pill b-live"><span class="dot"></span> Live now · ٣ مشتركين</span>
+</div>
+<div class="row"><span class="lbl">Priority</span>
+  <span class="chip chip-high">● HIGH</span>
+  <span class="chip chip-med">● MED</span>
+  <span class="chip chip-low">● LOW</span>
+  <span class="pill tag-line" style="font-family:var(--font-mono);letter-spacing:0.2em">ABC123</span>
+  <span class="pill tag-line eastern" style="font-family:var(--font-mono)">٧ days · streak</span>
+</div>
+</body></html>

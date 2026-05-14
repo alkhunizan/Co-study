@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+body { padding: 0; background: var(--paper); }
+.scene { position: relative; height: 220px; overflow: hidden; padding: 24px 28px; display: flex; align-items: stretch; gap: 18px; }
+.scene::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(60% 80% at 80% 20%, rgba(224,176,139,0.32) 0%, transparent 60%),
+              radial-gradient(50% 70% at 15% 90%, rgba(108,143,173,0.16) 0%, transparent 60%);
+  pointer-events: none;
+}
+.lamp {
+  flex: 0 0 160px; border-radius: 20px; position: relative; background: #1B1712; overflow: hidden;
+  box-shadow: var(--sh-2);
+}
+.lamp::before {
+  content: ''; position: absolute; inset-block-start: -60px; inset-inline: -20px; height: 240px;
+  background: radial-gradient(60% 60% at 50% 0%, rgba(229,182,140,0.95) 0%, rgba(229,182,140,0.5) 30%, rgba(229,182,140,0.0) 65%);
+  filter: blur(2px);
+}
+.lamp::after {
+  content: ''; position: absolute; inset-block-end: 14px; inset-inline-end: 14px;
+  width: 36px; height: 6px; background: rgba(255,255,255,0.12); border-radius: 999px;
+}
+.lamp .desk { position: absolute; inset-block-end: 0; inset-inline: 0; height: 32px; background: linear-gradient(180deg, rgba(74,62,50,0.7), rgba(20,17,13,0.95)); }
+.lamp .cup { position: absolute; inset-block-end: 18px; inset-inline-start: 24px; width: 22px; height: 26px; background: #C28A62; border-radius: 4px 4px 10px 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+.lamp .cup::before { content:''; position:absolute; inset-block-start:-4px; inset-inline:0; height: 4px; background: rgba(245,210,181,0.6); border-radius: 2px; }
+.copy { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; position: relative; }
+.eyebrow { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; color: var(--accent-2); }
+.h { font-family: var(--font-display); font-size: 30px; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; color: var(--ink); max-width: 360px; }
+.h em { font-style: italic; color: var(--accent-3); }
+.sub { font-size: 13px; color: var(--ink-2); max-width: 420px; }
+.najdi { position: absolute; inset-block-start: 18px; inset-inline-end: 28px; width: 90px; height: 90px; opacity: 0.18; pointer-events: none; }
+</style></head><body>
+<div class="scene">
+  <div class="lamp"><div class="desk"></div><div class="cup"></div></div>
+  <div class="copy">
+    <span class="eyebrow">Imagery direction</span>
+    <div class="h">A study lamp on a desk <em>at 1am</em> — warm, focused, yours.</div>
+    <div class="sub">Photography: warm-graded, 3000–4500K, golden hour and late night. No diverse-students-on-laptops. No women's faces without team approval.</div>
+    <svg class="najdi" viewBox="0 0 100 100" fill="none" stroke="#A56B43" stroke-width="1.4">
+      <path d="M50 5 L95 50 L50 95 L5 50 Z"/><path d="M50 25 L75 50 L50 75 L25 50 Z"/><path d="M50 5 L50 95 M5 50 L95 50"/><circle cx="50" cy="50" r="12"/>
+    </svg>
+  </div>
+</div>
+</body></html>

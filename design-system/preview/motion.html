@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+body { padding: 22px 28px; }
+.row { display: grid; grid-template-columns: 110px 1fr 130px; gap: 14px; align-items: center; margin-bottom: 10px; }
+.name { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); }
+.track { height: 22px; background: var(--inset); border-radius: 999px; position: relative; overflow: hidden; }
+.bar { position: absolute; inset-block: 0; inset-inline-start: 0; background: var(--accent); border-radius: 999px; animation: slide 2.8s infinite; }
+.r1 .bar { animation-timing-function: cubic-bezier(0.32, 0.72, 0.32, 1); animation-duration: 1.6s; }
+.r2 .bar { animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); animation-duration: 2.2s; }
+.r3 .bar { animation-timing-function: cubic-bezier(0.645, 0.045, 0.355, 1); animation-duration: 2.8s; }
+.r4 .bar { animation-timing-function: linear; animation-duration: 1.2s; }
+@keyframes slide {
+  0% { transform: translateX(-105%); }
+  50% { transform: translateX(0); }
+  100% { transform: translateX(105%); }
+}
+[dir="rtl"] .bar { animation-name: slide-rtl; }
+.meta { font-size: 11.5px; color: var(--ink-2); font-family: var(--font-mono); }
+.title { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; color: var(--ink-2); margin-bottom: 12px; }
+</style></head><body>
+<div class="title">Motion · easings ↔ feel</div>
+<div class="row r1"><span class="name">--ease-soft</span><span class="track"><span class="bar"></span></span><span class="meta">220ms · default</span></div>
+<div class="row r2"><span class="name">--ease-pour</span><span class="track"><span class="bar"></span></span><span class="meta">380ms · sheets</span></div>
+<div class="row r3"><span class="name">--ease-page</span><span class="track"><span class="bar"></span></span><span class="meta">600ms · page swap</span></div>
+<div class="row r4"><span class="name">linear</span><span class="track"><span class="bar"></span></span><span class="meta">120ms · state flip</span></div>
+</body></html>

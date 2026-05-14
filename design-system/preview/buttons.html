@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+body { padding: 24px 28px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row + .row { margin-top: 12px; }
+.lbl { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; color: var(--ink-2); width: 90px; }
+.btn { font-family: var(--font-body); font-size: 15px; font-weight: 600; padding: 12px 22px; border-radius: 999px; border: 0; cursor: pointer; transition: transform 220ms var(--ease-soft), box-shadow 220ms var(--ease-soft), background 120ms; }
+.btn-primary { background: var(--accent); color: var(--ink); box-shadow: var(--sh-lamp); }
+.btn-primary:hover { background: var(--accent-2); color: var(--ink-inv); transform: translateY(-2px); }
+.btn-secondary { background: transparent; color: var(--ink); border: 1px solid var(--line-strong); }
+.btn-secondary:hover { border-color: var(--accent-2); color: var(--accent-2); }
+.btn-ghost { background: var(--accent-soft); color: var(--accent-3); }
+.btn-ghost:hover { background: var(--accent-glow); }
+.btn-link { background: transparent; color: var(--accent-3); padding: 12px 8px; font-weight: 600; }
+.btn-sm { padding: 8px 14px; font-size: 13px; }
+.btn-lg { padding: 16px 28px; font-size: 16px; }
+.btn-icon { width: 40px; height: 40px; border-radius: 12px; padding: 0; background: var(--card); border: 1px solid var(--line); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; font-size: 16px; }
+.btn-icon:hover { color: var(--accent-2); border-color: var(--accent); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+</style></head><body>
+<div class="row">
+  <span class="lbl">Primary</span>
+  <button class="btn btn-primary">Open a room</button>
+  <button class="btn btn-primary">افتح غرفة</button>
+  <button class="btn btn-primary btn-sm">Small</button>
+  <button class="btn btn-primary btn-lg">Large</button>
+  <button class="btn btn-primary" disabled>Disabled</button>
+</div>
+<div class="row">
+  <span class="lbl">Secondary</span>
+  <button class="btn btn-secondary">Join a room</button>
+  <button class="btn btn-ghost">Quick join</button>
+  <button class="btn btn-link">Learn more →</button>
+  <button class="btn btn-danger btn-sm">Leave room</button>
+</div>
+<div class="row">
+  <span class="lbl">Icon</span>
+  <button class="btn-icon" title="Theme">◐</button>
+  <button class="btn-icon" title="Share">↗</button>
+  <button class="btn-icon" title="Settings">⚙</button>
+  <button class="btn-icon" style="background:var(--accent);color:var(--ink);border-color:transparent" title="Mic">●</button>
+  <span style="color:var(--ink-3);font-size:12px;margin-inline-start:10px">40px square, 12px radius</span>
+</div>
+</body></html>

@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+.grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.sw { height: 96px; border-radius: 16px; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px 12px; border: 1px solid rgba(28,24,20,0.06); }
+.sw .n { font-size: 12px; font-weight: 600; color: var(--ink); }
+.sw .h { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-2); margin-top: 2px; }
+.sw .v { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-3); }
+.sw.inv .n, .sw.inv .h, .sw.inv .v { color: var(--ink-inv); }
+.sw.inv .h, .sw.inv .v { opacity: 0.75; }
+</style></head><body>
+<div class="grid">
+  <div class="sw" style="background:#F5F2EB"><div class="n">Paper</div><div class="h">#F5F2EB</div><div class="v">--paper</div></div>
+  <div class="sw" style="background:#FAF7F1"><div class="n">Paper 2</div><div class="h">#FAF7F1</div><div class="v">--paper-2</div></div>
+  <div class="sw" style="background:#FFFFFF"><div class="n">Card</div><div class="h">#FFFFFF</div><div class="v">--card</div></div>
+  <div class="sw" style="background:#F8F3ED"><div class="n">Inset</div><div class="h">#F8F3ED</div><div class="v">--inset</div></div>
+  <div class="sw" style="background:#E2D7C8"><div class="n">Line</div><div class="h">#E2D7C8</div><div class="v">--line</div></div>
+  <div class="sw inv" style="background:#2D3436"><div class="n">Ink</div><div class="h">#2D3436</div><div class="v">--ink</div></div>
+  <div class="sw" style="background:#FAF7F1;color:#636E72"><div class="n" style="color:#636E72">Ink 2</div><div class="h">#636E72</div><div class="v">--ink-2</div></div>
+  <div class="sw" style="background:#FAF7F1;color:#9AA0A4"><div class="n" style="color:#9AA0A4">Ink 3</div><div class="h">#9AA0A4</div><div class="v">--ink-3</div></div>
+  <div class="sw" style="background:#EFE7DA"><div class="n">Line 2</div><div class="h">#EFE7DA</div><div class="v">--line-2</div></div>
+  <div class="sw" style="background:#C7B9A4"><div class="n">Line strong</div><div class="h">#C7B9A4</div><div class="v">--line-strong</div></div>
+</div>
+</body></html>
