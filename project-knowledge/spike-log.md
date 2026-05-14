@@ -264,3 +264,36 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 2. **Three Unicode glyph icons (`↻ ▶ ➤`) — replace with Lucide or keep?** Strict reading of §10 says replace; lenient reading lets the editorial monochrome glyph aesthetic stand. Your call on Day 6 alongside the final design pass.
 3. **NYT/Notion/Arc taste check (§11.11) — your eyeball, please.** The CSS bug fix in this PR is the first time the design-system tokens actually rendered. Visit `https://127.0.0.1:3443/` and grade the karak-amber-on-cream landing + the in-room shell. If anything feels off-brand now that the real tokens load, file it before Day 6.
 
+---
+
+## 2026-05-15 — Day 6 of Week 1 (synthesis)
+
+**Goal for this session:** create [`project-knowledge/sprint-findings.md`](sprint-findings.md) with 5 verbatim student quotes, 1 stack-surprise note, named beta list of 30+ humans, updated risk register entries. **No coding.**
+
+**Status: AI portion complete, human portion pending.** The structure of `sprint-findings.md` is shipped; the stack-surprise note is fully written (~600 words); the risk register has 12 entries with explicit pre-/post-spike grades and mitigation status. The P1 quotes table and P3 beta-list table are templated with "Aziz to fill" placeholders — those rows are the work that has to happen between now and Day 7.
+
+**What worked:**
+- **The stack-surprise note basically wrote itself.** Five concrete surprises across the five build days — biggest is the meta-finding that Days 2, 3, and 5 were verification rather than construction because the upstream repo (and Aziz's working-tree WIP) was further along than the spike plan assumed. The strategic implication is real: this changes the spike from "build the wedge, then validate" to "the wedge is built — decide if it's the right wedge."
+- **Risk register grades.** Pre-spike → post-spike deltas for 12 risks, with explicit "why changed" and "mitigation status" columns. P2 risks moved firmly to low/medium-low. P1 and P3 stayed unknown — honest, because we have zero captured signal on either. New risks surfaced and graded: ANNOUNCED_IP fragility (medium), MiroTalk telemetry (medium), broken Windows junction (low, already mitigated by moving project-knowledge in-repo).
+- **No code.** Per PLAN.md §3 row 6 explicit instruction. The closest I came was checking `git status` (clean).
+
+**What broke:**
+- **The "named beta list of 30+ humans" deliverable is at zero.** Aziz hasn't run P3 outreach yet. Per the Day-4 conditional pivot threshold I wrote ("if end-of-Day-5 P1 and P3 still empty with no human signal, Day 7 should default to no-go or scope-cut"), this is the live concern. The templates are ready ([p3-channel-shortlist.md](p3-channel-shortlist.md) has bilingual seed messages and a per-channel tracking table), but the messages need to be sent.
+- **Same for P1 quotes.** Five interviews × 15 min = 75 min of Aziz time, ideally spread across two days. None done yet.
+- **One subjective Day-5 §11 item still requires Aziz eyeball** — the NYT/Notion/Arc taste check. The CSS-token fix in PR #7 means the page now renders with the real karak-amber + Newsreader for the first time. Before that fix the page was using inline fallbacks and didn't represent the actual design intent. So the eyeball check is meaningful for the first time post-PR-#7-merge.
+
+**What I changed:**
+- New: [project-knowledge/sprint-findings.md](sprint-findings.md) (~450 lines).
+- Appended this Day 6 entry.
+- Zero code changes.
+
+**Next session starts with:**
+- Day 7 — go/no-go gate. The four PLAN.md §4 sub-decisions get applied to P1, P2, P3 with explicit colors. Then SCOPE-RECONCILE.md gets updated with the sprint outcome. Inputs needed:
+  - Aziz: the five P1 quote rows + the 30+ beta-list rows + his subjective NYT/Notion/Arc grade
+  - Me: read the filled-in tables, write the go/no-go recommendation, draft SCOPE-RECONCILE.md update
+
+**Open questions for Aziz (Day-7-blocking):**
+1. **When are you running the interviews and outreach?** This isn't a question of *will* — it's a question of *when* given the Day-7 deadline. Honest answer: today (2026-05-15) for 2-3 interviews + first channel seed, plus tomorrow morning for remaining interviews + reply harvesting, would leave Day-7 afternoon for the go/no-go writeup. Anything less compressed makes Day 7 a guess.
+2. **If P1 comes back with <3 wedge matches, what's your pivot of choice?** The cheap options ranked: (a) tighten the wedge wording and retest; (b) shift cohort (Saudi students → MENA professionals studying for certs?); (c) scope-cut to landing-page validation only; (d) walk away. I'd rather pre-think this than improvise on Day 7.
+3. **If P3 comes back with <15 beta names, do you keep the SFU stack or scope-cut to mesh-only for Week 2?** Mesh is simpler infra (no MiroTalk container, no HTTPS coupling, no ANNOUNCED_IP) and 4-person mesh covers the wedge's "2-4 friends study together" use case. Going SFU-only buys you bigger rooms; if no one's asking for bigger rooms, that complexity is wasted.
+
