@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "co-study-server.js",
+    "scripts/*.js",
+    "tests/integration/*.test.js",
+    "tests/helpers/fake-sfu-fixture.js"
+  ],
+  "project": [
+    "*.js",
+    "scripts/**/*.js",
+    "tests/**/*.js"
+  ],
+  "ignore": [
+    "ecosystem.config.js"
+  ]
+}

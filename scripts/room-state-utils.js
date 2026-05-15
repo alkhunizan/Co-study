@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 function resolveRoomStateFile(env = process.env) {
     return path.resolve(env.ROOM_STATE_FILE || path.join(__dirname, '..', 'data', 'rooms.json'));

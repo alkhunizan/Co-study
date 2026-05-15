@@ -1,5 +1,5 @@
-const https = require('https');
-const os = require('os');
+const https = require('node:https');
+const os = require('node:os');
 const selfsigned = require('selfsigned');
 const { createCoStudyServer } = require('./co-study-server');
 
@@ -7,6 +7,7 @@ function buildSelfSignedCertificate() {
     const attrs = [{ name: 'commonName', value: 'localhost' }];
     return selfsigned.generate(attrs, {
         algorithm: 'sha256',
+        // @ts-expect-error selfsigned v5 accepts `days` at runtime; types lag
         days: 365,
         keySize: 2048,
         extensions: [

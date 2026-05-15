@@ -1,7 +1,7 @@
-const { spawn } = require('child_process');
-const http = require('http');
-const https = require('https');
-const net = require('net');
+const { spawn } = require('node:child_process');
+const http = require('node:http');
+const https = require('node:https');
+const net = require('node:net');
 
 const { repoRoot, makeTempStateFile, resetStateFile } = require('./test-env');
 
@@ -19,7 +19,7 @@ function getFreePort() {
                     reject(closeError);
                     return;
                 }
-                resolve(address.port);
+                resolve(/** @type {import('net').AddressInfo} */ (address).port);
             });
         });
         server.on('error', reject);
@@ -197,7 +197,7 @@ async function startServer(options = {}) {
         resetStateFile(roomStateFile);
     }
 
-    const externalSfuBaseUrl = options.env && options.env.SFU_BASE_URL;
+    const externalSfuBaseUrl = options.env?.SFU_BASE_URL;
     const fakeSfu = options.withFakeSfu && !externalSfuBaseUrl
         ? await startFakeSfu(options.fakeSfuOptions || {})
         : null;
@@ -247,7 +247,7 @@ async function startServer(options = {}) {
         port,
         baseUrl,
         roomStateFile,
-        sfuBaseUrl: fakeSfu ? fakeSfu.baseUrl : (options.env && options.env.SFU_BASE_URL) || '',
+        sfuBaseUrl: fakeSfu ? fakeSfu.baseUrl : (options.env?.SFU_BASE_URL) || '',
         fakeSfuPid: fakeSfu ? fakeSfu.pid : null,
         async stop() {
             await stopChild(child);
@@ -270,9 +270,5 @@ async function startServer(options = {}) {
 
 module.exports = {
     delay,
-    getFreePort,
-    request,
-    startFakeSfu,
-    startServer,
-    waitForServer
+    startServer
 };

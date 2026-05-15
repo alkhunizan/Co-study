@@ -1,5 +1,5 @@
-const http = require('http');
-const https = require('https');
+const http = require('node:http');
+const https = require('node:https');
 
 function requestJson(targetUrl, timeoutMs = 10000) {
     const url = new URL(targetUrl);

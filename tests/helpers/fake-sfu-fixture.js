@@ -1,4 +1,4 @@
-const http = require('http');
+const http = require('node:http');
 
 const port = Number(process.env.PORT || 0);
 
@@ -89,7 +89,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(port, '127.0.0.1', () => {
     const address = server.address();
-    console.log(JSON.stringify({ event: 'fake-sfu-start', port: address.port }));
+    console.log(JSON.stringify({ event: 'fake-sfu-start', port: /** @type {import('net').AddressInfo} */ (address).port }));
 });
 
 function shutdown() {

@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
-const { spawnSync } = require('child_process');
+const { spawnSync } = require('node:child_process');
 
 const { repoRoot, resetStateFile, makeTempStateFile } = require('../helpers/test-env');
 const { delay, startServer } = require('../helpers/server-control');
@@ -38,7 +38,7 @@ async function cleanupServer(t, server, extraFiles = []) {
             await server.stop();
             resetStateFile(server.roomStateFile);
         }
-        extraFiles.forEach((filePath) => resetStateFile(filePath));
+        for (const filePath of extraFiles) resetStateFile(filePath);
     });
 }
 
@@ -64,7 +64,7 @@ async function expectStartFailure(startOptions, pattern) {
         async () => {
             await startServer(startOptions);
         },
-        (error) => {
+        (/** @type {any} */ error) => {
             assert.match(String(error.message), pattern);
             return true;
         }

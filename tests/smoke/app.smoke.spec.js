@@ -15,7 +15,7 @@ async function createSmokePage(browser) {
 
     await page.addInitScript(() => {
         try {
-            delete window.FaceDetector;
+            delete (/** @type {any} */ (window)).FaceDetector;
         } catch (_error) {}
 
         try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
@@ -288,7 +288,7 @@ test('schedule helpers recalculate recurring sessions after stale snapshot data'
             const realNow = Date.now.bind(Date);
             let offsetMs = 0;
             Date.now = () => realNow() + offsetMs;
-            window.__setTestNowOffset = (nextOffsetMs) => {
+            (/** @type {any} */ (window)).__setTestNowOffset = (nextOffsetMs) => {
                 offsetMs = Number(nextOffsetMs) || 0;
             };
         });
@@ -316,7 +316,7 @@ test('schedule helpers recalculate recurring sessions after stale snapshot data'
         const initialMeta = await probe.page.locator('#schedule-meta').textContent();
 
         await probe.page.evaluate(() => {
-            window.__setTestNowOffset(2 * 60 * 60 * 1000);
+            (/** @type {any} */ (window)).__setTestNowOffset(2 * 60 * 60 * 1000);
         });
 
         await expect.poll(async () => probe.page.locator('#schedule-countdown').textContent()).not.toEqual('');

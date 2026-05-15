@@ -1,6 +1,6 @@
-const fs = require('fs');
-const fsPromises = require('fs/promises');
-const path = require('path');
+const fs = require('node:fs');
+const fsPromises = require('node:fs/promises');
+const path = require('node:path');
 const { normalizeSchedule } = require('./schedule-utils');
 
 const SAVE_DEBOUNCE_MS = 250;
@@ -51,6 +51,10 @@ function createRoomStore(options = {}) {
         console.warn(message, error || '');
     }
 
+    /**
+     * @param {Record<string, any>} message
+     * @param {number} [index]
+     */
     function sanitizeMessage(message = {}, index = 0) {
         if (!message || typeof message !== 'object' || Array.isArray(message)) {
             return null;
@@ -78,6 +82,10 @@ function createRoomStore(options = {}) {
         return safeMessage;
     }
 
+    /**
+     * @param {Record<string, any>} task
+     * @param {number} [index]
+     */
     function sanitizeBoardTask(task = {}, index = 0) {
         if (!task || typeof task !== 'object' || Array.isArray(task)) {
             return null;
@@ -94,7 +102,11 @@ function createRoomStore(options = {}) {
         };
     }
 
-    function sanitizeRoom(room = {}, index = 0) {
+    /**
+     * @param {Record<string, any>} room
+     * @param {number} [_index]
+     */
+    function sanitizeRoom(room = {}, _index = 0) {
         if (!room || typeof room !== 'object' || Array.isArray(room)) {
             return null;
         }
@@ -109,7 +121,7 @@ function createRoomStore(options = {}) {
         const safeMessages = Array.isArray(room.messages)
             ? room.messages.map(sanitizeMessage).filter(Boolean).slice(-roomHistoryLimit)
             : [];
-        const safeTasks = Array.isArray(room.board && room.board.tasks)
+        const safeTasks = Array.isArray(room.board?.tasks)
             ? room.board.tasks.map(sanitizeBoardTask).filter(Boolean)
             : [];
         const safeSchedule = normalizeSchedule(room.schedule, {
@@ -126,7 +138,7 @@ function createRoomStore(options = {}) {
             createdAt: typeof room.createdAt === 'number' ? room.createdAt : Date.now(),
             messages: safeMessages,
             board: {
-                goal: sanitizeBoardGoal(room.board && room.board.goal),
+                goal: sanitizeBoardGoal(room.board?.goal),
                 tasks: safeTasks
             },
             schedule: safeSchedule

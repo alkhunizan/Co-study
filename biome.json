@@ -1,0 +1,45 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": [
+			"*.js",
+			"*.mjs",
+			"scripts/**/*.js",
+			"tests/**/*.js",
+			"!design-system",
+			"!**/*.html",
+			"!**/*.css",
+			"!**/*.jsx",
+			"!day*-probe.mjs",
+			"!day*-smoke.mjs",
+			"!day*-twotab.mjs",
+			"!day*-pomodoro.mjs",
+			"!day*-flow.mjs",
+			"!day*-network-probe.mjs",
+			"!day*-iframe-probe.mjs",
+			"!day*-cert-probe.mjs"
+		]
+	},
+	"formatter": {
+		"enabled": false
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true
+		}
+	},
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	}
+}

@@ -144,8 +144,8 @@ function formatOccurrenceId(timestamp) {
 }
 
 function getScheduleStartTimestamp(schedule) {
-    const dateParts = parseDateString(schedule && schedule.startDate);
-    const timeParts = parseTimeString(schedule && schedule.startTime);
+    const dateParts = parseDateString(schedule?.startDate);
+    const timeParts = parseTimeString(schedule?.startTime);
     if (!dateParts || !timeParts) return null;
     return timestampFromRiyadhParts({
         year: dateParts.year,
@@ -157,8 +157,8 @@ function getScheduleStartTimestamp(schedule) {
 }
 
 function getScheduleWindowMs(schedule) {
-    const focusMinutes = normalizePositiveInteger(schedule && schedule.focusMinutes, DEFAULT_FOCUS_MINUTES);
-    const breakMinutes = normalizePositiveInteger(schedule && schedule.breakMinutes, DEFAULT_BREAK_MINUTES);
+    const focusMinutes = normalizePositiveInteger(schedule?.focusMinutes, DEFAULT_FOCUS_MINUTES);
+    const breakMinutes = normalizePositiveInteger(schedule?.breakMinutes, DEFAULT_BREAK_MINUTES);
     return Math.max(DEFAULT_MIN_SESSION_WINDOW_MINUTES, focusMinutes + breakMinutes) * 60 * 1000;
 }
 
@@ -267,6 +267,10 @@ function normalizeAttendanceHistory(entries = []) {
         .slice(-MAX_ATTENDANCE_HISTORY);
 }
 
+/**
+ * @param {Record<string, any>} schedule
+ * @param {Record<string, any>} [options]
+ */
 function normalizeSchedule(schedule = {}, options = {}) {
     if (!schedule || typeof schedule !== 'object' || Array.isArray(schedule)) {
         return null;
@@ -427,7 +431,7 @@ function recordScheduleJoin(schedule, now = Date.now()) {
 }
 
 function buildAttendanceSummary(schedule) {
-    const history = normalizeAttendanceHistory(schedule && schedule.attendance);
+    const history = normalizeAttendanceHistory(schedule?.attendance);
     const summary = {
         joinedOnTimeCount: 0,
         lateCount: 0,
@@ -494,23 +498,7 @@ function buildScheduleSummary(schedule, now = Date.now()) {
 }
 
 module.exports = {
-    ATTENDANCE_LATE,
-    ATTENDANCE_MISSED,
-    ATTENDANCE_ON_TIME,
-    CADENCE_DAILY,
-    CADENCE_ONCE,
-    CADENCE_WEEKDAYS,
-    CADENCE_WEEKLY,
-    DEFAULT_BREAK_MINUTES,
-    DEFAULT_FOCUS_MINUTES,
-    DEFAULT_SCHEDULE_CADENCE,
-    DEFAULT_SCHEDULE_TIMEZONE,
-    SUPPORTED_CADENCES,
     buildScheduleSummary,
-    formatOccurrenceId,
-    getRiyadhDatePartsFromTimestamp,
-    getScheduleStartTimestamp,
-    normalizeCadence,
     normalizeSchedule,
     recordScheduleJoin,
     rollScheduleAttendance

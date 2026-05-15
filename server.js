@@ -1,4 +1,4 @@
-const http = require('http');
+const http = require('node:http');
 const { createCoStudyServer } = require('./co-study-server');
 
 const appServer = createCoStudyServer({
