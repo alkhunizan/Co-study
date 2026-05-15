@@ -1,7 +1,7 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
 const { Server } = require('socket.io');
 const { createRoomStore } = require('./room-store');
 const {
@@ -416,7 +416,7 @@ async function hashPassword(password) {
 
 async function verifyPassword(password, hash) {
     return new Promise((resolve, reject) => {
-        if (!hash || !hash.includes(':')) return resolve(false);
+        if (!hash?.includes(':')) return resolve(false);
         const [salt, key] = hash.split(':');
         crypto.pbkdf2(password, salt, HASH_ITERATIONS, HASH_KEY_LENGTH, HASH_DIGEST, (err, derivedKey) => {
             if (err) return reject(err);
@@ -480,6 +480,7 @@ function isSameIdentity(record = {}, sessionId, clientId) {
     return false;
 }
 
+/** @param {Record<string, any>} input */
 function sanitizeStatus(input = {}) {
     if (!input || typeof input !== 'object') {
         return { text: '', visible: false, updatedAt: Date.now() };
@@ -549,7 +550,7 @@ function getSocketRequestIp(request, trustProxy) {
             return normalizeIp(forwardedFor.split(',')[0]);
         }
     }
-    return normalizeIp(request.socket && request.socket.remoteAddress);
+    return normalizeIp(request.socket?.remoteAddress);
 }
 
 function createCoStudyServer(options = {}) {
@@ -683,11 +684,11 @@ function createCoStudyServer(options = {}) {
     }
 
     function getRoomMediaMode(room) {
-        return normalizeMediaMode(room && room.mediaMode);
+        return normalizeMediaMode(room?.mediaMode);
     }
 
     function roomHasSchedule(room) {
-        return !!(room && room.schedule);
+        return !!(room?.schedule);
     }
 
     function roomUsesMesh(room) {
@@ -710,7 +711,7 @@ function createCoStudyServer(options = {}) {
     }
 
     function clearRoomCleanupTimer(room) {
-        if (!room || !room.cleanupTimer) return;
+        if (!room?.cleanupTimer) return;
         clearTimeout(room.cleanupTimer);
         room.cleanupTimer = null;
     }
@@ -743,10 +744,10 @@ function createCoStudyServer(options = {}) {
                 schedule,
                 board: {
                     goal: sanitizeBoardGoal(
-                        (meta.board && meta.board.goal)
-                        || (schedule && schedule.boardGoalTemplate)
+                        (meta.board?.goal)
+                        || (schedule?.boardGoalTemplate)
                     ),
-                    tasks: Array.isArray(meta.board && meta.board.tasks)
+                    tasks: Array.isArray(meta.board?.tasks)
                         ? meta.board.tasks.map(normalizeBoardTask).filter(Boolean)
                         : []
                 }
@@ -835,7 +836,7 @@ function createCoStudyServer(options = {}) {
     }
 
     function getSessionIdFromSocket(socket) {
-        const header = (socket.handshake && socket.handshake.headers && socket.handshake.headers.cookie) || '';
+        const header = (socket.handshake?.headers?.cookie) || '';
         const cookies = parseCookies(header);
         return cookies[SESSION_COOKIE_NAME] || null;
     }
@@ -853,7 +854,7 @@ function createCoStudyServer(options = {}) {
         return false;
     }
 
-    function applyHttpRateLimit(req, res, limiter, key) {
+    function applyHttpRateLimit(_req, res, limiter, key) {
         const result = limiter.consume(key);
         if (result.allowed) return true;
         res.status(429).json({
@@ -914,6 +915,7 @@ function createCoStudyServer(options = {}) {
     function evaluateReadiness({ logFailures = false } = {}) {
         const checks = {
             roomStore: readinessState.roomStore,
+            // @ts-expect-error internal socket.io flag for closed state
             socket: readinessState.socket && !io._closed,
             config: readinessState.config
         };
@@ -933,7 +935,7 @@ function createCoStudyServer(options = {}) {
         };
     }
 
-    let loadedRoomCount = loadPersistedRooms();
+    const loadedRoomCount = loadPersistedRooms();
 
     let isShuttingDown = false;
     async function flushRoomStateAndExit(signal) {
@@ -1023,8 +1025,8 @@ function createCoStudyServer(options = {}) {
     });
 
     io.on('connection', (socket) => {
-        const auth = socket.handshake && socket.handshake.auth;
-        const handshakeClientId = normalizeClientId(auth && auth.clientId);
+        const auth = socket.handshake?.auth;
+        const handshakeClientId = normalizeClientId(auth?.clientId);
         const sessionId = getSessionIdFromSocket(socket) || handshakeClientId || crypto.randomUUID();
         const ip = getSocketRequestIp(socket.request, config.trustProxy);
 

@@ -13,9 +13,13 @@
     "verify:deploy": "node scripts/verify-deploy.js",
     "audit:prod": "npm audit --omit=dev",
     "check": "node --check server.js && node --check server-https.js && node --check co-study-server.js && node --check room-store.js && node --check schedule-utils.js && node --check scripts/room-state-utils.js && node --check scripts/backup-rooms.js && node --check scripts/restore-rooms.js && node --check scripts/verify-deploy.js && node --check tests/helpers/server-control.js && node --check tests/helpers/fake-sfu-fixture.js && node --check tests/integration/server.integration.test.js && node --check tests/smoke/app.smoke.spec.js",
+    "typecheck": "tsc -p .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "deadcode": "knip --no-progress",
     "test:integration": "node --test tests/integration/server.integration.test.js",
     "test:smoke": "playwright test --config=playwright.config.js",
-    "test:ci": "npm run check && npm run audit:prod && npm run test:integration && npm run test:smoke"
+    "test:ci": "npm run check && npm run typecheck && npm run lint && npm run deadcode && npm run audit:prod && npm run test:integration && npm run test:smoke"
   },
   "keywords": [],
   "author": "",
@@ -31,7 +35,12 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.15",
     "@playwright/test": "^1.59.1",
-    "socket.io-client": "^4.8.3"
+    "@types/express": "5.0.6",
+    "@types/node": "25.8.0",
+    "knip": "6.13.1",
+    "socket.io-client": "^4.8.3",
+    "typescript": "6.0.3"
   }
 }

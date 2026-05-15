@@ -1,6 +1,6 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const SMOKE_PORT = Number(process.env.CO_STUDY_SMOKE_PORT || 3460);

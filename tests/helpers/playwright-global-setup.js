@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('node:fs');
 
 const { startServer } = require('./server-control');
 const { resetStateFile, SMOKE_PORT, SMOKE_ROOM_STATE_FILE, SMOKE_SERVER_INFO_FILE } = require('./test-env');

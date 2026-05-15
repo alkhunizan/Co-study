@@ -129,4 +129,19 @@ For these, work in normal mode and report when ready for review.
 
 ---
 
-_Last updated: 2026-05-14._
+## 9. Health Stack
+
+Used by `/health` (gstack skill) and `npm run test:ci`. All five gates run in `test:ci`.
+
+- typecheck (syntax): `npm run check` — `node --check` across 13 author files
+- typecheck (types):  `npm run typecheck` — `tsc -p .` with `allowJs`/`checkJs`. Permissive (`strict: false`, `noImplicitAny: false`); JSDoc opt-in per function for the JSON-trust-boundary sanitizers (`sanitizeStatus`, `sanitizeMessage`, `sanitizeBoardTask`, `sanitizeRoom`, `normalizeSchedule`)
+- lint:               `npm run lint` — `biome check .`. Scoped to JS author code only via `biome.json` includes (HTML/CSS/JSX/design-system mocks/`day*-*.mjs` spike scripts excluded). Auto-fix with `npm run lint:fix`
+- deadcode:           `npm run deadcode` — `knip --no-progress` per `knip.json`
+- audit:              `npm run audit:prod` — `npm audit --omit=dev`
+- tests:              `npm run test:integration` (12) + `npm run test:smoke` (6) — Node `--test` + Playwright
+
+Composite green target: full pipeline ≤ 60s on a warm cache.
+
+---
+
+_Last updated: 2026-05-15._
