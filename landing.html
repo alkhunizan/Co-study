@@ -78,6 +78,7 @@
           <span class="count" id="live-count">17,264</span>
           <span data-i18n="livePillLabel">مصباح شغّال الآن</span>
         </div>
+        <span class="illustrative-note" data-i18n="illustrativeNote">عرض توضيحي</span>
 
         <h1 class="hero-title">
           <span data-i18n="heroTitle1">ادخل.</span>
@@ -257,6 +258,7 @@
         <span class="stat-rule" aria-hidden="true"></span>
         <span class="stat"><span class="stat-num">42</span><span class="stat-label" data-i18n="statCities">مدينة</span></span>
       </div>
+      <div class="illustrative-note" data-i18n="illustrativeNote">عرض توضيحي</div>
     </div>
     <div class="community-grid">
       <!-- DEVIATION §2: 5 portraits, single editorial row -->
@@ -362,6 +364,7 @@
         navHow: 'How it works', navRooms: 'Rooms', navTonight: 'Tonight', navJournal: 'Journal',
         ctaOpen: 'Open a room', ctaOpenShort: 'Open a room', ctaJoin: 'See who’s live',
         livePillLabel: 'lamps on right now',
+        illustrativeNote: 'Illustrative preview',
         heroTitle1: 'Drop in.', heroTitle2: 'Camera on.', heroTitle3: 'Work alongside someone.',
         heroSub: 'A quiet room. Open all night. The world is already studying — pull up a desk.',
         heroFoot: 'No download. No login wall. Mic stays off.',
@@ -398,18 +401,19 @@
         navHow: 'كيف تشتغل', navRooms: 'الغرف', navTonight: 'الطلاب', navJournal: 'المجلة',
         ctaOpen: 'افتح غرفة', ctaOpenShort: 'افتح غرفة', ctaJoin: 'شوف اللي شغّال',
         livePillLabel: 'مصباح شغّال الآن',
+        illustrativeNote: 'عرض توضيحي',
         heroTitle1: 'ادخل.', heroTitle2: 'الكاميرا شغّالة.', heroTitle3: 'اشتغل مع غيرك.',
         heroSub: 'غرفة هادية، مفتوحة طول الليل. العالم كله يذاكر — قرّب كرسيك.',
         heroFoot: 'بدون تنزيل. بدون تسجيل. المايك مقفول.',
         stepsEyebrow: 'كيف الغرفة',
         stepsTitle1: 'ثلاث خطوات.', stepsTitle2: 'بدون تسجيل.',
         stepNum1: '٠١', step1H: 'افتح غرفة',
-        step1P: 'اختر مدة التركيز — ٢٥ دقيقة، ٥٠ دقيقة، أو مفتوحة. تطلع لك كود من ست خانات تشاركه.',
+        step1P: 'اختر مدة التركيز — 25 دقيقة، 50 دقيقة، أو مفتوحة. تطلع لك كود من ست خانات تشاركه.',
         stepNum2: '٠٢', step2H: 'الكاميرا شغّالة، المايك مقفول',
         step2P: 'هذا هو المربط. وجودك هو الاتفاق. ما فيه أحد يسمع؛ كل واحد قاعد يشتغل.',
         stepNum3: '٠٣', step3H: 'اقعد لين يرنّ المنبه',
         step3P: 'لما تخلص البومودورو، كلكم تستريحون مع بعض. راحة هادية، ورجعة هادية.',
-        roomMeta: 'غرفة هادية · ٥٠ دقيقة تركيز',
+        roomMeta: 'غرفة هادية · 50 دقيقة تركيز',
         previewYou: 'انت',
         previewFootL: 'المايك مقفول · الكاميرا شغّالة',
         previewFootR: 'مشفّر · WebRTC',
@@ -476,7 +480,7 @@
       var track = document.getElementById('city-marquee-track');
       if (!track) return;
       var cities = lang === 'ar'
-        ? ['الرياض ١:٢٤', 'القاهرة ١٢:٢٤', 'دبي ٢:٢٤', 'إسطنبول ١:٢٤', 'لندن ١٠:٢٤', 'لاهور ٣:٢٤', 'الدوحة ١:٢٤', 'المنامة ١:٢٤', 'مسقط ٢:٢٤', 'بيروت ١٢:٢٤']
+        ? ['الرياض 1:24', 'القاهرة 12:24', 'دبي 2:24', 'إسطنبول 1:24', 'لندن 10:24', 'لاهور 3:24', 'الدوحة 1:24', 'المنامة 1:24', 'مسقط 2:24', 'بيروت 12:24']
         : ['Riyadh 1:24', 'Cairo 12:24', 'Dubai 2:24', 'Istanbul 1:24', 'London 10:24', 'Lahore 3:24', 'Doha 1:24', 'Manama 1:24', 'Muscat 2:24', 'Beirut 12:24'];
       var stream = cities.concat(cities);
       track.innerHTML = stream.map(function (c) {
@@ -501,8 +505,9 @@
       var drift = Math.random() < 0.5 ? -1 : 1;
       var mag = Math.floor(Math.random() * 5) + 1;
       liveN = Math.max(15000, liveN + drift * mag);
-      var lang = document.documentElement.lang === 'ar' ? 'ar-EG' : 'en-US';
-      var formatted = liveN.toLocaleString(lang);
+      // Western digits + grouping in both languages — counts are
+      // transactional numbers per DESIGN.md §5.
+      var formatted = liveN.toLocaleString('en-US');
       var el = document.getElementById('live-count');
       var stat = document.getElementById('stat-live');
       if (el) el.textContent = formatted;
