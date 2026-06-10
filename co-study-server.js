@@ -348,14 +348,26 @@ function sanitizeRoomPassword(raw = '') {
     return raw.trim().slice(0, ROOM_PASSWORD_MAX_LENGTH);
 }
 
-function sanitizeNickname(raw = '') {
+// Controls, zero-width chars, and bidi overrides enable invisible names and
+// RTL/LTR spoofing — a real vector in a bilingual chat. ZWNJ/ZWJ (U+200C/D)
+// stay: Arabic shaping and composite emoji need them.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control chars deliberately to strip them at the trust boundary
+const INVISIBLE_TEXT_PATTERN = /[\u0000-\u001F\u007F-\u009F\u200B\u200E\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+
+function sanitizeUserText(raw, maxLength) {
     if (typeof raw !== 'string') return '';
-    return raw.trim().slice(0, NICKNAME_MAX_LENGTH);
+    const visible = raw.replace(INVISIBLE_TEXT_PATTERN, '').trim();
+    // Truncate by code points so an emoji straddling the cap is dropped
+    // whole instead of leaving a lone surrogate in persisted state.
+    return Array.from(visible).slice(0, maxLength).join('');
+}
+
+function sanitizeNickname(raw = '') {
+    return sanitizeUserText(raw, NICKNAME_MAX_LENGTH);
 }
 
 function sanitizeChatMessage(raw = '') {
-    if (typeof raw !== 'string') return '';
-    return raw.trim().slice(0, CHAT_MESSAGE_MAX_LENGTH);
+    return sanitizeUserText(raw, CHAT_MESSAGE_MAX_LENGTH);
 }
 
 function sanitizeBoardGoal(raw = '') {
@@ -1013,10 +1025,18 @@ function createCoStudyServer(options = {}) {
     app.use(originGuard);
     app.use(express.json());
     app.use(sessionMiddleware);
-    app.use('/audio', express.static(path.join(__dirname, 'audio')));
-    app.use('/images', express.static(path.join(__dirname, 'images')));
-    app.use('/videos', express.static(path.join(__dirname, 'videos')));
-    app.use('/design-system', express.static(path.join(__dirname, 'design-system')));
+    app.use('/audio', express.static(path.join(__dirname, 'audio'), { maxAge: '7d' }));
+    app.use('/images', express.static(path.join(__dirname, 'images'), { maxAge: '1d' }));
+    // Raw source footage lives beside the published clips (gitignored, but
+    // present on rsync-style deploys) — never serve it.
+    app.use('/videos/hero/source', (_req, res) => res.status(404).end());
+    app.use('/videos', express.static(path.join(__dirname, 'videos'), { maxAge: '1d' }));
+    // The pages only need the stylesheets; the rest of design-system/ is
+    // internal documentation and must not be publicly fetchable.
+    app.use('/design-system', (req, res, next) => {
+        if (req.path.endsWith('.css')) return next();
+        res.status(404).end();
+    }, express.static(path.join(__dirname, 'design-system'), { maxAge: '1d' }));
 
     app.get('/api/health', (_req, res) => {
         res.json({

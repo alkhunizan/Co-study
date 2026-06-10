@@ -657,7 +657,10 @@ test('socket payloads are bounded at server boundaries', async (t) => {
     });
     assert.equal(sendMessage.ok, true);
 
-    await delay(50);
+    const broadcastDeadline = Date.now() + 5000;
+    while (!receivedMessages.some((message) => message.type === 'user') && Date.now() < broadcastDeadline) {
+        await delay(10);
+    }
     const userMessage = receivedMessages.find((message) => message.type === 'user');
     assert.ok(userMessage);
     assert.equal(userMessage.text.length, 500);
@@ -667,6 +670,84 @@ test('socket payloads are bounded at server boundaries', async (t) => {
     assert.equal(snapshot.status, 200);
     assert.equal(snapshot.body.participants[0].name.length, 20);
     assert.ok(snapshot.body.messages.some((message) => message.type === 'user' && message.text.length === 500));
+});
+
+test('open alias and media mounts serve published assets only', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const openPage = await server.request('/open');
+    assert.equal(openPage.status, 200);
+    assert.match(`${openPage.body}`, /id="create-form"/);
+
+    const poster = await server.request('/videos/hero/01-saud-poster.jpg');
+    assert.equal(poster.status, 200);
+    assert.match(`${poster.headers['content-type']}`, /image\/jpeg/);
+    assert.match(`${poster.headers['cache-control']}`, /max-age=\d+/);
+
+    const sourceFootage = await server.request('/videos/hero/source/raw-clip.mp4');
+    assert.equal(sourceFootage.status, 404);
+});
+
+test('sanitizers strip invisible characters and reject non-string payloads', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'invisible-owner' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'Invisible Input Room'
+    });
+    assert.equal(createRoom.ok, true);
+    const roomId = createRoom.room.roomId;
+
+    const numericName = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 123,
+        clientId: 'invisible-owner'
+    });
+    assert.equal(numericName.ok, false);
+    assert.equal(numericName.errorCode, 'NICKNAME_REQUIRED');
+
+    const invisibleName = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: '\u200B\u200B\u202E\u200F',
+        clientId: 'invisible-owner'
+    });
+    assert.equal(invisibleName.ok, false);
+    assert.equal(invisibleName.errorCode, 'NICKNAME_REQUIRED');
+
+    const bidiName = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'evil\u202Etxt',
+        clientId: 'invisible-owner'
+    });
+    assert.equal(bidiName.ok, true);
+    assert.equal(bidiName.room.participants[0].name, 'eviltxt');
+
+    const objectMessage = await emitAck(ownerSocket, 'send-message', {
+        roomId,
+        text: { nested: 'payload' }
+    });
+    assert.equal(objectMessage.ok, false);
+    assert.equal(objectMessage.errorCode, 'MESSAGE_REQUIRED');
+
+    const emojiMessage = await emitAck(ownerSocket, 'send-message', {
+        roomId,
+        text: '\u{1F3AF}'.repeat(600)
+    });
+    assert.equal(emojiMessage.ok, true);
+
+    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(snapshot.status, 200);
+    const emojiStored = snapshot.body.messages.find((message) => message.type === 'user');
+    assert.ok(emojiStored);
+    // Truncation counts code points and never leaves a lone surrogate.
+    assert.equal(Array.from(emojiStored.text).length, 500);
+    assert.doesNotMatch(emojiStored.text, /[\uD800-\uDBFF]$/);
 });
 
 test('secure cookies honor trusted HTTPS proxy headers only', async (t) => {
@@ -694,15 +775,20 @@ test('socket origin checks only honor forwarded protocol when proxy trust is ena
     const plainServer = await startServer();
     await cleanupServer(t, plainServer);
 
-    await assert.rejects(async () => {
-        await connectSocket(plainServer.baseUrl, {
-            clientId: 'spoofed-origin',
-            extraHeaders: {
-                Origin: `https://127.0.0.1:${plainServer.port}`,
-                'X-Forwarded-Proto': 'https'
-            }
-        });
-    });
+    await assert.rejects(
+        async () => {
+            await connectSocket(plainServer.baseUrl, {
+                clientId: 'spoofed-origin',
+                extraHeaders: {
+                    Origin: `https://127.0.0.1:${plainServer.port}`,
+                    'X-Forwarded-Proto': 'https'
+                }
+            });
+        },
+        // Pin the handshake rejection specifically — a boot race or wrong
+        // port would also reject, which must not satisfy this test.
+        /websocket error|403/i
+    );
 
     const trustedServer = await startServer({
         env: { TRUST_PROXY: '1' }
