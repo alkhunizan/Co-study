@@ -379,3 +379,30 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 **Open questions for Aziz:**
 1. Do the strip clips need name/timer labels too, or strip them down to silent thumbnails (just the cam feed + LIVE chip)? Current labels were preserved from the original tile chrome.
 2. Replace the AI clips with real student footage in a follow-up pass, or carry them until Gate 2?
+
+## 2026-06-10 — Review fix-set on the landing/open redesign (out-of-spike, quality pass)
+
+**Goal for this session:** Full five-axis code review of the uncommitted redesign working tree, then fix every finding and ship as a PR (CLAUDE.md also gained §10 run-commands + §11 architecture via /init).
+
+**What worked:**
+- Review caught a real Critical before it shipped: the new `Permissions-Policy: camera=(self)` header silently blocks getUserMedia inside the cross-origin SFU iframe (iframe `allow=""` delegation can't widen the embedder's policy). Fixed by deriving the SFU origin from `SFU_BASE_URL` at factory init and allow-listing it in both Permissions-Policy and CSP `frame-src`; pinned by a new integration test, and the SFU smoke test now exercises the dynamic `frame-src` against a real cross-origin fixture.
+- The rtl-bilingual-reviewer agent earned its keep: 4 ship-blockers including `[data-force-ltr]` being inert on /open (rule only existed in index.html's inline styles) — room codes rendered RTL in Arabic.
+- CSP tightened: `connect-src` any-host → `'self'`; `frame-src` any-host → `'self'` + SFU origin.
+- Brand transliteration unified to one word (هلاستدي) repo-wide — open.html, index.html, README_AR.md, p3 outreach draft.
+- New landing smoke spec (hero renders, zero console/page errors, CTA routes to /open create form) — `/` had lost all browser coverage when the forms moved.
+- Full pipeline green twice (pre-commit and pre-push): 16/16 integration, 7/7 smoke.
+
+**What broke:**
+- First `npm run test:ci` died at the audit gate: 4 moderate advisories (qs via express, ws via socket.io) published since the last run. `npm audit fix` was lockfile-only and clean.
+- Nothing else — the fix-set itself landed without a failing iteration.
+
+**What I changed:**
+- 5 commits on `feat/landing-redesign`: chore(deps) lockfile, feat(landing) redesign snapshot (45 files incl. media), fix(security) SFU-aware headers, fix(design) RTL/brand/numeral punch list + preview label, docs(spike-log) this entry.
+- Owner decisions recorded: live counter stays animated but carries a bilingual "عرض توضيحي / Illustrative preview" label; spare media committed as taste-pass swap candidates.
+
+**Next session starts with:**
+- Merge the PR after the visual taste-pass (counter label placement in both languages is the one judgment call to eyeball).
+
+**Open questions for Aziz:**
+1. Real-SFU camera delegation is integration-tested at the header level but needs one manual deploy-time QA pass (fake SFU never calls getUserMedia).
+2. `connect-src 'self'` degrades legacy-WebKit socket.io to same-origin polling — acceptable, or pin an explicit ws/wss same-origin pair?
