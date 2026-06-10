@@ -103,8 +103,27 @@ test('HTTP responses include baseline browser security headers', async (t) => {
     assert.equal(response.headers['referrer-policy'], 'strict-origin-when-cross-origin');
     assert.equal(response.headers['x-frame-options'], 'SAMEORIGIN');
     assert.match(response.headers['content-security-policy'], /default-src 'self'/);
-    assert.match(response.headers['content-security-policy'], /frame-src 'self' http: https:/);
+    assert.match(response.headers['content-security-policy'], /connect-src 'self'; frame-src/);
+    assert.match(response.headers['content-security-policy'], /frame-src 'self'; object-src/);
     assert.equal(response.headers['permissions-policy'], 'camera=(self), microphone=(self), display-capture=(self)');
+});
+
+test('security headers allow-list the SFU origin when SFU_BASE_URL is configured', async (t) => {
+    const sfuOrigin = 'http://127.0.0.1:4567';
+    const server = await startServer({ env: { SFU_BASE_URL: sfuOrigin } });
+    await cleanupServer(t, server);
+
+    const response = await server.request('/');
+
+    assert.equal(response.status, 200);
+    assert.match(
+        response.headers['content-security-policy'],
+        /frame-src 'self' http:\/\/127\.0\.0\.1:4567; object-src/
+    );
+    assert.equal(
+        response.headers['permissions-policy'],
+        `camera=(self "${sfuOrigin}"), microphone=(self "${sfuOrigin}"), display-capture=(self "${sfuOrigin}")`
+    );
 });
 
 test('runtime config falls back to the default ICE servers', async (t) => {

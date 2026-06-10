@@ -542,7 +542,7 @@ function getExpectedOrigin(headers = {}, mode = 'http', trustProxy = false) {
     return `${protocol}://${host}`;
 }
 
-function buildContentSecurityPolicy() {
+function buildContentSecurityPolicy(sfuOrigin = '') {
     return [
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline'",
@@ -550,12 +550,20 @@ function buildContentSecurityPolicy() {
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob:",
         "media-src 'self' blob:",
-        "connect-src 'self' http: https: ws: wss:",
-        "frame-src 'self' http: https:",
+        "connect-src 'self'",
+        sfuOrigin ? `frame-src 'self' ${sfuOrigin}` : "frame-src 'self'",
         "object-src 'none'",
         "base-uri 'self'",
         "frame-ancestors 'self'"
     ].join('; ');
+}
+
+function buildPermissionsPolicy(sfuOrigin = '') {
+    // The SFU iframe is cross-origin; camera/mic/display-capture delegation
+    // through its allow="" attribute only works if the embedding document's
+    // policy allow-lists that origin too.
+    const allowList = sfuOrigin ? `(self "${sfuOrigin}")` : '(self)';
+    return `camera=${allowList}, microphone=${allowList}, display-capture=${allowList}`;
 }
 
 function isOriginAllowed({ origin, expectedOrigin, allowedOrigins }) {
@@ -584,6 +592,9 @@ function getSocketRequestIp(request, trustProxy) {
 function createCoStudyServer(options = {}) {
     const { env = process.env, mode = 'http', createServer } = options;
     const config = resolveServerConfig({ env, mode });
+    const sfuOrigin = config.sfuAvailable ? new URL(config.sfuBaseUrl).origin : '';
+    const contentSecurityPolicy = buildContentSecurityPolicy(sfuOrigin);
+    const permissionsPolicy = buildPermissionsPolicy(sfuOrigin);
     const pendingLeaveTimers = new Map();
     const skippedDisconnects = new Set();
     const rooms = new Map();
@@ -923,8 +934,8 @@ function createCoStudyServer(options = {}) {
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-        res.setHeader('Content-Security-Policy', buildContentSecurityPolicy());
-        res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), display-capture=(self)');
+        res.setHeader('Content-Security-Policy', contentSecurityPolicy);
+        res.setHeader('Permissions-Policy', permissionsPolicy);
         next();
     }
 
