@@ -1,2848 +1,580 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Halastudy | هلا — A quiet room. Open all night.</title>
-    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Halastudy webfonts: Newsreader (display), Inter (UI), Tajawal (AR body), Amiri (AR display), JetBrains Mono (numerals) -->
-    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/design-system/colors_and_type.css">
-    <style>
-        /* Halastudy aliases — the heavy lifting lives in /design-system/colors_and_type.css.
-           These aliases keep the existing landing markup compatible with the design tokens. */
-        :root {
-            --bg-body:       var(--paper);
-            --bg-card:       var(--card);
-            --bg-muted:      var(--inset);
-            --text-main:     var(--ink);
-            --text-sec:      var(--ink-2);
-            --accent-strong: var(--accent-2);
-            --border:        var(--line);
-            --error:         var(--danger);
-            --shadow-soft:   var(--sh-4);
-            --shadow-light:  var(--sh-2);
-            --radius-xl:     var(--r-2xl);
-            --radius-lg:     var(--r-xl);
-            --radius-md:     var(--r-md);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        html, body {
-            height: 100%;
-            overflow: hidden;
-        }
-
-        body {
-            font-family: 'Inter', 'Segoe UI', sans-serif;
-            background: var(--bg-body);
-            color: var(--text-main);
-            line-height: 1.6;
-            transition: background 0.3s, color 0.3s;
-        }
-
-        html[lang="ar"] body {
-            direction: ltr;
-            font-family: 'Tajawal', 'Noto Sans Arabic', 'Inter', sans-serif;
-        }
-
-        html[lang="ar"] .hero-content,
-        html[lang="ar"] .combined-left,
-        html[lang="ar"] .combined-right,
-        html[lang="ar"] .form-card,
-        html[lang="ar"] .result-box,
-        html[lang="ar"] .choice-text,
-        html[lang="ar"] .section-header,
-        html[lang="ar"] .form-note,
-        html[lang="ar"] .form-feedback,
-        html[lang="ar"] .mode-option,
-        html[lang="ar"] .room-preview,
-        html[lang="ar"] .schedule-panel,
-        html[lang="ar"] .result-actions {
-            direction: rtl;
-            text-align: right;
-        }
-
-        html[lang="ar"] input:not([data-force-ltr]) {
-            direction: rtl;
-            text-align: right;
-        }
-
-        html[lang="ar"] [data-force-ltr] {
-            direction: ltr;
-            text-align: left;
-        }
-
-        body::before {
-            /* Single lamp glow — DESIGN.md §2 rule of one image / accent moment */
-            content: '';
-            position: fixed;
-            inset: 0;
-            background:
-                radial-gradient(60% 60% at 22% 26%, var(--accent-glow), transparent 60%);
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .fullpage-container {
-            height: 100vh;
-            transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1);
-            will-change: transform;
-        }
-
-        .page-section {
-            height: 100vh;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 60px clamp(20px, 5vw, 80px);
-            position: relative;
-        }
-
-        .page-indicator {
-            position: fixed;
-            inset-inline-end: 24px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            z-index: 100;
-        }
-
-        .indicator-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: var(--border);
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            padding: 0;
-        }
-
-        .indicator-dot:hover {
-            background: var(--accent);
-            transform: scale(1.2);
-        }
-
-        .indicator-dot.active {
-            background: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-glow);
-        }
-
-        .top-bar {
-            position: fixed;
-            top: 0;
-            inset-inline: 0;
-            padding: 16px clamp(20px, 5vw, 60px);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
-            background: linear-gradient(to bottom, var(--bg-body), transparent);
-        }
-
-        /* Halastudy wordmark — Newsreader display, karak amber "H" chip.
-           Mirrors design-system/assets/logo-wordmark.html. */
-        .logo {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            font-family: var(--font-display);
-            font-size: 1.25rem;
-            font-weight: 600;
-            letter-spacing: -0.01em;
-            color: var(--ink);
-        }
-        html[lang="ar"] .logo { font-family: var(--font-body-ar); font-weight: 700; }
-        .logo-mark {
-            width: 28px; height: 28px;
-            border-radius: 7px;
-            background: var(--accent);
-            color: var(--ink);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Inter', sans-serif;
-            font-weight: 800;
-            font-size: 15px;
-        }
-        .logo-word em {
-            font-style: italic;
-            font-weight: 500;
-            color: var(--accent-3);
-        }
-
-        .top-tools {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .icon-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: var(--bg-card);
-            color: var(--text-main);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            transition: all 0.2s ease;
-        }
-
-        .icon-btn:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-            transform: translateY(-2px);
-        }
-
-        .lang-switch {
-            display: flex;
-            gap: 4px;
-            background: var(--bg-card);
-            padding: 4px 6px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            border: 1px solid var(--border);
-        }
-
-        .lang-option {
-            border: none;
-            background: transparent;
-            color: var(--text-sec);
-            padding: 4px 8px;
-            border-radius: 14px;
-            font: inherit;
-            cursor: pointer;
-        }
-
-        .lang-option.active {
-            color: var(--accent);
-            background: rgba(224, 176, 139, 0.12);
-        }
-
-        .hero-section {
-            display: flex;
-            gap: 60px;
-            max-width: 1200px;
-            width: 100%;
-            margin: 0 auto;
-            padding-inline-start: 40px;
-        }
-
-        .hero-content {
-            flex: 1;
-            max-width: 600px;
-        }
-
-        .hero-eyebrow {
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            font-size: 0.75rem;
-            color: var(--accent-strong);
-            margin-bottom: 16px;
-            font-weight: 600;
-        }
-
-        .hero-title {
-            font-family: var(--font-display);
-            font-size: clamp(2.5rem, 5.5vw, 4rem);
-            font-weight: 600;
-            letter-spacing: -0.025em;
-            line-height: 1.05;
-            margin-bottom: 22px;
-            color: var(--ink);
-        }
-
-        html[lang="ar"] .hero-title {
-            font-family: var(--font-display-ar);
-            letter-spacing: 0;
-        }
-
-        .hero-title span { display: block; }
-        .hero-title span + span {
-            font-style: italic;
-            font-weight: 500;
-            color: var(--accent-3);
-        }
-        html[lang="ar"] .hero-title span + span {
-            font-style: normal;
-            font-weight: 700;
-        }
-
-        .hero-desc {
-            font-size: 1.05rem;
-            color: var(--text-sec);
-            margin-bottom: 28px;
-            line-height: 1.7;
-        }
-
-        .hero-features {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 32px;
-        }
-
-        .feature-tag {
-            padding: 8px 16px;
-            border-radius: 999px;
-            background: rgba(224, 176, 139, 0.15);
-            color: var(--accent-strong);
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-
-        .hero-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
-        }
-
-        .btn-primary {
-            padding: 14px 28px;
-            border-radius: 999px;
-            background: var(--accent);
-            color: var(--ink);
-            border: none;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: var(--sh-lamp);
-            transition: transform var(--dur-base) var(--ease-soft),
-                        box-shadow var(--dur-base) var(--ease-soft),
-                        background var(--dur-fast);
-        }
-
-        .btn-primary:hover {
-            background: var(--accent-2);
-            transform: translateY(-2px);
-        }
-
-        .btn-primary:active { transform: scale(0.98); }
-
-        .btn-secondary {
-            padding: 14px 28px;
-            border-radius: 999px;
-            background: transparent;
-            color: var(--text-main);
-            border: 1px solid var(--border);
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-        }
-
-        .hero-hint {
-            margin-top: 20px;
-            font-size: 0.85rem;
-            color: var(--text-sec);
-        }
-
-        .hero-visual {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            max-width: 420px;
-            position: relative;
-            padding-top: 30px;
-            padding-inline-start: 20px;
-        }
-
-        .preview-card {
-            padding: 24px;
-            border-radius: var(--radius-lg);
-            background: var(--bg-card);
-            box-shadow: var(--shadow-soft);
-            border: 1px solid var(--border);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .preview-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            inset-inline-end: -50%;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-
-        .preview-card:hover::before {
-            opacity: 1;
-        }
-
-        .preview-card.accent {
-            background: linear-gradient(145deg, #f9e2cf, #f0c6a1);
-            color: #5b3516;
-            border: none;
-        }
-
-        /* Removed: .preview-card.gradient-blue, .preview-card.gradient-purple.
-           DESIGN.md §10 hard-no — single-accent system. Numeric cards now use
-           tabular mono + ink, matching the Halastudy timer pattern. */
-        .preview-card.stat-mono .number {
-            font-family: var(--font-mono);
-            font-variant-numeric: tabular-nums;
-            letter-spacing: 0.04em;
-            color: var(--ink);
-            font-weight: 700;
-            font-size: 2rem;
-        }
-        .preview-card.stat-mono p {
-            color: var(--ink-2);
-        }
-
-        /* Hero camera-grid mockup */
-        .preview-card.cam-preview {
-            padding: 20px;
-            box-shadow: var(--sh-4);
-        }
-        .preview-card.cam-preview::before { display: none; }
-        .cam-meta {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 14px;
-            font-size: 0.78rem;
-        }
-        .cam-meta .live-dot {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            background: var(--danger);
-            animation: hcPulse 1.6s infinite;
-        }
-        .cam-meta .live-label {
-            font-size: 0.66rem;
-            font-weight: 700;
-            letter-spacing: 0.18em;
-            color: var(--danger);
-        }
-        .cam-meta .cam-count {
-            margin-inline-start: auto;
-            color: var(--ink-2);
-            font-size: 0.78rem;
-        }
-        .cam-meta .cam-code {
-            font-family: var(--font-mono);
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            color: var(--ink);
-        }
-        .cam-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
-            gap: 6px;
-            height: 180px;
-        }
-        .cam-tile {
-            border-radius: 14px;
-            position: relative;
-            overflow: hidden;
-            background: radial-gradient(70% 70% at 50% 50%, #3a342d 0%, #14110d 100%);
-            border: 2px solid transparent;
-        }
-        .cam-tile.cam-focused {
-            border-color: var(--accent);
-            background: radial-gradient(70% 70% at 40% 30%, #806852 0%, #2a241e 100%);
-            box-shadow: 0 0 20px rgba(229, 182, 140, 0.25);
-        }
-        .cam-tile.cam-self {
-            background: radial-gradient(80% 60% at 40% 30%, #5a4a3a 0%, #1c1814 100%);
-        }
-        .cam-tile.cam-empty {
-            background: var(--inset);
-            border: 1px dashed var(--line-strong);
-        }
-        .cam-tile::before {
-            content: attr(data-name);
-            position: absolute;
-            top: 8px;
-            inset-inline-start: 8px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            color: #F0E7DA;
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(8px);
-            padding: 3px 8px;
-            border-radius: 999px;
-        }
-        .cam-tile.cam-empty::before {
-            color: var(--ink-3);
-            background: transparent;
-            backdrop-filter: none;
-            top: 50%;
-            inset-inline-start: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 0.7rem;
-        }
-        .cam-tile.cam-self::after {
-            content: 'YOU';
-            position: absolute;
-            inset-block-end: 8px;
-            inset-inline-end: 8px;
-            background: var(--accent);
-            color: var(--ink);
-            font-size: 0.6rem;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 999px;
-        }
-        @keyframes hcPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.35; }
-        }
-
-        .preview-card p {
-            font-size: 0.85rem;
-            opacity: 0.8;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-
-        .preview-card strong {
-            display: block;
-            font-size: 1.15rem;
-            margin-top: 8px;
-        }
-
-        .preview-card .card-icon {
-            font-size: 2rem;
-            margin-bottom: 8px;
-        }
-
-        .preview-row {
-            display: flex;
-            gap: 12px;
-        }
-
-        .preview-row .preview-card {
-            flex: 1;
-            padding: 20px;
-        }
-
-        .stats-display {
-            display: flex;
-            align-items: baseline;
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .stats-display .number {
-            font-size: 2rem;
-            font-weight: 800;
-            color: inherit;
-        }
-
-        .stats-display .label {
-            font-size: 0.85rem;
-            opacity: 0.7;
-        }
-
-        .floating-badge {
-            position: absolute;
-            background: var(--bg-card);
-            padding: 10px 16px;
-            border-radius: 999px;
-            box-shadow: var(--shadow-light);
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            animation: float 3s ease-in-out infinite;
-            border: 1px solid var(--border);
-        }
-
-        .floating-badge.badge-1 {
-            top: 0;
-            inset-inline-end: -10px;
-            animation-delay: 0s;
-        }
-
-        .floating-badge.badge-2 {
-            bottom: 60px;
-            inset-inline-start: -10px;
-            animation-delay: 1.5s;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
-        }
-
-        .decorative-dots {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            opacity: 0.3;
-        }
-
-        .decorative-dots.dots-1 {
-            top: -40px;
-            inset-inline-start: -20px;
-            background: radial-gradient(circle, var(--accent) 2px, transparent 2px);
-            background-size: 12px 12px;
-        }
-
-        .decorative-dots.dots-2 {
-            bottom: -30px;
-            inset-inline-end: -10px;
-            background: radial-gradient(circle, var(--accent) 2px, transparent 2px);
-            background-size: 10px 10px;
-        }
-
-        .combined-section {
-            display: flex;
-            flex-direction: row;
-            max-width: 1100px;
-            width: 100%;
-            gap: 50px;
-            position: relative;
-            margin: 0 auto;
-        }
-
-        .combined-section::before {
-            content: '';
-            position: absolute;
-            top: 20%;
-            inset-inline-start: -10%;
-            width: 200px;
-            height: 200px;
-            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
-            border-radius: 50%;
-            opacity: 0.4;
-            pointer-events: none;
-        }
-
-        .combined-left {
-            flex: 0 0 380px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .combined-right {
-            flex: 1;
-            max-width: 520px;
-        }
-
-        .section-header {
-            text-align: start;
-            margin-bottom: 24px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .section-header h2 {
-            font-size: clamp(1.6rem, 3vw, 2.2rem);
-            margin-bottom: 8px;
-        }
-
-        .section-header p {
-            color: var(--text-sec);
-            font-size: 0.95rem;
-        }
-
-        .choice-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .choice-card {
-            padding: 20px 24px;
-            border-radius: var(--radius-lg);
-            background: var(--bg-card);
-            border: 2px solid transparent;
-            box-shadow: var(--shadow-light);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: 16px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .choice-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            inset-inline-start: 0;
-            bottom: 0;
-            width: 4px;
-            background: var(--accent);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .choice-card:hover::before,
-        .choice-card.active::before {
-            opacity: 1;
-        }
-
-        .choice-card:hover {
-            transform: translateX(4px);
-            border-color: var(--accent);
-        }
-
-        .choice-card.active {
-            border-color: var(--accent);
-            background: rgba(224, 176, 139, 0.08);
-        }
-
-        .choice-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 14px;
-            background: linear-gradient(135deg, rgba(224, 176, 139, 0.3), rgba(224, 176, 139, 0.1));
-            color: var(--accent-strong);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-            flex-shrink: 0;
-        }
-
-        .choice-text {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .choice-card h3 {
-            font-size: 1.1rem;
-            margin: 0 0 4px 0;
-        }
-
-        .choice-card p {
-            color: var(--text-sec);
-            font-size: 0.85rem;
-            margin: 0;
-            line-height: 1.4;
-        }
-
-        .features-highlight {
-            margin-top: 28px;
-            padding: 20px;
-            background: var(--bg-muted);
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border);
-        }
-
-        .feature-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 0;
-            border-bottom: 1px dashed var(--border);
-        }
-
-        .feature-item:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
-        }
-
-        .feature-item:first-child {
-            padding-top: 0;
-        }
-
-        .feature-icon {
-            font-size: 1.2rem;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(224, 176, 139, 0.15);
-            border-radius: 8px;
-        }
-
-        .feature-text {
-            font-size: 0.9rem;
-            color: var(--text-main);
-            font-weight: 500;
-        }
-
-        .form-card {
-            background: var(--bg-card);
-            border-radius: var(--radius-lg);
-            padding: 32px;
-            box-shadow: var(--shadow-soft);
-            border: 1px solid var(--border);
-            width: 100%;
-            position: relative;
-            z-index: 1;
-        }
-
-        .form-card[hidden] {
-            display: none;
-        }
-
-        .form-title {
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding-bottom: 14px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .input-group {
-            margin-bottom: 18px;
-        }
-
-        .input-group label {
-            display: block;
-            font-weight: 600;
-            font-size: 0.9rem;
-            margin-bottom: 6px;
-        }
-
-        .input-group input,
-        .input-group select {
-            width: 100%;
-            padding: 12px 16px;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border);
-            background: var(--bg-muted);
-            font-size: 1rem;
-            color: var(--text-main);
-            transition: all 0.2s ease;
-        }
-
-        .input-group input:focus,
-        .input-group select:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-glow);
-            background: var(--bg-card);
-        }
-
-        .input-group input:disabled,
-        .input-group select:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .schedule-panel {
-            margin-bottom: 18px;
-            padding: 18px;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border);
-            background: rgba(224, 176, 139, 0.08);
-        }
-
-        .schedule-panel[hidden] {
-            display: none;
-        }
-
-        .schedule-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px 16px;
-        }
-
-        .schedule-grid .input-group {
-            margin-bottom: 0;
-        }
-
-        .schedule-grid .input-group.span-2 {
-            grid-column: 1 / -1;
-        }
-
-        .schedule-note {
-            margin-bottom: 16px;
-        }
-
-        .mode-picker {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-bottom: 18px;
-        }
-
-        .mode-option {
-            width: 100%;
-            border: 1px solid var(--border);
-            background: var(--bg-card);
-            border-radius: var(--radius-md);
-            padding: 14px 16px;
-            text-align: start;
-            cursor: pointer;
-            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-        }
-
-        .mode-option:hover {
-            border-color: var(--accent);
-            transform: translateY(-1px);
-        }
-
-        .mode-option.active {
-            border-color: var(--accent);
-            background: rgba(224, 176, 139, 0.08);
-            box-shadow: 0 0 0 3px var(--accent-glow);
-        }
-
-        .mode-option[hidden] {
-            display: none;
-        }
-
-        .mode-option-title {
-            display: block;
-            font-weight: 700;
-            font-size: 0.95rem;
-            margin-bottom: 4px;
-            color: var(--text-main);
-        }
-
-        .mode-option-desc {
-            display: block;
-            font-size: 0.84rem;
-            color: var(--text-sec);
-            line-height: 1.45;
-        }
-
-        .checkbox-line {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 18px;
-        }
-
-        .checkbox-line input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--accent);
-        }
-
-        .checkbox-line label {
-            font-size: 0.95rem;
-            cursor: pointer;
-        }
-
-        .form-note {
-            font-size: 0.85rem;
-            color: var(--text-sec);
-            margin-bottom: 18px;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .form-feedback {
-            min-height: 24px;
-            font-size: 0.9rem;
-            margin-top: 16px;
-        }
-
-        .form-feedback.error {
-            color: var(--error);
-        }
-
-        .form-feedback.success {
-            color: var(--success);
-        }
-
-        .result-box {
-            margin-top: 20px;
-            padding: 20px;
-            border-radius: var(--radius-md);
-            background: rgba(224, 176, 139, 0.1);
-            border: 1px dashed var(--accent);
-        }
-
-        .result-box[hidden] {
-            display: none;
-        }
-
-        .result-code {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: var(--accent-strong);
-            letter-spacing: 0.1em;
-            margin-bottom: 12px;
-        }
-
-        .result-box p {
-            color: var(--text-sec);
-            font-size: 0.9rem;
-            margin-bottom: 16px;
-        }
-
-        .result-schedule[hidden] {
-            display: none;
-        }
-
-        .result-schedule-summary {
-            color: var(--text-main);
-            font-weight: 600;
-            margin-bottom: 12px;
-        }
-
-        .result-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .result-actions .btn-secondary {
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .room-preview {
-            margin: 0 0 18px 0;
-            padding: 16px;
-            border-radius: var(--radius-md);
-            background: var(--bg-muted);
-            border: 1px solid var(--border);
-        }
-
-        .room-preview[hidden] {
-            display: none;
-        }
-
-        .room-preview-name {
-            font-size: 1rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-            color: var(--text-main);
-        }
-
-        .room-preview-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .room-preview-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 10px;
-            border-radius: 999px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            font-size: 0.8rem;
-            color: var(--text-sec);
-        }
-
-        .room-preview-note,
-        .room-preview-warning {
-            font-size: 0.84rem;
-            line-height: 1.5;
-        }
-
-        .room-preview-note {
-            color: var(--text-sec);
-        }
-
-        .room-preview-warning {
-            margin-top: 8px;
-            color: var(--error);
-            font-weight: 600;
-        }
-
-        @media (max-width: 900px) {
-            .hero-section {
-                flex-direction: column;
-                gap: 40px;
-            }
-
-            .hero-visual {
-                max-width: 100%;
-                flex-direction: column;
-                padding-top: 10px;
-                padding-inline-start: 0;
-            }
-
-            .preview-row {
-                flex-direction: row;
-            }
-
-            .preview-row .preview-card {
-                min-width: 140px;
-            }
-
-            .decorative-dots {
-                display: none;
-            }
-
-            .combined-section {
-                flex-direction: column;
-                gap: 30px;
-            }
-
-            .combined-left {
-                flex: none;
-                width: 100%;
-            }
-
-            .combined-right {
-                max-width: 100%;
-            }
-
-            .section-header {
-                text-align: center;
-            }
-
-            .choice-stack {
-                flex-direction: row;
-                flex-wrap: wrap;
-            }
-
-            .choice-card {
-                flex: 1;
-                min-width: 200px;
-            }
-
-            .combined-section::before {
-                display: none;
-            }
-
-            .features-highlight {
-                display: flex;
-                flex-direction: row;
-                flex-wrap: wrap;
-                gap: 16px;
-                justify-content: center;
-            }
-
-            .feature-item {
-                flex: 0 1 auto;
-                padding: 8px 16px;
-                border-bottom: none;
-                background: var(--bg-card);
-                border-radius: 999px;
-                border: 1px solid var(--border);
-            }
-        }
-
-        @media (max-width: 600px) {
-            .page-section {
-                padding: 80px 20px 40px;
-            }
-
-            .page-indicator {
-                inset-inline-end: 12px;
-            }
-
-            .hero-actions {
-                flex-direction: column;
-            }
-
-            .form-card {
-                padding: 24px;
-            }
-
-            .preview-row {
-                flex-direction: column;
-            }
-
-            .preview-row .preview-card {
-                min-width: auto;
-            }
-
-            .stats-display .number {
-                font-size: 1.5rem;
-            }
-
-            .choice-stack {
-                flex-direction: column;
-            }
-
-            .choice-card {
-                min-width: auto;
-            }
-
-            .schedule-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .fullpage-container {
-                transition-duration: 0.2s;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halastudy | هلا — A quiet room. Open all night.</title>
+  <meta name="description" content="A quiet room. Open all night. Body-doubling for GCC students — camera on, mic off, work alongside someone.">
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/design-system/landing.css">
 </head>
-<body>
-    <div class="top-bar">
-        <a href="/" class="logo" aria-label="Halastudy home" style="text-decoration:none;color:inherit;">
-            <span class="logo-mark" aria-hidden="true">H</span>
-            <span class="logo-word">Hala<em>study</em></span>
-        </a>
-        <div class="top-tools">
-            <div class="lang-switch" id="lang-switch">
-                <button type="button" class="lang-option active" id="lang-ar" data-lang-value="ar">AR</button>
-                <button type="button" class="lang-option" id="lang-en" data-lang-value="en">EN</button>
-            </div>
-            <button class="icon-btn" id="theme-toggle" data-lang-title="themeToggleTitle" title="Toggle theme" aria-label="Toggle theme">
-                <!-- Lucide moon — DESIGN.md §icons, 1.5px stroke -->
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
-                </svg>
-            </button>
+<body class="is-landing-page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Halastudy home">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#how" data-i18n="navHow">كيف تشتغل</a>
+      <a href="#rooms" data-i18n="navRooms">الغرف</a>
+      <a class="nav-extra" href="#community" data-i18n="navTonight">الطلاب</a>
+      <a href="#journal" data-i18n="navJournal">المجلة</a>
+    </nav>
+    <div class="topbar-right">
+      <div class="lang-switch" role="tablist" aria-label="Language">
+        <button type="button" id="lang-en" data-lang-value="en">EN</button>
+        <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
+      </div>
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+        </svg>
+      </button>
+      <a class="btn btn-primary" href="/open.html" style="padding:10px 18px;min-height:auto;font-size:13px" data-i18n="ctaOpenShort">افتح غرفة</a>
+    </div>
+  </header>
+
+  <section class="hero hero--mosaic">
+    <div class="lamp-glow" aria-hidden="true"></div>
+    <div class="hero-mosaic">
+      <!-- FEATURED — large looping cam clip beside the headline -->
+      <div class="study-tile study-tile--featured cam-night" data-priority="1">
+        <video class="tile-photo" autoplay muted loop playsinline preload="metadata" poster="/videos/hero/01-saud-poster.jpg" aria-hidden="true">
+          <source src="/videos/hero/01-saud.webm" type="video/webm">
+          <source src="/videos/hero/01-saud.mp4" type="video/mp4">
+        </video>
+        <div class="tile-glow"></div>
+        <div class="tile-grain"></div>
+        <div class="tile-vignette"></div>
+        <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+        <div class="tile-name"><span data-tile-name="0">سعود</span><span class="city">Riyadh</span></div>
+        <div class="tile-timer" data-tile-timer="0">32:14</div>
+      </div>
+
+      <div class="hero-copy">
+        <!-- DEVIATION §4: city line is one tight mono row above the live-pill,
+             not a 6-clock strip under the CTAs. Atmospheric eyebrow. -->
+        <div class="city-line" aria-hidden="true">
+          <span><span class="city-name">Riyadh</span><span class="city-time" data-clock="3">01:24</span></span>
+          <span class="sep">·</span>
+          <span><span class="city-name">Cairo</span><span class="city-time" data-clock="2">00:24</span></span>
+          <span class="sep">·</span>
+          <span><span class="city-name">Dubai</span><span class="city-time" data-clock="4">02:24</span></span>
+          <span class="sep">·</span>
+          <span><span class="city-name">Istanbul</span><span class="city-time" data-clock="3">01:24</span></span>
+          <span class="sep">·</span>
+          <span><span class="city-name">London</span><span class="city-time" data-clock="0">22:24</span></span>
+          <span class="sep">·</span>
+          <span><span class="city-name">Lahore</span><span class="city-time" data-clock="5">03:24</span></span>
         </div>
+
+        <div class="live-pill">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="count" id="live-count">17,264</span>
+          <span data-i18n="livePillLabel">مصباح شغّال الآن</span>
+        </div>
+
+        <h1 class="hero-title">
+          <span data-i18n="heroTitle1">ادخل.</span>
+          <em data-i18n="heroTitle2">الكاميرا شغّالة.</em>
+          <span data-i18n="heroTitle3">اشتغل مع غيرك.</span>
+        </h1>
+        <p class="hero-sub" data-i18n="heroSub">غرفة هادية، مفتوحة طول الليل. العالم كله يذاكر — قرّب كرسيك.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="/open.html"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
+          <a class="btn btn-secondary" href="/open.html#join"><span data-i18n="ctaJoin">ادخل غرفة</span></a>
+        </div>
+        <div class="hero-foot" data-i18n="heroFoot">بدون تنزيل. بدون تسجيل. المايك مقفول.</div>
+      </div>
+
+      <!-- STRIP — 5 small looping cam tiles below the featured + copy row -->
+      <div class="hero-strip" aria-hidden="true">
+        <div class="study-tile cam-night" data-priority="2">
+          <video class="tile-photo" autoplay muted loop playsinline preload="metadata" poster="/videos/hero/02-nouf-poster.jpg">
+            <source src="/videos/hero/02-nouf.webm" type="video/webm">
+            <source src="/videos/hero/02-nouf.mp4" type="video/mp4">
+          </video>
+          <div class="tile-glow"></div>
+          <div class="tile-grain"></div>
+          <div class="tile-vignette"></div>
+          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-name"><span data-tile-name="1">نوف</span><span class="city">Jeddah</span></div>
+          <div class="tile-timer" data-tile-timer="1">47:02</div>
+        </div>
+        <div class="study-tile cam-night" data-priority="2">
+          <video class="tile-photo" autoplay muted loop playsinline preload="metadata" poster="/videos/hero/03-tariq-poster.jpg">
+            <source src="/videos/hero/03-tariq.webm" type="video/webm">
+            <source src="/videos/hero/03-tariq.mp4" type="video/mp4">
+          </video>
+          <div class="tile-glow"></div>
+          <div class="tile-grain"></div>
+          <div class="tile-vignette"></div>
+          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-name"><span data-tile-name="2">طارق</span><span class="city">Khobar</span></div>
+          <div class="tile-timer" data-tile-timer="2">12:48</div>
+        </div>
+        <div class="study-tile cam-night" data-priority="2">
+          <video class="tile-photo" autoplay muted loop playsinline preload="metadata" poster="/videos/hero/04-alanoud-poster.jpg">
+            <source src="/videos/hero/04-alanoud.webm" type="video/webm">
+            <source src="/videos/hero/04-alanoud.mp4" type="video/mp4">
+          </video>
+          <div class="tile-glow"></div>
+          <div class="tile-grain"></div>
+          <div class="tile-vignette"></div>
+          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-name"><span data-tile-name="3">العنود</span><span class="city">Medina</span></div>
+          <div class="tile-timer" data-tile-timer="3">23:41</div>
+        </div>
+        <div class="study-tile cam-night" data-priority="2">
+          <video class="tile-photo" autoplay muted loop playsinline preload="metadata" poster="/videos/hero/05-majed-poster.jpg">
+            <source src="/videos/hero/05-majed.webm" type="video/webm">
+            <source src="/videos/hero/05-majed.mp4" type="video/mp4">
+          </video>
+          <div class="tile-glow"></div>
+          <div class="tile-grain"></div>
+          <div class="tile-vignette"></div>
+          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-name"><span data-tile-name="4">ماجد</span><span class="city">Doha</span></div>
+          <div class="tile-timer" data-tile-timer="4">08:22</div>
+        </div>
+        <div class="study-tile cam-night" data-priority="2">
+          <video class="tile-photo" autoplay muted loop playsinline preload="metadata" poster="/videos/hero/06-mariam-poster.jpg">
+            <source src="/videos/hero/06-mariam.webm" type="video/webm">
+            <source src="/videos/hero/06-mariam.mp4" type="video/mp4">
+          </video>
+          <div class="tile-glow"></div>
+          <div class="tile-grain"></div>
+          <div class="tile-vignette"></div>
+          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-name"><span data-tile-name="5">مريم</span><span class="city">Manama</span></div>
+          <div class="tile-timer" data-tile-timer="5">19:07</div>
+        </div>
+      </div>
     </div>
+  </section>
 
-    <div class="page-indicator">
-        <button class="indicator-dot active" data-page="0" data-lang-aria="pageOneAria" aria-label="Go to page 1"></button>
-        <button class="indicator-dot" data-page="1" data-lang-aria="pageTwoAria" aria-label="Go to page 2"></button>
+  <section class="steps" id="how">
+    <div class="section-orn" aria-hidden="true"><span class="rule"></span><span class="orn-mark">✦</span><span class="rule"></span></div>
+    <div class="eyebrow steps-eyebrow" data-i18n="stepsEyebrow">كيف الغرفة</div>
+    <h2 class="steps-title">
+      <span data-i18n="stepsTitle1">ثلاث خطوات.</span>
+      <em data-i18n="stepsTitle2">بدون تسجيل.</em>
+    </h2>
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-num" data-i18n="stepNum1">٠١</div>
+        <h3 data-i18n="step1H">افتح غرفة</h3>
+        <p data-i18n="step1P">اختر مدة التركيز — ٢٥ دقيقة، ٥٠ دقيقة، أو مفتوحة. تطلع لك كود من ست خانات تشاركه.</p>
+        <span class="step-divider" aria-hidden="true"></span>
+      </div>
+      <div class="step">
+        <div class="step-num" data-i18n="stepNum2">٠٢</div>
+        <h3 data-i18n="step2H">الكاميرا شغّالة، المايك مقفول</h3>
+        <p data-i18n="step2P">هذا هو المربط. وجودك هو الاتفاق. ما فيه أحد يسمع؛ كل واحد قاعد يشتغل.</p>
+        <span class="step-divider" aria-hidden="true"></span>
+      </div>
+      <div class="step">
+        <div class="step-num" data-i18n="stepNum3">٠٣</div>
+        <h3 data-i18n="step3H">اقعد لين يرنّ المنبه</h3>
+        <p data-i18n="step3P">لما تخلص البومودورو، كلكم تستريحون مع بعض. راحة هادية، ورجعة هادية.</p>
+      </div>
     </div>
+  </section>
 
-    <div class="fullpage-container" id="fullpage">
-        <section class="page-section" data-page="0">
-            <div class="hero-section">
-                <div class="hero-content">
-                    <p class="hero-eyebrow" data-lang="heroEyebrow">Body-doubling, the Gulf way</p>
-                    <h1 class="hero-title">
-                        <span data-lang="heroTitleLine1">A quiet room.</span>
-                        <span data-lang="heroTitleLine2">Open all night.</span>
-                    </h1>
-                    <p class="hero-desc" data-lang="heroDesc">
-                        Drop in, camera on, work alongside other students. Pomodoros tick in sync. No instructor, no meeting, no expectations.
-                    </p>
-                    <div class="hero-features">
-                        <span class="feature-tag" data-lang="featureVideo">Camera-on focus</span>
-                        <span class="feature-tag" data-lang="featureTimer">Shared Pomodoro</span>
-                        <span class="feature-tag" data-lang="featureChat">Mics-off chat</span>
-                        <span class="feature-tag" data-lang="featurePassword">Scheduled rooms</span>
-                    </div>
-                    <div class="hero-actions">
-                        <button class="btn-primary" id="btn-scroll-down" data-lang="btnStart">Open a room</button>
-                        <button class="btn-secondary" id="btn-skip-to-form" data-lang="btnQuickJoin">Join a room</button>
-                    </div>
-                    <p class="hero-hint" data-lang="heroHint">Scroll or use ↓ to continue.</p>
-                </div>
-                <div class="hero-visual">
-                    <div class="decorative-dots dots-1"></div>
-                    <div class="decorative-dots dots-2"></div>
-
-                    <!-- Live mini camera grid preview — mirrors the in-room aesthetic.
-                         Per DESIGN.md §3 "Editorial hero", right column is ONE visual artifact. -->
-                    <div class="preview-card cam-preview">
-                        <div class="cam-meta">
-                            <span class="live-dot" aria-hidden="true"></span>
-                            <span class="live-label">LIVE</span>
-                            <span class="cam-count">3 / 4 · <span data-lang="previewRoomLabel">Room</span> <b class="cam-code">A7K-2QF</b></span>
-                        </div>
-                        <div class="cam-grid">
-                            <div class="cam-tile cam-focused" data-name="Nora"></div>
-                            <div class="cam-tile cam-self" data-name="You"></div>
-                            <div class="cam-tile" data-name="Layan"></div>
-                            <div class="cam-tile cam-empty" data-lang-attr-name="previewSeatOpen" data-name="Open seat"></div>
-                        </div>
-                    </div>
-
-                    <div class="preview-row">
-                        <div class="preview-card stat-mono">
-                            <p data-lang="previewTimer">FOCUS</p>
-                            <div class="stats-display">
-                                <span class="number">22:14</span>
-                            </div>
-                        </div>
-                        <div class="preview-card stat-mono">
-                            <p data-lang="previewFocus">TODAY</p>
-                            <div class="stats-display">
-                                <span class="number" style="font-family:var(--font-display);font-weight:600;letter-spacing:-0.02em;">3<span class="label" style="font-size:0.55em;color:var(--ink-3);margin-inline-start:4px;">h</span> 42<span class="label" style="font-size:0.55em;color:var(--ink-3);margin-inline-start:4px;">m</span></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="page-section combined-section" data-page="1">
-            <div class="combined-left">
-                <div class="section-header">
-                    <h2 data-lang="chooserTitle">Choose your flow</h2>
-                    <p data-lang="chooserDesc">Create a new study room or jump into an existing one in seconds.</p>
-                </div>
-                <div class="choice-stack">
-                    <article class="choice-card active" data-choice="create" tabindex="0" role="button">
-                        <div class="choice-icon">✦</div>
-                        <div class="choice-text">
-                            <h3 data-lang="createTitle">Create a room</h3>
-                            <p data-lang="createDesc">Start a focused room with a custom name and optional password.</p>
-                        </div>
-                    </article>
-                    <article class="choice-card" data-choice="join" tabindex="0" role="button">
-                        <div class="choice-icon">➤</div>
-                        <div class="choice-text">
-                            <h3 data-lang="joinTitle">Join a room</h3>
-                            <p data-lang="joinDesc">Already have a code? Enter it and start focusing with your group.</p>
-                        </div>
-                    </article>
-                </div>
-
-                <div class="features-highlight">
-                    <div class="feature-item">
-                        <span class="feature-icon">🔒</span>
-                        <span class="feature-text" data-lang="featureSecure">Secure transport</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">⚡</span>
-                        <span class="feature-text" data-lang="featureRealtime">Realtime syncing</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">🌍</span>
-                        <span class="feature-text" data-lang="featureGlobal">Saudi-ready, globally accessible</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="combined-right">
-                <form class="form-card" id="create-form" autocomplete="off" novalidate>
-                    <h3 class="form-title">📚 <span data-lang="createFormTitle">New study room</span></h3>
-                    <div class="input-group">
-                        <label for="room-name" data-lang="labelRoomName">Room name</label>
-                        <input type="text" id="room-name" name="roomName" maxlength="48" data-lang-placeholder="placeholderRoomName" placeholder="e.g. Deep Work Squad" autocomplete="organization" required>
-                    </div>
-                    <div class="input-group">
-                        <label data-lang="labelMediaMode">Room media mode</label>
-                        <div class="mode-picker" id="media-mode-picker" role="radiogroup" aria-label="Room media mode">
-                            <button type="button" class="mode-option active" data-media-mode="mesh" aria-checked="true">
-                                <span class="mode-option-title" data-lang="mediaModeMeshTitle">Standard room</span>
-                                <span class="mode-option-desc" id="media-mode-mesh-desc">Recommended for up to 4 people. Uses browser-to-browser video.</span>
-                            </button>
-                            <button type="button" class="mode-option" id="media-mode-sfu" data-media-mode="sfu" aria-checked="false" hidden>
-                                <span class="mode-option-title" data-lang="mediaModeSfuTitle">Large room</span>
-                                <span class="mode-option-desc" data-lang="mediaModeSfuDesc">Uses the room media service for larger groups.</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="checkbox-line">
-                        <input type="checkbox" id="require-password">
-                        <label for="require-password" data-lang="labelRequirePassword">Require password</label>
-                    </div>
-                    <div class="input-group">
-                        <label for="room-password" data-lang="labelPassword">Access password</label>
-                        <input type="password" id="room-password" name="roomPassword" maxlength="64" data-lang-placeholder="placeholderPassword" placeholder="Set a room password" autocomplete="new-password" disabled>
-                    </div>
-                    <p class="form-note" data-lang="notePassword">Only people with the password will be able to join this room.</p>
-                    <div class="checkbox-line">
-                        <input type="checkbox" id="enable-schedule">
-                        <label for="enable-schedule" data-lang="labelEnableSchedule">Make this a scheduled room</label>
-                    </div>
-                    <div class="schedule-panel" id="schedule-fields" hidden>
-                        <p class="form-note schedule-note" data-lang="scheduleNote">Uses Riyadh time (GMT+3). Weekdays follow the Saudi Sunday-Thursday workweek.</p>
-                        <div class="schedule-grid">
-                            <div class="input-group">
-                                <label for="schedule-date" data-lang="labelScheduleDate">First session date</label>
-                                <input type="date" id="schedule-date" name="scheduleDate">
-                            </div>
-                            <div class="input-group">
-                                <label for="schedule-time" data-lang="labelScheduleTime">Start time</label>
-                                <input type="time" id="schedule-time" name="scheduleTime">
-                            </div>
-                            <div class="input-group">
-                                <label for="schedule-cadence" data-lang="labelScheduleCadence">Cadence</label>
-                                <select id="schedule-cadence" name="scheduleCadence">
-                                    <option value="once" data-lang="scheduleCadenceOnce">One time</option>
-                                    <option value="weekdays" data-lang="scheduleCadenceWeekdays">Sun-Thu</option>
-                                    <option value="daily" data-lang="scheduleCadenceDaily">Daily</option>
-                                    <option value="weekly" data-lang="scheduleCadenceWeekly">Weekly</option>
-                                </select>
-                            </div>
-                            <div class="input-group">
-                                <label for="schedule-focus" data-lang="labelScheduleFocus">Focus minutes</label>
-                                <input type="number" id="schedule-focus" name="scheduleFocus" min="1" max="240" value="25">
-                            </div>
-                            <div class="input-group">
-                                <label for="schedule-break" data-lang="labelScheduleBreak">Break minutes</label>
-                                <input type="number" id="schedule-break" name="scheduleBreak" min="1" max="120" value="5">
-                            </div>
-                            <div class="input-group span-2">
-                                <label for="schedule-goal-template" data-lang="labelScheduleGoal">Starting board goal</label>
-                                <input type="text" id="schedule-goal-template" name="scheduleGoalTemplate" maxlength="80" data-lang-placeholder="placeholderScheduleGoal" placeholder="Example: Finish the product launch deck">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary" data-lang="btnCreateRoom">Create room</button>
-                    </div>
-                    <p class="form-feedback" id="create-feedback"></p>
-                    <div class="result-box" id="create-result" hidden>
-                        <div class="result-code" id="result-code" data-force-ltr></div>
-                        <p data-lang="resultDesc">Share this code with your study partners to bring them into the room.</p>
-                        <div class="result-schedule" id="result-schedule" hidden>
-                            <div class="result-schedule-summary" id="result-schedule-summary"></div>
-                            <div class="result-actions">
-                                <a class="btn-secondary" id="result-whatsapp-link" href="#" target="_blank" rel="noopener" data-lang="btnWhatsappInvite">WhatsApp invite</a>
-                                <button type="button" class="btn-secondary" id="result-calendar-btn" data-lang="btnAddCalendar">Add to calendar</button>
-                            </div>
-                        </div>
-                        <button type="button" class="btn-primary" id="btn-enter-room" data-lang="btnEnterRoom">Enter room</button>
-                    </div>
-                </form>
-
-                <form class="form-card" id="join-form" hidden autocomplete="off" novalidate>
-                    <h3 class="form-title">🚀 <span data-lang="joinFormTitle">Join a study room</span></h3>
-                    <div class="input-group">
-                        <label for="join-code" data-lang="labelJoinCode">Room code</label>
-                        <input type="text" id="join-code" name="roomCode" maxlength="10" data-lang-placeholder="placeholderJoinCode" placeholder="e.g. ABC123" autocomplete="off" data-force-ltr required>
-                    </div>
-                    <div class="room-preview" id="join-room-preview" hidden>
-                        <div class="room-preview-name" id="join-room-preview-name">Room</div>
-                        <div class="room-preview-badges">
-                            <span class="room-preview-badge" id="join-room-preview-mode">Mesh room</span>
-                            <span class="room-preview-badge" id="join-room-preview-count">0 / 4 people</span>
-                            <span class="room-preview-badge" id="join-room-preview-access">Open access</span>
-                        </div>
-                        <p class="room-preview-note" id="join-room-preview-note"></p>
-                        <p class="room-preview-warning" id="join-room-preview-warning"></p>
-                    </div>
-                    <div class="input-group">
-                        <label for="join-password" data-lang="labelJoinPassword">Room password (if needed)</label>
-                        <input type="password" id="join-password" name="roomPassword" maxlength="64" data-lang-placeholder="placeholderJoinPassword" placeholder="Enter the password if the room is protected" autocomplete="current-password">
-                    </div>
-                    <p class="form-note" data-lang="noteJoin">You will be taken into the room next, where you can confirm your nickname.</p>
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary" data-lang="btnJoinRoom">Join room</button>
-                    </div>
-                    <p class="form-feedback" id="join-feedback"></p>
-                </form>
-            </div>
-        </section>
+  <section class="preview-section" id="rooms">
+    <div class="preview-shell">
+      <div class="preview-bar">
+        <div class="tl-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="room-meta" data-i18n="roomMeta">غرفة هادية · ٥٠ دقيقة تركيز</div>
+        <div class="room-code" dir="ltr">A7K-2QF</div>
+      </div>
+      <div class="preview-grid">
+        <div class="preview-tile focused" style="--g1:#4d3a28; --g2:#150f08; --hot-x:32%; --hot-y:26%">
+          <img class="tile-photo" src="/images/tiles/saud.jpg" alt="" loading="lazy">
+          <div class="tile-glow"></div>
+          <div class="tile-grain"></div>
+          <div class="tile-vignette"></div>
+          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-name"><span data-preview-name="0">سعود</span><span class="city">Riyadh</span></div>
+          <div class="tile-timer" data-preview-timer="0">32:14</div>
+        </div>
+        <div class="preview-tile" style="--g1:#3a2e22; --g2:#0c0805; --hot-x:64%; --hot-y:32%">
+          <img class="tile-photo" src="/images/tiles/nouf.jpg" alt="" loading="lazy">
+          <div class="tile-glow"></div>
+          <div class="tile-grain"></div>
+          <div class="tile-vignette"></div>
+          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-name"><span data-preview-name="1">نوف</span><span class="city">Jeddah</span></div>
+          <div class="tile-timer" data-preview-timer="1">12:48</div>
+        </div>
+        <div class="preview-tile" style="--g1:#574028; --g2:#16100a; --hot-x:28%; --hot-y:34%">
+          <img class="tile-photo" src="/images/tiles/majed.jpg" alt="" loading="lazy">
+          <div class="tile-glow"></div>
+          <div class="tile-grain"></div>
+          <div class="tile-vignette"></div>
+          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-name"><span data-preview-name="2">ماجد</span><span class="city">Doha</span></div>
+          <div class="tile-timer" data-preview-timer="2">47:02</div>
+        </div>
+        <div class="preview-tile you">
+          <div class="tile-room"></div>
+          <div class="tile-glow"></div>
+          <div class="tile-grain"></div>
+          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-name"><span data-i18n="previewYou">انت</span><span class="city">—</span></div>
+          <div class="tile-timer">00:12</div>
+        </div>
+      </div>
+      <div class="preview-foot">
+        <span data-i18n="previewFootL">المايك مقفول · الكاميرا شغّالة</span>
+        <span class="pomodoro">
+          <span>POMODORO</span>
+          <span class="big" id="preview-pomodoro">23:41</span>
+        </span>
+        <span data-i18n="previewFootR">مشفّر · WebRTC</span>
+      </div>
     </div>
-
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-    /* -------------------------------------------------------------------
-     * Halastudy storage-key migration (was: coStudy*).
-     * One-shot copy-forward. Runs before any storage reads. Idempotent —
-     * a sentinel flag prevents re-running. Old keys are preserved (read-only)
-     * for one release so a user who briefly downgrades doesn't lose state.
-     * Drop the old keys + this block after the next release ships clean.
-     * ----------------------------------------------------------------- */
-    (function migrateCoStudyToHalastudy() {
-        try {
-            const SENTINEL = 'halastudy:migratedFromCoStudy:v1';
-            if (localStorage.getItem(SENTINEL)) return;
-            const localMap = {
-                coStudyLang:          'halastudyLang',
-                coStudyStatusState:   'halastudyStatusState',
-                coStudyAmbientState:  'halastudyAmbientState',
-                coStudyFocusStats:    'halastudyFocusStats',
-                coStudyClientId:      'halastudyClientId',
-                coStudyName:          'halastudyName',
-            };
-            const sessionMap = {
-                coStudyRoomPassword:  'halastudyRoomPassword',
-                coStudyRoomCode:      'halastudyRoomCode',
-            };
-            Object.entries(localMap).forEach(([oldK, newK]) => {
-                const v = localStorage.getItem(oldK);
-                if (v !== null && localStorage.getItem(newK) === null) {
-                    localStorage.setItem(newK, v);
-                }
-            });
-            Object.entries(sessionMap).forEach(([oldK, newK]) => {
-                const v = sessionStorage.getItem(oldK);
-                if (v !== null && sessionStorage.getItem(newK) === null) {
-                    sessionStorage.setItem(newK, v);
-                }
-            });
-            localStorage.setItem(SENTINEL, String(Date.now()));
-        } catch (e) { /* storage unavailable — skip */ }
-    })();
-
-    (function() {
-        'use strict';
-
-        const LANG_STORAGE_KEY = 'halastudyLang';
-        const translations = {
-            en: {
-                pageTitle: 'Halastudy | A quiet room. Open all night.',
-                themeToggleTitle: 'Toggle theme',
-                pageOneAria: 'Go to page 1',
-                pageTwoAria: 'Go to page 2',
-                heroEyebrow: 'Body-doubling, the Gulf way',
-                heroTitleLine1: 'A quiet room.',
-                heroTitleLine2: 'Open all night.',
-                heroDesc: 'Drop in, camera on, work alongside other students. Pomodoros tick in sync. No instructor, no meeting, no expectations.',
-                featureVideo: 'Camera-on focus',
-                featureTimer: 'Shared Pomodoro',
-                featureChat: 'Mics-off chat',
-                featurePassword: 'Scheduled rooms',
-                btnStart: 'Open a room',
-                btnQuickJoin: 'Join a room',
-                heroHint: 'Scroll or use ↓ to continue.',
-                previewNew: 'LIVE',
-                previewSecure: 'SECURE',
-                previewTitle1: 'Custom room names',
-                previewTitle2: 'Optional passwords',
-                previewTimer: 'FOCUS',
-                previewMinutes: 'min',
-                previewFocus: 'TODAY',
-                previewUsers: 'users',
-                previewRoomLabel: 'Room',
-                previewSeatOpen: 'Open seat',
-                chooserTitle: 'Choose your flow',
-                chooserDesc: 'Open a new room or join one that’s already running.',
-                createTitle: 'Open a room',
-                createDesc: 'Set a name, optional password, optional schedule.',
-                joinTitle: 'Join a room',
-                joinDesc: 'Got a code from your study group? Drop it in.',
-                createFormTitle: 'New focus room',
-                labelRoomName: 'Room name',
-                placeholderRoomName: 'e.g. Deep work · 9pm crew',
-                labelMediaMode: 'Room media mode',
-                mediaModeMeshTitle: 'Standard room',
-                mediaModeMeshDesc: 'Recommended for up to {limit} people. Uses browser-to-browser video.',
-                mediaModeSfuTitle: 'Large room',
-                mediaModeSfuDesc: 'Uses the room media service for larger groups.',
-                mediaModeMeshBadge: 'Mesh room',
-                mediaModeSfuBadge: 'Large room',
-                roomAccessOpen: 'Open access',
-                roomAccessProtected: 'Password protected',
-                roomPreviewMeshNote: 'Best for up to {limit} people before video quality starts dropping.',
-                roomPreviewSfuNote: 'Media runs in the managed room session for larger groups.',
-                labelRequirePassword: 'Require password',
-                labelPassword: 'Access password',
-                placeholderPassword: 'Set a room password',
-                notePassword: 'Only people with the password will be able to join this room.',
-                labelEnableSchedule: 'Make this a scheduled room',
-                scheduleNote: 'Uses Riyadh time (GMT+3). Weekdays follow the Saudi Sunday-Thursday workweek.',
-                labelScheduleDate: 'First session date',
-                labelScheduleTime: 'Start time',
-                labelScheduleCadence: 'Cadence',
-                scheduleCadenceOnce: 'One time',
-                scheduleCadenceWeekdays: 'Sun-Thu',
-                scheduleCadenceDaily: 'Daily',
-                scheduleCadenceWeekly: 'Weekly',
-                labelScheduleFocus: 'Focus minutes',
-                labelScheduleBreak: 'Break minutes',
-                labelScheduleGoal: 'Starting board goal',
-                placeholderScheduleGoal: 'Example: Finish the product launch deck',
-                btnCreateRoom: 'Open room',
-                resultDesc: 'Share this code with your study partners to bring them into the room.',
-                btnWhatsappInvite: 'WhatsApp invite',
-                btnAddCalendar: 'Add to calendar',
-                btnEnterRoom: 'Enter room',
-                roomCreatedTitle: 'Room is open',
-                scheduleTimezoneLabel: 'Riyadh time',
-                scheduleNextLabel: 'Next session',
-                scheduleLiveLabel: 'Live now',
-                scheduleTimerPresetLabel: 'Timer',
-                inviteShareTitle: 'Join my scheduled Halastudy room',
-                inviteRoomCodeLabel: 'Room code',
-                inviteNextLabel: 'Next session',
-                inviteCadenceLabel: 'Cadence',
-                errorPasswordRequired: 'Please enter a room password.',
-                errorScheduleInvalid: 'Please add a valid Riyadh date and time for this scheduled room.',
-                joinFormTitle: 'Join a study room',
-                labelJoinCode: 'Room code',
-                placeholderJoinCode: 'e.g. ABC123',
-                labelJoinPassword: 'Room password (if needed)',
-                placeholderJoinPassword: 'Enter the password if the room is protected',
-                noteJoin: 'You will be taken into the room next, where you can confirm your nickname.',
-                btnJoinRoom: 'Join room',
-                errorNoName: 'Please enter a room name.',
-                errorNoCode: 'Please enter a room code.',
-                errorCheckingRoom: 'Checking room...',
-                errorCreating: 'Creating room...',
-                errorCreateFailed: 'Could not create the room right now. Please try again.',
-                errorJoinLookupFailed: 'Unable to verify this room right now. Please try again.',
-                errorRoomNotFound: 'That room code does not exist.',
-                errorRoomFull: 'This mesh room is full. Ask the host to create a large room.',
-                errorMediaUnavailable: 'Large-room media is unavailable on this deployment right now.',
-                errorMediaModeInvalid: 'That room media mode is not supported.',
-                errorRealtimeUnavailable: 'Realtime service is not available right now.',
-                successCreated: 'Room created successfully.',
-                redirecting: 'Redirecting...',
-                featureSecure: 'Secure transport',
-                featureRealtime: 'Realtime syncing',
-                featureGlobal: 'Saudi-ready, globally accessible',
-                errorRoomCodeGeneration: 'Could not generate a room code. Please try again.',
-                rateLimited: 'Too many attempts. Slow down and try again in a moment.'
-            },
-            ar: {
-                pageTitle: 'هلا ستدي | غرفة هادئة. مفتوحة طول الليل.',
-                themeToggleTitle: 'تبديل المظهر',
-                pageOneAria: 'الانتقال إلى الصفحة الأولى',
-                pageTwoAria: 'الانتقال إلى الصفحة الثانية',
-                heroEyebrow: 'ادخل الغرفة، اشتغل مع غيرك',
-                heroTitleLine1: 'غرفة هادئة،',
-                heroTitleLine2: 'مفتوحة طول الليل.',
-                heroDesc: 'ادخل، شغّل الكاميرا، واشتغل مع طلاب غيرك. البومودورو يمشي مع الكل. ما في محاضِر، ولا اجتماع، ولا توقّعات.',
-                featureVideo: 'كاميرا شغّالة',
-                featureTimer: 'بومودورو مشترك',
-                featureChat: 'دردشة بدون مايك',
-                featurePassword: 'غرف مجدولة',
-                btnStart: 'افتح غرفة',
-                btnQuickJoin: 'ادخل غرفة',
-                heroHint: 'نزّل أو استخدم ↓ للمتابعة.',
-                previewNew: 'مباشر',
-                previewSecure: 'آمن',
-                previewTitle1: 'أسماء غرف مخصصة',
-                previewTitle2: 'كلمات مرور اختيارية',
-                previewTimer: 'تركيز',
-                previewMinutes: 'دقيقة',
-                previewFocus: 'اليوم',
-                previewUsers: 'مستخدمين',
-                previewRoomLabel: 'الغرفة',
-                previewSeatOpen: 'مقعد فاضي',
-                chooserTitle: 'اختر طريقتك',
-                chooserDesc: 'افتح غرفة جديدة أو ادخل وحدة شغّالة.',
-                createTitle: 'افتح غرفة',
-                createDesc: 'اسم، وكلمة مرور اختيارية، وجدولة اختيارية.',
-                joinTitle: 'ادخل غرفة',
-                joinDesc: 'عندك رمز من مجموعتك؟ ادخله هنا.',
-                createFormTitle: 'غرفة تركيز جديدة',
-                labelRoomName: 'اسم الغرفة',
-                placeholderRoomName: 'مثال: جلسة عمل عميق',
-                labelMediaMode: 'وضع وسائط الغرفة',
-                mediaModeMeshTitle: 'غرفة عادية',
-                mediaModeMeshDesc: 'موصى بها لما يصل إلى {limit} أشخاص. تستخدم فيديو مباشرًا بين المتصفحات.',
-                mediaModeSfuTitle: 'غرفة كبيرة',
-                mediaModeSfuDesc: 'تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.',
-                mediaModeMeshBadge: 'غرفة Mesh',
-                mediaModeSfuBadge: 'غرفة كبيرة',
-                roomAccessOpen: 'دخول مفتوح',
-                roomAccessProtected: 'محمية بكلمة مرور',
-                roomPreviewMeshNote: 'مناسبة لما يصل إلى {limit} أشخاص قبل أن تبدأ جودة الفيديو بالانخفاض.',
-                roomPreviewSfuNote: 'تعمل الوسائط داخل الجلسة المُدارة للغرفة للمجموعات الأكبر.',
-                labelRequirePassword: 'تفعيل كلمة مرور',
-                labelPassword: 'كلمة مرور الدخول',
-                placeholderPassword: 'ضع كلمة مرور للغرفة',
-                notePassword: 'لن يتمكن من دخول الغرفة إلا من يملك كلمة المرور.',
-                labelEnableSchedule: 'اجعلها غرفة مجدولة',
-                scheduleNote: 'تستخدم توقيت الرياض (غرينتش+3). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.',
-                labelScheduleDate: 'تاريخ أول جلسة',
-                labelScheduleTime: 'وقت البداية',
-                labelScheduleCadence: 'التكرار',
-                scheduleCadenceOnce: 'مرة واحدة',
-                scheduleCadenceWeekdays: 'الأحد - الخميس',
-                scheduleCadenceDaily: 'يوميًا',
-                scheduleCadenceWeekly: 'أسبوعيًا',
-                labelScheduleFocus: 'دقائق التركيز',
-                labelScheduleBreak: 'دقائق الاستراحة',
-                labelScheduleGoal: 'هدف اللوحة عند البداية',
-                placeholderScheduleGoal: 'مثال: إنهاء عرض الإطلاق',
-                btnCreateRoom: 'افتح الغرفة',
-                resultDesc: 'شارك هذا الرمز مع شركائك ليدخلوا إلى الغرفة مباشرة.',
-                btnWhatsappInvite: 'دعوة واتساب',
-                btnAddCalendar: 'أضف إلى التقويم',
-                btnEnterRoom: 'الدخول إلى الغرفة',
-                scheduleTimezoneLabel: 'توقيت الرياض',
-                scheduleNextLabel: 'الجلسة القادمة',
-                scheduleLiveLabel: 'الجلسة جارية الآن',
-                scheduleTimerPresetLabel: 'المؤقت',
-                inviteShareTitle: 'انضم إلى غرفة هلا ستدي المجدولة',
-                inviteRoomCodeLabel: 'رمز الغرفة',
-                inviteNextLabel: 'الجلسة القادمة',
-                inviteCadenceLabel: 'التكرار',
-                errorPasswordRequired: 'فضلاً أدخل كلمة مرور للغرفة.',
-                errorScheduleInvalid: 'أضف تاريخًا ووقتًا صحيحين بتوقيت الرياض لهذه الغرفة المجدولة.',
-                joinFormTitle: 'الدخول إلى غرفة مذاكرة',
-                labelJoinCode: 'رمز الغرفة',
-                placeholderJoinCode: 'مثال: ABC123',
-                labelJoinPassword: 'كلمة مرور الغرفة (عند الحاجة)',
-                placeholderJoinPassword: 'أدخل كلمة المرور إذا كانت الغرفة محمية',
-                noteJoin: 'سيتم نقلك إلى الغرفة بعدها لتأكيد اسمك داخل الجلسة.',
-                btnJoinRoom: 'دخول الغرفة',
-                errorNoName: 'فضلاً أدخل اسم الغرفة.',
-                errorNoCode: 'فضلاً أدخل رمز الغرفة.',
-                errorCheckingRoom: 'جارٍ التحقق من الغرفة...',
-                errorCreating: 'جارٍ إنشاء الغرفة...',
-                errorCreateFailed: 'تعذر إنشاء الغرفة حالياً. حاول مرة أخرى.',
-                errorJoinLookupFailed: 'تعذر التحقق من هذه الغرفة حالياً. حاول مرة أخرى.',
-                errorRoomNotFound: 'رمز الغرفة هذا غير موجود.',
-                errorRoomFull: 'غرفة الـ Mesh هذه ممتلئة. اطلب من المضيف إنشاء غرفة كبيرة.',
-                errorMediaUnavailable: 'وسائط الغرف الكبيرة غير متاحة في هذا النشر حالياً.',
-                errorMediaModeInvalid: 'وضع وسائط الغرفة هذا غير مدعوم.',
-                errorRealtimeUnavailable: 'خدمة الاتصال الفوري غير متاحة حالياً.',
-                successCreated: 'تم إنشاء الغرفة بنجاح.',
-                redirecting: 'جارٍ التحويل...',
-                featureSecure: 'نقل آمن',
-                featureRealtime: 'مزامنة فورية',
-                featureGlobal: 'مناسبة للسعودية ومتاحة عالمياً',
-                errorRoomCodeGeneration: 'تعذر إنشاء رمز الغرفة. حاول مرة أخرى.',
-                rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.'
-            }
-        };
-        const errorKeyMap = {
-            ROOM_NAME_REQUIRED: 'errorNoName',
-            ROOM_CODE_GENERATION_FAILED: 'errorRoomCodeGeneration',
-            PASSWORD_HASH_FAILED: 'errorCreateFailed',
-            ROOM_MEDIA_MODE_INVALID: 'errorMediaModeInvalid',
-            ROOM_MEDIA_UNAVAILABLE: 'errorMediaUnavailable',
-            ROOM_FULL: 'errorRoomFull',
-            SCHEDULE_INVALID: 'errorScheduleInvalid',
-            RATE_LIMITED: 'rateLimited'
-        };
-
-        const MEDIA_MODE_MESH = 'mesh';
-        const MEDIA_MODE_SFU = 'sfu';
-        const DEFAULT_MESH_PARTICIPANT_LIMIT = 4;
-        const DEFAULT_SCHEDULE_TIMEZONE = 'Asia/Riyadh';
-        const DEFAULT_SCHEDULE_CADENCE = 'weekdays';
-        const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000;
-        const SCHEDULE_DAY_MS = 24 * 60 * 60 * 1000;
-        const SCHEDULE_JOIN_EARLY_WINDOW_MS = 15 * 60 * 1000;
-        const MAX_SCHEDULE_LOOKAHEAD_MS = 370 * SCHEDULE_DAY_MS;
-        const MAX_SCHEDULE_ITERATIONS = 5000;
-        let currentLang = getStoredLanguage();
-        let currentPage = 0;
-        let currentMode = 'create';
-        let isScrolling = false;
-        let touchStartY = 0;
-        let createdRoomCode = '';
-        let createdRoomPassword = '';
-        let createdRoomData = null;
-        let selectedMediaMode = MEDIA_MODE_MESH;
-        let runtimeConfig = {
-            sfuAvailable: false,
-            supportedMediaModes: [MEDIA_MODE_MESH],
-            meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT
-        };
-        let joinPreviewRoom = null;
-        let landingScheduleRefreshTimer = null;
-        let isDark = false;
-
-        const totalPages = 2;
-        const container = document.getElementById('fullpage');
-        const dots = document.querySelectorAll('.indicator-dot');
-        const choiceCards = document.querySelectorAll('[data-choice]');
-        const createForm = document.getElementById('create-form');
-        const joinForm = document.getElementById('join-form');
-        const requirePasswordCheckbox = document.getElementById('require-password');
-        const roomPasswordInput = document.getElementById('room-password');
-        const enableScheduleCheckbox = document.getElementById('enable-schedule');
-        const scheduleFields = document.getElementById('schedule-fields');
-        const scheduleDateInput = document.getElementById('schedule-date');
-        const scheduleTimeInput = document.getElementById('schedule-time');
-        const scheduleCadenceInput = document.getElementById('schedule-cadence');
-        const scheduleFocusInput = document.getElementById('schedule-focus');
-        const scheduleBreakInput = document.getElementById('schedule-break');
-        const scheduleGoalTemplateInput = document.getElementById('schedule-goal-template');
-        const joinCodeInput = document.getElementById('join-code');
-        const mediaModeButtons = document.querySelectorAll('[data-media-mode]');
-        const mediaModeMeshDesc = document.getElementById('media-mode-mesh-desc');
-        const mediaModeSfuButton = document.getElementById('media-mode-sfu');
-        const joinRoomPreview = document.getElementById('join-room-preview');
-        const joinRoomPreviewName = document.getElementById('join-room-preview-name');
-        const joinRoomPreviewMode = document.getElementById('join-room-preview-mode');
-        const joinRoomPreviewCount = document.getElementById('join-room-preview-count');
-        const joinRoomPreviewAccess = document.getElementById('join-room-preview-access');
-        const joinRoomPreviewNote = document.getElementById('join-room-preview-note');
-        const joinRoomPreviewWarning = document.getElementById('join-room-preview-warning');
-        const resultSchedule = document.getElementById('result-schedule');
-        const resultScheduleSummary = document.getElementById('result-schedule-summary');
-        const resultWhatsappLink = document.getElementById('result-whatsapp-link');
-        const resultCalendarBtn = document.getElementById('result-calendar-btn');
-        const languageButtons = document.querySelectorAll('[data-lang-value]');
-        const themeToggle = document.getElementById('theme-toggle');
-
-        let socket = null;
-        if (window.io) {
-            socket = io();
-        }
-
-        function getStoredLanguage() {
-            try {
-                return localStorage.getItem(LANG_STORAGE_KEY) === 'en' ? 'en' : 'ar';
-            } catch (_err) {
-                return 'en';
-            }
-        }
-
-        function setStoredLanguage(lang) {
-            try {
-                localStorage.setItem(LANG_STORAGE_KEY, lang);
-            } catch (_err) {}
-        }
-
-        function copy() {
-            return translations[currentLang] || translations.en;
-        }
-
-        function interpolate(template, values = {}) {
-            return `${template || ''}`.replace(/\{(\w+)\}/g, (_match, key) => {
-                return values[key] === undefined ? '' : String(values[key]);
-            });
-        }
-
-        function normalizeMediaMode(mode) {
-            return mode === MEDIA_MODE_SFU ? MEDIA_MODE_SFU : MEDIA_MODE_MESH;
-        }
-
-        function getMeshParticipantLimit() {
-            return Number.isInteger(runtimeConfig.meshParticipantLimit) && runtimeConfig.meshParticipantLimit > 0
-                ? runtimeConfig.meshParticipantLimit
-                : DEFAULT_MESH_PARTICIPANT_LIMIT;
-        }
-
-        function formatMediaModeLabel(mode) {
-            return normalizeMediaMode(mode) === MEDIA_MODE_SFU
-                ? copy().mediaModeSfuBadge
-                : copy().mediaModeMeshBadge;
-        }
-
-        function formatParticipantCount(count, limit) {
-            const safeCount = Number.isInteger(count) && count >= 0 ? count : 0;
-            const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : null;
-            const total = safeLimit ? `${safeCount} / ${safeLimit}` : `${safeCount}`;
-            return currentLang === 'ar' ? `${total} مشاركين` : `${total} people`;
-        }
-
-        function getRiyadhNowParts() {
-            const now = new Date(Date.now() + RIYADH_OFFSET_MS);
-            return {
-                year: now.getUTCFullYear(),
-                month: now.getUTCMonth() + 1,
-                day: now.getUTCDate(),
-                hour: now.getUTCHours(),
-                minute: now.getUTCMinutes()
-            };
-        }
-
-        function shiftRiyadhDate(parts, days) {
-            const probe = new Date(Date.UTC(parts.year, parts.month - 1, parts.day) + (days * 24 * 60 * 60 * 1000));
-            return {
-                year: probe.getUTCFullYear(),
-                month: probe.getUTCMonth() + 1,
-                day: probe.getUTCDate(),
-                dayOfWeek: probe.getUTCDay()
-            };
-        }
-
-        function formatDateValue(parts) {
-            return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
-        }
-
-        function formatTimeValue(hour, minute) {
-            return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-        }
-
-        function setDefaultScheduleFields() {
-            if (!scheduleDateInput || !scheduleTimeInput || !scheduleCadenceInput) {
-                return;
-            }
-
-            const now = getRiyadhNowParts();
-            const roundedMinute = now.minute <= 30 ? 30 : 0;
-            let nextHour = now.hour;
-            let nextDate = {
-                year: now.year,
-                month: now.month,
-                day: now.day
-            };
-
-            if (roundedMinute === 0) {
-                nextHour += 1;
-            }
-            if (nextHour >= 24) {
-                nextHour = nextHour % 24;
-                nextDate = shiftRiyadhDate(nextDate, 1);
-            }
-
-            scheduleDateInput.value = formatDateValue(nextDate);
-            scheduleTimeInput.value = formatTimeValue(nextHour, roundedMinute);
-            scheduleCadenceInput.value = DEFAULT_SCHEDULE_CADENCE;
-            scheduleFocusInput.value = '25';
-            scheduleBreakInput.value = '5';
-        }
-
-        function toggleScheduleFields() {
-            if (!enableScheduleCheckbox || !scheduleFields) {
-                return;
-            }
-            scheduleFields.hidden = !enableScheduleCheckbox.checked;
-        }
-
-        function formatScheduleCadenceLabel(cadence) {
-            const normalized = typeof cadence === 'string' ? cadence.trim().toLowerCase() : DEFAULT_SCHEDULE_CADENCE;
-            if (normalized === 'once') return copy().scheduleCadenceOnce;
-            if (normalized === 'daily') return copy().scheduleCadenceDaily;
-            if (normalized === 'weekly') return copy().scheduleCadenceWeekly;
-            return copy().scheduleCadenceWeekdays;
-        }
-
-        function formatRiyadhDateTime(timestamp) {
-            if (!timestamp) return '';
-            try {
-                return new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-SA', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                    timeZone: DEFAULT_SCHEDULE_TIMEZONE
-                }).format(new Date(timestamp));
-            } catch (_error) {
-                return new Date(timestamp).toISOString();
-            }
-        }
-
-        function parseScheduleDateString(value) {
-            if (typeof value !== 'string') return null;
-            const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-            if (!match) return null;
-
-            const year = Number.parseInt(match[1], 10);
-            const month = Number.parseInt(match[2], 10);
-            const day = Number.parseInt(match[3], 10);
-            const probe = new Date(Date.UTC(year, month - 1, day));
-            if (
-                probe.getUTCFullYear() !== year
-                || probe.getUTCMonth() !== month - 1
-                || probe.getUTCDate() !== day
-            ) {
-                return null;
-            }
-
-            return { year, month, day };
-        }
-
-        function parseScheduleTimeString(value) {
-            if (typeof value !== 'string') return null;
-            const match = value.trim().match(/^(\d{2}):(\d{2})$/);
-            if (!match) return null;
-
-            const hour = Number.parseInt(match[1], 10);
-            const minute = Number.parseInt(match[2], 10);
-            if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-                return null;
-            }
-
-            return { hour, minute };
-        }
-
-        function getRiyadhDatePartsFromTimestamp(timestamp) {
-            const date = new Date(timestamp + RIYADH_OFFSET_MS);
-            return {
-                year: date.getUTCFullYear(),
-                month: date.getUTCMonth() + 1,
-                day: date.getUTCDate(),
-                dayOfWeek: date.getUTCDay()
-            };
-        }
-
-        function timestampFromRiyadhParts(parts) {
-            return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour - 3, parts.minute, 0, 0);
-        }
-
-        function isSaudiWeekday(dayOfWeek) {
-            return dayOfWeek >= 0 && dayOfWeek <= 4;
-        }
-
-        function getScheduleStartTimestamp(schedule) {
-            const dateParts = parseScheduleDateString(schedule && schedule.startDate);
-            const timeParts = parseScheduleTimeString(schedule && schedule.startTime);
-            if (!dateParts || !timeParts) return null;
-            return timestampFromRiyadhParts({
-                year: dateParts.year,
-                month: dateParts.month,
-                day: dateParts.day,
-                hour: timeParts.hour,
-                minute: timeParts.minute
-            });
-        }
-
-        function getScheduleWindowMs(schedule) {
-            const focusMinutes = Number.parseInt(schedule && schedule.focusMinutes, 10) || 25;
-            const breakMinutes = Number.parseInt(schedule && schedule.breakMinutes, 10) || 5;
-            const explicitWindowMinutes = Number.parseInt(schedule && schedule.sessionWindowMinutes, 10) || 0;
-            return Math.max(30, explicitWindowMinutes || (focusMinutes + breakMinutes)) * 60 * 1000;
-        }
-
-        function getNextScheduleOccurrence(schedule, currentTimestamp) {
-            if (!schedule || currentTimestamp === null || currentTimestamp === undefined) {
-                return null;
-            }
-
-            const cadence = typeof schedule.cadence === 'string'
-                ? schedule.cadence.trim().toLowerCase()
-                : DEFAULT_SCHEDULE_CADENCE;
-            if (cadence === 'once') {
-                return null;
-            }
-
-            const currentDate = getRiyadhDatePartsFromTimestamp(currentTimestamp);
-            const timeParts = parseScheduleTimeString(schedule.startTime);
-            if (!timeParts) {
-                return null;
-            }
-
-            if (cadence === 'daily') {
-                const nextDate = shiftRiyadhDate(currentDate, 1);
-                return timestampFromRiyadhParts({
-                    ...nextDate,
-                    hour: timeParts.hour,
-                    minute: timeParts.minute
-                });
-            }
-
-            if (cadence === 'weekly') {
-                const nextDate = shiftRiyadhDate(currentDate, 7);
-                return timestampFromRiyadhParts({
-                    ...nextDate,
-                    hour: timeParts.hour,
-                    minute: timeParts.minute
-                });
-            }
-
-            let nextDate = shiftRiyadhDate(currentDate, 1);
-            while (!isSaudiWeekday(nextDate.dayOfWeek)) {
-                nextDate = shiftRiyadhDate(nextDate, 1);
-            }
-            return timestampFromRiyadhParts({
-                ...nextDate,
-                hour: timeParts.hour,
-                minute: timeParts.minute
-            });
-        }
-
-        function fallbackScheduleRuntimeState(schedule, now = Date.now()) {
-            if (!schedule) {
-                return {
-                    isLiveNow: false,
-                    currentOccurrenceAt: null,
-                    nextOccurrenceAt: null,
-                    countdownTargetAt: null
-                };
-            }
-
-            const durationMs = getScheduleWindowMs(schedule);
-            const activeStart = typeof schedule.currentOccurrenceAt === 'number'
-                ? schedule.currentOccurrenceAt
-                : (typeof schedule.countdownTargetAt === 'number' ? schedule.countdownTargetAt : null);
-
-            if (typeof activeStart === 'number' && now >= activeStart && now < activeStart + durationMs) {
-                return {
-                    isLiveNow: true,
-                    currentOccurrenceAt: schedule.currentOccurrenceAt || activeStart,
-                    nextOccurrenceAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null,
-                    countdownTargetAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null
-                };
-            }
-
-            if (typeof activeStart === 'number' && now < activeStart) {
-                return {
-                    isLiveNow: false,
-                    currentOccurrenceAt: typeof schedule.currentOccurrenceAt === 'number' ? schedule.currentOccurrenceAt : null,
-                    nextOccurrenceAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null,
-                    countdownTargetAt: activeStart
-                };
-            }
-
-            if (typeof schedule.nextOccurrenceAt === 'number' && schedule.nextOccurrenceAt > now) {
-                return {
-                    isLiveNow: false,
-                    currentOccurrenceAt: null,
-                    nextOccurrenceAt: schedule.nextOccurrenceAt,
-                    countdownTargetAt: schedule.nextOccurrenceAt
-                };
-            }
-
-            return {
-                isLiveNow: false,
-                currentOccurrenceAt: null,
-                nextOccurrenceAt: null,
-                countdownTargetAt: null
-            };
-        }
-
-        function resolveScheduleRuntimeState(schedule, now = Date.now()) {
-            if (!schedule) {
-                return fallbackScheduleRuntimeState(schedule, now);
-            }
-
-            const startedAt = getScheduleStartTimestamp(schedule);
-            if (startedAt === null) {
-                return fallbackScheduleRuntimeState(schedule, now);
-            }
-
-            const sessionWindowMs = getScheduleWindowMs(schedule);
-            let occurrenceAt = startedAt;
-            let iterations = 0;
-
-            while (
-                occurrenceAt !== null
-                && iterations < MAX_SCHEDULE_ITERATIONS
-                && occurrenceAt <= now + MAX_SCHEDULE_LOOKAHEAD_MS
-            ) {
-                const nextOccurrenceAt = getNextScheduleOccurrence(schedule, occurrenceAt);
-                const closeAt = nextOccurrenceAt || (occurrenceAt + sessionWindowMs);
-
-                if (now >= occurrenceAt - SCHEDULE_JOIN_EARLY_WINDOW_MS && now < closeAt) {
-                    return {
-                        isLiveNow: now >= occurrenceAt && now < occurrenceAt + sessionWindowMs,
-                        currentOccurrenceAt: occurrenceAt,
-                        nextOccurrenceAt: nextOccurrenceAt || null,
-                        countdownTargetAt: now < occurrenceAt ? occurrenceAt : (nextOccurrenceAt || null)
-                    };
-                }
-
-                if (occurrenceAt > now) {
-                    return {
-                        isLiveNow: false,
-                        currentOccurrenceAt: null,
-                        nextOccurrenceAt: occurrenceAt,
-                        countdownTargetAt: occurrenceAt
-                    };
-                }
-
-                occurrenceAt = nextOccurrenceAt;
-                iterations += 1;
-            }
-
-            return fallbackScheduleRuntimeState(schedule, now);
-        }
-
-        function buildScheduleSummaryLine(schedule) {
-            if (!schedule) return '';
-            const runtimeState = resolveScheduleRuntimeState(schedule);
-            const nextTarget = runtimeState.countdownTargetAt || runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
-            const summaryBits = [
-                formatScheduleCadenceLabel(schedule.cadence),
-                copy().scheduleTimezoneLabel,
-                `${copy().scheduleTimerPresetLabel}: ${schedule.focusMinutes || 25}/${schedule.breakMinutes || 5}`
-            ];
-
-            if (runtimeState.isLiveNow) {
-                summaryBits.push(copy().scheduleLiveLabel);
-            } else if (nextTarget) {
-                summaryBits.push(`${copy().scheduleNextLabel}: ${formatRiyadhDateTime(nextTarget)}`);
-            }
-
-            return summaryBits.filter(Boolean).join(' · ');
-        }
-
-        function buildRoomLink(roomCode) {
-            return `${window.location.origin}/index.html?room=${encodeURIComponent(roomCode)}`;
-        }
-
-        function escapeIcsText(value) {
-            return `${value || ''}`
-                .replace(/\\/g, '\\\\')
-                .replace(/\r?\n/g, '\\n')
-                .replace(/,/g, '\\,')
-                .replace(/;/g, '\\;');
-        }
-
-        function formatUtcForIcs(timestamp) {
-            const date = new Date(timestamp);
-            const year = date.getUTCFullYear();
-            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-            const day = String(date.getUTCDate()).padStart(2, '0');
-            const hour = String(date.getUTCHours()).padStart(2, '0');
-            const minute = String(date.getUTCMinutes()).padStart(2, '0');
-            const second = String(date.getUTCSeconds()).padStart(2, '0');
-            return `${year}${month}${day}T${hour}${minute}${second}Z`;
-        }
-
-        function buildCalendarPayload(roomData) {
-            if (!roomData || !roomData.schedule) {
-                return null;
-            }
-            const schedule = roomData.schedule;
-            const runtimeState = resolveScheduleRuntimeState(schedule);
-            const nextStart = runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
-            if (!nextStart) {
-                return null;
-            }
-
-            const durationMinutes = Math.max(30, Number(schedule.focusMinutes || 25) + Number(schedule.breakMinutes || 5));
-            const endAt = nextStart + (durationMinutes * 60 * 1000);
-            const link = buildRoomLink(roomData.roomId || roomData.code);
-            const lines = [
-                'BEGIN:VCALENDAR',
-                'VERSION:2.0',
-                'PRODID:-//Halastudy//Scheduled Room//EN',
-                'BEGIN:VEVENT',
-                `UID:${escapeIcsText((roomData.roomId || roomData.code || 'room').toLowerCase())}@halastudy`,
-                `DTSTAMP:${formatUtcForIcs(Date.now())}`,
-                `SUMMARY:${escapeIcsText(roomData.name || roomData.roomId || 'Halastudy Session')}`,
-                `DESCRIPTION:${escapeIcsText(`${copy().inviteShareTitle}\n${copy().inviteRoomCodeLabel}: ${roomData.roomId || roomData.code}\n${link}`)}`,
-                `URL:${escapeIcsText(link)}`,
-                `DTSTART:${formatUtcForIcs(nextStart)}`,
-                `DTEND:${formatUtcForIcs(endAt)}`
-            ];
-
-            if (schedule.cadence === 'daily') {
-                lines.push('RRULE:FREQ=DAILY');
-            } else if (schedule.cadence === 'weekly') {
-                lines.push('RRULE:FREQ=WEEKLY');
-            } else if (schedule.cadence === 'weekdays') {
-                lines.push('RRULE:FREQ=WEEKLY;BYDAY=SU,MO,TU,WE,TH');
-            }
-
-            lines.push('END:VEVENT', 'END:VCALENDAR');
-            return `${lines.join('\r\n')}\r\n`;
-        }
-
-        function downloadCalendar(roomData) {
-            const payload = buildCalendarPayload(roomData);
-            if (!payload) return;
-            const blob = new Blob([payload], { type: 'text/calendar;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${(roomData.roomId || roomData.code || 'halastudy-room').toLowerCase()}-schedule.ics`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }
-
-        function buildWhatsappInviteLink(roomData) {
-            if (!roomData) return '#';
-            const link = buildRoomLink(roomData.roomId || roomData.code);
-            const lines = [
-                copy().inviteShareTitle,
-                roomData.name || roomData.roomId || 'Halastudy',
-                `${copy().inviteRoomCodeLabel}: ${roomData.roomId || roomData.code}`
-            ];
-            if (roomData.schedule) {
-                const runtimeState = resolveScheduleRuntimeState(roomData.schedule);
-                const nextTarget = runtimeState.countdownTargetAt || runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
-                if (nextTarget) {
-                    lines.push(`${copy().inviteNextLabel}: ${formatRiyadhDateTime(nextTarget)}`);
-                }
-                lines.push(`${copy().inviteCadenceLabel}: ${formatScheduleCadenceLabel(roomData.schedule.cadence)}`);
-            }
-            lines.push(link);
-            return `https://wa.me/?text=${encodeURIComponent(lines.filter(Boolean).join('\n'))}`;
-        }
-
-        function clearLandingScheduleRefreshTimer() {
-            if (!landingScheduleRefreshTimer) return;
-            clearInterval(landingScheduleRefreshTimer);
-            landingScheduleRefreshTimer = null;
-        }
-
-        function refreshLandingScheduleViews() {
-            if (createdRoomData && createdRoomData.schedule) {
-                renderCreatedSchedule(createdRoomData);
-            }
-            if (joinPreviewRoom && joinPreviewRoom.schedule) {
-                renderJoinPreview(joinPreviewRoom);
-            }
-        }
-
-        function syncLandingScheduleRefreshTimer() {
-            const needsRefresh = !!(
-                (createdRoomData && createdRoomData.schedule)
-                || (joinPreviewRoom && joinPreviewRoom.schedule)
-            );
-
-            if (!needsRefresh) {
-                clearLandingScheduleRefreshTimer();
-                return;
-            }
-
-            if (landingScheduleRefreshTimer) {
-                return;
-            }
-
-            landingScheduleRefreshTimer = setInterval(refreshLandingScheduleViews, 30 * 1000);
-        }
-
-        function renderCreatedSchedule(roomData) {
-            createdRoomData = roomData || null;
-            if (!resultSchedule || !resultScheduleSummary || !resultWhatsappLink || !resultCalendarBtn) {
-                return;
-            }
-
-            if (!roomData || !roomData.schedule) {
-                resultSchedule.hidden = true;
-                resultScheduleSummary.textContent = '';
-                resultWhatsappLink.href = '#';
-                syncLandingScheduleRefreshTimer();
-                return;
-            }
-
-            resultSchedule.hidden = false;
-            resultScheduleSummary.textContent = buildScheduleSummaryLine(roomData.schedule);
-            resultWhatsappLink.href = buildWhatsappInviteLink(roomData);
-            syncLandingScheduleRefreshTimer();
-        }
-
-        function buildCreateSchedulePayload(roomName) {
-            if (!enableScheduleCheckbox || !enableScheduleCheckbox.checked) {
-                return { schedule: null, error: '' };
-            }
-
-            const startDate = scheduleDateInput && scheduleDateInput.value;
-            const startTime = scheduleTimeInput && scheduleTimeInput.value;
-            if (!startDate || !startTime) {
-                return { schedule: null, error: copy().errorScheduleInvalid };
-            }
-
-            return {
-                error: '',
-                schedule: {
-                    title: roomName,
-                    startDate,
-                    startTime,
-                    cadence: scheduleCadenceInput && scheduleCadenceInput.value ? scheduleCadenceInput.value : DEFAULT_SCHEDULE_CADENCE,
-                    focusMinutes: scheduleFocusInput && scheduleFocusInput.value ? scheduleFocusInput.value : '25',
-                    breakMinutes: scheduleBreakInput && scheduleBreakInput.value ? scheduleBreakInput.value : '5',
-                    boardGoalTemplate: scheduleGoalTemplateInput ? scheduleGoalTemplateInput.value.trim() : ''
-                }
-            };
-        }
-
-        function syncMediaModeUi() {
-            mediaModeButtons.forEach((button) => {
-                const mode = normalizeMediaMode(button.dataset.mediaMode);
-                const active = mode === selectedMediaMode;
-                button.classList.toggle('active', active);
-                button.setAttribute('aria-checked', active ? 'true' : 'false');
-            });
-            if (mediaModeSfuButton) {
-                mediaModeSfuButton.hidden = !runtimeConfig.sfuAvailable;
-            }
-            if (mediaModeMeshDesc) {
-                mediaModeMeshDesc.textContent = interpolate(copy().mediaModeMeshDesc, {
-                    limit: getMeshParticipantLimit()
-                });
-            }
-        }
-
-        function setSelectedMediaMode(mode) {
-            const nextMode = normalizeMediaMode(mode);
-            selectedMediaMode = nextMode === MEDIA_MODE_SFU && runtimeConfig.sfuAvailable
-                ? MEDIA_MODE_SFU
-                : MEDIA_MODE_MESH;
-            syncMediaModeUi();
-        }
-
-        function clearJoinPreview() {
-            joinPreviewRoom = null;
-            if (joinRoomPreview) {
-                joinRoomPreview.hidden = true;
-            }
-            syncLandingScheduleRefreshTimer();
-        }
-
-        function renderJoinPreview(room) {
-            joinPreviewRoom = room || null;
-            if (!room || !joinRoomPreview) {
-                clearJoinPreview();
-                return;
-            }
-
-            const mode = normalizeMediaMode(room.mediaMode);
-            const limit = mode === MEDIA_MODE_MESH
-                ? (Number.isInteger(room.participantLimit) && room.participantLimit > 0 ? room.participantLimit : getMeshParticipantLimit())
-                : null;
-            const count = Number.isInteger(room.participantCount) ? room.participantCount : 0;
-            const isFullMeshRoom = mode === MEDIA_MODE_MESH && limit !== null && count >= limit;
-            const largeRoomUnavailable = mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable;
-
-            joinRoomPreview.hidden = false;
-            joinRoomPreviewName.textContent = room.name || room.roomId || joinCodeInput.value.trim().toUpperCase();
-            joinRoomPreviewMode.textContent = formatMediaModeLabel(mode);
-            joinRoomPreviewCount.textContent = formatParticipantCount(count, limit);
-            joinRoomPreviewAccess.textContent = room.requirePassword ? copy().roomAccessProtected : copy().roomAccessOpen;
-            const mediaNote = mode === MEDIA_MODE_SFU
-                ? copy().roomPreviewSfuNote
-                : interpolate(copy().roomPreviewMeshNote, { limit: limit || getMeshParticipantLimit() });
-            const scheduleNote = room.schedule ? buildScheduleSummaryLine(room.schedule) : '';
-            joinRoomPreviewNote.textContent = [mediaNote, scheduleNote].filter(Boolean).join(' · ');
-            joinRoomPreviewWarning.textContent = largeRoomUnavailable
-                ? copy().errorMediaUnavailable
-                : (isFullMeshRoom ? copy().errorRoomFull : '');
-            syncLandingScheduleRefreshTimer();
-        }
-
-        function applyRuntimeConfig(payload = {}) {
-            const meshParticipantLimit = Number.isInteger(payload.meshParticipantLimit) && payload.meshParticipantLimit > 0
-                ? payload.meshParticipantLimit
-                : DEFAULT_MESH_PARTICIPANT_LIMIT;
-            runtimeConfig = {
-                sfuAvailable: !!payload.sfuAvailable,
-                supportedMediaModes: Array.isArray(payload.supportedMediaModes) && payload.supportedMediaModes.length
-                    ? payload.supportedMediaModes.map(normalizeMediaMode)
-                    : [MEDIA_MODE_MESH],
-                meshParticipantLimit
-            };
-            if (!runtimeConfig.sfuAvailable) {
-                selectedMediaMode = MEDIA_MODE_MESH;
-            }
-            syncMediaModeUi();
-            if (joinPreviewRoom) {
-                renderJoinPreview(joinPreviewRoom);
-            }
-            if (createdRoomData) {
-                renderCreatedSchedule(createdRoomData);
-            }
-        }
-
-        async function loadRuntimeConfig() {
-            if (typeof fetch !== 'function') {
-                applyRuntimeConfig();
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/runtime-config', {
-                    headers: { Accept: 'application/json' }
-                });
-                if (!response.ok) {
-                    throw new Error(`Runtime config request failed with ${response.status}`);
-                }
-                const payload = await response.json();
-                applyRuntimeConfig(payload);
-            } catch (_error) {
-                applyRuntimeConfig();
-            }
-        }
-
-        async function fetchRoomDetails(code) {
-            try {
-                const response = await fetch(`/api/rooms/${encodeURIComponent(code)}`, {
-                    headers: { Accept: 'application/json' }
-                });
-                if (response.status === 404) {
-                    clearJoinPreview();
-                    return { status: 'not_found' };
-                }
-                if (response.status === 429) {
-                    return { status: 'rate_limited' };
-                }
-                if (!response.ok) {
-                    return { status: 'error' };
-                }
-                const room = await response.json();
-                renderJoinPreview(room);
-                return { status: 'ok', room };
-            } catch (_error) {
-                return { status: 'error' };
-            }
-        }
-
-        function applyLanguage() {
-            const text = copy();
-            document.documentElement.lang = currentLang;
-            document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-            document.body.dataset.lang = currentLang;
-            document.title = text.pageTitle;
-
-            languageButtons.forEach((button) => {
-                button.classList.toggle('active', button.dataset.langValue === currentLang);
-            });
-
-            document.querySelectorAll('[data-lang]').forEach((element) => {
-                const key = element.dataset.lang;
-                if (text[key]) element.textContent = text[key];
-            });
-
-            document.querySelectorAll('[data-lang-placeholder]').forEach((element) => {
-                const key = element.dataset.langPlaceholder;
-                if (text[key]) element.placeholder = text[key];
-            });
-
-            document.querySelectorAll('[data-lang-aria]').forEach((element) => {
-                const key = element.dataset.langAria;
-                if (text[key]) element.setAttribute('aria-label', text[key]);
-            });
-
-            document.querySelectorAll('[data-lang-title]').forEach((element) => {
-                const key = element.dataset.langTitle;
-                if (text[key]) {
-                    element.title = text[key];
-                    element.setAttribute('aria-label', text[key]);
-                }
-            });
-
-            syncMediaModeUi();
-            if (joinPreviewRoom) {
-                renderJoinPreview(joinPreviewRoom);
-            }
-        }
-
-        function setLanguage(lang) {
-            currentLang = lang === 'ar' ? 'ar' : 'en';
-            setStoredLanguage(currentLang);
-            applyLanguage();
-        }
-
-        function getErrorMessage(errorCode, fallbackKey) {
-            const text = copy();
-            const mappedKey = errorKeyMap[errorCode];
-            if (mappedKey && text[mappedKey]) return text[mappedKey];
-            return text[fallbackKey] || '';
-        }
-
-        function goToPage(index) {
-            if (index < 0 || index >= totalPages || isScrolling || index === currentPage) return;
-            isScrolling = true;
-            currentPage = index;
-            container.style.transform = `translateY(-${currentPage * 100}vh)`;
-
-            dots.forEach((dot, dotIndex) => {
-                dot.classList.toggle('active', dotIndex === currentPage);
-            });
-
-            setTimeout(() => {
-                isScrolling = false;
-            }, 850);
-        }
-
-        function goNext() {
-            goToPage(Math.min(totalPages - 1, currentPage + 1));
-        }
-
-        function goPrev() {
-            goToPage(Math.max(0, currentPage - 1));
-        }
-
-        function isTyping(target) {
-            return target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-        }
-
-        function setMode(mode) {
-            currentMode = mode === 'join' ? 'join' : 'create';
-            choiceCards.forEach((card) => {
-                card.classList.toggle('active', card.dataset.choice === currentMode);
-            });
-            createForm.hidden = currentMode !== 'create';
-            joinForm.hidden = currentMode !== 'join';
-            if (currentMode === 'join') {
-                const code = joinCodeInput.value.trim().toUpperCase();
-                if (code) {
-                    void fetchRoomDetails(code);
-                }
-            }
-        }
-
-        function checkUrlParams() {
-            const params = new URLSearchParams(window.location.search);
-            const roomCode = params.get('room');
-            if (roomCode) {
-                joinCodeInput.value = roomCode.toUpperCase();
-                setMode('join');
-                goToPage(1);
-                void fetchRoomDetails(joinCodeInput.value);
-            }
-        }
-
-        languageButtons.forEach((button) => {
-            button.addEventListener('click', () => setLanguage(button.dataset.langValue));
+  </section>
+
+  <section class="community" id="community">
+    <div class="section-orn" aria-hidden="true"><span class="rule"></span><span class="orn-mark">✦</span><span class="rule"></span></div>
+    <div class="community-head">
+      <div class="eyebrow" data-i18n="communityEyebrow">اللي معاك الليلة</div>
+      <h2 class="community-title">
+        <span data-i18n="communityTitle1">مذاكرة </span>
+        <em data-i18n="communityTitle2">بصمت واحد.</em>
+      </h2>
+      <p class="community-sub" data-i18n="communitySub">طلاّب حقيقيّين. اختبارات جاية. المصابيح شغّالة — اقعد على الطاولة.</p>
+      <div class="community-stats">
+        <span class="stat"><span class="stat-num" id="stat-pictured">5</span><span class="stat-label" data-i18n="statPictured">في الصورة</span></span>
+        <span class="stat-rule" aria-hidden="true"></span>
+        <span class="stat"><span class="stat-num" id="stat-live">17,264</span><span class="stat-label" data-i18n="statRightNow">الآن</span></span>
+        <span class="stat-rule" aria-hidden="true"></span>
+        <span class="stat"><span class="stat-num">42</span><span class="stat-label" data-i18n="statCities">مدينة</span></span>
+      </div>
+    </div>
+    <div class="community-grid">
+      <!-- DEVIATION §2: 5 portraits, single editorial row -->
+      <figure class="community-card">
+        <div class="community-photo"><img src="/images/team/ali-hassan.jpg" alt="" loading="lazy"></div>
+        <figcaption>
+          <span class="community-name" data-i18n="member1Name">علي حسن</span>
+          <span class="community-major" data-i18n="member1Major">علوم الحاسب</span>
+        </figcaption>
+      </figure>
+      <figure class="community-card">
+        <div class="community-photo"><img src="/images/team/laila-mahmoud.jpg" alt="" loading="lazy"></div>
+        <figcaption>
+          <span class="community-name" data-i18n="member2Name">ليلى محمود</span>
+          <span class="community-major" data-i18n="member2Major">إدارة أعمال</span>
+        </figcaption>
+      </figure>
+      <figure class="community-card">
+        <div class="community-photo"><img src="/images/team/karim-faraj.jpg" alt="" loading="lazy"></div>
+        <figcaption>
+          <span class="community-name" data-i18n="member3Name">كريم فرج</span>
+          <span class="community-major" data-i18n="member3Major">عمارة</span>
+        </figcaption>
+      </figure>
+      <figure class="community-card">
+        <div class="community-photo"><img src="/images/team/yara-salim.jpg" alt="" loading="lazy"></div>
+        <figcaption>
+          <span class="community-name" data-i18n="member4Name">يارا سليم</span>
+          <span class="community-major" data-i18n="member4Major">إعلام واتّصال</span>
+        </figcaption>
+      </figure>
+      <figure class="community-card">
+        <div class="community-photo"><img src="/images/team/mariam-fathi.jpg" alt="" loading="lazy"></div>
+        <figcaption>
+          <span class="community-name" data-i18n="member5Name">مريم فتحي</span>
+          <span class="community-major" data-i18n="member5Major">تقنية حيوية</span>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="cta-strip">
+    <div class="cta-lamp" aria-hidden="true"></div>
+    <div class="section-orn" aria-hidden="true"><span class="rule"></span><span class="orn-mark">✦</span><span class="rule"></span></div>
+    <h2>
+      <span data-i18n="closerTitle1">مصباح واحد شغّال الساعة ١.</span>
+      <em data-i18n="closerTitle2">انت مو لحالك.</em>
+    </h2>
+    <p data-i18n="closerSub">هلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.</p>
+    <a class="btn btn-primary" href="/open.html" style="margin-top:10px"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
+    <div class="kbd-hint" aria-hidden="true"><kbd>⏎</kbd><span data-i18n="kbdHint">أو اضغط Enter</span></div>
+    <div class="city-marquee" aria-hidden="true">
+      <div class="city-marquee-track" id="city-marquee-track"></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div data-i18n="footerTag">هلاستدي · غرفة هادية. مفتوحة طول الليل.</div>
+    <div class="links">
+      <a href="#" data-i18n="footerManifesto">البيان</a>
+      <a href="#" data-i18n="footerPrivacy">الخصوصية</a>
+      <a href="#" data-i18n="footerStatus">الحالة</a>
+      <a href="#" data-i18n="footerWhatsapp">دعوة واتساب</a>
+    </div>
+  </footer>
+
+  <script>
+  /* -------------------------------------------------------------------
+   * Halastudy storage-key migration (was: coStudy*).
+   * Copy-forward, idempotent. Same block also lives in /open.html and
+   * /index.html. Drop after the next release ships clean.
+   * ----------------------------------------------------------------- */
+  (function migrateCoStudyToHalastudy() {
+    try {
+      var SENTINEL = 'halastudy:migratedFromCoStudy:v1';
+      if (localStorage.getItem(SENTINEL)) return;
+      var localMap = {
+        coStudyLang: 'halastudyLang',
+        coStudyStatusState: 'halastudyStatusState',
+        coStudyAmbientState: 'halastudyAmbientState',
+        coStudyFocusStats: 'halastudyFocusStats',
+        coStudyClientId: 'halastudyClientId',
+        coStudyName: 'halastudyName'
+      };
+      Object.keys(localMap).forEach(function (oldK) {
+        var newK = localMap[oldK];
+        var v = localStorage.getItem(oldK);
+        if (v !== null && localStorage.getItem(newK) === null) localStorage.setItem(newK, v);
+      });
+      localStorage.setItem(SENTINEL, String(Date.now()));
+    } catch (e) { /* storage unavailable */ }
+  })();
+
+  (function landingApp() {
+    'use strict';
+
+    var LANG_KEY = 'halastudyLang';
+    var THEME_KEY = 'halastudyTheme';
+
+    /* ---------- i18n ---------- */
+    var I18N = {
+      en: {
+        navHow: 'How it works', navRooms: 'Rooms', navTonight: 'Tonight', navJournal: 'Journal',
+        ctaOpen: 'Open a room', ctaOpenShort: 'Open a room', ctaJoin: 'See who’s live',
+        livePillLabel: 'lamps on right now',
+        heroTitle1: 'Drop in.', heroTitle2: 'Camera on.', heroTitle3: 'Work alongside someone.',
+        heroSub: 'A quiet room. Open all night. The world is already studying — pull up a desk.',
+        heroFoot: 'No download. No login wall. Mic stays off.',
+        stepsEyebrow: 'How a room works',
+        stepsTitle1: 'Three steps.', stepsTitle2: 'No login wall.',
+        stepNum1: '01', step1H: 'Open a room',
+        step1P: 'Pick a focus length — 25 min, 50 min, or open. We hand you a six-character code to share.',
+        stepNum2: '02', step2H: 'Camera on, mic off',
+        step2P: 'The whole point. Your presence is the social contract. Nobody is listening; everyone is working.',
+        stepNum3: '03', step3H: 'Stay until the timer rings',
+        step3P: 'When the Pomodoro finishes, you stretch with everyone else. Quiet break, quiet return.',
+        roomMeta: 'Quiet room · 50 min focus',
+        previewYou: 'You',
+        previewFootL: 'Mic off · video on',
+        previewFootR: 'Encrypted · WebRTC',
+        communityEyebrow: 'The desks across from yours',
+        communityTitle1: 'Tonight’s ', communityTitle2: 'quiet company.',
+        communitySub: 'Real students. Real exams next week. The lamps are on — join the table.',
+        statPictured: 'pictured', statRightNow: 'right now', statCities: 'cities',
+        member1Name: 'Ali Hassan',     member1Major: 'Computer Science',
+        member2Name: 'Laila Mahmoud',  member2Major: 'Business Administration',
+        member3Name: 'Karim Faraj',    member3Major: 'Architecture',
+        member4Name: 'Yara Salim',     member4Major: 'Media & Communication',
+        member5Name: 'Mariam Fathi',   member5Major: 'Biotechnology',
+        closerTitle1: 'One lamp on at 1am.', closerTitle2: 'You are not the only one.',
+        closerSub: 'Halastudy is a quiet room, open all night, where the cameras stay on and the conversation stays off.',
+        kbdHint: 'or press Enter',
+        footerTag: 'Halastudy · A quiet room. Open all night.',
+        footerManifesto: 'Manifesto', footerPrivacy: 'Privacy', footerStatus: 'Status', footerWhatsapp: 'WhatsApp invite',
+        tileNames: ['Saud', 'Nouf', 'Tariq', 'Al-Anoud', 'Majed', 'Mariam'],
+        previewNames: ['Saud', 'Nouf', 'Majed']
+      },
+      ar: {
+        navHow: 'كيف تشتغل', navRooms: 'الغرف', navTonight: 'الطلاب', navJournal: 'المجلة',
+        ctaOpen: 'افتح غرفة', ctaOpenShort: 'افتح غرفة', ctaJoin: 'شوف اللي شغّال',
+        livePillLabel: 'مصباح شغّال الآن',
+        heroTitle1: 'ادخل.', heroTitle2: 'الكاميرا شغّالة.', heroTitle3: 'اشتغل مع غيرك.',
+        heroSub: 'غرفة هادية، مفتوحة طول الليل. العالم كله يذاكر — قرّب كرسيك.',
+        heroFoot: 'بدون تنزيل. بدون تسجيل. المايك مقفول.',
+        stepsEyebrow: 'كيف الغرفة',
+        stepsTitle1: 'ثلاث خطوات.', stepsTitle2: 'بدون تسجيل.',
+        stepNum1: '٠١', step1H: 'افتح غرفة',
+        step1P: 'اختر مدة التركيز — ٢٥ دقيقة، ٥٠ دقيقة، أو مفتوحة. تطلع لك كود من ست خانات تشاركه.',
+        stepNum2: '٠٢', step2H: 'الكاميرا شغّالة، المايك مقفول',
+        step2P: 'هذا هو المربط. وجودك هو الاتفاق. ما فيه أحد يسمع؛ كل واحد قاعد يشتغل.',
+        stepNum3: '٠٣', step3H: 'اقعد لين يرنّ المنبه',
+        step3P: 'لما تخلص البومودورو، كلكم تستريحون مع بعض. راحة هادية، ورجعة هادية.',
+        roomMeta: 'غرفة هادية · ٥٠ دقيقة تركيز',
+        previewYou: 'انت',
+        previewFootL: 'المايك مقفول · الكاميرا شغّالة',
+        previewFootR: 'مشفّر · WebRTC',
+        communityEyebrow: 'اللي معاك الليلة',
+        communityTitle1: 'مذاكرة ', communityTitle2: 'بصمت واحد.',
+        communitySub: 'طلاّب حقيقيّين. اختبارات جاية. المصابيح شغّالة — اقعد على الطاولة.',
+        statPictured: 'في الصورة', statRightNow: 'الآن', statCities: 'مدينة',
+        member1Name: 'علي حسن',    member1Major: 'علوم الحاسب',
+        member2Name: 'ليلى محمود', member2Major: 'إدارة أعمال',
+        member3Name: 'كريم فرج',   member3Major: 'عمارة',
+        member4Name: 'يارا سليم',  member4Major: 'إعلام واتّصال',
+        member5Name: 'مريم فتحي',  member5Major: 'تقنية حيوية',
+        closerTitle1: 'مصباح واحد شغّال الساعة ١.', closerTitle2: 'انت مو لحالك.',
+        closerSub: 'هلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.',
+        kbdHint: 'أو اضغط Enter',
+        footerTag: 'هلاستدي · غرفة هادية. مفتوحة طول الليل.',
+        footerManifesto: 'البيان', footerPrivacy: 'الخصوصية', footerStatus: 'الحالة', footerWhatsapp: 'دعوة واتساب',
+        tileNames: ['سعود', 'نوف', 'طارق', 'العنود', 'ماجد', 'مريم'],
+        previewNames: ['سعود', 'نوف', 'ماجد']
+      }
+    };
+
+    function applyLang(lang) {
+      var dict = I18N[lang] || I18N.en;
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      document.title = lang === 'ar'
+        ? 'هلاستدي | غرفة هادية. مفتوحة طول الليل.'
+        : 'Halastudy | A quiet room. Open all night.';
+      document.querySelectorAll('[data-i18n]').forEach(function (el) {
+        var key = el.getAttribute('data-i18n');
+        if (dict[key] != null) el.textContent = dict[key];
+      });
+      document.querySelectorAll('[data-tile-name]').forEach(function (el) {
+        var i = parseInt(el.getAttribute('data-tile-name'), 10);
+        if (dict.tileNames && dict.tileNames[i]) el.textContent = dict.tileNames[i];
+      });
+      document.querySelectorAll('[data-preview-name]').forEach(function (el) {
+        var i = parseInt(el.getAttribute('data-preview-name'), 10);
+        if (dict.previewNames && dict.previewNames[i]) el.textContent = dict.previewNames[i];
+      });
+      document.querySelectorAll('.lang-switch button').forEach(function (b) {
+        b.classList.toggle('is-on', b.getAttribute('data-lang-value') === lang);
+      });
+      // build city-marquee text in the active language
+      buildMarquee(lang);
+    }
+
+    function setLang(lang) {
+      try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
+      applyLang(lang);
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+    function setTheme(theme) {
+      try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+      applyTheme(theme);
+    }
+
+    /* ---------- City marquee builder ---------- */
+    function buildMarquee(lang) {
+      var track = document.getElementById('city-marquee-track');
+      if (!track) return;
+      var cities = lang === 'ar'
+        ? ['الرياض ١:٢٤', 'القاهرة ١٢:٢٤', 'دبي ٢:٢٤', 'إسطنبول ١:٢٤', 'لندن ١٠:٢٤', 'لاهور ٣:٢٤', 'الدوحة ١:٢٤', 'المنامة ١:٢٤', 'مسقط ٢:٢٤', 'بيروت ١٢:٢٤']
+        : ['Riyadh 1:24', 'Cairo 12:24', 'Dubai 2:24', 'Istanbul 1:24', 'London 10:24', 'Lahore 3:24', 'Doha 1:24', 'Manama 1:24', 'Muscat 2:24', 'Beirut 12:24'];
+      var stream = cities.concat(cities);
+      track.innerHTML = stream.map(function (c) {
+        return '<span class="marq-item"><span class="marq-dot"></span><span>' + c + '</span></span>';
+      }).join('');
+    }
+
+    /* ---------- City clocks (six cities, tz offsets from UTC) ---------- */
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+    function updateClocks() {
+      var now = new Date();
+      document.querySelectorAll('[data-clock]').forEach(function (el) {
+        var tz = parseInt(el.getAttribute('data-clock'), 10);
+        var u = new Date(now.getTime() + (now.getTimezoneOffset() + tz * 60) * 60000);
+        el.textContent = pad2(u.getHours()) + ':' + pad2(u.getMinutes());
+      });
+    }
+
+    /* ---------- Live counter — random walk ---------- */
+    var liveN = 17264;
+    function tickLive() {
+      var drift = Math.random() < 0.5 ? -1 : 1;
+      var mag = Math.floor(Math.random() * 5) + 1;
+      liveN = Math.max(15000, liveN + drift * mag);
+      var lang = document.documentElement.lang === 'ar' ? 'ar-EG' : 'en-US';
+      var formatted = liveN.toLocaleString(lang);
+      var el = document.getElementById('live-count');
+      var stat = document.getElementById('stat-live');
+      if (el) el.textContent = formatted;
+      if (stat) stat.textContent = formatted;
+    }
+
+    /* ---------- Preview pomodoro countdown ---------- */
+    var pomSec = 23 * 60 + 41;
+    function tickPomodoro() {
+      if (pomSec <= 0) pomSec = 50 * 60;
+      pomSec -= 1;
+      var m = Math.floor(pomSec / 60);
+      var s = pomSec % 60;
+      var el = document.getElementById('preview-pomodoro');
+      if (el) el.textContent = pad2(m) + ':' + pad2(s);
+    }
+
+    /* ---------- Tile timers (hero + preview) — count up ---------- */
+    var heroSeeds = [32 * 60 + 14, 47 * 60 + 2, 12 * 60 + 48, 23 * 60 + 41, 8 * 60 + 22, 19 * 60 + 7];
+    var previewSeeds = [32 * 60 + 14, 12 * 60 + 48, 47 * 60 + 2];
+    function tickTimers() {
+      heroSeeds.forEach(function (sec, i) {
+        heroSeeds[i] = sec + 1;
+        var el = document.querySelector('[data-tile-timer="' + i + '"]');
+        if (el) el.textContent = pad2(Math.floor(heroSeeds[i] / 60)) + ':' + pad2(heroSeeds[i] % 60);
+      });
+      previewSeeds.forEach(function (sec, i) {
+        previewSeeds[i] = sec + 1;
+        var el = document.querySelector('[data-preview-timer="' + i + '"]');
+        if (el) el.textContent = pad2(Math.floor(previewSeeds[i] / 60)) + ':' + pad2(previewSeeds[i] % 60);
+      });
+    }
+
+    var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* ---------- Boot ---------- */
+    document.addEventListener('DOMContentLoaded', function () {
+      // Lang switch
+      document.querySelectorAll('.lang-switch button').forEach(function (b) {
+        b.addEventListener('click', function () { setLang(b.getAttribute('data-lang-value')); });
+      });
+      // Theme toggle
+      var themeBtn = document.getElementById('theme-toggle');
+      if (themeBtn) themeBtn.addEventListener('click', function () {
+        var cur = document.documentElement.getAttribute('data-theme') || 'light';
+        setTheme(cur === 'dark' ? 'light' : 'dark');
+      });
+
+      // Restore lang + theme
+      var savedLang = null, savedTheme = null;
+      try { savedLang = localStorage.getItem(LANG_KEY); savedTheme = localStorage.getItem(THEME_KEY); } catch (e) {}
+      applyLang(savedLang === 'en' ? 'en' : 'ar');
+      applyTheme(savedTheme === 'dark' ? 'dark' : 'light');
+
+      // Reduced motion: freeze cam clips to the poster frame.
+      if (prefersReduced) {
+        document.querySelectorAll('video.tile-photo').forEach(function (v) {
+          v.removeAttribute('autoplay');
+          try { v.pause(); v.currentTime = 0; } catch (e) {}
         });
+      }
 
-        mediaModeButtons.forEach((button) => {
-            button.addEventListener('click', () => {
-                setSelectedMediaMode(button.dataset.mediaMode);
-            });
-        });
-
-        themeToggle.addEventListener('click', () => {
-            isDark = !isDark;
-            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-        });
-
-        window.addEventListener('wheel', (event) => {
-            if (isTyping(event.target) || Math.abs(event.deltaY) < 20) return;
-            event.preventDefault();
-            if (event.deltaY > 0) goNext();
-            else goPrev();
-        }, { passive: false });
-
-        window.addEventListener('keydown', (event) => {
-            if (isTyping(event.target)) return;
-            switch (event.key) {
-                case 'ArrowDown':
-                case 'PageDown':
-                case ' ':
-                    event.preventDefault();
-                    goNext();
-                    break;
-                case 'ArrowUp':
-                case 'PageUp':
-                    event.preventDefault();
-                    goPrev();
-                    break;
-                case 'Home':
-                    event.preventDefault();
-                    goToPage(0);
-                    break;
-                case 'End':
-                    event.preventDefault();
-                    goToPage(totalPages - 1);
-                    break;
-                default:
-                    break;
-            }
-        });
-
-        window.addEventListener('touchstart', (event) => {
-            if (isTyping(event.target)) return;
-            touchStartY = event.touches[0].clientY;
-        }, { passive: true });
-
-        window.addEventListener('touchend', (event) => {
-            if (touchStartY === 0) return;
-            const deltaY = event.changedTouches[0].clientY - touchStartY;
-            if (Math.abs(deltaY) > 60) {
-                if (deltaY < 0) goNext();
-                else goPrev();
-            }
-            touchStartY = 0;
-        }, { passive: true });
-
-        dots.forEach((dot) => {
-            dot.addEventListener('click', () => {
-                goToPage(parseInt(dot.dataset.page, 10));
-            });
-        });
-
-        document.getElementById('btn-scroll-down').addEventListener('click', goNext);
-        document.getElementById('btn-skip-to-form').addEventListener('click', () => {
-            setMode('join');
-            goToPage(1);
-        });
-
-        choiceCards.forEach((card) => {
-            card.addEventListener('click', () => setMode(card.dataset.choice));
-            card.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    card.click();
-                }
-            });
-        });
-
-        requirePasswordCheckbox.addEventListener('change', () => {
-            const enabled = requirePasswordCheckbox.checked;
-            roomPasswordInput.disabled = !enabled;
-            if (!enabled) roomPasswordInput.value = '';
-        });
-
-        if (enableScheduleCheckbox) {
-            enableScheduleCheckbox.addEventListener('change', () => {
-                if (enableScheduleCheckbox.checked) {
-                    setDefaultScheduleFields();
-                }
-                toggleScheduleFields();
-            });
-        }
-        if (scheduleFocusInput) {
-            scheduleFocusInput.addEventListener('input', () => {
-                scheduleFocusInput.value = String(Math.max(1, Math.min(240, parseInt(scheduleFocusInput.value || '25', 10) || 25)));
-            });
-        }
-        if (scheduleBreakInput) {
-            scheduleBreakInput.addEventListener('input', () => {
-                scheduleBreakInput.value = String(Math.max(1, Math.min(120, parseInt(scheduleBreakInput.value || '5', 10) || 5)));
-            });
-        }
-        if (resultCalendarBtn) {
-            resultCalendarBtn.addEventListener('click', () => {
-                if (createdRoomData) {
-                    downloadCalendar(createdRoomData);
-                }
-            });
-        }
-
-        joinCodeInput.addEventListener('input', () => {
-            joinCodeInput.value = joinCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
-            clearJoinPreview();
-        });
-
-        joinCodeInput.addEventListener('blur', () => {
-            const code = joinCodeInput.value.trim().toUpperCase();
-            if (!code) {
-                clearJoinPreview();
-                return;
-            }
-            void fetchRoomDetails(code);
-        });
-
-        createForm.addEventListener('submit', (event) => {
-            event.preventDefault();
-            const feedback = document.getElementById('create-feedback');
-            const result = document.getElementById('create-result');
-            const roomNameInput = document.getElementById('room-name');
-            const roomName = roomNameInput.value.trim();
-            const password = roomPasswordInput.value.trim();
-            const requirePassword = requirePasswordCheckbox.checked;
-            const schedulePayload = buildCreateSchedulePayload(roomName);
-
-            result.hidden = true;
-            renderCreatedSchedule(null);
-
-            if (!roomName) {
-                feedback.textContent = copy().errorNoName;
-                feedback.className = 'form-feedback error';
-                roomNameInput.focus();
-                return;
-            }
-
-            if (requirePassword && !password) {
-                feedback.textContent = copy().errorPasswordRequired;
-                feedback.className = 'form-feedback error';
-                roomPasswordInput.focus();
-                return;
-            }
-            if (schedulePayload.error) {
-                feedback.textContent = schedulePayload.error;
-                feedback.className = 'form-feedback error';
-                if (scheduleDateInput && !scheduleDateInput.value) {
-                    scheduleDateInput.focus();
-                } else if (scheduleTimeInput && !scheduleTimeInput.value) {
-                    scheduleTimeInput.focus();
-                }
-                return;
-            }
-
-            feedback.textContent = copy().errorCreating;
-            feedback.className = 'form-feedback';
-
-            if (!socket) {
-                feedback.textContent = copy().errorRealtimeUnavailable;
-                feedback.className = 'form-feedback error';
-                return;
-            }
-
-            socket.emit('create-room', {
-                roomName,
-                password,
-                requirePassword,
-                mediaMode: selectedMediaMode,
-                schedule: schedulePayload.schedule
-            }, (response = {}) => {
-                if (!response.ok) {
-                    feedback.textContent = getErrorMessage(response.errorCode, 'errorCreateFailed');
-                    feedback.className = 'form-feedback error';
-                    return;
-                }
-
-                createdRoomCode = response.room.roomId || response.room.code;
-                createdRoomPassword = requirePassword ? password : '';
-                createdRoomData = response.room || null;
-
-                feedback.textContent = copy().successCreated;
-                feedback.className = 'form-feedback success';
-
-                document.getElementById('result-code').textContent = createdRoomCode;
-                renderCreatedSchedule(createdRoomData);
-                result.hidden = false;
-            });
-        });
-
-        document.getElementById('btn-enter-room').addEventListener('click', () => {
-            if (!createdRoomCode) return;
-            sessionStorage.setItem('coStudyRoomCode', createdRoomCode);
-            if (createdRoomPassword) {
-                sessionStorage.setItem('coStudyRoomPassword', createdRoomPassword);
-            } else {
-                sessionStorage.removeItem('coStudyRoomPassword');
-            }
-            window.location.href = `/index.html?room=${encodeURIComponent(createdRoomCode)}`;
-        });
-
-        joinForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-
-            const feedback = document.getElementById('join-feedback');
-            const code = joinCodeInput.value.trim().toUpperCase();
-            const password = document.getElementById('join-password').value.trim();
-            let room = null;
-
-            if (!code) {
-                feedback.textContent = copy().errorNoCode;
-                feedback.className = 'form-feedback error';
-                joinCodeInput.focus();
-                return;
-            }
-
-            feedback.textContent = copy().errorCheckingRoom;
-            feedback.className = 'form-feedback';
-
-            {
-                const lookup = await fetchRoomDetails(code);
-                if (lookup.status === 'not_found') {
-                    feedback.textContent = copy().errorRoomNotFound;
-                    feedback.className = 'form-feedback error';
-                    joinCodeInput.focus();
-                    return;
-                }
-                if (lookup.status === 'rate_limited') {
-                    feedback.textContent = copy().rateLimited;
-                    feedback.className = 'form-feedback error';
-                    return;
-                }
-                if (lookup.status !== 'ok') {
-                    feedback.textContent = copy().errorJoinLookupFailed;
-                    feedback.className = 'form-feedback error';
-                    return;
-                }
-                room = lookup.room;
-            }
-
-            if (room && room.mediaMode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable) {
-                feedback.textContent = copy().errorMediaUnavailable;
-                feedback.className = 'form-feedback error';
-                return;
-            }
-            if (room && room.mediaMode === MEDIA_MODE_MESH && room.participantLimit && room.participantCount >= room.participantLimit) {
-                feedback.textContent = copy().errorRoomFull;
-                feedback.className = 'form-feedback error';
-                return;
-            }
-            if (room && room.requirePassword && !password) {
-                feedback.textContent = copy().errorPasswordRequired;
-                feedback.className = 'form-feedback error';
-                document.getElementById('join-password').focus();
-                return;
-            }
-
-            sessionStorage.setItem('coStudyRoomCode', code);
-            if (password) {
-                sessionStorage.setItem('coStudyRoomPassword', password);
-            } else {
-                sessionStorage.removeItem('coStudyRoomPassword');
-            }
-
-            feedback.textContent = copy().redirecting;
-            feedback.className = 'form-feedback';
-            window.location.href = `/index.html?room=${encodeURIComponent(code)}`;
-        });
-
-        void loadRuntimeConfig();
-        setDefaultScheduleFields();
-        toggleScheduleFields();
-        applyLanguage();
-        setMode(currentMode);
-        checkUrlParams();
-    })();
-    </script>
+      // Timers
+      updateClocks();
+      setInterval(updateClocks, 30 * 1000);
+      setInterval(tickLive, 1100);
+      if (!prefersReduced) {
+        setInterval(tickPomodoro, 1000);
+        setInterval(tickTimers, 1000);
+      }
+    });
+  })();
+  </script>
 </body>
 </html>

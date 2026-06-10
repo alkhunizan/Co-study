@@ -297,3 +297,85 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 2. **If P1 comes back with <3 wedge matches, what's your pivot of choice?** The cheap options ranked: (a) tighten the wedge wording and retest; (b) shift cohort (Saudi students → MENA professionals studying for certs?); (c) scope-cut to landing-page validation only; (d) walk away. I'd rather pre-think this than improvise on Day 7.
 3. **If P3 comes back with <15 beta names, do you keep the SFU stack or scope-cut to mesh-only for Week 2?** Mesh is simpler infra (no MiroTalk container, no HTTPS coupling, no ANNOUNCED_IP) and 4-person mesh covers the wedge's "2-4 friends study together" use case. Going SFU-only buys you bigger rooms; if no one's asking for bigger rooms, that complexity is wasted.
 
+
+## 2026-05-17 — Landing redesign (out-of-spike, design handoff implementation)
+
+**Goal for this session:** Implement the Claude Design handoff bundle (Hala-Cam Design System) for the landing page. User chose a clean two-page split: `/` becomes editorial marketing only, forms move to `/open.html`. Liberal editorial deviations approved.
+
+**What worked:**
+- Bundle fetched via curl as `Hala-Cam Design System-handoff.tar.gz` (50 MB tarball, not a single HTML file as the URL suggested). Extracted to `C:\Users\alkhu\AppData\Local\Temp\hala-bundle\`. The bundle's tokens (paper, accent karak amber, Newsreader/Tajawal/Amiri, JetBrains Mono) match `/design-system/colors_and_type.css` 1:1 — zero token surgery.
+- Ported 1,270-line `landing.css` to vanilla, scoped `body` rules to `.is-landing-page` / `.is-open-page` so `/index.html` is untouched. Eight editorial deviations applied (documented in landing.css and the plan file).
+- Photos copied: 5 night-cam tiles → `/images/tiles/`, 10 daytime portraits → `/images/team/`.
+- `landing.html` rewritten as vanilla single-page editorial scroll: Topbar → Hero (6 photo-tiles + live-pill + city-line) → Steps → RoomPreview → Community (5 portraits) → Closer (city marquee) → Footer. No React/Babel CDN — small vanilla `<script>` block handles LiveCounter random-walk, city clocks, pomodoro/tile timer ticks, mouse parallax, marquee.
+- `open.html` created by composing new topbar + form-shell shell + the full 1,400-line legacy JS verbatim. Four targeted Edits patched: `totalPages 2→1`, `goToPage(1)→goToPage(0)`, null-safe `btn-scroll-down`/`btn-skip-to-form` bindings, theme-persistence via `halastudyTheme` localStorage key.
+- Server route added: `/open.html` → sendFile('open.html').
+- Smoke test updated: `createRoomFromLanding` now navigates to `/open.html` instead of `/`.
+
+**What broke:**
+- First curl pulled binary gzip output (50MB content, looks like noise without `--compressed`) — turns out the URL serves a `.tar.gz` despite the `?open_file=Halastudy+Landing.html` query string. Worked once I treated the response as a tarball.
+- Initial `Read` calls on `/tmp/hala-design/...` failed; Windows Claude Code's Read needs Windows-style paths (`C:\Users\alkhu\AppData\Local\Temp\hala-bundle\...`). Copy via `cp` resolved it.
+- The Anthropic design URL exceeds WebFetch's 10MB cap; had to fall back to `curl` + manual tar extraction.
+
+**What I changed:**
+- New: `images/tiles/*.jpg` (5), `images/team/*.jpg` (10), `design-system/landing.css` (1,008 LOC), `open.html` (1,595 LOC after patches).
+- Modified: `landing.html` (full rewrite, 582 LOC, was 2,848), `co-study-server.js` (added `/open.html` route), `tests/smoke/app.smoke.spec.js` (navigate to `/open.html`).
+- Untouched: `index.html` (in-room app), `design-system/colors_and_type.css`, all socket.io handlers, room store, schedule utils.
+
+**Verification:**
+- `npm run check` ✅ (server-side JS)
+- `npm run typecheck` ✅
+- `npm run lint` ✅ (20 files, no fixes)
+- `npm run deadcode` ✅
+- `npm run test:integration` ✅ 15/15
+- `npm run test:smoke` ✅ 6/6 (full create + join + scheduled + SFU + capacity)
+- Inline JS in both HTML files: `node --check` ✅
+- Curl smoke: `/`, `/open.html`, all `/images/tiles/*`, all `/images/team/*`, both CSS files, `/socket.io/socket.io.js` → all HTTP 200.
+
+**Next session starts with:**
+- Visual taste-pass in browser at http://127.0.0.1:3022/ — confirm the 6-tile cluster doesn't feel too sparse (could revisit count) and the 5-portrait community row breathes. If the hero feels empty without 10 tiles, swap the 4th and 5th LAYOUT entries from priority=2 to priority=1.
+- Commission real photography for `/images/tiles/` and `/images/team/` (placeholder AI portraits ship with the bundle; the plan documents the swap path).
+
+**Open questions for Aziz:**
+1. Are the bundle's AI-generated portraits OK as v1 placeholders, or do you want me to swap them for the ChatGPT-generated photos from the bundle's `uploads/` folder (higher-res, you produced these directly)?
+2. The hero photo tiles currently include one dim-treated daytime portrait (Mariam). Want me to dim-treat 2 or 3 instead, for more day/night mix? Or keep it at one to preserve the "midnight study" vibe?
+3. Real font licensing: README flags `29LT Bukra` + `IBM Plex Sans Arabic` as the brief's preferred pairing (currently using free Tajawal + Amiri). Want me to spike on procurement, or stay on the free pairing through Gate 2?
+
+## 2026-05-18 — Hero mosaic + looping cam clips
+
+**Goal for this session:** Replace the scattered still-photo hero tiles on `landing.html` with looping silent cam clips arranged as an editorial mosaic (1 featured + 5 strip).
+
+**What worked:**
+- Installed ffmpeg 8.1.1 via `winget install Gyan.FFmpeg` (winget lives at `~\AppData\Local\Microsoft\WindowsApps\winget.exe`, not on PATH for git-bash).
+- Picked 6 of 18 AI clips from `~\Downloads\download\` (smallest sources, simpler scenes), staged at `videos/hero/source/` (gitignored).
+- Encoded 6 × WebM (VP9) + 6 × MP4 (H.264) + 6 × poster JPG to `videos/hero/`. Featured 480×640@500k VP9 / 600k H.264; strip 288×384@180k VP9 / 220k H.264. All 3:4, audio stripped, `+faststart` on MP4. Source was 720×1280 portrait — crop filter is `crop=iw:iw*4/3:0:(ih-iw*4/3)/2`, not the landscape version in the plan.
+- WebM payload (what browsers actually download): **827.8 KB total for 12 hits (6 clips + 6 posters)**. MP4 fallbacks (~1.3 MB) sit on disk but only fetched if a browser rejects WebM.
+- Mounted `/videos` static in `co-study-server.js:1007` alongside the existing `/images`, `/audio`, `/design-system` mounts.
+- Mosaic grid in `design-system/landing.css:204-269` — `grid-template-areas: "featured copy" / "strip strip"` for LTR with a flipped `html[dir="rtl"]` override so featured stays on the physical left in both directions and copy stays on the physical right. Mobile collapses to a single column.
+- JS reduced-motion pause hook at the boot block in `landing.html` removes `autoplay` and pauses each `<video class="tile-photo">` to `currentTime=0`. Playwright verified all 6 paused under `reducedMotion: 'reduce'`.
+
+**What broke:**
+- First encode batch failed with `Invalid too big or non positive size for width '960' or height '1280'` — my plan's crop math assumed landscape; sources are portrait 720×1280. Swapped to `crop=iw:iw*4/3` and re-ran.
+- First mosaic screenshot showed the featured tile stuck at 140px. Cause: `.study-tile { width: var(--tile-size, 140px); }` at landing.css:382 has the same specificity (0,1,0) as my `.study-tile--featured { width: 100% }` and sits later in the file, so it won. Bumped my selector to `.hero-mosaic .study-tile--featured` (0,2,0). Now renders at the intended ~420 wide.
+- Killed the mouse-parallax block (`onMove`, `applyParallax`, `parallaxStrengths`, `tiles`) in `landing.html` — parallax shifted `margin-inline/block-start` per tile, which would misalign grid cells in the new mosaic. Old selector also targeted `.tile-cluster` which no longer exists.
+- The original responsive rules `@media (max-width: 1080px) { .study-tile[data-priority="2"] { display: none; } }` and `@media (max-width: 520px) { .study-tile { transform: rotate(var(--tilt, 0deg)) scale(0.78); } }` would have hidden/tilted the strip tiles. Overrode with `.hero--mosaic ...` scoped rules.
+
+**What I changed:**
+- `landing.html` lines 42-147 → new hero mosaic block (6 `<video class="tile-photo" autoplay muted loop playsinline preload="metadata" poster="…">`); parallax-related JS removed; reduced-motion video pause added in boot block.
+- `design-system/landing.css` ~+90 lines around the existing `.hero-copy` block adding `.hero-mosaic`, `.hero-strip`, `.study-tile--featured`, RTL override, responsive collapse.
+- `co-study-server.js` +1 line — `/videos` static mount.
+- `.gitignore` — added `videos/hero/source/`.
+- New dir `videos/hero/` — 6 .webm + 6 .mp4 + 6 .jpg posters (tracked); `videos/hero/source/` raw mp4s (ignored).
+
+**Verification — all gates green:**
+- `npm run check` ✓, `npm run typecheck` ✓, `npm run lint` ✓ (biome clean), `npm run deadcode` ✓ (knip clean).
+- `npm run test:smoke` 6/6 pass.
+- Playwright check: WebM-only payload 827.8 KB (target ≤ 1.5 MB ✓). All 6 videos pause under `prefers-reduced-motion: reduce`. EN renders dir=ltr with `grid-template-areas: "featured copy"`; AR renders dir=rtl. Featured stays on the physical left, copy on the physical right, in both languages — chosen for consistency.
+
+**DESIGN.md §11 risk surfaced:** clips are AI-generated. Treated as placeholders (current `images/tiles/*.jpg` also are). Easy to swap to real footage later — drop new files into `videos/hero/` with the same names, regenerate posters.
+
+**Next session starts with:**
+- Decide whether to also swap the room-preview mockup tiles ([landing.html:184-219](e:/Co-study/landing.html#L184-L219)) to looping clips, or keep them as `<img>` to read as a static screenshot of "the app." Out of scope this pass per Aziz's "hero only" answer.
+
+**Open questions for Aziz:**
+1. Do the strip clips need name/timer labels too, or strip them down to silent thumbnails (just the cam feed + LIVE chip)? Current labels were preserved from the original tile chrome.
+2. Replace the AI clips with real student footage in a follow-up pass, or carry them until Gate 2?

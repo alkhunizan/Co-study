@@ -92,6 +92,21 @@ test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     });
 });
 
+test('HTTP responses include baseline browser security headers', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const response = await server.request('/');
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers['x-content-type-options'], 'nosniff');
+    assert.equal(response.headers['referrer-policy'], 'strict-origin-when-cross-origin');
+    assert.equal(response.headers['x-frame-options'], 'SAMEORIGIN');
+    assert.match(response.headers['content-security-policy'], /default-src 'self'/);
+    assert.match(response.headers['content-security-policy'], /frame-src 'self' http: https:/);
+    assert.equal(response.headers['permissions-policy'], 'camera=(self), microphone=(self), display-capture=(self)');
+});
+
 test('runtime config falls back to the default ICE servers', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
@@ -577,6 +592,64 @@ test('rate limits protect room lookup, create, password attempts, chat, and boar
     await closeSocket(intruderSocket);
 });
 
+test('socket payloads are bounded at server boundaries', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'bounds-owner' });
+    const peerSocket = await connectSocket(server.baseUrl, { clientId: 'bounds-peer' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(peerSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'Payload Bounds Room'
+    });
+    assert.equal(createRoom.ok, true);
+    const roomId = createRoom.room.roomId;
+
+    const oversizedName = `  ${'Aziz'.repeat(20)}  `;
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: oversizedName,
+        clientId: 'bounds-owner'
+    });
+    assert.equal(ownerJoin.ok, true);
+    assert.equal(ownerJoin.room.participants[0].name.length, 20);
+    assert.equal(ownerJoin.room.participants[0].name, oversizedName.trim().slice(0, 20));
+
+    const peerJoin = await emitAck(peerSocket, 'join-room', {
+        roomId,
+        username: 'Peer',
+        clientId: 'bounds-peer'
+    });
+    assert.equal(peerJoin.ok, true);
+
+    const receivedMessages = [];
+    peerSocket.on('chat-message', (message) => {
+        receivedMessages.push(message);
+    });
+
+    const oversizedMessage = `  ${'m'.repeat(600)}  `;
+    const sendMessage = await emitAck(ownerSocket, 'send-message', {
+        roomId,
+        text: oversizedMessage
+    });
+    assert.equal(sendMessage.ok, true);
+
+    await delay(50);
+    const userMessage = receivedMessages.find((message) => message.type === 'user');
+    assert.ok(userMessage);
+    assert.equal(userMessage.text.length, 500);
+    assert.equal(userMessage.text, oversizedMessage.trim().slice(0, 500));
+
+    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(snapshot.status, 200);
+    assert.equal(snapshot.body.participants[0].name.length, 20);
+    assert.ok(snapshot.body.messages.some((message) => message.type === 'user' && message.text.length === 500));
+});
+
 test('secure cookies honor trusted HTTPS proxy headers only', async (t) => {
     const secureServer = await startServer({
         env: { TRUST_PROXY: '1' }
@@ -596,6 +669,35 @@ test('secure cookies honor trusted HTTPS proxy headers only', async (t) => {
     const plainResponse = await plainServer.request('/');
     const plainCookie = `${plainResponse.headers['set-cookie'] || ''}`;
     assert.doesNotMatch(plainCookie, /Secure/);
+});
+
+test('socket origin checks only honor forwarded protocol when proxy trust is enabled', async (t) => {
+    const plainServer = await startServer();
+    await cleanupServer(t, plainServer);
+
+    await assert.rejects(async () => {
+        await connectSocket(plainServer.baseUrl, {
+            clientId: 'spoofed-origin',
+            extraHeaders: {
+                Origin: `https://127.0.0.1:${plainServer.port}`,
+                'X-Forwarded-Proto': 'https'
+            }
+        });
+    });
+
+    const trustedServer = await startServer({
+        env: { TRUST_PROXY: '1' }
+    });
+    await cleanupServer(t, trustedServer);
+
+    const trustedSocket = await connectSocket(trustedServer.baseUrl, {
+        clientId: 'trusted-origin',
+        extraHeaders: {
+            Origin: `https://127.0.0.1:${trustedServer.port}`,
+            'X-Forwarded-Proto': 'https'
+        }
+    });
+    await closeSocket(trustedSocket);
 });
 
 test('backup restore tooling and deploy verification work against the HTTP app', async (t) => {

@@ -23,6 +23,8 @@ const CLIENT_ID_MAX_LENGTH = 64;
 const ROOM_CODE_LENGTH = 6;
 const ROOM_NAME_MAX_LENGTH = 48;
 const ROOM_PASSWORD_MAX_LENGTH = 64;
+const NICKNAME_MAX_LENGTH = 20;
+const CHAT_MESSAGE_MAX_LENGTH = 500;
 const BOARD_GOAL_MAX_LENGTH = 80;
 const BOARD_TASK_MAX_LENGTH = 120;
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -346,6 +348,16 @@ function sanitizeRoomPassword(raw = '') {
     return raw.trim().slice(0, ROOM_PASSWORD_MAX_LENGTH);
 }
 
+function sanitizeNickname(raw = '') {
+    if (typeof raw !== 'string') return '';
+    return raw.trim().slice(0, NICKNAME_MAX_LENGTH);
+}
+
+function sanitizeChatMessage(raw = '') {
+    if (typeof raw !== 'string') return '';
+    return raw.trim().slice(0, CHAT_MESSAGE_MAX_LENGTH);
+}
+
 function sanitizeBoardGoal(raw = '') {
     if (typeof raw !== 'string') return '';
     return raw.trim().slice(0, BOARD_GOAL_MAX_LENGTH);
@@ -520,14 +532,30 @@ function normalizeOrigin(origin) {
     }
 }
 
-function getExpectedOrigin(headers = {}, mode = 'http') {
+function getExpectedOrigin(headers = {}, mode = 'http', trustProxy = false) {
     const host = headers.host;
     if (!host) return null;
-    const forwardedProto = typeof headers['x-forwarded-proto'] === 'string'
+    const forwardedProto = trustProxy && typeof headers['x-forwarded-proto'] === 'string'
         ? headers['x-forwarded-proto'].split(',')[0].trim()
         : '';
     const protocol = forwardedProto || mode;
     return `${protocol}://${host}`;
+}
+
+function buildContentSecurityPolicy() {
+    return [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline'",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: blob:",
+        "media-src 'self' blob:",
+        "connect-src 'self' http: https: ws: wss:",
+        "frame-src 'self' http: https:",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'self'"
+    ].join('; ');
 }
 
 function isOriginAllowed({ origin, expectedOrigin, allowedOrigins }) {
@@ -597,7 +625,7 @@ function createCoStudyServer(options = {}) {
         allowRequest: (req, callback) => {
             const allowed = isOriginAllowed({
                 origin: req.headers.origin,
-                expectedOrigin: getExpectedOrigin(req.headers, config.mode),
+                expectedOrigin: getExpectedOrigin(req.headers, config.mode, config.trustProxy),
                 allowedOrigins: config.allowedOrigins
             });
             callback(null, allowed);
@@ -891,6 +919,15 @@ function createCoStudyServer(options = {}) {
         res.status(403).json({ error: 'Origin not allowed' });
     }
 
+    function securityHeaders(_req, res, next) {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+        res.setHeader('Content-Security-Policy', buildContentSecurityPolicy());
+        res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), display-capture=(self)');
+        next();
+    }
+
     function sessionMiddleware(req, res, next) {
         const cookies = parseCookies(req.headers.cookie || '');
         let sessionId = cookies[SESSION_COOKIE_NAME];
@@ -961,11 +998,13 @@ function createCoStudyServer(options = {}) {
         void flushRoomStateAndExit('SIGTERM');
     });
 
+    app.use(securityHeaders);
     app.use(originGuard);
     app.use(express.json());
     app.use(sessionMiddleware);
     app.use('/audio', express.static(path.join(__dirname, 'audio')));
     app.use('/images', express.static(path.join(__dirname, 'images')));
+    app.use('/videos', express.static(path.join(__dirname, 'videos')));
     app.use('/design-system', express.static(path.join(__dirname, 'design-system')));
 
     app.get('/api/health', (_req, res) => {
@@ -1018,6 +1057,10 @@ function createCoStudyServer(options = {}) {
 
     app.get('/', (_req, res) => {
         res.sendFile(path.join(__dirname, 'landing.html'));
+    });
+
+    app.get(['/open.html', '/open'], (_req, res) => {
+        res.sendFile(path.join(__dirname, 'open.html'));
     });
 
     app.get(['/index.html', '/study', '/workspace', '/room'], (_req, res) => {
@@ -1104,7 +1147,7 @@ function createCoStudyServer(options = {}) {
 
         socket.on('join-room', async (payload = {}, ack = () => {}) => {
             const { roomId, username, clientId: payloadClientId, password } = payload;
-            const cleanName = (username || '').trim();
+            const cleanName = sanitizeNickname(username);
             const normalizedRoom = normalizeRoom(roomId);
             const clientId = resolveClientId(socket, payloadClientId);
 
@@ -1245,7 +1288,7 @@ function createCoStudyServer(options = {}) {
         socket.on('send-message', (payload = {}, ack = () => {}) => {
             const { text } = payload;
             const currentRoom = socket.data.roomId;
-            const cleanText = (text || '').trim();
+            const cleanText = sanitizeChatMessage(text);
 
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
