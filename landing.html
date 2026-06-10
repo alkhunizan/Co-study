@@ -35,7 +35,7 @@
           <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
         </svg>
       </button>
-      <a class="btn btn-primary" href="/open.html" style="padding:10px 18px;min-height:auto;font-size:13px" data-i18n="ctaOpenShort">افتح غرفة</a>
+      <a class="btn btn-primary btn--compact" href="/open.html" data-i18n="ctaOpenShort">افتح غرفة</a>
     </div>
   </header>
 
@@ -60,17 +60,17 @@
         <!-- DEVIATION §4: city line is one tight mono row above the live-pill,
              not a 6-clock strip under the CTAs. Atmospheric eyebrow. -->
         <div class="city-line" aria-hidden="true">
-          <span><span class="city-name">Riyadh</span><span class="city-time" data-clock="3">01:24</span></span>
+          <span><span class="city-name">Riyadh</span><span class="city-time" data-clock="Asia/Riyadh">01:24</span></span>
           <span class="sep">·</span>
-          <span><span class="city-name">Cairo</span><span class="city-time" data-clock="2">00:24</span></span>
+          <span><span class="city-name">Cairo</span><span class="city-time" data-clock="Africa/Cairo">00:24</span></span>
           <span class="sep">·</span>
-          <span><span class="city-name">Dubai</span><span class="city-time" data-clock="4">02:24</span></span>
+          <span><span class="city-name">Dubai</span><span class="city-time" data-clock="Asia/Dubai">02:24</span></span>
           <span class="sep">·</span>
-          <span><span class="city-name">Istanbul</span><span class="city-time" data-clock="3">01:24</span></span>
+          <span><span class="city-name">Istanbul</span><span class="city-time" data-clock="Europe/Istanbul">01:24</span></span>
           <span class="sep">·</span>
-          <span><span class="city-name">London</span><span class="city-time" data-clock="0">22:24</span></span>
+          <span><span class="city-name">London</span><span class="city-time" data-clock="Europe/London">22:24</span></span>
           <span class="sep">·</span>
-          <span><span class="city-name">Lahore</span><span class="city-time" data-clock="5">03:24</span></span>
+          <span><span class="city-name">Lahore</span><span class="city-time" data-clock="Asia/Karachi">03:24</span></span>
         </div>
 
         <div class="live-pill">
@@ -308,8 +308,7 @@
       <em data-i18n="closerTitle2">انت مو لحالك.</em>
     </h2>
     <p data-i18n="closerSub">هلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.</p>
-    <a class="btn btn-primary" href="/open.html" style="margin-top:10px"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
-    <div class="kbd-hint" aria-hidden="true"><kbd>⏎</kbd><span data-i18n="kbdHint">أو اضغط Enter</span></div>
+    <a class="btn btn-primary btn--push-top" href="/open.html"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
     <div class="city-marquee" aria-hidden="true">
       <div class="city-marquee-track" id="city-marquee-track"></div>
     </div>
@@ -343,10 +342,19 @@
         coStudyClientId: 'halastudyClientId',
         coStudyName: 'halastudyName'
       };
+      var sessionMap = {
+        coStudyRoomPassword: 'halastudyRoomPassword',
+        coStudyRoomCode: 'halastudyRoomCode'
+      };
       Object.keys(localMap).forEach(function (oldK) {
         var newK = localMap[oldK];
         var v = localStorage.getItem(oldK);
         if (v !== null && localStorage.getItem(newK) === null) localStorage.setItem(newK, v);
+      });
+      Object.keys(sessionMap).forEach(function (oldK) {
+        var newK = sessionMap[oldK];
+        var v = sessionStorage.getItem(oldK);
+        if (v !== null && sessionStorage.getItem(newK) === null) sessionStorage.setItem(newK, v);
       });
       localStorage.setItem(SENTINEL, String(Date.now()));
     } catch (e) { /* storage unavailable */ }
@@ -391,7 +399,6 @@
         member5Name: 'Mariam Fathi',   member5Major: 'Biotechnology',
         closerTitle1: 'One lamp on at 1am.', closerTitle2: 'You are not the only one.',
         closerSub: 'Halastudy is a quiet room, open all night, where the cameras stay on and the conversation stays off.',
-        kbdHint: 'or press Enter',
         footerTag: 'Halastudy · A quiet room. Open all night.',
         footerManifesto: 'Manifesto', footerPrivacy: 'Privacy', footerStatus: 'Status', footerWhatsapp: 'WhatsApp invite',
         tileNames: ['Saud', 'Nouf', 'Tariq', 'Al-Anoud', 'Majed', 'Mariam'],
@@ -428,7 +435,6 @@
         member5Name: 'مريم فتحي',  member5Major: 'تقنية حيوية',
         closerTitle1: 'مصباح واحد شغّال الساعة ١.', closerTitle2: 'انت مو لحالك.',
         closerSub: 'هلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.',
-        kbdHint: 'أو اضغط Enter',
         footerTag: 'هلاستدي · غرفة هادية. مفتوحة طول الليل.',
         footerManifesto: 'البيان', footerPrivacy: 'الخصوصية', footerStatus: 'الحالة', footerWhatsapp: 'دعوة واتساب',
         tileNames: ['سعود', 'نوف', 'طارق', 'العنود', 'ماجد', 'مريم'],
@@ -488,20 +494,24 @@
       }).join('');
     }
 
-    /* ---------- City clocks (six cities, tz offsets from UTC) ---------- */
+    /* ---------- City clocks (six cities, IANA zones — DST-correct) ---------- */
     function pad2(n) { return (n < 10 ? '0' : '') + n; }
     function updateClocks() {
       var now = new Date();
       document.querySelectorAll('[data-clock]').forEach(function (el) {
-        var tz = parseInt(el.getAttribute('data-clock'), 10);
-        var u = new Date(now.getTime() + (now.getTimezoneOffset() + tz * 60) * 60000);
-        el.textContent = pad2(u.getHours()) + ':' + pad2(u.getMinutes());
+        var zone = el.getAttribute('data-clock');
+        try {
+          el.textContent = new Intl.DateTimeFormat('en-GB', {
+            hour: '2-digit', minute: '2-digit', hour12: false, timeZone: zone
+          }).format(now);
+        } catch (e) { /* unknown zone — leave the static placeholder */ }
       });
     }
 
     /* ---------- Live counter — random walk ---------- */
     var liveN = 17264;
     function tickLive() {
+      if (document.hidden) return;
       var drift = Math.random() < 0.5 ? -1 : 1;
       var mag = Math.floor(Math.random() * 5) + 1;
       liveN = Math.max(15000, liveN + drift * mag);
@@ -517,6 +527,7 @@
     /* ---------- Preview pomodoro countdown ---------- */
     var pomSec = 23 * 60 + 41;
     function tickPomodoro() {
+      if (document.hidden) return;
       if (pomSec <= 0) pomSec = 50 * 60;
       pomSec -= 1;
       var m = Math.floor(pomSec / 60);
@@ -529,6 +540,7 @@
     var heroSeeds = [32 * 60 + 14, 47 * 60 + 2, 12 * 60 + 48, 23 * 60 + 41, 8 * 60 + 22, 19 * 60 + 7];
     var previewSeeds = [32 * 60 + 14, 12 * 60 + 48, 47 * 60 + 2];
     function tickTimers() {
+      if (document.hidden) return;
       heroSeeds.forEach(function (sec, i) {
         heroSeeds[i] = sec + 1;
         var el = document.querySelector('[data-tile-timer="' + i + '"]');
@@ -567,6 +579,20 @@
         document.querySelectorAll('video.tile-photo').forEach(function (v) {
           v.removeAttribute('autoplay');
           try { v.pause(); v.currentTime = 0; } catch (e) {}
+        });
+      } else if ('IntersectionObserver' in window) {
+        // Pause looping cam clips while offscreen — six decode pipelines
+        // otherwise run for the whole session (battery cost on mobile).
+        var clipObserver = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            var v = entry.target;
+            try {
+              if (entry.isIntersecting) { void v.play(); } else { v.pause(); }
+            } catch (e) { /* autoplay policy — poster frame is fine */ }
+          });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('video.tile-photo').forEach(function (v) {
+          clipObserver.observe(v);
         });
       }
 

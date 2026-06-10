@@ -56,12 +56,10 @@ html[lang="ar"] .is-open-page { font-family: var(--font-body-ar); }
   align-items: center;
   justify-content: space-between;
   padding: 18px clamp(20px, 4vw, 56px);
-  background: linear-gradient(to bottom,
-    color-mix(in oklab, var(--paper) 92%, transparent) 0%,
-    color-mix(in oklab, var(--paper) 75%, transparent) 60%,
-    transparent 100%);
-  backdrop-filter: saturate(1.1) blur(6px);
-  -webkit-backdrop-filter: saturate(1.1) blur(6px);
+  /* DESIGN.md §10: solid nav — no glass blur. Solid paper also spares the
+     compositor a per-frame re-blur over the looping hero videos. */
+  background: var(--paper);
+  border-block-end: 1px solid var(--line);
 }
 
 .brand {
@@ -112,6 +110,14 @@ html[lang="ar"] .is-open-page { font-family: var(--font-body-ar); }
   white-space: nowrap;
   transition: color 120ms var(--ease-soft);
 }
+/* DESIGN.md §11 — every focus uses the accent-glow ring, never the UA outline. */
+.nav-links a:focus-visible,
+.footer a:focus-visible,
+.brand:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-radius: 6px;
+}
 .nav-links a:hover { color: var(--ink); }
 .nav-links a.nav-extra { display: none; }
 @media (min-width: 1040px) {
@@ -155,8 +161,7 @@ html[lang="ar"] .is-open-page { font-family: var(--font-body-ar); }
   font-family: var(--font-body);
   transition: all 180ms var(--ease-soft);
 }
-.lang-switch button.is-on,
-.lang-switch button.active {
+.lang-switch button.is-on {
   background: var(--accent-soft);
   color: var(--accent-3);
 }
@@ -250,9 +255,9 @@ html[dir="rtl"] .hero-mosaic {
 }
 /* Override the scatter-era rules that hide priority-2 tiles on narrow viewports
    and scale them at mobile — the mosaic wants every tile at every size. */
-.hero--mosaic .study-tile[data-priority="2"] { display: block !important; }
+.hero--mosaic .study-tile[data-priority="2"] { display: block; }
 .hero--mosaic .hero-strip .study-tile,
-.hero--mosaic .study-tile--featured { transform: none !important; }
+.hero--mosaic .study-tile--featured { transform: none; }
 
 @media (max-width: 860px) {
   .hero-mosaic,
@@ -380,12 +385,13 @@ html[lang="ar"] .hero-title em {
   color: var(--ink);
 }
 
-/* Honesty label for mocked numbers (live counter, community stats). */
+/* Honesty label for mocked numbers (live counter, community stats).
+   Must stay readable — it disclaims the illustrative counter. */
 .illustrative-note {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 .hero .illustrative-note { margin-inline-start: 10px; }
 .community-head .illustrative-note { margin-block-start: 10px; }
@@ -439,6 +445,17 @@ html[lang="ar"] .hero-title em {
   border-color: var(--accent-2);
   color: var(--accent-2);
 }
+/* Topbar variant — tighter than the hero CTA, but never under the
+   44px touch floor on coarse pointers (DESIGN.md §4). */
+.btn--compact {
+  padding: 10px 18px;
+  min-height: auto;
+  font-size: 14px;
+}
+@media (pointer: coarse) {
+  .btn--compact { min-height: 44px; }
+}
+.btn--push-top { margin-block-start: 10px; }
 .btn .arrow {
   display: inline-block;
   transition: transform 180ms var(--ease-soft);
@@ -458,14 +475,6 @@ html[lang="ar"] .btn:hover .arrow { transform: scaleX(-1) translateX(3px); }
    DEVIATION §1: bundle ships 10 tiles; landing.html includes 6
    for a quieter, more breathing hero. CSS supports any count.
    ============================================================ */
-.tile-cluster {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-.tile-cluster > * { pointer-events: auto; }
-
 .study-tile {
   position: absolute;
   width: var(--tile-size, 140px);
@@ -503,15 +512,6 @@ html[lang="ar"] .btn:hover .arrow { transform: scaleX(-1) translateX(3px); }
   z-index: 0;
 }
 /* daytime portraits, treated to read as dim cam feeds at night */
-.study-tile.cam-dim .tile-photo {
-  filter: brightness(0.42) saturate(0.85) contrast(1.06) sepia(0.32) hue-rotate(-8deg);
-}
-.study-tile.cam-dim .tile-vignette {
-  background:
-    linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 30%, transparent 55%, rgba(8,5,3,0.82) 100%),
-    radial-gradient(80% 60% at 50% 30%, rgba(229, 182, 140, 0.10), transparent 70%);
-}
-
 @keyframes tileFloat {
   0%   { transform: translate3d(0, 0, 0) rotate(var(--tilt, 0deg)); }
   50%  { transform: translate3d(2px, -6px, 0) rotate(calc(var(--tilt, 0deg) + 0.3deg)); }
@@ -667,7 +667,6 @@ html[lang="ar"] .tile-name .city {
 @media (max-width: 760px) {
   .hero { padding-top: 96px; }
   .hero-stage { min-height: 560px; }
-  .study-tile[data-priority="3"] { display: none; }
 }
 @media (max-width: 520px) {
   .study-tile { transform: rotate(var(--tilt, 0deg)) scale(0.78); }
@@ -748,7 +747,7 @@ html[lang="ar"] .step h3 {
   font-family: var(--font-display-ar);
 }
 .step p {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6;
   color: var(--ink-2);
   margin: 0;
@@ -1134,8 +1133,8 @@ html[lang="ar"] .cta-strip h2 em { font-style: normal; font-weight: 700; }
 .cta-lamp {
   position: absolute;
   inset-block-start: 0;
-  inset-inline-start: 50%;
-  transform: translateX(-50%);
+  inset-inline: 0;
+  margin-inline: auto;
   width: clamp(420px, 70%, 900px);
   height: 100%;
   z-index: -1;
@@ -1145,30 +1144,6 @@ html[lang="ar"] .cta-strip h2 em { font-style: normal; font-weight: 700; }
     radial-gradient(30% 30% at 50% 70%, rgba(229, 182, 140, 0.18), transparent 75%);
   filter: blur(2px);
   animation: lampBreath 11s ease-in-out infinite;
-}
-
-.kbd-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--ink-3);
-  margin-top: 4px;
-}
-.kbd-hint kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--card);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--ink-2);
-  box-shadow: var(--sh-inner);
 }
 
 /* DEVIATION §7: mask edges softened from 12%/88% to 18%/82% */
@@ -1235,8 +1210,8 @@ html[lang="ar"] .marq-item { font-family: var(--font-display-ar); font-style: no
   content: '';
   position: absolute;
   inset-block-start: -1px;
-  inset-inline: 50%;
-  transform: translateX(-50%);
+  inset-inline: 0;
+  margin-inline: auto;
   width: 60%;
   height: 1px;
   background: radial-gradient(50% 100% at 50% 0%, var(--accent-glow), transparent 70%);
@@ -1292,6 +1267,12 @@ html[lang="ar"] .marq-item { font-family: var(--font-display-ar); font-style: no
   direction: ltr;
   unicode-bidi: isolate;
   text-align: start;
+}
+
+/* Room-code entry follows DESIGN.md §4: mono + 0.18em tracking. */
+#join-code {
+  font-family: var(--font-mono);
+  letter-spacing: 0.18em;
 }
 
 .form-shell {
@@ -1418,7 +1399,7 @@ html[lang="ar"] .form-title { font-family: var(--font-display-ar); font-weight: 
   border: 1px solid var(--line);
   background: var(--inset);
   font: inherit;
-  font-size: 15px;
+  font-size: 16px; /* never below 16px — iOS Safari auto-zooms smaller inputs */
   color: var(--ink);
   transition: border-color 180ms var(--ease-soft), background 180ms var(--ease-soft), box-shadow 180ms var(--ease-soft);
 }
