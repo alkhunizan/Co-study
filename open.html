@@ -21,7 +21,7 @@
     <div class="topbar-right">
       <div class="lang-switch" role="tablist" aria-label="Language">
         <button type="button" id="lang-en" data-lang-value="en">EN</button>
-        <button type="button" id="lang-ar" data-lang-value="ar" class="active">ع</button>
+        <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
       </div>
       <button class="icon-btn" id="theme-toggle" data-lang-title="themeToggleTitle" aria-label="Toggle theme" title="Toggle theme">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -146,7 +146,7 @@
             <h3 class="form-title" data-lang="joinFormTitle">الدخول إلى غرفة مذاكرة</h3>
             <div class="input-group">
               <label for="join-code" data-lang="labelJoinCode">رمز الغرفة</label>
-              <input type="text" id="join-code" name="roomCode" maxlength="10" data-lang-placeholder="placeholderJoinCode" placeholder="مثال: ABC123" autocomplete="off" data-force-ltr required>
+              <input type="text" id="join-code" name="roomCode" maxlength="10" data-lang-placeholder="placeholderJoinCode" placeholder="ABC123" autocomplete="off" data-force-ltr required>
             </div>
             <div class="room-preview" id="join-room-preview" hidden>
               <div class="room-preview-name" id="join-room-preview-name">Room</div>
@@ -231,29 +231,6 @@
             en: {
                 pageTitle: 'Halastudy | A quiet room. Open all night.',
                 themeToggleTitle: 'Toggle theme',
-                pageOneAria: 'Go to page 1',
-                pageTwoAria: 'Go to page 2',
-                heroEyebrow: 'Body-doubling, the Gulf way',
-                heroTitleLine1: 'A quiet room.',
-                heroTitleLine2: 'Open all night.',
-                heroDesc: 'Drop in, camera on, work alongside other students. Pomodoros tick in sync. No instructor, no meeting, no expectations.',
-                featureVideo: 'Camera-on focus',
-                featureTimer: 'Shared Pomodoro',
-                featureChat: 'Mics-off chat',
-                featurePassword: 'Scheduled rooms',
-                btnStart: 'Open a room',
-                btnQuickJoin: 'Join a room',
-                heroHint: 'Scroll or use ↓ to continue.',
-                previewNew: 'LIVE',
-                previewSecure: 'SECURE',
-                previewTitle1: 'Custom room names',
-                previewTitle2: 'Optional passwords',
-                previewTimer: 'FOCUS',
-                previewMinutes: 'min',
-                previewFocus: 'TODAY',
-                previewUsers: 'users',
-                previewRoomLabel: 'Room',
-                previewSeatOpen: 'Open seat',
                 chooserTitle: 'Choose your flow',
                 chooserDesc: 'Open a new room or join one that’s already running.',
                 createTitle: 'Open a room',
@@ -308,7 +285,7 @@
                 errorScheduleInvalid: 'Please add a valid Riyadh date and time for this scheduled room.',
                 joinFormTitle: 'Join a study room',
                 labelJoinCode: 'Room code',
-                placeholderJoinCode: 'e.g. ABC123',
+                placeholderJoinCode: 'ABC123',
                 labelJoinPassword: 'Room password (if needed)',
                 placeholderJoinPassword: 'Enter the password if the room is protected',
                 noteJoin: 'You will be taken into the room next, where you can confirm your nickname.',
@@ -326,38 +303,12 @@
                 errorRealtimeUnavailable: 'Realtime service is not available right now.',
                 successCreated: 'Room created successfully.',
                 redirecting: 'Redirecting...',
-                featureSecure: 'Secure transport',
-                featureRealtime: 'Realtime syncing',
-                featureGlobal: 'Saudi-ready, globally accessible',
                 errorRoomCodeGeneration: 'Could not generate a room code. Please try again.',
                 rateLimited: 'Too many attempts. Slow down and try again in a moment.'
             },
             ar: {
                 pageTitle: 'هلاستدي | غرفة هادئة. مفتوحة طول الليل.',
                 themeToggleTitle: 'تبديل المظهر',
-                pageOneAria: 'الانتقال إلى الصفحة الأولى',
-                pageTwoAria: 'الانتقال إلى الصفحة الثانية',
-                heroEyebrow: 'ادخل الغرفة، اشتغل مع غيرك',
-                heroTitleLine1: 'غرفة هادئة،',
-                heroTitleLine2: 'مفتوحة طول الليل.',
-                heroDesc: 'ادخل، شغّل الكاميرا، واشتغل مع طلاب غيرك. البومودورو يمشي مع الكل. ما في محاضِر، ولا اجتماع، ولا توقّعات.',
-                featureVideo: 'كاميرا شغّالة',
-                featureTimer: 'بومودورو مشترك',
-                featureChat: 'دردشة بدون مايك',
-                featurePassword: 'غرف مجدولة',
-                btnStart: 'افتح غرفة',
-                btnQuickJoin: 'ادخل غرفة',
-                heroHint: 'نزّل أو استخدم ↓ للمتابعة.',
-                previewNew: 'مباشر',
-                previewSecure: 'آمن',
-                previewTitle1: 'أسماء غرف مخصصة',
-                previewTitle2: 'كلمات مرور اختيارية',
-                previewTimer: 'تركيز',
-                previewMinutes: 'دقيقة',
-                previewFocus: 'اليوم',
-                previewUsers: 'مستخدمين',
-                previewRoomLabel: 'الغرفة',
-                previewSeatOpen: 'مقعد فاضي',
                 chooserTitle: 'اختر طريقتك',
                 chooserDesc: 'افتح غرفة جديدة أو ادخل وحدة شغّالة.',
                 createTitle: 'افتح غرفة',
@@ -412,7 +363,7 @@
                 errorScheduleInvalid: 'أضف تاريخًا ووقتًا صحيحين بتوقيت الرياض لهذه الغرفة المجدولة.',
                 joinFormTitle: 'الدخول إلى غرفة مذاكرة',
                 labelJoinCode: 'رمز الغرفة',
-                placeholderJoinCode: 'مثال: ABC123',
+                placeholderJoinCode: 'ABC123',
                 labelJoinPassword: 'كلمة مرور الغرفة (عند الحاجة)',
                 placeholderJoinPassword: 'أدخل كلمة المرور إذا كانت الغرفة محمية',
                 noteJoin: 'سيتم نقلك إلى الغرفة بعدها لتأكيد اسمك داخل الجلسة.',
@@ -430,9 +381,6 @@
                 errorRealtimeUnavailable: 'خدمة الاتصال الفوري غير متاحة حالياً.',
                 successCreated: 'تم إنشاء الغرفة بنجاح.',
                 redirecting: 'جارٍ التحويل...',
-                featureSecure: 'نقل آمن',
-                featureRealtime: 'مزامنة فورية',
-                featureGlobal: 'مناسبة للسعودية ومتاحة عالمياً',
                 errorRoomCodeGeneration: 'تعذر إنشاء رمز الغرفة. حاول مرة أخرى.',
                 rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.'
             }
@@ -459,10 +407,7 @@
         const MAX_SCHEDULE_LOOKAHEAD_MS = 370 * SCHEDULE_DAY_MS;
         const MAX_SCHEDULE_ITERATIONS = 5000;
         let currentLang = getStoredLanguage();
-        let currentPage = 0;
         let currentMode = 'create';
-        let isScrolling = false;
-        let touchStartY = 0;
         let createdRoomCode = '';
         let createdRoomPassword = '';
         let createdRoomData = null;
@@ -477,10 +422,6 @@
         let isDark = false;
         try { isDark = localStorage.getItem('halastudyTheme') === 'dark'; document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } catch (e) {}
 
-        // Patched 2026-05-17 for /open.html: single-page form layout. Was 2 (hero + form scroller in legacy landing.html).
-        const totalPages = 1;
-        const container = document.getElementById('fullpage');
-        const dots = document.querySelectorAll('.indicator-dot');
         const choiceCards = document.querySelectorAll('[data-choice]');
         const createForm = document.getElementById('create-form');
         const joinForm = document.getElementById('join-form');
@@ -1198,7 +1139,7 @@
             document.title = text.pageTitle;
 
             languageButtons.forEach((button) => {
-                button.classList.toggle('active', button.dataset.langValue === currentLang);
+                button.classList.toggle('is-on', button.dataset.langValue === currentLang);
             });
 
             document.querySelectorAll('[data-lang]').forEach((element) => {
@@ -1243,33 +1184,6 @@
             return text[fallbackKey] || '';
         }
 
-        function goToPage(index) {
-            if (index < 0 || index >= totalPages || isScrolling || index === currentPage) return;
-            isScrolling = true;
-            currentPage = index;
-            container.style.transform = `translateY(-${currentPage * 100}vh)`;
-
-            dots.forEach((dot, dotIndex) => {
-                dot.classList.toggle('active', dotIndex === currentPage);
-            });
-
-            setTimeout(() => {
-                isScrolling = false;
-            }, 850);
-        }
-
-        function goNext() {
-            goToPage(Math.min(totalPages - 1, currentPage + 1));
-        }
-
-        function goPrev() {
-            goToPage(Math.max(0, currentPage - 1));
-        }
-
-        function isTyping(target) {
-            return target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-        }
-
         function setMode(mode) {
             currentMode = mode === 'join' ? 'join' : 'create';
             choiceCards.forEach((card) => {
@@ -1291,7 +1205,6 @@
             if (roomCode) {
                 joinCodeInput.value = roomCode.toUpperCase();
                 setMode('join');
-                goToPage(0); // Patched 2026-05-17: single-page form layout in /open.html.
                 void fetchRoomDetails(joinCodeInput.value);
             }
         }
@@ -1310,71 +1223,6 @@
             isDark = !isDark;
             document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
             try { localStorage.setItem('halastudyTheme', isDark ? 'dark' : 'light'); } catch (e) {}
-        });
-
-        window.addEventListener('wheel', (event) => {
-            if (isTyping(event.target) || Math.abs(event.deltaY) < 20) return;
-            event.preventDefault();
-            if (event.deltaY > 0) goNext();
-            else goPrev();
-        }, { passive: false });
-
-        window.addEventListener('keydown', (event) => {
-            if (isTyping(event.target)) return;
-            switch (event.key) {
-                case 'ArrowDown':
-                case 'PageDown':
-                case ' ':
-                    event.preventDefault();
-                    goNext();
-                    break;
-                case 'ArrowUp':
-                case 'PageUp':
-                    event.preventDefault();
-                    goPrev();
-                    break;
-                case 'Home':
-                    event.preventDefault();
-                    goToPage(0);
-                    break;
-                case 'End':
-                    event.preventDefault();
-                    goToPage(totalPages - 1);
-                    break;
-                default:
-                    break;
-            }
-        });
-
-        window.addEventListener('touchstart', (event) => {
-            if (isTyping(event.target)) return;
-            touchStartY = event.touches[0].clientY;
-        }, { passive: true });
-
-        window.addEventListener('touchend', (event) => {
-            if (touchStartY === 0) return;
-            const deltaY = event.changedTouches[0].clientY - touchStartY;
-            if (Math.abs(deltaY) > 60) {
-                if (deltaY < 0) goNext();
-                else goPrev();
-            }
-            touchStartY = 0;
-        }, { passive: true });
-
-        dots.forEach((dot) => {
-            dot.addEventListener('click', () => {
-                goToPage(parseInt(dot.dataset.page, 10));
-            });
-        });
-
-        // Patched 2026-05-17: 'btn-scroll-down' / 'btn-skip-to-form' lived on the legacy hero, not in /open.html.
-        // Bindings made null-safe so the same JS can run on a single-page form layout.
-        const btnScrollDown = document.getElementById('btn-scroll-down');
-        if (btnScrollDown) btnScrollDown.addEventListener('click', goNext);
-        const btnSkipToForm = document.getElementById('btn-skip-to-form');
-        if (btnSkipToForm) btnSkipToForm.addEventListener('click', () => {
-            setMode('join');
-            goToPage(0);
         });
 
         choiceCards.forEach((card) => {
@@ -1507,11 +1355,11 @@
 
         document.getElementById('btn-enter-room').addEventListener('click', () => {
             if (!createdRoomCode) return;
-            sessionStorage.setItem('coStudyRoomCode', createdRoomCode);
+            sessionStorage.setItem('halastudyRoomCode', createdRoomCode);
             if (createdRoomPassword) {
-                sessionStorage.setItem('coStudyRoomPassword', createdRoomPassword);
+                sessionStorage.setItem('halastudyRoomPassword', createdRoomPassword);
             } else {
-                sessionStorage.removeItem('coStudyRoomPassword');
+                sessionStorage.removeItem('halastudyRoomPassword');
             }
             window.location.href = `/index.html?room=${encodeURIComponent(createdRoomCode)}`;
         });
@@ -1572,11 +1420,11 @@
                 return;
             }
 
-            sessionStorage.setItem('coStudyRoomCode', code);
+            sessionStorage.setItem('halastudyRoomCode', code);
             if (password) {
-                sessionStorage.setItem('coStudyRoomPassword', password);
+                sessionStorage.setItem('halastudyRoomPassword', password);
             } else {
-                sessionStorage.removeItem('coStudyRoomPassword');
+                sessionStorage.removeItem('halastudyRoomPassword');
             }
 
             feedback.textContent = copy().redirecting;
