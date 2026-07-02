@@ -28,6 +28,17 @@ sudo npm ci
 
 Production should use the HTTP entrypoint behind Nginx TLS.
 
+See [`.env.example`](.env.example) for every variable the app reads, with
+production-shaped values and inline notes. The critical production settings:
+
+- **`ROOM_STATE_FILE` / `ROOM_STATE_BACKUP_DIR`** — point these OUTSIDE the repo
+  directory (e.g. `/var/lib/halastudy/`). The defaults are repo-relative, so a
+  future `git clean` or re-clone during a deploy would destroy live room state.
+- **`ALLOWED_ORIGINS`** — set the exact public origin explicitly; do not rely on
+  the empty-list fallback.
+- **`ICE_SERVERS_JSON`** — set a TURN relay. STUN-only (the default) fails across
+  the CGNAT'd mobile networks common in the Gulf.
+
 `ecosystem.config.js` already targets:
 - `PORT=3000`
 - `TRUST_PROXY=1`
@@ -226,6 +237,34 @@ npm run test:integration
 pm2 restart co-study
 npm run verify:deploy -- https://your-domain.com
 pm2 status
+```
+
+## Release Checklist
+
+Ship boring, predictable releases. On the dev machine, before deploying:
+
+1. `npm run test:ci` is green (all 7 gates) and `VERSION` / `CHANGELOG.md` are bumped.
+2. `git tag vX.Y.Z.W` on the release commit; `git push --tags`.
+
+On the server, deploy the tag:
+
+```bash
+cd /var/www/Co-study
+git fetch --tags
+git checkout vX.Y.Z.W          # deploy an immutable tag, not a moving branch
+npm ci --omit=dev
+pm2 reload co-study            # zero-config restart; note instances:1 = a brief socket drop
+npm run verify:deploy -- https://your-domain.com
+pm2 status
+```
+
+If `verify:deploy` fails, roll back immediately:
+
+```bash
+git checkout vPREVIOUS.TAG
+npm ci --omit=dev
+pm2 reload co-study
+npm run verify:deploy -- https://your-domain.com
 ```
 
 ## Notes
