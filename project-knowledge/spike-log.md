@@ -406,3 +406,29 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 **Open questions for Aziz:**
 1. Real-SFU camera delegation is integration-tested at the header level but needs one manual deploy-time QA pass (fake SFU never calls getUserMedia).
 2. `connect-src 'self'` degrades legacy-WebKit socket.io to same-origin polling — acceptable, or pin an explicit ws/wss same-origin pair?
+
+## 2026-07-02 — Production-launch roadmap: Phases 1–5 landed (out-of-spike)
+
+**Goal for this session:** Assess repo status, produce a 10-phase production plan, then execute every phase that doesn't need Aziz's VM/domain/physical devices.
+
+**What worked:**
+- Repo was in strong shape: v1.1.0.0 released on `feat/landing-redesign` (10 ahead of main, green), Docker/PM2/Nginx/DEPLOYMENT.md all present. Merged as PR #10 → main.
+- **P1 leak fixed (PR #11):** `GET /api/rooms/:roomId` returned the full snapshot (chat, participants, board) to anyone with a room code. Added `publicRoomSnapshot()` returning only join-preview fields; trimmed for all rooms. TDD: regression test written first, watched it fail on the leaked chat line, then went green. Migrated 4 legacy tests from HTTP reads to `join-room` acks. Rode along an `npm audit fix` (ws DoS GHSA-96hv-2xvq-fx4p) that was red-lighting main's CI.
+- **Prelaunch batch (PR #12):** create-room now `socket.timeout(8000).emit` with a bilingual retry error (smoke test kills the server mid-create); new bilingual PDPL `/privacy` page (light+dark verified, RTL-reviewed); removed dead `#journal` nav link.
+- **CI parity (PR #13):** ci.yml now runs all 7 `test:ci` gates (typecheck/lint/deadcode were unenforced); added `.env.example` (9 vars) + tag-based Release Checklist in DEPLOYMENT.md; `.env` gitignored.
+- **Image payload (PR #14):** 8 landing photos → resized WebP + JPEG fallback via `<picture>`. Modern browsers: ~1.49MB → ~422KB (−1.07MB).
+
+**What broke:**
+- knip (deadcode gate) OOM'd with "Array buffer allocation failed" — oxc-parser needs one large *contiguous* ArrayBuffer, which failed under address-space fragmentation from leftover test workers (18GB RAM was free, so not true OOM). Freeing processes fixed it; it's clean on Linux CI.
+- **Mistake to remember:** my process-cleanup regex (`server\.js|playwright|...`) was too broad and killed 5 of Aziz's OWN dev servers (lifelog-app-tauri, azizme.com ×2, HalaI_invoice, hala-nafs jest) because Next.js paths contain `start-server.js`. Only ever match on the specific project path (`E:\Co-study` / `cwd`) when bulk-killing node processes.
+
+**What I changed:**
+- Branches/PRs: #10 merged; #11 (room-snapshot-privacy), #12 (prelaunch-batch), #13 (ci-gate-parity), #14 (landing-image-payload) open. Stack order for merge: 11, then 12 → 13 → 14.
+
+**Next session starts with:**
+- Aziz merges PRs #11–#14 (11 first — carries the audit fix; then the 12→13→14 stack). Then Phases 6–10: provision a Gulf-region VM (Lightsail Bahrain ~$12/mo recommended), set env per `.env.example`, wire managed TURN (Metered/Cloudflare), run the production QA matrix on two cellular carriers.
+
+**Open questions for Aziz:**
+1. Restart your 5 dev servers I accidentally killed (see above) — sorry.
+2. Hosting: try Oracle Jeddah free tier first, or go straight to Lightsail Bahrain?
+3. Webfont trim (self-host WOFF2) — worth a follow-up, or leave the Google Fonts request as-is for launch?
