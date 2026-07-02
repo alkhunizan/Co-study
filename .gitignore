@@ -7,3 +7,5 @@ data/rooms.json.tmp
 data/backups/
 playwright-report/
 test-results/
+output/
+videos/hero/source/

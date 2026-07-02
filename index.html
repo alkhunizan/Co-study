@@ -727,7 +727,7 @@
         <div class="chat-container">
             <div class="chat-msgs" id="chat-msgs"></div>
             <form class="chat-input-area" id="chat-form">
-                <input type="text" class="chat-input" id="chat-input" data-lang-placeholder="chatPlaceholder" placeholder="Type a message..." disabled>
+                <input type="text" class="chat-input" id="chat-input" maxlength="500" data-lang-placeholder="chatPlaceholder" placeholder="Type a message..." disabled>
                 <button class="btn-send" id="chat-send" type="submit" disabled>➤</button>
             </form>
         </div>
@@ -950,7 +950,7 @@
             aiSfuUnavailable: 'AI focus monitoring is available in mesh rooms only.'
         },
         ar: {
-            pageTitle: 'هلا ستدي | غرفة تركيز',
+            pageTitle: 'هلاستدي | غرفة تركيز',
             themeToggleTitle: 'تبديل المظهر',
             shareRoomTitle: 'مشاركة رابط الغرفة',
             todoTitle: 'اللوحة المشتركة',
@@ -978,7 +978,7 @@
             scheduleCadenceWeekdays: 'الأحد - الخميس',
             scheduleCadenceDaily: 'يوميًا',
             scheduleCadenceWeekly: 'أسبوعيًا',
-            inviteShareTitle: 'انضم إلى غرفة هلا ستدي المجدولة',
+            inviteShareTitle: 'انضم إلى غرفة هلاستدي المجدولة',
             inviteRoomCodeLabel: 'رمز الغرفة',
             inviteNextLabel: 'الجلسة القادمة',
             inviteCadenceLabel: 'التكرار',
@@ -4018,7 +4018,7 @@
         } else {
             joinRoomInput.value = generateRoomCode();
         }
-        const savedName = localStorage.getItem('coStudyName') || '';
+        const savedName = localStorage.getItem('halastudyName') || '';
         if (savedName) joinNameInput.value = savedName;
         showChatPlaceholder();
         updateDisp();

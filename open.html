@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halastudy | Open a room</title>
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/design-system/landing.css">
+</head>
+<body class="is-open-page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Halastudy home">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <div class="topbar-right">
+      <div class="lang-switch" role="tablist" aria-label="Language">
+        <button type="button" id="lang-en" data-lang-value="en">EN</button>
+        <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
+      </div>
+      <button class="icon-btn" id="theme-toggle" data-lang-title="themeToggleTitle" aria-label="Toggle theme" title="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="fullpage">
+    <section class="page-section" data-page="0">
+      <main class="form-shell">
+        <div class="form-intro">
+          <h1>
+            <span data-lang="chooserTitle">اختر طريقتك</span>
+          </h1>
+          <p data-lang="chooserDesc">افتح غرفة جديدة أو ادخل وحدة شغّالة.</p>
+          <div class="choice-stack">
+            <button type="button" class="choice-card active" data-choice="create" aria-pressed="true">
+              <span class="choice-icon" aria-hidden="true">✦</span>
+              <span class="choice-text">
+                <h3 data-lang="createTitle">افتح غرفة</h3>
+                <p data-lang="createDesc">اسم، وكلمة مرور اختيارية، وجدولة اختيارية.</p>
+              </span>
+            </button>
+            <button type="button" class="choice-card" data-choice="join" aria-pressed="false">
+              <span class="choice-icon" aria-hidden="true">➤</span>
+              <span class="choice-text">
+                <h3 data-lang="joinTitle">ادخل غرفة</h3>
+                <p data-lang="joinDesc">عندك رمز من مجموعتك؟ ادخله هنا.</p>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-column">
+          <form class="form-card" id="create-form" autocomplete="off" novalidate>
+            <h3 class="form-title" data-lang="createFormTitle">غرفة تركيز جديدة</h3>
+            <div class="input-group">
+              <label for="room-name" data-lang="labelRoomName">اسم الغرفة</label>
+              <input type="text" id="room-name" name="roomName" maxlength="48" data-lang-placeholder="placeholderRoomName" placeholder="مثال: جلسة عمل عميق" autocomplete="organization" required>
+            </div>
+            <div class="input-group">
+              <label data-lang="labelMediaMode">وضع وسائط الغرفة</label>
+              <div class="mode-picker" id="media-mode-picker" role="radiogroup" aria-label="Room media mode">
+                <button type="button" class="mode-option active" data-media-mode="mesh" aria-checked="true">
+                  <span class="mode-option-title" data-lang="mediaModeMeshTitle">غرفة عادية</span>
+                  <span class="mode-option-desc" id="media-mode-mesh-desc">موصى بها لما يصل إلى 4 أشخاص. تستخدم فيديو مباشرًا بين المتصفحات.</span>
+                </button>
+                <button type="button" class="mode-option" id="media-mode-sfu" data-media-mode="sfu" aria-checked="false" hidden>
+                  <span class="mode-option-title" data-lang="mediaModeSfuTitle">غرفة كبيرة</span>
+                  <span class="mode-option-desc" data-lang="mediaModeSfuDesc">تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.</span>
+                </button>
+              </div>
+            </div>
+            <div class="checkbox-line">
+              <input type="checkbox" id="require-password">
+              <label for="require-password" data-lang="labelRequirePassword">تفعيل كلمة مرور</label>
+            </div>
+            <div class="input-group">
+              <label for="room-password" data-lang="labelPassword">كلمة مرور الدخول</label>
+              <input type="password" id="room-password" name="roomPassword" maxlength="64" data-lang-placeholder="placeholderPassword" placeholder="ضع كلمة مرور للغرفة" autocomplete="new-password" disabled>
+            </div>
+            <p class="form-note" data-lang="notePassword">لن يتمكن من دخول الغرفة إلا من يملك كلمة المرور.</p>
+            <div class="checkbox-line">
+              <input type="checkbox" id="enable-schedule">
+              <label for="enable-schedule" data-lang="labelEnableSchedule">اجعلها غرفة مجدولة</label>
+            </div>
+            <div class="schedule-panel" id="schedule-fields" hidden>
+              <p class="form-note schedule-note" data-lang="scheduleNote">تستخدم توقيت الرياض (غرينتش+3). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.</p>
+              <div class="schedule-grid">
+                <div class="input-group">
+                  <label for="schedule-date" data-lang="labelScheduleDate">تاريخ أول جلسة</label>
+                  <input type="date" id="schedule-date" name="scheduleDate">
+                </div>
+                <div class="input-group">
+                  <label for="schedule-time" data-lang="labelScheduleTime">وقت البداية</label>
+                  <input type="time" id="schedule-time" name="scheduleTime">
+                </div>
+                <div class="input-group">
+                  <label for="schedule-cadence" data-lang="labelScheduleCadence">التكرار</label>
+                  <select id="schedule-cadence" name="scheduleCadence">
+                    <option value="once" data-lang="scheduleCadenceOnce">مرة واحدة</option>
+                    <option value="weekdays" data-lang="scheduleCadenceWeekdays">الأحد - الخميس</option>
+                    <option value="daily" data-lang="scheduleCadenceDaily">يوميًا</option>
+                    <option value="weekly" data-lang="scheduleCadenceWeekly">أسبوعيًا</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label for="schedule-focus" data-lang="labelScheduleFocus">دقائق التركيز</label>
+                  <input type="number" id="schedule-focus" name="scheduleFocus" min="1" max="240" value="25">
+                </div>
+                <div class="input-group">
+                  <label for="schedule-break" data-lang="labelScheduleBreak">دقائق الاستراحة</label>
+                  <input type="number" id="schedule-break" name="scheduleBreak" min="1" max="120" value="5">
+                </div>
+                <div class="input-group span-2">
+                  <label for="schedule-goal-template" data-lang="labelScheduleGoal">هدف اللوحة عند البداية</label>
+                  <input type="text" id="schedule-goal-template" name="scheduleGoalTemplate" maxlength="80" data-lang-placeholder="placeholderScheduleGoal" placeholder="مثال: إنهاء عرض الإطلاق">
+                </div>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" data-lang="btnCreateRoom">افتح الغرفة</button>
+            </div>
+            <p class="form-feedback" id="create-feedback"></p>
+            <div class="result-box" id="create-result" hidden>
+              <div class="result-code" id="result-code" data-force-ltr></div>
+              <p data-lang="resultDesc">شارك هذا الرمز مع شركائك ليدخلوا إلى الغرفة مباشرة.</p>
+              <div class="result-schedule" id="result-schedule" hidden>
+                <div class="result-schedule-summary" id="result-schedule-summary"></div>
+                <div class="result-actions">
+                  <a class="btn btn-secondary" id="result-whatsapp-link" href="#" target="_blank" rel="noopener" data-lang="btnWhatsappInvite">دعوة واتساب</a>
+                  <button type="button" class="btn btn-secondary" id="result-calendar-btn" data-lang="btnAddCalendar">أضف إلى التقويم</button>
+                </div>
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-enter-room" data-lang="btnEnterRoom">الدخول إلى الغرفة</button>
+            </div>
+          </form>
+
+          <form class="form-card" id="join-form" hidden autocomplete="off" novalidate>
+            <h3 class="form-title" data-lang="joinFormTitle">الدخول إلى غرفة مذاكرة</h3>
+            <div class="input-group">
+              <label for="join-code" data-lang="labelJoinCode">رمز الغرفة</label>
+              <input type="text" id="join-code" name="roomCode" maxlength="10" data-lang-placeholder="placeholderJoinCode" placeholder="ABC123" autocomplete="off" data-force-ltr required>
+            </div>
+            <div class="room-preview" id="join-room-preview" hidden>
+              <div class="room-preview-name" id="join-room-preview-name">Room</div>
+              <div class="room-preview-badges">
+                <span class="room-preview-badge" id="join-room-preview-mode">Mesh room</span>
+                <span class="room-preview-badge" id="join-room-preview-count">0 / 4 people</span>
+                <span class="room-preview-badge" id="join-room-preview-access">Open access</span>
+              </div>
+              <p class="room-preview-note" id="join-room-preview-note"></p>
+              <p class="room-preview-warning" id="join-room-preview-warning"></p>
+            </div>
+            <div class="input-group">
+              <label for="join-password" data-lang="labelJoinPassword">كلمة مرور الغرفة (عند الحاجة)</label>
+              <input type="password" id="join-password" name="roomPassword" maxlength="64" data-lang-placeholder="placeholderJoinPassword" placeholder="أدخل كلمة المرور إذا كانت الغرفة محمية" autocomplete="current-password">
+            </div>
+            <p class="form-note" data-lang="noteJoin">سيتم نقلك إلى الغرفة بعدها لتأكيد اسمك داخل الجلسة.</p>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" data-lang="btnJoinRoom">دخول الغرفة</button>
+            </div>
+            <p class="form-feedback" id="join-feedback"></p>
+          </form>
+        </div>
+      </main>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <div>
+      <span data-lang="footerTag">هلاستدي · غرفة هادية. مفتوحة طول الليل.</span>
+    </div>
+    <div class="links">
+      <a href="/" aria-label="Halastudy home">← Halastudy</a>
+    </div>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    /* -------------------------------------------------------------------
+     * Halastudy storage-key migration (was: coStudy*).
+     * One-shot copy-forward. Runs before any storage reads. Idempotent —
+     * a sentinel flag prevents re-running. Old keys are preserved (read-only)
+     * for one release so a user who briefly downgrades doesn't lose state.
+     * Drop the old keys + this block after the next release ships clean.
+     * ----------------------------------------------------------------- */
+    (function migrateCoStudyToHalastudy() {
+        try {
+            const SENTINEL = 'halastudy:migratedFromCoStudy:v1';
+            if (localStorage.getItem(SENTINEL)) return;
+            const localMap = {
+                coStudyLang:          'halastudyLang',
+                coStudyStatusState:   'halastudyStatusState',
+                coStudyAmbientState:  'halastudyAmbientState',
+                coStudyFocusStats:    'halastudyFocusStats',
+                coStudyClientId:      'halastudyClientId',
+                coStudyName:          'halastudyName',
+            };
+            const sessionMap = {
+                coStudyRoomPassword:  'halastudyRoomPassword',
+                coStudyRoomCode:      'halastudyRoomCode',
+            };
+            Object.entries(localMap).forEach(([oldK, newK]) => {
+                const v = localStorage.getItem(oldK);
+                if (v !== null && localStorage.getItem(newK) === null) {
+                    localStorage.setItem(newK, v);
+                }
+            });
+            Object.entries(sessionMap).forEach(([oldK, newK]) => {
+                const v = sessionStorage.getItem(oldK);
+                if (v !== null && sessionStorage.getItem(newK) === null) {
+                    sessionStorage.setItem(newK, v);
+                }
+            });
+            localStorage.setItem(SENTINEL, String(Date.now()));
+        } catch (e) { /* storage unavailable — skip */ }
+    })();
+
+    (function() {
+        'use strict';
+
+        const LANG_STORAGE_KEY = 'halastudyLang';
+        const translations = {
+            en: {
+                pageTitle: 'Halastudy | A quiet room. Open all night.',
+                themeToggleTitle: 'Toggle theme',
+                chooserTitle: 'Choose your flow',
+                chooserDesc: 'Open a new room or join one that’s already running.',
+                createTitle: 'Open a room',
+                createDesc: 'Set a name, optional password, optional schedule.',
+                joinTitle: 'Join a room',
+                joinDesc: 'Got a code from your study group? Drop it in.',
+                createFormTitle: 'New focus room',
+                labelRoomName: 'Room name',
+                placeholderRoomName: 'e.g. Deep work · 9pm crew',
+                labelMediaMode: 'Room media mode',
+                mediaModeMeshTitle: 'Standard room',
+                mediaModeMeshDesc: 'Recommended for up to {limit} people. Uses browser-to-browser video.',
+                mediaModeSfuTitle: 'Large room',
+                mediaModeSfuDesc: 'Uses the room media service for larger groups.',
+                mediaModeMeshBadge: 'Mesh room',
+                mediaModeSfuBadge: 'Large room',
+                roomAccessOpen: 'Open access',
+                roomAccessProtected: 'Password protected',
+                roomPreviewMeshNote: 'Best for up to {limit} people before video quality starts dropping.',
+                roomPreviewSfuNote: 'Media runs in the managed room session for larger groups.',
+                labelRequirePassword: 'Require password',
+                labelPassword: 'Access password',
+                placeholderPassword: 'Set a room password',
+                notePassword: 'Only people with the password will be able to join this room.',
+                labelEnableSchedule: 'Make this a scheduled room',
+                scheduleNote: 'Uses Riyadh time (GMT+3). Weekdays follow the Saudi Sunday-Thursday workweek.',
+                labelScheduleDate: 'First session date',
+                labelScheduleTime: 'Start time',
+                labelScheduleCadence: 'Cadence',
+                scheduleCadenceOnce: 'One time',
+                scheduleCadenceWeekdays: 'Sun-Thu',
+                scheduleCadenceDaily: 'Daily',
+                scheduleCadenceWeekly: 'Weekly',
+                labelScheduleFocus: 'Focus minutes',
+                labelScheduleBreak: 'Break minutes',
+                labelScheduleGoal: 'Starting board goal',
+                placeholderScheduleGoal: 'Example: Finish the product launch deck',
+                btnCreateRoom: 'Open room',
+                resultDesc: 'Share this code with your study partners to bring them into the room.',
+                btnWhatsappInvite: 'WhatsApp invite',
+                btnAddCalendar: 'Add to calendar',
+                btnEnterRoom: 'Enter room',
+                scheduleTimezoneLabel: 'Riyadh time',
+                scheduleNextLabel: 'Next session',
+                scheduleLiveLabel: 'Live now',
+                scheduleTimerPresetLabel: 'Timer',
+                inviteShareTitle: 'Join my scheduled Halastudy room',
+                inviteRoomCodeLabel: 'Room code',
+                inviteNextLabel: 'Next session',
+                inviteCadenceLabel: 'Cadence',
+                errorPasswordRequired: 'Please enter a room password.',
+                errorScheduleInvalid: 'Please add a valid Riyadh date and time for this scheduled room.',
+                joinFormTitle: 'Join a study room',
+                labelJoinCode: 'Room code',
+                placeholderJoinCode: 'ABC123',
+                labelJoinPassword: 'Room password (if needed)',
+                placeholderJoinPassword: 'Enter the password if the room is protected',
+                noteJoin: 'You will be taken into the room next, where you can confirm your nickname.',
+                btnJoinRoom: 'Join room',
+                errorNoName: 'Please enter a room name.',
+                errorNoCode: 'Please enter a room code.',
+                errorCheckingRoom: 'Checking room...',
+                errorCreating: 'Creating room...',
+                errorCreateFailed: 'Could not create the room right now. Please try again.',
+                errorJoinLookupFailed: 'Unable to verify this room right now. Please try again.',
+                errorRoomNotFound: 'That room code does not exist.',
+                errorRoomFull: 'This mesh room is full. Ask the host to create a large room.',
+                errorMediaUnavailable: 'Large-room media is unavailable on this deployment right now.',
+                errorMediaModeInvalid: 'That room media mode is not supported.',
+                errorRealtimeUnavailable: 'Realtime service is not available right now.',
+                successCreated: 'Room created successfully.',
+                redirecting: 'Redirecting...',
+                errorRoomCodeGeneration: 'Could not generate a room code. Please try again.',
+                rateLimited: 'Too many attempts. Slow down and try again in a moment.'
+            },
+            ar: {
+                pageTitle: 'هلاستدي | غرفة هادئة. مفتوحة طول الليل.',
+                themeToggleTitle: 'تبديل المظهر',
+                chooserTitle: 'اختر طريقتك',
+                chooserDesc: 'افتح غرفة جديدة أو ادخل وحدة شغّالة.',
+                createTitle: 'افتح غرفة',
+                createDesc: 'اسم، وكلمة مرور اختيارية، وجدولة اختيارية.',
+                joinTitle: 'ادخل غرفة',
+                joinDesc: 'عندك رمز من مجموعتك؟ ادخله هنا.',
+                createFormTitle: 'غرفة تركيز جديدة',
+                labelRoomName: 'اسم الغرفة',
+                placeholderRoomName: 'مثال: جلسة عمل عميق',
+                labelMediaMode: 'وضع وسائط الغرفة',
+                mediaModeMeshTitle: 'غرفة عادية',
+                mediaModeMeshDesc: 'موصى بها لما يصل إلى {limit} أشخاص. تستخدم فيديو مباشرًا بين المتصفحات.',
+                mediaModeSfuTitle: 'غرفة كبيرة',
+                mediaModeSfuDesc: 'تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.',
+                mediaModeMeshBadge: 'غرفة Mesh',
+                mediaModeSfuBadge: 'غرفة كبيرة',
+                roomAccessOpen: 'دخول مفتوح',
+                roomAccessProtected: 'محمية بكلمة مرور',
+                roomPreviewMeshNote: 'مناسبة لما يصل إلى {limit} أشخاص قبل أن تبدأ جودة الفيديو بالانخفاض.',
+                roomPreviewSfuNote: 'تعمل الوسائط داخل الجلسة المُدارة للغرفة للمجموعات الأكبر.',
+                labelRequirePassword: 'تفعيل كلمة مرور',
+                labelPassword: 'كلمة مرور الدخول',
+                placeholderPassword: 'ضع كلمة مرور للغرفة',
+                notePassword: 'لن يتمكن من دخول الغرفة إلا من يملك كلمة المرور.',
+                labelEnableSchedule: 'اجعلها غرفة مجدولة',
+                scheduleNote: 'تستخدم توقيت الرياض (غرينتش+3). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.',
+                labelScheduleDate: 'تاريخ أول جلسة',
+                labelScheduleTime: 'وقت البداية',
+                labelScheduleCadence: 'التكرار',
+                scheduleCadenceOnce: 'مرة واحدة',
+                scheduleCadenceWeekdays: 'الأحد - الخميس',
+                scheduleCadenceDaily: 'يوميًا',
+                scheduleCadenceWeekly: 'أسبوعيًا',
+                labelScheduleFocus: 'دقائق التركيز',
+                labelScheduleBreak: 'دقائق الاستراحة',
+                labelScheduleGoal: 'هدف اللوحة عند البداية',
+                placeholderScheduleGoal: 'مثال: إنهاء عرض الإطلاق',
+                btnCreateRoom: 'افتح الغرفة',
+                resultDesc: 'شارك هذا الرمز مع شركائك ليدخلوا إلى الغرفة مباشرة.',
+                btnWhatsappInvite: 'دعوة واتساب',
+                btnAddCalendar: 'أضف إلى التقويم',
+                btnEnterRoom: 'الدخول إلى الغرفة',
+                scheduleTimezoneLabel: 'توقيت الرياض',
+                scheduleNextLabel: 'الجلسة القادمة',
+                scheduleLiveLabel: 'الجلسة جارية الآن',
+                scheduleTimerPresetLabel: 'المؤقت',
+                inviteShareTitle: 'انضم إلى غرفة هلاستدي المجدولة',
+                inviteRoomCodeLabel: 'رمز الغرفة',
+                inviteNextLabel: 'الجلسة القادمة',
+                inviteCadenceLabel: 'التكرار',
+                errorPasswordRequired: 'فضلاً أدخل كلمة مرور للغرفة.',
+                errorScheduleInvalid: 'أضف تاريخًا ووقتًا صحيحين بتوقيت الرياض لهذه الغرفة المجدولة.',
+                joinFormTitle: 'الدخول إلى غرفة مذاكرة',
+                labelJoinCode: 'رمز الغرفة',
+                placeholderJoinCode: 'ABC123',
+                labelJoinPassword: 'كلمة مرور الغرفة (عند الحاجة)',
+                placeholderJoinPassword: 'أدخل كلمة المرور إذا كانت الغرفة محمية',
+                noteJoin: 'سيتم نقلك إلى الغرفة بعدها لتأكيد اسمك داخل الجلسة.',
+                btnJoinRoom: 'دخول الغرفة',
+                errorNoName: 'فضلاً أدخل اسم الغرفة.',
+                errorNoCode: 'فضلاً أدخل رمز الغرفة.',
+                errorCheckingRoom: 'جارٍ التحقق من الغرفة...',
+                errorCreating: 'جارٍ إنشاء الغرفة...',
+                errorCreateFailed: 'تعذر إنشاء الغرفة حالياً. حاول مرة أخرى.',
+                errorJoinLookupFailed: 'تعذر التحقق من هذه الغرفة حالياً. حاول مرة أخرى.',
+                errorRoomNotFound: 'رمز الغرفة هذا غير موجود.',
+                errorRoomFull: 'غرفة الـ Mesh هذه ممتلئة. اطلب من المضيف إنشاء غرفة كبيرة.',
+                errorMediaUnavailable: 'وسائط الغرف الكبيرة غير متاحة في هذا النشر حالياً.',
+                errorMediaModeInvalid: 'وضع وسائط الغرفة هذا غير مدعوم.',
+                errorRealtimeUnavailable: 'خدمة الاتصال الفوري غير متاحة حالياً.',
+                successCreated: 'تم إنشاء الغرفة بنجاح.',
+                redirecting: 'جارٍ التحويل...',
+                errorRoomCodeGeneration: 'تعذر إنشاء رمز الغرفة. حاول مرة أخرى.',
+                rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.'
+            }
+        };
+        const errorKeyMap = {
+            ROOM_NAME_REQUIRED: 'errorNoName',
+            ROOM_CODE_GENERATION_FAILED: 'errorRoomCodeGeneration',
+            PASSWORD_HASH_FAILED: 'errorCreateFailed',
+            ROOM_MEDIA_MODE_INVALID: 'errorMediaModeInvalid',
+            ROOM_MEDIA_UNAVAILABLE: 'errorMediaUnavailable',
+            ROOM_FULL: 'errorRoomFull',
+            SCHEDULE_INVALID: 'errorScheduleInvalid',
+            RATE_LIMITED: 'rateLimited'
+        };
+
+        const MEDIA_MODE_MESH = 'mesh';
+        const MEDIA_MODE_SFU = 'sfu';
+        const DEFAULT_MESH_PARTICIPANT_LIMIT = 4;
+        const DEFAULT_SCHEDULE_TIMEZONE = 'Asia/Riyadh';
+        const DEFAULT_SCHEDULE_CADENCE = 'weekdays';
+        const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000;
+        const SCHEDULE_DAY_MS = 24 * 60 * 60 * 1000;
+        const SCHEDULE_JOIN_EARLY_WINDOW_MS = 15 * 60 * 1000;
+        const MAX_SCHEDULE_LOOKAHEAD_MS = 370 * SCHEDULE_DAY_MS;
+        const MAX_SCHEDULE_ITERATIONS = 5000;
+        let currentLang = getStoredLanguage();
+        let currentMode = 'create';
+        let createdRoomCode = '';
+        let createdRoomPassword = '';
+        let createdRoomData = null;
+        let selectedMediaMode = MEDIA_MODE_MESH;
+        let runtimeConfig = {
+            sfuAvailable: false,
+            supportedMediaModes: [MEDIA_MODE_MESH],
+            meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT
+        };
+        let joinPreviewRoom = null;
+        let landingScheduleRefreshTimer = null;
+        let isDark = false;
+        try { isDark = localStorage.getItem('halastudyTheme') === 'dark'; document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+
+        const choiceCards = document.querySelectorAll('[data-choice]');
+        const createForm = document.getElementById('create-form');
+        const joinForm = document.getElementById('join-form');
+        const requirePasswordCheckbox = document.getElementById('require-password');
+        const roomPasswordInput = document.getElementById('room-password');
+        const enableScheduleCheckbox = document.getElementById('enable-schedule');
+        const scheduleFields = document.getElementById('schedule-fields');
+        const scheduleDateInput = document.getElementById('schedule-date');
+        const scheduleTimeInput = document.getElementById('schedule-time');
+        const scheduleCadenceInput = document.getElementById('schedule-cadence');
+        const scheduleFocusInput = document.getElementById('schedule-focus');
+        const scheduleBreakInput = document.getElementById('schedule-break');
+        const scheduleGoalTemplateInput = document.getElementById('schedule-goal-template');
+        const joinCodeInput = document.getElementById('join-code');
+        const mediaModeButtons = document.querySelectorAll('[data-media-mode]');
+        const mediaModeMeshDesc = document.getElementById('media-mode-mesh-desc');
+        const mediaModeSfuButton = document.getElementById('media-mode-sfu');
+        const joinRoomPreview = document.getElementById('join-room-preview');
+        const joinRoomPreviewName = document.getElementById('join-room-preview-name');
+        const joinRoomPreviewMode = document.getElementById('join-room-preview-mode');
+        const joinRoomPreviewCount = document.getElementById('join-room-preview-count');
+        const joinRoomPreviewAccess = document.getElementById('join-room-preview-access');
+        const joinRoomPreviewNote = document.getElementById('join-room-preview-note');
+        const joinRoomPreviewWarning = document.getElementById('join-room-preview-warning');
+        const resultSchedule = document.getElementById('result-schedule');
+        const resultScheduleSummary = document.getElementById('result-schedule-summary');
+        const resultWhatsappLink = document.getElementById('result-whatsapp-link');
+        const resultCalendarBtn = document.getElementById('result-calendar-btn');
+        const languageButtons = document.querySelectorAll('[data-lang-value]');
+        const themeToggle = document.getElementById('theme-toggle');
+
+        let socket = null;
+        if (window.io) {
+            socket = io();
+        }
+
+        function getStoredLanguage() {
+            try {
+                return localStorage.getItem(LANG_STORAGE_KEY) === 'en' ? 'en' : 'ar';
+            } catch (_err) {
+                return 'en';
+            }
+        }
+
+        function setStoredLanguage(lang) {
+            try {
+                localStorage.setItem(LANG_STORAGE_KEY, lang);
+            } catch (_err) {}
+        }
+
+        function copy() {
+            return translations[currentLang] || translations.en;
+        }
+
+        function interpolate(template, values = {}) {
+            return `${template || ''}`.replace(/\{(\w+)\}/g, (_match, key) => {
+                return values[key] === undefined ? '' : String(values[key]);
+            });
+        }
+
+        function normalizeMediaMode(mode) {
+            return mode === MEDIA_MODE_SFU ? MEDIA_MODE_SFU : MEDIA_MODE_MESH;
+        }
+
+        function getMeshParticipantLimit() {
+            return Number.isInteger(runtimeConfig.meshParticipantLimit) && runtimeConfig.meshParticipantLimit > 0
+                ? runtimeConfig.meshParticipantLimit
+                : DEFAULT_MESH_PARTICIPANT_LIMIT;
+        }
+
+        function formatMediaModeLabel(mode) {
+            return normalizeMediaMode(mode) === MEDIA_MODE_SFU
+                ? copy().mediaModeSfuBadge
+                : copy().mediaModeMeshBadge;
+        }
+
+        function formatParticipantCount(count, limit) {
+            const safeCount = Number.isInteger(count) && count >= 0 ? count : 0;
+            const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : null;
+            const total = safeLimit ? `${safeCount} / ${safeLimit}` : `${safeCount}`;
+            return currentLang === 'ar' ? `${total} مشاركين` : `${total} people`;
+        }
+
+        function getRiyadhNowParts() {
+            const now = new Date(Date.now() + RIYADH_OFFSET_MS);
+            return {
+                year: now.getUTCFullYear(),
+                month: now.getUTCMonth() + 1,
+                day: now.getUTCDate(),
+                hour: now.getUTCHours(),
+                minute: now.getUTCMinutes()
+            };
+        }
+
+        function shiftRiyadhDate(parts, days) {
+            const probe = new Date(Date.UTC(parts.year, parts.month - 1, parts.day) + (days * 24 * 60 * 60 * 1000));
+            return {
+                year: probe.getUTCFullYear(),
+                month: probe.getUTCMonth() + 1,
+                day: probe.getUTCDate(),
+                dayOfWeek: probe.getUTCDay()
+            };
+        }
+
+        function formatDateValue(parts) {
+            return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+        }
+
+        function formatTimeValue(hour, minute) {
+            return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        }
+
+        function setDefaultScheduleFields() {
+            if (!scheduleDateInput || !scheduleTimeInput || !scheduleCadenceInput) {
+                return;
+            }
+
+            const now = getRiyadhNowParts();
+            const roundedMinute = now.minute <= 30 ? 30 : 0;
+            let nextHour = now.hour;
+            let nextDate = {
+                year: now.year,
+                month: now.month,
+                day: now.day
+            };
+
+            if (roundedMinute === 0) {
+                nextHour += 1;
+            }
+            if (nextHour >= 24) {
+                nextHour = nextHour % 24;
+                nextDate = shiftRiyadhDate(nextDate, 1);
+            }
+
+            scheduleDateInput.value = formatDateValue(nextDate);
+            scheduleTimeInput.value = formatTimeValue(nextHour, roundedMinute);
+            scheduleCadenceInput.value = DEFAULT_SCHEDULE_CADENCE;
+            scheduleFocusInput.value = '25';
+            scheduleBreakInput.value = '5';
+        }
+
+        function toggleScheduleFields() {
+            if (!enableScheduleCheckbox || !scheduleFields) {
+                return;
+            }
+            scheduleFields.hidden = !enableScheduleCheckbox.checked;
+        }
+
+        function formatScheduleCadenceLabel(cadence) {
+            const normalized = typeof cadence === 'string' ? cadence.trim().toLowerCase() : DEFAULT_SCHEDULE_CADENCE;
+            if (normalized === 'once') return copy().scheduleCadenceOnce;
+            if (normalized === 'daily') return copy().scheduleCadenceDaily;
+            if (normalized === 'weekly') return copy().scheduleCadenceWeekly;
+            return copy().scheduleCadenceWeekdays;
+        }
+
+        function formatRiyadhDateTime(timestamp) {
+            if (!timestamp) return '';
+            try {
+                return new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-SA', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                    timeZone: DEFAULT_SCHEDULE_TIMEZONE
+                }).format(new Date(timestamp));
+            } catch (_error) {
+                return new Date(timestamp).toISOString();
+            }
+        }
+
+        function parseScheduleDateString(value) {
+            if (typeof value !== 'string') return null;
+            const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!match) return null;
+
+            const year = Number.parseInt(match[1], 10);
+            const month = Number.parseInt(match[2], 10);
+            const day = Number.parseInt(match[3], 10);
+            const probe = new Date(Date.UTC(year, month - 1, day));
+            if (
+                probe.getUTCFullYear() !== year
+                || probe.getUTCMonth() !== month - 1
+                || probe.getUTCDate() !== day
+            ) {
+                return null;
+            }
+
+            return { year, month, day };
+        }
+
+        function parseScheduleTimeString(value) {
+            if (typeof value !== 'string') return null;
+            const match = value.trim().match(/^(\d{2}):(\d{2})$/);
+            if (!match) return null;
+
+            const hour = Number.parseInt(match[1], 10);
+            const minute = Number.parseInt(match[2], 10);
+            if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+                return null;
+            }
+
+            return { hour, minute };
+        }
+
+        function getRiyadhDatePartsFromTimestamp(timestamp) {
+            const date = new Date(timestamp + RIYADH_OFFSET_MS);
+            return {
+                year: date.getUTCFullYear(),
+                month: date.getUTCMonth() + 1,
+                day: date.getUTCDate(),
+                dayOfWeek: date.getUTCDay()
+            };
+        }
+
+        function timestampFromRiyadhParts(parts) {
+            return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour - 3, parts.minute, 0, 0);
+        }
+
+        function isSaudiWeekday(dayOfWeek) {
+            return dayOfWeek >= 0 && dayOfWeek <= 4;
+        }
+
+        function getScheduleStartTimestamp(schedule) {
+            const dateParts = parseScheduleDateString(schedule && schedule.startDate);
+            const timeParts = parseScheduleTimeString(schedule && schedule.startTime);
+            if (!dateParts || !timeParts) return null;
+            return timestampFromRiyadhParts({
+                year: dateParts.year,
+                month: dateParts.month,
+                day: dateParts.day,
+                hour: timeParts.hour,
+                minute: timeParts.minute
+            });
+        }
+
+        function getScheduleWindowMs(schedule) {
+            const focusMinutes = Number.parseInt(schedule && schedule.focusMinutes, 10) || 25;
+            const breakMinutes = Number.parseInt(schedule && schedule.breakMinutes, 10) || 5;
+            const explicitWindowMinutes = Number.parseInt(schedule && schedule.sessionWindowMinutes, 10) || 0;
+            return Math.max(30, explicitWindowMinutes || (focusMinutes + breakMinutes)) * 60 * 1000;
+        }
+
+        function getNextScheduleOccurrence(schedule, currentTimestamp) {
+            if (!schedule || currentTimestamp === null || currentTimestamp === undefined) {
+                return null;
+            }
+
+            const cadence = typeof schedule.cadence === 'string'
+                ? schedule.cadence.trim().toLowerCase()
+                : DEFAULT_SCHEDULE_CADENCE;
+            if (cadence === 'once') {
+                return null;
+            }
+
+            const currentDate = getRiyadhDatePartsFromTimestamp(currentTimestamp);
+            const timeParts = parseScheduleTimeString(schedule.startTime);
+            if (!timeParts) {
+                return null;
+            }
+
+            if (cadence === 'daily') {
+                const nextDate = shiftRiyadhDate(currentDate, 1);
+                return timestampFromRiyadhParts({
+                    ...nextDate,
+                    hour: timeParts.hour,
+                    minute: timeParts.minute
+                });
+            }
+
+            if (cadence === 'weekly') {
+                const nextDate = shiftRiyadhDate(currentDate, 7);
+                return timestampFromRiyadhParts({
+                    ...nextDate,
+                    hour: timeParts.hour,
+                    minute: timeParts.minute
+                });
+            }
+
+            let nextDate = shiftRiyadhDate(currentDate, 1);
+            while (!isSaudiWeekday(nextDate.dayOfWeek)) {
+                nextDate = shiftRiyadhDate(nextDate, 1);
+            }
+            return timestampFromRiyadhParts({
+                ...nextDate,
+                hour: timeParts.hour,
+                minute: timeParts.minute
+            });
+        }
+
+        function fallbackScheduleRuntimeState(schedule, now = Date.now()) {
+            if (!schedule) {
+                return {
+                    isLiveNow: false,
+                    currentOccurrenceAt: null,
+                    nextOccurrenceAt: null,
+                    countdownTargetAt: null
+                };
+            }
+
+            const durationMs = getScheduleWindowMs(schedule);
+            const activeStart = typeof schedule.currentOccurrenceAt === 'number'
+                ? schedule.currentOccurrenceAt
+                : (typeof schedule.countdownTargetAt === 'number' ? schedule.countdownTargetAt : null);
+
+            if (typeof activeStart === 'number' && now >= activeStart && now < activeStart + durationMs) {
+                return {
+                    isLiveNow: true,
+                    currentOccurrenceAt: schedule.currentOccurrenceAt || activeStart,
+                    nextOccurrenceAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null,
+                    countdownTargetAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null
+                };
+            }
+
+            if (typeof activeStart === 'number' && now < activeStart) {
+                return {
+                    isLiveNow: false,
+                    currentOccurrenceAt: typeof schedule.currentOccurrenceAt === 'number' ? schedule.currentOccurrenceAt : null,
+                    nextOccurrenceAt: typeof schedule.nextOccurrenceAt === 'number' ? schedule.nextOccurrenceAt : null,
+                    countdownTargetAt: activeStart
+                };
+            }
+
+            if (typeof schedule.nextOccurrenceAt === 'number' && schedule.nextOccurrenceAt > now) {
+                return {
+                    isLiveNow: false,
+                    currentOccurrenceAt: null,
+                    nextOccurrenceAt: schedule.nextOccurrenceAt,
+                    countdownTargetAt: schedule.nextOccurrenceAt
+                };
+            }
+
+            return {
+                isLiveNow: false,
+                currentOccurrenceAt: null,
+                nextOccurrenceAt: null,
+                countdownTargetAt: null
+            };
+        }
+
+        function resolveScheduleRuntimeState(schedule, now = Date.now()) {
+            if (!schedule) {
+                return fallbackScheduleRuntimeState(schedule, now);
+            }
+
+            const startedAt = getScheduleStartTimestamp(schedule);
+            if (startedAt === null) {
+                return fallbackScheduleRuntimeState(schedule, now);
+            }
+
+            const sessionWindowMs = getScheduleWindowMs(schedule);
+            let occurrenceAt = startedAt;
+            let iterations = 0;
+
+            while (
+                occurrenceAt !== null
+                && iterations < MAX_SCHEDULE_ITERATIONS
+                && occurrenceAt <= now + MAX_SCHEDULE_LOOKAHEAD_MS
+            ) {
+                const nextOccurrenceAt = getNextScheduleOccurrence(schedule, occurrenceAt);
+                const closeAt = nextOccurrenceAt || (occurrenceAt + sessionWindowMs);
+
+                if (now >= occurrenceAt - SCHEDULE_JOIN_EARLY_WINDOW_MS && now < closeAt) {
+                    return {
+                        isLiveNow: now >= occurrenceAt && now < occurrenceAt + sessionWindowMs,
+                        currentOccurrenceAt: occurrenceAt,
+                        nextOccurrenceAt: nextOccurrenceAt || null,
+                        countdownTargetAt: now < occurrenceAt ? occurrenceAt : (nextOccurrenceAt || null)
+                    };
+                }
+
+                if (occurrenceAt > now) {
+                    return {
+                        isLiveNow: false,
+                        currentOccurrenceAt: null,
+                        nextOccurrenceAt: occurrenceAt,
+                        countdownTargetAt: occurrenceAt
+                    };
+                }
+
+                occurrenceAt = nextOccurrenceAt;
+                iterations += 1;
+            }
+
+            return fallbackScheduleRuntimeState(schedule, now);
+        }
+
+        function buildScheduleSummaryLine(schedule) {
+            if (!schedule) return '';
+            const runtimeState = resolveScheduleRuntimeState(schedule);
+            const nextTarget = runtimeState.countdownTargetAt || runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
+            const summaryBits = [
+                formatScheduleCadenceLabel(schedule.cadence),
+                copy().scheduleTimezoneLabel,
+                `${copy().scheduleTimerPresetLabel}: ${schedule.focusMinutes || 25}/${schedule.breakMinutes || 5}`
+            ];
+
+            if (runtimeState.isLiveNow) {
+                summaryBits.push(copy().scheduleLiveLabel);
+            } else if (nextTarget) {
+                summaryBits.push(`${copy().scheduleNextLabel}: ${formatRiyadhDateTime(nextTarget)}`);
+            }
+
+            return summaryBits.filter(Boolean).join(' · ');
+        }
+
+        function buildRoomLink(roomCode) {
+            return `${window.location.origin}/index.html?room=${encodeURIComponent(roomCode)}`;
+        }
+
+        function escapeIcsText(value) {
+            return `${value || ''}`
+                .replace(/\\/g, '\\\\')
+                .replace(/\r?\n/g, '\\n')
+                .replace(/,/g, '\\,')
+                .replace(/;/g, '\\;');
+        }
+
+        function formatUtcForIcs(timestamp) {
+            const date = new Date(timestamp);
+            const year = date.getUTCFullYear();
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(date.getUTCDate()).padStart(2, '0');
+            const hour = String(date.getUTCHours()).padStart(2, '0');
+            const minute = String(date.getUTCMinutes()).padStart(2, '0');
+            const second = String(date.getUTCSeconds()).padStart(2, '0');
+            return `${year}${month}${day}T${hour}${minute}${second}Z`;
+        }
+
+        function buildCalendarPayload(roomData) {
+            if (!roomData || !roomData.schedule) {
+                return null;
+            }
+            const schedule = roomData.schedule;
+            const runtimeState = resolveScheduleRuntimeState(schedule);
+            const nextStart = runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
+            if (!nextStart) {
+                return null;
+            }
+
+            const durationMinutes = Math.max(30, Number(schedule.focusMinutes || 25) + Number(schedule.breakMinutes || 5));
+            const endAt = nextStart + (durationMinutes * 60 * 1000);
+            const link = buildRoomLink(roomData.roomId || roomData.code);
+            const lines = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//Halastudy//Scheduled Room//EN',
+                'BEGIN:VEVENT',
+                `UID:${escapeIcsText((roomData.roomId || roomData.code || 'room').toLowerCase())}@halastudy`,
+                `DTSTAMP:${formatUtcForIcs(Date.now())}`,
+                `SUMMARY:${escapeIcsText(roomData.name || roomData.roomId || 'Halastudy Session')}`,
+                `DESCRIPTION:${escapeIcsText(`${copy().inviteShareTitle}\n${copy().inviteRoomCodeLabel}: ${roomData.roomId || roomData.code}\n${link}`)}`,
+                `URL:${escapeIcsText(link)}`,
+                `DTSTART:${formatUtcForIcs(nextStart)}`,
+                `DTEND:${formatUtcForIcs(endAt)}`
+            ];
+
+            if (schedule.cadence === 'daily') {
+                lines.push('RRULE:FREQ=DAILY');
+            } else if (schedule.cadence === 'weekly') {
+                lines.push('RRULE:FREQ=WEEKLY');
+            } else if (schedule.cadence === 'weekdays') {
+                lines.push('RRULE:FREQ=WEEKLY;BYDAY=SU,MO,TU,WE,TH');
+            }
+
+            lines.push('END:VEVENT', 'END:VCALENDAR');
+            return `${lines.join('\r\n')}\r\n`;
+        }
+
+        function downloadCalendar(roomData) {
+            const payload = buildCalendarPayload(roomData);
+            if (!payload) return;
+            const blob = new Blob([payload], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${(roomData.roomId || roomData.code || 'halastudy-room').toLowerCase()}-schedule.ics`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function buildWhatsappInviteLink(roomData) {
+            if (!roomData) return '#';
+            const link = buildRoomLink(roomData.roomId || roomData.code);
+            const lines = [
+                copy().inviteShareTitle,
+                roomData.name || roomData.roomId || 'Halastudy',
+                `${copy().inviteRoomCodeLabel}: ${roomData.roomId || roomData.code}`
+            ];
+            if (roomData.schedule) {
+                const runtimeState = resolveScheduleRuntimeState(roomData.schedule);
+                const nextTarget = runtimeState.countdownTargetAt || runtimeState.currentOccurrenceAt || runtimeState.nextOccurrenceAt;
+                if (nextTarget) {
+                    lines.push(`${copy().inviteNextLabel}: ${formatRiyadhDateTime(nextTarget)}`);
+                }
+                lines.push(`${copy().inviteCadenceLabel}: ${formatScheduleCadenceLabel(roomData.schedule.cadence)}`);
+            }
+            lines.push(link);
+            return `https://wa.me/?text=${encodeURIComponent(lines.filter(Boolean).join('\n'))}`;
+        }
+
+        function clearLandingScheduleRefreshTimer() {
+            if (!landingScheduleRefreshTimer) return;
+            clearInterval(landingScheduleRefreshTimer);
+            landingScheduleRefreshTimer = null;
+        }
+
+        function refreshLandingScheduleViews() {
+            if (createdRoomData && createdRoomData.schedule) {
+                renderCreatedSchedule(createdRoomData);
+            }
+            if (joinPreviewRoom && joinPreviewRoom.schedule) {
+                renderJoinPreview(joinPreviewRoom);
+            }
+        }
+
+        function syncLandingScheduleRefreshTimer() {
+            const needsRefresh = !!(
+                (createdRoomData && createdRoomData.schedule)
+                || (joinPreviewRoom && joinPreviewRoom.schedule)
+            );
+
+            if (!needsRefresh) {
+                clearLandingScheduleRefreshTimer();
+                return;
+            }
+
+            if (landingScheduleRefreshTimer) {
+                return;
+            }
+
+            landingScheduleRefreshTimer = setInterval(refreshLandingScheduleViews, 30 * 1000);
+        }
+
+        function renderCreatedSchedule(roomData) {
+            createdRoomData = roomData || null;
+            if (!resultSchedule || !resultScheduleSummary || !resultWhatsappLink || !resultCalendarBtn) {
+                return;
+            }
+
+            if (!roomData || !roomData.schedule) {
+                resultSchedule.hidden = true;
+                resultScheduleSummary.textContent = '';
+                resultWhatsappLink.href = '#';
+                syncLandingScheduleRefreshTimer();
+                return;
+            }
+
+            resultSchedule.hidden = false;
+            resultScheduleSummary.textContent = buildScheduleSummaryLine(roomData.schedule);
+            resultWhatsappLink.href = buildWhatsappInviteLink(roomData);
+            syncLandingScheduleRefreshTimer();
+        }
+
+        function buildCreateSchedulePayload(roomName) {
+            if (!enableScheduleCheckbox || !enableScheduleCheckbox.checked) {
+                return { schedule: null, error: '' };
+            }
+
+            const startDate = scheduleDateInput && scheduleDateInput.value;
+            const startTime = scheduleTimeInput && scheduleTimeInput.value;
+            if (!startDate || !startTime) {
+                return { schedule: null, error: copy().errorScheduleInvalid };
+            }
+
+            return {
+                error: '',
+                schedule: {
+                    title: roomName,
+                    startDate,
+                    startTime,
+                    cadence: scheduleCadenceInput && scheduleCadenceInput.value ? scheduleCadenceInput.value : DEFAULT_SCHEDULE_CADENCE,
+                    focusMinutes: scheduleFocusInput && scheduleFocusInput.value ? scheduleFocusInput.value : '25',
+                    breakMinutes: scheduleBreakInput && scheduleBreakInput.value ? scheduleBreakInput.value : '5',
+                    boardGoalTemplate: scheduleGoalTemplateInput ? scheduleGoalTemplateInput.value.trim() : ''
+                }
+            };
+        }
+
+        function syncMediaModeUi() {
+            mediaModeButtons.forEach((button) => {
+                const mode = normalizeMediaMode(button.dataset.mediaMode);
+                const active = mode === selectedMediaMode;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-checked', active ? 'true' : 'false');
+            });
+            if (mediaModeSfuButton) {
+                mediaModeSfuButton.hidden = !runtimeConfig.sfuAvailable;
+            }
+            if (mediaModeMeshDesc) {
+                mediaModeMeshDesc.textContent = interpolate(copy().mediaModeMeshDesc, {
+                    limit: getMeshParticipantLimit()
+                });
+            }
+        }
+
+        function setSelectedMediaMode(mode) {
+            const nextMode = normalizeMediaMode(mode);
+            selectedMediaMode = nextMode === MEDIA_MODE_SFU && runtimeConfig.sfuAvailable
+                ? MEDIA_MODE_SFU
+                : MEDIA_MODE_MESH;
+            syncMediaModeUi();
+        }
+
+        function clearJoinPreview() {
+            joinPreviewRoom = null;
+            if (joinRoomPreview) {
+                joinRoomPreview.hidden = true;
+            }
+            syncLandingScheduleRefreshTimer();
+        }
+
+        function renderJoinPreview(room) {
+            joinPreviewRoom = room || null;
+            if (!room || !joinRoomPreview) {
+                clearJoinPreview();
+                return;
+            }
+
+            const mode = normalizeMediaMode(room.mediaMode);
+            const limit = mode === MEDIA_MODE_MESH
+                ? (Number.isInteger(room.participantLimit) && room.participantLimit > 0 ? room.participantLimit : getMeshParticipantLimit())
+                : null;
+            const count = Number.isInteger(room.participantCount) ? room.participantCount : 0;
+            const isFullMeshRoom = mode === MEDIA_MODE_MESH && limit !== null && count >= limit;
+            const largeRoomUnavailable = mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable;
+
+            joinRoomPreview.hidden = false;
+            joinRoomPreviewName.textContent = room.name || room.roomId || joinCodeInput.value.trim().toUpperCase();
+            joinRoomPreviewMode.textContent = formatMediaModeLabel(mode);
+            joinRoomPreviewCount.textContent = formatParticipantCount(count, limit);
+            joinRoomPreviewAccess.textContent = room.requirePassword ? copy().roomAccessProtected : copy().roomAccessOpen;
+            const mediaNote = mode === MEDIA_MODE_SFU
+                ? copy().roomPreviewSfuNote
+                : interpolate(copy().roomPreviewMeshNote, { limit: limit || getMeshParticipantLimit() });
+            const scheduleNote = room.schedule ? buildScheduleSummaryLine(room.schedule) : '';
+            joinRoomPreviewNote.textContent = [mediaNote, scheduleNote].filter(Boolean).join(' · ');
+            joinRoomPreviewWarning.textContent = largeRoomUnavailable
+                ? copy().errorMediaUnavailable
+                : (isFullMeshRoom ? copy().errorRoomFull : '');
+            syncLandingScheduleRefreshTimer();
+        }
+
+        function applyRuntimeConfig(payload = {}) {
+            const meshParticipantLimit = Number.isInteger(payload.meshParticipantLimit) && payload.meshParticipantLimit > 0
+                ? payload.meshParticipantLimit
+                : DEFAULT_MESH_PARTICIPANT_LIMIT;
+            runtimeConfig = {
+                sfuAvailable: !!payload.sfuAvailable,
+                supportedMediaModes: Array.isArray(payload.supportedMediaModes) && payload.supportedMediaModes.length
+                    ? payload.supportedMediaModes.map(normalizeMediaMode)
+                    : [MEDIA_MODE_MESH],
+                meshParticipantLimit
+            };
+            if (!runtimeConfig.sfuAvailable) {
+                selectedMediaMode = MEDIA_MODE_MESH;
+            }
+            syncMediaModeUi();
+            if (joinPreviewRoom) {
+                renderJoinPreview(joinPreviewRoom);
+            }
+            if (createdRoomData) {
+                renderCreatedSchedule(createdRoomData);
+            }
+        }
+
+        async function loadRuntimeConfig() {
+            if (typeof fetch !== 'function') {
+                applyRuntimeConfig();
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/runtime-config', {
+                    headers: { Accept: 'application/json' }
+                });
+                if (!response.ok) {
+                    throw new Error(`Runtime config request failed with ${response.status}`);
+                }
+                const payload = await response.json();
+                applyRuntimeConfig(payload);
+            } catch (_error) {
+                applyRuntimeConfig();
+            }
+        }
+
+        async function fetchRoomDetails(code) {
+            try {
+                const response = await fetch(`/api/rooms/${encodeURIComponent(code)}`, {
+                    headers: { Accept: 'application/json' }
+                });
+                if (response.status === 404) {
+                    clearJoinPreview();
+                    return { status: 'not_found' };
+                }
+                if (response.status === 429) {
+                    return { status: 'rate_limited' };
+                }
+                if (!response.ok) {
+                    return { status: 'error' };
+                }
+                const room = await response.json();
+                renderJoinPreview(room);
+                return { status: 'ok', room };
+            } catch (_error) {
+                return { status: 'error' };
+            }
+        }
+
+        function applyLanguage() {
+            const text = copy();
+            document.documentElement.lang = currentLang;
+            document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            document.body.dataset.lang = currentLang;
+            document.title = text.pageTitle;
+
+            languageButtons.forEach((button) => {
+                button.classList.toggle('is-on', button.dataset.langValue === currentLang);
+            });
+
+            document.querySelectorAll('[data-lang]').forEach((element) => {
+                const key = element.dataset.lang;
+                if (text[key]) element.textContent = text[key];
+            });
+
+            document.querySelectorAll('[data-lang-placeholder]').forEach((element) => {
+                const key = element.dataset.langPlaceholder;
+                if (text[key]) element.placeholder = text[key];
+            });
+
+            document.querySelectorAll('[data-lang-aria]').forEach((element) => {
+                const key = element.dataset.langAria;
+                if (text[key]) element.setAttribute('aria-label', text[key]);
+            });
+
+            document.querySelectorAll('[data-lang-title]').forEach((element) => {
+                const key = element.dataset.langTitle;
+                if (text[key]) {
+                    element.title = text[key];
+                    element.setAttribute('aria-label', text[key]);
+                }
+            });
+
+            syncMediaModeUi();
+            if (joinPreviewRoom) {
+                renderJoinPreview(joinPreviewRoom);
+            }
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang === 'ar' ? 'ar' : 'en';
+            setStoredLanguage(currentLang);
+            applyLanguage();
+        }
+
+        function getErrorMessage(errorCode, fallbackKey) {
+            const text = copy();
+            const mappedKey = errorKeyMap[errorCode];
+            if (mappedKey && text[mappedKey]) return text[mappedKey];
+            return text[fallbackKey] || '';
+        }
+
+        function setMode(mode) {
+            currentMode = mode === 'join' ? 'join' : 'create';
+            choiceCards.forEach((card) => {
+                card.classList.toggle('active', card.dataset.choice === currentMode);
+            });
+            createForm.hidden = currentMode !== 'create';
+            joinForm.hidden = currentMode !== 'join';
+            if (currentMode === 'join') {
+                const code = joinCodeInput.value.trim().toUpperCase();
+                if (code) {
+                    void fetchRoomDetails(code);
+                }
+            }
+        }
+
+        function checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const roomCode = params.get('room');
+            if (roomCode) {
+                joinCodeInput.value = roomCode.toUpperCase();
+                setMode('join');
+                void fetchRoomDetails(joinCodeInput.value);
+            }
+        }
+
+        languageButtons.forEach((button) => {
+            button.addEventListener('click', () => setLanguage(button.dataset.langValue));
+        });
+
+        mediaModeButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                setSelectedMediaMode(button.dataset.mediaMode);
+            });
+        });
+
+        themeToggle.addEventListener('click', () => {
+            isDark = !isDark;
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            try { localStorage.setItem('halastudyTheme', isDark ? 'dark' : 'light'); } catch (e) {}
+        });
+
+        choiceCards.forEach((card) => {
+            card.addEventListener('click', () => setMode(card.dataset.choice));
+            card.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    card.click();
+                }
+            });
+        });
+
+        requirePasswordCheckbox.addEventListener('change', () => {
+            const enabled = requirePasswordCheckbox.checked;
+            roomPasswordInput.disabled = !enabled;
+            if (!enabled) roomPasswordInput.value = '';
+        });
+
+        if (enableScheduleCheckbox) {
+            enableScheduleCheckbox.addEventListener('change', () => {
+                if (enableScheduleCheckbox.checked) {
+                    setDefaultScheduleFields();
+                }
+                toggleScheduleFields();
+            });
+        }
+        if (scheduleFocusInput) {
+            scheduleFocusInput.addEventListener('input', () => {
+                scheduleFocusInput.value = String(Math.max(1, Math.min(240, parseInt(scheduleFocusInput.value || '25', 10) || 25)));
+            });
+        }
+        if (scheduleBreakInput) {
+            scheduleBreakInput.addEventListener('input', () => {
+                scheduleBreakInput.value = String(Math.max(1, Math.min(120, parseInt(scheduleBreakInput.value || '5', 10) || 5)));
+            });
+        }
+        if (resultCalendarBtn) {
+            resultCalendarBtn.addEventListener('click', () => {
+                if (createdRoomData) {
+                    downloadCalendar(createdRoomData);
+                }
+            });
+        }
+
+        joinCodeInput.addEventListener('input', () => {
+            joinCodeInput.value = joinCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+            clearJoinPreview();
+        });
+
+        joinCodeInput.addEventListener('blur', () => {
+            const code = joinCodeInput.value.trim().toUpperCase();
+            if (!code) {
+                clearJoinPreview();
+                return;
+            }
+            void fetchRoomDetails(code);
+        });
+
+        createForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const feedback = document.getElementById('create-feedback');
+            const result = document.getElementById('create-result');
+            const roomNameInput = document.getElementById('room-name');
+            const roomName = roomNameInput.value.trim();
+            const password = roomPasswordInput.value.trim();
+            const requirePassword = requirePasswordCheckbox.checked;
+            const schedulePayload = buildCreateSchedulePayload(roomName);
+
+            result.hidden = true;
+            renderCreatedSchedule(null);
+
+            if (!roomName) {
+                feedback.textContent = copy().errorNoName;
+                feedback.className = 'form-feedback error';
+                roomNameInput.focus();
+                return;
+            }
+
+            if (requirePassword && !password) {
+                feedback.textContent = copy().errorPasswordRequired;
+                feedback.className = 'form-feedback error';
+                roomPasswordInput.focus();
+                return;
+            }
+            if (schedulePayload.error) {
+                feedback.textContent = schedulePayload.error;
+                feedback.className = 'form-feedback error';
+                if (scheduleDateInput && !scheduleDateInput.value) {
+                    scheduleDateInput.focus();
+                } else if (scheduleTimeInput && !scheduleTimeInput.value) {
+                    scheduleTimeInput.focus();
+                }
+                return;
+            }
+
+            feedback.textContent = copy().errorCreating;
+            feedback.className = 'form-feedback';
+
+            if (!socket) {
+                feedback.textContent = copy().errorRealtimeUnavailable;
+                feedback.className = 'form-feedback error';
+                return;
+            }
+
+            socket.emit('create-room', {
+                roomName,
+                password,
+                requirePassword,
+                mediaMode: selectedMediaMode,
+                schedule: schedulePayload.schedule
+            }, (response = {}) => {
+                if (!response.ok) {
+                    feedback.textContent = getErrorMessage(response.errorCode, 'errorCreateFailed');
+                    feedback.className = 'form-feedback error';
+                    return;
+                }
+
+                createdRoomCode = response.room.roomId || response.room.code;
+                createdRoomPassword = requirePassword ? password : '';
+                createdRoomData = response.room || null;
+
+                feedback.textContent = copy().successCreated;
+                feedback.className = 'form-feedback success';
+
+                document.getElementById('result-code').textContent = createdRoomCode;
+                renderCreatedSchedule(createdRoomData);
+                result.hidden = false;
+            });
+        });
+
+        document.getElementById('btn-enter-room').addEventListener('click', () => {
+            if (!createdRoomCode) return;
+            sessionStorage.setItem('halastudyRoomCode', createdRoomCode);
+            if (createdRoomPassword) {
+                sessionStorage.setItem('halastudyRoomPassword', createdRoomPassword);
+            } else {
+                sessionStorage.removeItem('halastudyRoomPassword');
+            }
+            window.location.href = `/index.html?room=${encodeURIComponent(createdRoomCode)}`;
+        });
+
+        joinForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const feedback = document.getElementById('join-feedback');
+            const code = joinCodeInput.value.trim().toUpperCase();
+            const password = document.getElementById('join-password').value.trim();
+            let room = null;
+
+            if (!code) {
+                feedback.textContent = copy().errorNoCode;
+                feedback.className = 'form-feedback error';
+                joinCodeInput.focus();
+                return;
+            }
+
+            feedback.textContent = copy().errorCheckingRoom;
+            feedback.className = 'form-feedback';
+
+            {
+                const lookup = await fetchRoomDetails(code);
+                if (lookup.status === 'not_found') {
+                    feedback.textContent = copy().errorRoomNotFound;
+                    feedback.className = 'form-feedback error';
+                    joinCodeInput.focus();
+                    return;
+                }
+                if (lookup.status === 'rate_limited') {
+                    feedback.textContent = copy().rateLimited;
+                    feedback.className = 'form-feedback error';
+                    return;
+                }
+                if (lookup.status !== 'ok') {
+                    feedback.textContent = copy().errorJoinLookupFailed;
+                    feedback.className = 'form-feedback error';
+                    return;
+                }
+                room = lookup.room;
+            }
+
+            if (room && room.mediaMode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable) {
+                feedback.textContent = copy().errorMediaUnavailable;
+                feedback.className = 'form-feedback error';
+                return;
+            }
+            if (room && room.mediaMode === MEDIA_MODE_MESH && room.participantLimit && room.participantCount >= room.participantLimit) {
+                feedback.textContent = copy().errorRoomFull;
+                feedback.className = 'form-feedback error';
+                return;
+            }
+            if (room && room.requirePassword && !password) {
+                feedback.textContent = copy().errorPasswordRequired;
+                feedback.className = 'form-feedback error';
+                document.getElementById('join-password').focus();
+                return;
+            }
+
+            sessionStorage.setItem('halastudyRoomCode', code);
+            if (password) {
+                sessionStorage.setItem('halastudyRoomPassword', password);
+            } else {
+                sessionStorage.removeItem('halastudyRoomPassword');
+            }
+
+            feedback.textContent = copy().redirecting;
+            feedback.className = 'form-feedback';
+            window.location.href = `/index.html?room=${encodeURIComponent(code)}`;
+        });
+
+        void loadRuntimeConfig();
+        setDefaultScheduleFields();
+        toggleScheduleFields();
+        applyLanguage();
+        // Patched 2026-05-17: honor /open.html#join from landing's secondary CTA — open the join form on load.
+        if (window.location.hash === '#join') currentMode = 'join';
+        setMode(currentMode);
+        checkUrlParams();
+    })();
+  </script>
+</body>
+</html>

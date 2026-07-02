@@ -43,7 +43,8 @@ async function createRoomFromLanding(page, options = {}) {
         schedule = null
     } = options;
 
-    await page.goto('/');
+    // /open.html holds the create/join forms; / is editorial marketing only as of 2026-05-17.
+    await page.goto('/open.html');
     await expect(page.locator('#create-form')).toBeVisible();
 
     await page.fill('#room-name', roomName);

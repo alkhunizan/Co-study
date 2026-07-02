@@ -133,15 +133,48 @@ For these, work in normal mode and report when ready for review.
 
 Used by `/health` (gstack skill) and `npm run test:ci`. All five gates run in `test:ci`.
 
-- typecheck (syntax): `npm run check` — `node --check` across 13 author files
+- typecheck (syntax): `npm run check` — `node --check` across 15 author files
 - typecheck (types):  `npm run typecheck` — `tsc -p .` with `allowJs`/`checkJs`. Permissive (`strict: false`, `noImplicitAny: false`); JSDoc opt-in per function for the JSON-trust-boundary sanitizers (`sanitizeStatus`, `sanitizeMessage`, `sanitizeBoardTask`, `sanitizeRoom`, `normalizeSchedule`)
 - lint:               `npm run lint` — `biome check .`. Scoped to JS author code only via `biome.json` includes (HTML/CSS/JSX/design-system mocks/`day*-*.mjs` spike scripts excluded). Auto-fix with `npm run lint:fix`
 - deadcode:           `npm run deadcode` — `knip --no-progress` per `knip.json`
 - audit:              `npm run audit:prod` — `npm audit --omit=dev`
-- tests:              `npm run test:integration` (12) + `npm run test:smoke` (6) — Node `--test` + Playwright
+- tests:              `npm run test:integration` (18) + `npm run test:smoke` (12) — Node `--test` + Playwright
 
 Composite green target: full pipeline ≤ 60s on a warm cache.
 
 ---
 
-_Last updated: 2026-05-15._
+## 10. Run & test commands
+
+(§9 covers the quality gates; this is everything else.)
+
+- `npm start` — HTTP app on `http://localhost:3000`
+- `npm run https` — self-signed HTTPS on `:3443` — needed locally for secure-context browser APIs (camera/mic, FaceDetector)
+- Single integration test: `node --test --test-name-pattern "<name>" tests/integration/server.integration.test.js`
+- Single smoke test: `npx playwright test --config=playwright.config.js -g "<title>"` — chromium only, 1 worker; global setup boots the app on port 3460 with a temp state file (`tests/helpers/test-env.js`)
+- Operator scripts: `npm run backup:rooms`, `npm run restore:rooms -- <path>` (app must be stopped), `npm run verify:deploy -- <url>`
+- Gotcha: `.github/workflows/ci.yml` runs only check + audit + integration + smoke. The typecheck/lint/deadcode gates are in `test:ci` but not yet in the workflow — run `npm run test:ci` locally before pushing.
+
+---
+
+## 11. Architecture
+
+**No build step.** Frontend is vanilla JS/HTML/CSS — three self-contained pages, each `lang="ar" dir="rtl"` by default with an EN toggle, sharing design tokens from `design-system/colors_and_type.css`:
+
+- `landing.html` ← `/` (marketing)
+- `open.html` ← `/open` (room create/join)
+- `index.html` ← `/study`, `/workspace`, `/room` (the in-room app — one large file with inline JS/CSS; all client logic lives here)
+
+**Backend is one factory.** `server.js` (HTTP) and `server-https.js` (HTTPS via `selfsigned`) are thin wrappers around `createCoStudyServer(options)` in `co-study-server.js`, which holds the entire backend: Express app, Socket.IO server, security headers, origin guard, session cookie, per-concern sliding-window rate limiters (create/join/lookup/password-failure/chat/board), and room lifecycle. It returns `{ app, server, io, config, roomStore, rooms, listen, evaluateReadiness }` — integration tests construct real servers through this factory with temp state files rather than mocking.
+
+**HTTP is read-only; Socket.IO mutates.** REST endpoints are `/api/health`, `/api/ready`, `/api/runtime-config`, `/api/rooms/:roomId` only. All state changes flow through socket events: `create-room`, `join-room`, `send-message`, `board-*`, `camera-status`, `user-status`, and WebRTC signaling relays (`rtc-offer`/`rtc-answer`/`rtc-ice` — the server never touches media, it only forwards SDP/ICE between peers).
+
+**Persistence** — `room-store.js` (`createRoomStore`) debounce-writes (250ms) to `data/rooms.json`. Persisted: room metadata, PBKDF2 password hashes, chat history, board state, schedule/attendance. Memory-only: presence, socket IDs, camera state. Sanitizers are injected into the store from `co-study-server.js` (the JSON file is a trust boundary — everything loaded from disk is re-sanitized). Single-instance by design: keep PM2 at one process.
+
+**Scheduled rooms** — `schedule-utils.js` is pure functions: Riyadh-timezone cadence (`once`/`daily`/`weekdays` = Sun–Thu/`weekly`), occurrence math, attendance (`on_time`/`late`/`missed`, streaks). Good first place to look for any timer/schedule bug; it has no I/O.
+
+**Media modes** — `mesh` (P2P WebRTC, capped at `MESH_PARTICIPANT_LIMIT`, default 4) vs `sfu` (iframe embed, only when `SFU_BASE_URL` is set). A room's mode is fixed at creation. AI focus monitoring is mesh-only.
+
+---
+
+_Last updated: 2026-06-10._
