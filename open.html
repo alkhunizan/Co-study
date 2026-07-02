@@ -179,6 +179,7 @@
     </div>
     <div class="links">
       <a href="/" aria-label="Halastudy home">← Halastudy</a>
+      <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
     </div>
   </footer>
 
@@ -295,6 +296,7 @@
                 errorCheckingRoom: 'Checking room...',
                 errorCreating: 'Creating room...',
                 errorCreateFailed: 'Could not create the room right now. Please try again.',
+                errorCreateTimeout: 'The room is taking too long to create. Check your connection and try again.',
                 errorJoinLookupFailed: 'Unable to verify this room right now. Please try again.',
                 errorRoomNotFound: 'That room code does not exist.',
                 errorRoomFull: 'This mesh room is full. Ask the host to create a large room.',
@@ -304,7 +306,8 @@
                 successCreated: 'Room created successfully.',
                 redirecting: 'Redirecting...',
                 errorRoomCodeGeneration: 'Could not generate a room code. Please try again.',
-                rateLimited: 'Too many attempts. Slow down and try again in a moment.'
+                rateLimited: 'Too many attempts. Slow down and try again in a moment.',
+                footerPrivacy: 'Privacy'
             },
             ar: {
                 pageTitle: 'هلاستدي | غرفة هادئة. مفتوحة طول الليل.',
@@ -373,6 +376,7 @@
                 errorCheckingRoom: 'جارٍ التحقق من الغرفة...',
                 errorCreating: 'جارٍ إنشاء الغرفة...',
                 errorCreateFailed: 'تعذر إنشاء الغرفة حالياً. حاول مرة أخرى.',
+                errorCreateTimeout: 'إنشاء الغرفة يأخذ وقتاً أطول من المعتاد. تأكد من اتصالك وحاول مرة أخرى.',
                 errorJoinLookupFailed: 'تعذر التحقق من هذه الغرفة حالياً. حاول مرة أخرى.',
                 errorRoomNotFound: 'رمز الغرفة هذا غير موجود.',
                 errorRoomFull: 'غرفة الـ Mesh هذه ممتلئة. اطلب من المضيف إنشاء غرفة كبيرة.',
@@ -382,7 +386,8 @@
                 successCreated: 'تم إنشاء الغرفة بنجاح.',
                 redirecting: 'جارٍ التحويل...',
                 errorRoomCodeGeneration: 'تعذر إنشاء رمز الغرفة. حاول مرة أخرى.',
-                rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.'
+                rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.',
+                footerPrivacy: 'الخصوصية'
             }
         };
         const errorKeyMap = {
@@ -1327,13 +1332,19 @@
                 return;
             }
 
-            socket.emit('create-room', {
+            socket.timeout(8000).emit('create-room', {
                 roomName,
                 password,
                 requirePassword,
                 mediaMode: selectedMediaMode,
                 schedule: schedulePayload.schedule
-            }, (response = {}) => {
+            }, (timeoutError, response = {}) => {
+                if (timeoutError) {
+                    feedback.textContent = copy().errorCreateTimeout;
+                    feedback.className = 'form-feedback error';
+                    return;
+                }
+
                 if (!response.ok) {
                     feedback.textContent = getErrorMessage(response.errorCode, 'errorCreateFailed');
                     feedback.className = 'form-feedback error';

@@ -672,6 +672,27 @@ test('socket payloads are bounded at server boundaries', async (t) => {
     assert.ok(snapshot.body.messages.some((message) => message.type === 'user' && message.text.length === 500));
 });
 
+test('privacy page is served bilingually and linked from landing and open footers', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const privacy = await server.request('/privacy');
+    assert.equal(privacy.status, 200);
+    assert.match(`${privacy.headers['content-type']}`, /text\/html/);
+    assert.match(`${privacy.body}`, /lang="ar"/);
+    assert.match(`${privacy.body}`, /سياسة الخصوصية/);
+    assert.match(`${privacy.body}`, /Privacy Policy/);
+
+    const privacyAlias = await server.request('/privacy.html');
+    assert.equal(privacyAlias.status, 200);
+
+    const landing = await server.request('/');
+    assert.match(`${landing.body}`, /href="\/privacy"/);
+
+    const open = await server.request('/open');
+    assert.match(`${open.body}`, /href="\/privacy"/);
+});
+
 test('open alias and media mounts serve published assets only', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);

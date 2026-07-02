@@ -12,7 +12,7 @@
     "restore:rooms": "node scripts/restore-rooms.js",
     "verify:deploy": "node scripts/verify-deploy.js",
     "audit:prod": "npm audit --omit=dev",
-    "check": "node --check server.js && node --check server-https.js && node --check co-study-server.js && node --check room-store.js && node --check schedule-utils.js && node --check scripts/room-state-utils.js && node --check scripts/backup-rooms.js && node --check scripts/restore-rooms.js && node --check scripts/verify-deploy.js && node --check tests/helpers/server-control.js && node --check tests/helpers/fake-sfu-fixture.js && node --check tests/integration/server.integration.test.js && node --check tests/smoke/app.smoke.spec.js && node --check tests/smoke/landing.smoke.spec.js && node --check tests/smoke/open.smoke.spec.js",
+    "check": "node --check server.js && node --check server-https.js && node --check co-study-server.js && node --check room-store.js && node --check schedule-utils.js && node --check scripts/room-state-utils.js && node --check scripts/backup-rooms.js && node --check scripts/restore-rooms.js && node --check scripts/verify-deploy.js && node --check tests/helpers/server-control.js && node --check tests/helpers/fake-sfu-fixture.js && node --check tests/integration/server.integration.test.js && node --check tests/smoke/app.smoke.spec.js && node --check tests/smoke/create-timeout.smoke.spec.js && node --check tests/smoke/landing.smoke.spec.js && node --check tests/smoke/open.smoke.spec.js",
     "typecheck": "tsc -p .",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

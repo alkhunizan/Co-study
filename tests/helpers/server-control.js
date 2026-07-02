@@ -119,7 +119,7 @@ async function waitForPath(baseUrl, pathname, timeoutMs = 15000) {
 }
 
 async function stopChild(childProcess, timeoutMs = 10000) {
-    if (!childProcess || childProcess.exitCode !== null) {
+    if (!childProcess || childProcess.exitCode !== null || childProcess.signalCode !== null) {
         return;
     }
 

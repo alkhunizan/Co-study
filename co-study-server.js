@@ -1094,6 +1094,10 @@ function createCoStudyServer(options = {}) {
         res.sendFile(path.join(__dirname, 'open.html'));
     });
 
+    app.get(['/privacy.html', '/privacy'], (_req, res) => {
+        res.sendFile(path.join(__dirname, 'privacy.html'));
+    });
+
     app.get(['/index.html', '/study', '/workspace', '/room'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'index.html'));
     });
