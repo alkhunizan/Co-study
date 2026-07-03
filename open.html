@@ -243,14 +243,16 @@
                 placeholderRoomName: 'e.g. Deep work · 9pm crew',
                 labelMediaMode: 'Room media mode',
                 mediaModeMeshTitle: 'Standard room',
-                mediaModeMeshDesc: 'Recommended for up to {limit} people. Uses browser-to-browser video.',
+                mediaModeMeshDesc: 'Camera study rooms support up to {limit} people. Mic stays off by default.',
                 mediaModeSfuTitle: 'Large room',
                 mediaModeSfuDesc: 'Uses the room media service for larger groups.',
                 mediaModeMeshBadge: 'Mesh room',
                 mediaModeSfuBadge: 'Large room',
+                mediaModeRealtimeKitBadge: 'Study camera room',
                 roomAccessOpen: 'Open access',
                 roomAccessProtected: 'Password protected',
-                roomPreviewMeshNote: 'Best for up to {limit} people before video quality starts dropping.',
+                roomPreviewMeshNote: 'Camera room supports up to {limit} people. Mic stays off by default.',
+                roomPreviewRealtimeKitNote: 'Camera room supports up to {limit} people. Mic stays off by default.',
                 roomPreviewSfuNote: 'Media runs in the managed room session for larger groups.',
                 labelRequirePassword: 'Require password',
                 labelPassword: 'Access password',
@@ -323,14 +325,16 @@
                 placeholderRoomName: 'مثال: جلسة عمل عميق',
                 labelMediaMode: 'وضع وسائط الغرفة',
                 mediaModeMeshTitle: 'غرفة عادية',
-                mediaModeMeshDesc: 'موصى بها لما يصل إلى {limit} أشخاص. تستخدم فيديو مباشرًا بين المتصفحات.',
+                mediaModeMeshDesc: 'غرف كاميرا المذاكرة تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
                 mediaModeSfuTitle: 'غرفة كبيرة',
                 mediaModeSfuDesc: 'تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.',
                 mediaModeMeshBadge: 'غرفة Mesh',
                 mediaModeSfuBadge: 'غرفة كبيرة',
+                mediaModeRealtimeKitBadge: 'غرفة كاميرا للمذاكرة',
                 roomAccessOpen: 'دخول مفتوح',
                 roomAccessProtected: 'محمية بكلمة مرور',
-                roomPreviewMeshNote: 'مناسبة لما يصل إلى {limit} أشخاص قبل أن تبدأ جودة الفيديو بالانخفاض.',
+                roomPreviewMeshNote: 'غرفة الكاميرا تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
+                roomPreviewRealtimeKitNote: 'غرفة الكاميرا تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
                 roomPreviewSfuNote: 'تعمل الوسائط داخل الجلسة المُدارة للغرفة للمجموعات الأكبر.',
                 labelRequirePassword: 'تفعيل كلمة مرور',
                 labelPassword: 'كلمة مرور الدخول',
@@ -403,6 +407,8 @@
 
         const MEDIA_MODE_MESH = 'mesh';
         const MEDIA_MODE_SFU = 'sfu';
+        const VIDEO_PROVIDER_MESH = 'mesh';
+        const VIDEO_PROVIDER_REALTIMEKIT = 'realtimekit';
         const DEFAULT_MESH_PARTICIPANT_LIMIT = 4;
         const DEFAULT_SCHEDULE_TIMEZONE = 'Asia/Riyadh';
         const DEFAULT_SCHEDULE_CADENCE = 'weekdays';
@@ -420,7 +426,9 @@
         let runtimeConfig = {
             sfuAvailable: false,
             supportedMediaModes: [MEDIA_MODE_MESH],
-            meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT
+            meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT,
+            videoProvider: VIDEO_PROVIDER_MESH,
+            videoPolicy: null
         };
         let joinPreviewRoom = null;
         let landingScheduleRefreshTimer = null;
@@ -491,13 +499,27 @@
             return mode === MEDIA_MODE_SFU ? MEDIA_MODE_SFU : MEDIA_MODE_MESH;
         }
 
+        function normalizeVideoProvider(provider) {
+            return provider === VIDEO_PROVIDER_REALTIMEKIT ? VIDEO_PROVIDER_REALTIMEKIT : VIDEO_PROVIDER_MESH;
+        }
+
         function getMeshParticipantLimit() {
             return Number.isInteger(runtimeConfig.meshParticipantLimit) && runtimeConfig.meshParticipantLimit > 0
                 ? runtimeConfig.meshParticipantLimit
                 : DEFAULT_MESH_PARTICIPANT_LIMIT;
         }
 
-        function formatMediaModeLabel(mode) {
+        function getRoomVideoLimit(room = null) {
+            const roomLimit = room?.videoPolicy?.maxRoomParticipants || room?.videoPolicy?.maxParticipants;
+            if (Number.isInteger(roomLimit) && roomLimit > 0) return roomLimit;
+            const runtimeLimit = runtimeConfig.videoPolicy?.maxRoomParticipants || runtimeConfig.videoPolicy?.maxParticipants;
+            return Number.isInteger(runtimeLimit) && runtimeLimit > 0 ? runtimeLimit : 20;
+        }
+
+        function formatMediaModeLabel(mode, provider = runtimeConfig.videoProvider) {
+            if (normalizeVideoProvider(provider) === VIDEO_PROVIDER_REALTIMEKIT) {
+                return copy().mediaModeRealtimeKitBadge;
+            }
             return normalizeMediaMode(mode) === MEDIA_MODE_SFU
                 ? copy().mediaModeSfuBadge
                 : copy().mediaModeMeshBadge;
@@ -1014,18 +1036,22 @@
                 button.setAttribute('aria-checked', active ? 'true' : 'false');
             });
             if (mediaModeSfuButton) {
-                mediaModeSfuButton.hidden = !runtimeConfig.sfuAvailable;
+                mediaModeSfuButton.hidden = runtimeConfig.videoProvider !== VIDEO_PROVIDER_MESH || !runtimeConfig.sfuAvailable;
             }
             if (mediaModeMeshDesc) {
                 mediaModeMeshDesc.textContent = interpolate(copy().mediaModeMeshDesc, {
-                    limit: getMeshParticipantLimit()
+                    limit: runtimeConfig.videoProvider === VIDEO_PROVIDER_REALTIMEKIT
+                        ? getRoomVideoLimit()
+                        : getMeshParticipantLimit()
                 });
             }
         }
 
         function setSelectedMediaMode(mode) {
             const nextMode = normalizeMediaMode(mode);
-            selectedMediaMode = nextMode === MEDIA_MODE_SFU && runtimeConfig.sfuAvailable
+            selectedMediaMode = nextMode === MEDIA_MODE_SFU
+                && runtimeConfig.videoProvider === VIDEO_PROVIDER_MESH
+                && runtimeConfig.sfuAvailable
                 ? MEDIA_MODE_SFU
                 : MEDIA_MODE_MESH;
             syncMediaModeUi();
@@ -1047,26 +1073,33 @@
             }
 
             const mode = normalizeMediaMode(room.mediaMode);
-            const limit = mode === MEDIA_MODE_MESH
+            const provider = normalizeVideoProvider(room.videoProvider || runtimeConfig.videoProvider);
+            const limit = provider === VIDEO_PROVIDER_REALTIMEKIT
+                ? getRoomVideoLimit(room)
+                : mode === MEDIA_MODE_MESH
                 ? (Number.isInteger(room.participantLimit) && room.participantLimit > 0 ? room.participantLimit : getMeshParticipantLimit())
                 : null;
             const count = Number.isInteger(room.participantCount) ? room.participantCount : 0;
-            const isFullMeshRoom = mode === MEDIA_MODE_MESH && limit !== null && count >= limit;
-            const largeRoomUnavailable = mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable;
+            const activeVideoCount = Number.isInteger(room.activeVideoParticipantCount) ? room.activeVideoParticipantCount : count;
+            const isFullMeshRoom = provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_MESH && limit !== null && count >= limit;
+            const isFullRealtimeKitRoom = provider === VIDEO_PROVIDER_REALTIMEKIT && limit !== null && activeVideoCount >= limit;
+            const largeRoomUnavailable = provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable;
 
             joinRoomPreview.hidden = false;
             joinRoomPreviewName.textContent = room.name || room.roomId || joinCodeInput.value.trim().toUpperCase();
-            joinRoomPreviewMode.textContent = formatMediaModeLabel(mode);
-            joinRoomPreviewCount.textContent = formatParticipantCount(count, limit);
+            joinRoomPreviewMode.textContent = formatMediaModeLabel(mode, provider);
+            joinRoomPreviewCount.textContent = formatParticipantCount(provider === VIDEO_PROVIDER_REALTIMEKIT ? activeVideoCount : count, limit);
             joinRoomPreviewAccess.textContent = room.requirePassword ? copy().roomAccessProtected : copy().roomAccessOpen;
-            const mediaNote = mode === MEDIA_MODE_SFU
+            const mediaNote = provider === VIDEO_PROVIDER_REALTIMEKIT
+                ? interpolate(copy().roomPreviewRealtimeKitNote, { limit: limit || getRoomVideoLimit(room) })
+                : mode === MEDIA_MODE_SFU
                 ? copy().roomPreviewSfuNote
                 : interpolate(copy().roomPreviewMeshNote, { limit: limit || getMeshParticipantLimit() });
             const scheduleNote = room.schedule ? buildScheduleSummaryLine(room.schedule) : '';
             joinRoomPreviewNote.textContent = [mediaNote, scheduleNote].filter(Boolean).join(' · ');
             joinRoomPreviewWarning.textContent = largeRoomUnavailable
                 ? copy().errorMediaUnavailable
-                : (isFullMeshRoom ? copy().errorRoomFull : '');
+                : (isFullMeshRoom || isFullRealtimeKitRoom ? copy().errorRoomFull : '');
             syncLandingScheduleRefreshTimer();
         }
 
@@ -1079,7 +1112,9 @@
                 supportedMediaModes: Array.isArray(payload.supportedMediaModes) && payload.supportedMediaModes.length
                     ? payload.supportedMediaModes.map(normalizeMediaMode)
                     : [MEDIA_MODE_MESH],
-                meshParticipantLimit
+                meshParticipantLimit,
+                videoProvider: normalizeVideoProvider(payload.videoProvider),
+                videoPolicy: payload.videoPolicy || null
             };
             if (!runtimeConfig.sfuAvailable) {
                 selectedMediaMode = MEDIA_MODE_MESH;
@@ -1414,12 +1449,13 @@
                 room = lookup.room;
             }
 
-            if (room && room.mediaMode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable) {
+            const roomProvider = normalizeVideoProvider(room?.videoProvider || runtimeConfig.videoProvider);
+            if (room && roomProvider === VIDEO_PROVIDER_MESH && room.mediaMode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable) {
                 feedback.textContent = copy().errorMediaUnavailable;
                 feedback.className = 'form-feedback error';
                 return;
             }
-            if (room && room.mediaMode === MEDIA_MODE_MESH && room.participantLimit && room.participantCount >= room.participantLimit) {
+            if (room && roomProvider === VIDEO_PROVIDER_MESH && room.mediaMode === MEDIA_MODE_MESH && room.participantLimit && room.participantCount >= room.participantLimit) {
                 feedback.textContent = copy().errorRoomFull;
                 feedback.className = 'form-feedback error';
                 return;

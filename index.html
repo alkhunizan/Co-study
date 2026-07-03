@@ -389,6 +389,12 @@
         .video-box.sfu-mode .cam-feed { display: none; }
         .sfu-frame { flex: 1; width: 100%; height: 100%; border: 0; border-radius: 20px; display: none; }
         .video-box.sfu-mode .sfu-frame { display: block; }
+        .video-box.realtimekit-mode { padding: 0; }
+        .video-box.realtimekit-mode .cam-feed,
+        .video-box.realtimekit-mode .sfu-frame { display: none; }
+        .realtimekit-container { display: none; flex: 1; min-width: 0; min-height: 100%; background: #050505; }
+        .video-box.realtimekit-mode .realtimekit-container { display: block; }
+        .realtimekit-container rtk-meeting { display: block; width: 100%; height: 100%; min-height: 280px; }
         .media-state-panel { position: absolute; inset-inline-end: 16px; bottom: 16px; max-width: min(340px, calc(100% - 32px)); border-radius: 18px; padding: 14px 16px; background: rgba(0,0,0,0.58); color: #fff; display: flex; flex-direction: column; gap: 8px; z-index: 3; backdrop-filter: blur(6px); }
         .media-state-panel[hidden] { display: none; }
         .media-state-text { font-size: 0.92rem; font-weight: 700; line-height: 1.4; }
@@ -679,6 +685,9 @@
             </div>
             <iframe id="sfu-frame" class="sfu-frame"
                     allow="camera; microphone; display-capture; fullscreen; autoplay"></iframe>
+            <div id="realtimekit-container" class="realtimekit-container" hidden>
+                <rtk-meeting id="realtimekit-meeting" show-setup-screen="false"></rtk-meeting>
+            </div>
             <div class="media-state-panel" id="media-state-panel" hidden>
                 <div class="media-state-text" id="media-state-text"></div>
                 <div class="media-state-detail" id="media-state-detail" hidden></div>
@@ -761,6 +770,8 @@
 </main>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="/js/video/realtimekit-client.js"></script>
+<script src="/js/video/video-client.js"></script>
 <script>
     /* -------------------------------------------------------------------
      * Halastudy storage-key migration (was: coStudy*).
@@ -868,6 +879,7 @@
             mediaModeLabel: 'Media',
             mediaModeMeshBadge: 'Mesh room',
             mediaModeSfuBadge: 'Large room',
+            mediaModeRealtimeKitBadge: 'Study camera room',
             onlineLabel: 'Online',
             presenceEmpty: 'Waiting for friends to join...',
             chatEmpty: 'Messages will appear here',
@@ -934,6 +946,11 @@
             roomFull: 'This mesh room is full. Ask the host to create a large room.',
             roomMediaUnavailable: 'Large-room media is unavailable on this deployment right now.',
             roomMediaModeInvalid: 'That room media mode is not supported.',
+            videoJoinDisabled: 'Video joining is paused right now.',
+            globalVideoLimitReached: 'The app is at the video capacity limit right now.',
+            videoProviderUnavailable: 'Video connection is unavailable. Refresh and try again.',
+            videoSessionNotFound: 'Video session expired. Try joining video again.',
+            videoRequestInvalid: 'Video join request was invalid. Refresh and try again.',
             messageRequired: 'Please enter a message.',
             boardTaskRequired: 'Please enter a task.',
             boardTaskNotFound: 'That task no longer exists.',
@@ -946,6 +963,10 @@
             mediaSfuLoading: 'Loading room media...',
             mediaSfuManaged: 'Room media is handled in the embedded session.',
             mediaSfuUnavailable: 'Room media unavailable.',
+            mediaRealtimeKitLoading: 'Connecting camera room...',
+            mediaRealtimeKitManaged: 'Camera room is live. Mic is off by default.',
+            mediaRealtimeKitUnavailable: 'Camera room unavailable.',
+            mediaRealtimeKitDetail: 'Camera is required for the room. Mic stays off automatically.',
             mediaRetry: 'Retry',
             aiSfuUnavailable: 'AI focus monitoring is available in mesh rooms only.'
         },
@@ -1004,6 +1025,7 @@
             mediaModeLabel: 'الوسائط',
             mediaModeMeshBadge: 'غرفة Mesh',
             mediaModeSfuBadge: 'غرفة كبيرة',
+            mediaModeRealtimeKitBadge: 'غرفة كاميرا للمذاكرة',
             onlineLabel: 'المتصلون',
             presenceEmpty: 'في انتظار دخول بقية المجموعة...',
             chatEmpty: 'ستظهر الرسائل هنا',
@@ -1070,6 +1092,11 @@
             roomFull: 'غرفة الـ Mesh هذه ممتلئة. اطلب من المضيف إنشاء غرفة كبيرة.',
             roomMediaUnavailable: 'وسائط الغرف الكبيرة غير متاحة في هذا النشر حالياً.',
             roomMediaModeInvalid: 'وضع وسائط الغرفة هذا غير مدعوم.',
+            videoJoinDisabled: 'الدخول بالفيديو متوقف مؤقتاً الآن.',
+            globalVideoLimitReached: 'وصل التطبيق إلى الحد الأقصى للفيديو حالياً.',
+            videoProviderUnavailable: 'تعذر اتصال الفيديو. حدّث الصفحة وحاول مرة أخرى.',
+            videoSessionNotFound: 'انتهت جلسة الفيديو. حاول الانضمام للفيديو مرة أخرى.',
+            videoRequestInvalid: 'طلب دخول الفيديو غير صحيح. حدّث الصفحة وحاول مرة أخرى.',
             messageRequired: 'فضلاً اكتب رسالة.',
             boardTaskRequired: 'فضلاً اكتب مهمة.',
             boardTaskNotFound: 'هذه المهمة لم تعد موجودة.',
@@ -1082,6 +1109,10 @@
             mediaSfuLoading: 'جارٍ تحميل وسائط الغرفة...',
             mediaSfuManaged: 'تتم إدارة وسائط الغرفة داخل الجلسة المضمنة.',
             mediaSfuUnavailable: 'وسائط الغرفة غير متاحة.',
+            mediaRealtimeKitLoading: 'جارٍ توصيل غرفة الكاميرا...',
+            mediaRealtimeKitManaged: 'غرفة الكاميرا تعمل. المايك مقفل تلقائياً.',
+            mediaRealtimeKitUnavailable: 'غرفة الكاميرا غير متاحة.',
+            mediaRealtimeKitDetail: 'الكاميرا مطلوبة للدخول للغرفة. المايك مقفل تلقائياً.',
             mediaRetry: 'إعادة المحاولة',
             aiSfuUnavailable: 'مراقبة التركيز بالذكاء الاصطناعي متاحة في غرف الـ Mesh فقط.'
         }
@@ -1103,6 +1134,11 @@
         ROOM_FULL: 'roomFull',
         ROOM_MEDIA_UNAVAILABLE: 'roomMediaUnavailable',
         ROOM_MEDIA_MODE_INVALID: 'roomMediaModeInvalid',
+        VIDEO_JOIN_DISABLED: 'videoJoinDisabled',
+        GLOBAL_VIDEO_LIMIT_REACHED: 'globalVideoLimitReached',
+        VIDEO_PROVIDER_UNAVAILABLE: 'videoProviderUnavailable',
+        VIDEO_SESSION_NOT_FOUND: 'videoSessionNotFound',
+        VIDEO_REQUEST_INVALID: 'videoRequestInvalid',
         MESSAGE_REQUIRED: 'messageRequired',
         RATE_LIMITED: 'rateLimited',
         BOARD_TASK_REQUIRED: 'boardTaskRequired',
@@ -1111,6 +1147,8 @@
     };
     const MEDIA_MODE_MESH = 'mesh';
     const MEDIA_MODE_SFU = 'sfu';
+    const VIDEO_PROVIDER_MESH = 'mesh';
+    const VIDEO_PROVIDER_REALTIMEKIT = 'realtimekit';
     const DEFAULT_MESH_PARTICIPANT_LIMIT = 4;
     const SFU_LOAD_TIMEOUT_MS = 6000;
     let curLang = getStoredLanguage();
@@ -1201,17 +1239,30 @@
     let runtimeConfig = {
         sfuAvailable: false,
         supportedMediaModes: [MEDIA_MODE_MESH],
-        meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT
+        meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT,
+        videoProvider: VIDEO_PROVIDER_MESH,
+        videoPolicy: null,
+        publicApiBaseUrl: ''
     };
     let sfuBaseUrl = '';
     let roomMediaMode = MEDIA_MODE_MESH;
+    let roomVideoProvider = VIDEO_PROVIDER_MESH;
     let roomParticipantLimit = DEFAULT_MESH_PARTICIPANT_LIMIT;
+    let roomVideoPolicy = null;
     let roomSchedule = null;
     let scheduleCountdownTimer = null;
     const sfuFrame = document.getElementById('sfu-frame');
     const videoBox = document.querySelector('.video-box');
+    const realtimeKitContainer = document.getElementById('realtimekit-container');
+    const realtimeKitMeeting = document.getElementById('realtimekit-meeting');
+    const videoClient = window.HalastudyVideoClient
+        ? window.HalastudyVideoClient.createVideoClient({
+            apiBaseUrl: window.HALASTUDY_CONFIG?.API_BASE_URL || ''
+        })
+        : null;
     let sfuFrameLoadTimer = null;
     let sfuFrameLoaded = false;
+    let realtimeKitJoining = false;
     let localStream = null;
     let cameraEnabled = false;
     let aiMonitorTimer = null;
@@ -1892,19 +1943,32 @@
         return mode === MEDIA_MODE_SFU ? MEDIA_MODE_SFU : MEDIA_MODE_MESH;
     }
 
+    function normalizeVideoProvider(provider) {
+        return provider === VIDEO_PROVIDER_REALTIMEKIT ? VIDEO_PROVIDER_REALTIMEKIT : VIDEO_PROVIDER_MESH;
+    }
+
     function getMeshParticipantLimit(limit = runtimeConfig.meshParticipantLimit) {
         return Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_MESH_PARTICIPANT_LIMIT;
     }
 
     function isMeshRoom() {
-        return normalizeMediaMode(roomMediaMode) === MEDIA_MODE_MESH;
+        return normalizeVideoProvider(roomVideoProvider) === VIDEO_PROVIDER_MESH
+            && normalizeMediaMode(roomMediaMode) === MEDIA_MODE_MESH;
     }
 
     function isSfuRoom() {
-        return normalizeMediaMode(roomMediaMode) === MEDIA_MODE_SFU;
+        return normalizeVideoProvider(roomVideoProvider) === VIDEO_PROVIDER_MESH
+            && normalizeMediaMode(roomMediaMode) === MEDIA_MODE_SFU;
+    }
+
+    function isRealtimeKitRoom() {
+        return normalizeVideoProvider(roomVideoProvider) === VIDEO_PROVIDER_REALTIMEKIT;
     }
 
     function formatMediaModeLabel(mode = roomMediaMode) {
+        if (isRealtimeKitRoom()) {
+            return currentCopy().mediaModeRealtimeKitBadge;
+        }
         return normalizeMediaMode(mode) === MEDIA_MODE_SFU
             ? currentCopy().mediaModeSfuBadge
             : currentCopy().mediaModeMeshBadge;
@@ -2002,19 +2066,89 @@
         if (videoBox) {
             videoBox.classList.remove('sfu-mode');
         }
-        if (!isSfuRoom()) {
+        if (!isSfuRoom() && !isRealtimeKitRoom()) {
             setMediaState('');
         }
     }
 
+    function unmountRealtimeKit(options = {}) {
+        realtimeKitJoining = false;
+        if (videoBox) {
+            videoBox.classList.remove('realtimekit-mode');
+        }
+        if (realtimeKitContainer) {
+            realtimeKitContainer.hidden = true;
+        }
+        if (realtimeKitMeeting) {
+            realtimeKitMeeting.meeting = null;
+        }
+        if (videoClient && options.leave !== false) {
+            void videoClient.leave({ keepalive: !!options.keepalive });
+        }
+    }
+
+    async function mountRealtimeKitRoom(roomCode, displayName) {
+        if (!isRealtimeKitRoom()) {
+            unmountRealtimeKit();
+            return;
+        }
+        if (!videoClient || !realtimeKitContainer || !realtimeKitMeeting || !videoBox) {
+            setMediaState('mediaRealtimeKitUnavailable', { detailKey: 'mediaRealtimeKitDetail', showRetry: true });
+            return;
+        }
+        realtimeKitJoining = true;
+        clearSfuFrameLoadTimer();
+        sfuFrameLoaded = false;
+        if (sfuFrame) {
+            sfuFrame.onload = null;
+            sfuFrame.onerror = null;
+            sfuFrame.src = 'about:blank';
+        }
+        clearAllMeshMedia();
+        videoBox.classList.remove('sfu-mode');
+        videoBox.classList.add('realtimekit-mode');
+        realtimeKitContainer.hidden = false;
+        setMediaState('mediaRealtimeKitLoading', { detailKey: 'mediaRealtimeKitDetail', showRetry: false });
+        try {
+            await videoClient.joinRealtimeKitRoom({
+                roomId: roomCode,
+                displayName,
+                clientSessionId: ensureClientId(),
+                meetingElement: realtimeKitMeeting
+            });
+            setMediaState('mediaRealtimeKitManaged', { detailKey: 'mediaRealtimeKitDetail', showRetry: false });
+        } catch (error) {
+            const messageKey = SERVER_ERROR_KEYS[error.code] || 'videoProviderUnavailable';
+            setMediaState('mediaRealtimeKitUnavailable', { detailKey: messageKey, showRetry: true });
+        } finally {
+            realtimeKitJoining = false;
+        }
+    }
+
     function applyRoomMediaMode(mode, options = {}) {
+        roomVideoProvider = normalizeVideoProvider(options.videoProvider || roomVideoProvider || runtimeConfig.videoProvider);
+        roomVideoPolicy = options.videoPolicy || roomVideoPolicy || runtimeConfig.videoPolicy || null;
         roomMediaMode = normalizeMediaMode(mode);
-        roomParticipantLimit = roomMediaMode === MEDIA_MODE_MESH
+        roomParticipantLimit = roomVideoProvider === VIDEO_PROVIDER_MESH && roomMediaMode === MEDIA_MODE_MESH
             ? getMeshParticipantLimit(options.participantLimit)
             : null;
         updateMediaModeBadge();
 
-        if (isSfuRoom()) {
+        if (isRealtimeKitRoom()) {
+            disableCamera({ notify: false, preserveStatusText: true });
+            clearAllMeshMedia();
+            unmountSfuFrame();
+            if (videoBox) {
+                videoBox.classList.add('realtimekit-mode');
+            }
+            if (realtimeKitContainer) {
+                realtimeKitContainer.hidden = false;
+            }
+            aiStatusEl.textContent = langDict[curLang].aiSfuUnavailable;
+            setAiDotState('neutral');
+            setMediaState('mediaRealtimeKitLoading', { detailKey: 'mediaRealtimeKitDetail', showRetry: false });
+        } else if (isSfuRoom()) {
+            unmountRealtimeKit();
             disableCamera({ notify: false, preserveStatusText: true });
             clearAllMeshMedia();
             if (videoBox) {
@@ -2024,6 +2158,7 @@
             setAiDotState('neutral');
             setMediaState('mediaSfuLoading', { detailKey: 'aiSfuUnavailable', showRetry: false });
         } else {
+            unmountRealtimeKit();
             unmountSfuFrame();
             aiStatusEl.textContent = cameraEnabled ? langDict[curLang].aiReady : langDict[curLang].aiNeedCamera;
             if (!cameraEnabled) {
@@ -2038,7 +2173,11 @@
             roomId = room.roomId;
             joinRoomInput.value = room.roomId;
         }
-        applyRoomMediaMode(room.mediaMode, { participantLimit: room.participantLimit });
+        applyRoomMediaMode(room.mediaMode, {
+            participantLimit: room.participantLimit,
+            videoProvider: room.videoProvider,
+            videoPolicy: room.videoPolicy
+        });
         roomSchedule = room.schedule || null;
         applyScheduleDefaults(roomSchedule);
         renderScheduleCard();
@@ -2054,8 +2193,16 @@
             supportedMediaModes: Array.isArray(payload.supportedMediaModes) && payload.supportedMediaModes.length
                 ? payload.supportedMediaModes.map(normalizeMediaMode)
                 : [MEDIA_MODE_MESH],
-            meshParticipantLimit: getMeshParticipantLimit(payload.meshParticipantLimit)
+            meshParticipantLimit: getMeshParticipantLimit(payload.meshParticipantLimit),
+            videoProvider: normalizeVideoProvider(payload.videoProvider),
+            videoPolicy: payload.videoPolicy || null,
+            publicApiBaseUrl: typeof payload.publicApiBaseUrl === 'string' ? payload.publicApiBaseUrl : ''
         };
+        roomVideoProvider = runtimeConfig.videoProvider;
+        roomVideoPolicy = runtimeConfig.videoPolicy;
+        if (videoClient && typeof videoClient.setApiBaseUrl === 'function') {
+            videoClient.setApiBaseUrl(runtimeConfig.publicApiBaseUrl || window.HALASTUDY_CONFIG?.API_BASE_URL || '');
+        }
         roomParticipantLimit = isMeshRoom() ? getMeshParticipantLimit(roomParticipantLimit) : null;
         sfuBaseUrl = runtimeConfig.sfuAvailable ? trimmedSfuBaseUrl : '';
         updateMediaModeBadge();
@@ -2114,7 +2261,9 @@
             remoteStatusEl.textContent = hasRemoteBuddy ? text.remoteOffline : '';
         }
         updateCameraToggleLabel();
-        if (isSfuRoom()) {
+        if (isRealtimeKitRoom()) {
+            aiStatusEl.textContent = text.aiSfuUnavailable;
+        } else if (isSfuRoom()) {
             aiStatusEl.textContent = text.aiSfuUnavailable;
         } else if (!cameraEnabled) {
             aiStatusEl.textContent = aiDetector ? text.aiNeedCamera : text.aiUnsupported;
@@ -2123,7 +2272,11 @@
         updateRoomBadge();
         updateMediaModeBadge();
         if (!mediaStatePanel.hidden && mediaStateTextEl.textContent) {
-            if (isSfuRoom() && sfuFrameLoaded) {
+            if (isRealtimeKitRoom() && !realtimeKitJoining) {
+                setMediaState('mediaRealtimeKitManaged', { detailKey: 'mediaRealtimeKitDetail' });
+            } else if (isRealtimeKitRoom()) {
+                setMediaState('mediaRealtimeKitLoading', { detailKey: 'mediaRealtimeKitDetail' });
+            } else if (isSfuRoom() && sfuFrameLoaded) {
                 setMediaState('mediaSfuManaged', { detailKey: 'aiSfuUnavailable' });
             } else if (isSfuRoom()) {
                 setMediaState('mediaSfuLoading', { detailKey: 'aiSfuUnavailable' });
@@ -3120,10 +3273,13 @@
                 renderMessages(res.room?.messages || []);
                 updatePresenceList(res.room?.participants || []);
                 broadcastStatus();
-                if (isSfuRoom()) {
+                if (isRealtimeKitRoom()) {
+                    void mountRealtimeKitRoom(roomId, username);
+                } else if (isSfuRoom()) {
                     mountSfuFrame(roomId, username);
                 } else {
                     unmountSfuFrame();
+                    unmountRealtimeKit();
                 }
                 if (isMeshRoom() && cameraEnabled && localStream) {
                     notifyCameraStatus(true);
@@ -3135,7 +3291,9 @@
             });
         };
         socket.on('connect', () => {
-            if (isMeshRoom()) {
+            if (isRealtimeKitRoom()) {
+                setMediaState('mediaRealtimeKitLoading', { detailKey: 'mediaRealtimeKitDetail', showRetry: false });
+            } else if (isMeshRoom()) {
                 setMediaState('mediaMeshConnecting');
             } else if (isSfuRoom()) {
                 setMediaState('mediaSfuLoading', { detailKey: 'aiSfuUnavailable', showRetry: false });
@@ -3164,7 +3322,10 @@
             setBoardEnabled(false);
             appendMessage({ type: 'system', text: currentCopy().disconnectMsg });
             clearAllMeshMedia();
-            if (isMeshRoom()) {
+            if (isRealtimeKitRoom()) {
+                void videoClient?.leave({ keepalive: true });
+                setMediaState('mediaRealtimeKitUnavailable', { detailKey: 'videoProviderUnavailable', showRetry: true });
+            } else if (isMeshRoom()) {
                 setMediaState('mediaMeshReconnecting');
             } else if (isSfuRoom()) {
                 setMediaState('mediaSfuUnavailable', { detailKey: 'aiSfuUnavailable', showRetry: true });
@@ -3308,17 +3469,29 @@
     }
     if (mediaRetryBtn) {
         mediaRetryBtn.addEventListener('click', () => {
-            if (isSfuRoom() && roomId) {
+            if (isRealtimeKitRoom() && roomId) {
+                void mountRealtimeKitRoom(roomId, username);
+            } else if (isSfuRoom() && roomId) {
                 mountSfuFrame(roomId, username);
             }
         });
     }
+    window.addEventListener('pagehide', () => {
+        if (isRealtimeKitRoom()) {
+            void videoClient?.leave({ keepalive: true });
+        }
+    });
 
     function updateCameraToggleLabel(state) {
         if (!cameraToggleBtn) return;
         if (state === 'loading') {
             cameraToggleBtn.disabled = true;
             cameraToggleBtn.textContent = langDict[curLang].cameraToggleStarting;
+            return;
+        }
+        if (isRealtimeKitRoom()) {
+            cameraToggleBtn.disabled = true;
+            cameraToggleBtn.textContent = langDict[curLang].mediaModeRealtimeKitBadge;
             return;
         }
         if (isSfuRoom()) {

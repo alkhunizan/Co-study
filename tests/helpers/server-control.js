@@ -189,6 +189,62 @@ async function startFakeSfu(options = {}) {
     };
 }
 
+async function startFakeRealtimeKit(options = {}) {
+    const port = options.port || await getFreePort();
+    const stdout = [];
+    const stderr = [];
+    const child = spawn(process.execPath, ['tests/helpers/fake-realtimekit-fixture.js'], {
+        cwd: repoRoot,
+        env: {
+            ...process.env,
+            PORT: String(port),
+            REALTIMEKIT_FAIL_PARTICIPANT: options.failParticipants ? '1' : '0'
+        },
+        stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    child.stdout.on('data', (chunk) => {
+        stdout.push(chunk.toString());
+    });
+    child.stderr.on('data', (chunk) => {
+        stderr.push(chunk.toString());
+    });
+
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const exitedEarly = new Promise((_, reject) => {
+        child.once('exit', (code, signal) => {
+            reject(new Error(`Fake RealtimeKit exited before becoming ready (code=${code}, signal=${signal || 'none'}).`));
+        });
+    });
+
+    try {
+        await Promise.race([waitForPath(baseUrl, '/health'), exitedEarly]);
+    } catch (error) {
+        await stopChild(child);
+        const combinedLogs = `${stdout.join('')}\n${stderr.join('')}`.trim();
+        throw new Error(`Failed to start fake RealtimeKit server: ${error.message}\n${combinedLogs}`);
+    }
+
+    return {
+        pid: child.pid,
+        port,
+        baseUrl,
+        async state() {
+            const response = await request(baseUrl, '/__state');
+            return response.body;
+        },
+        async stop() {
+            await stopChild(child);
+        },
+        logs() {
+            return {
+                stdout: stdout.join(''),
+                stderr: stderr.join('')
+            };
+        }
+    };
+}
+
 async function startServer(options = {}) {
     const port = options.port || await getFreePort();
     const roomStateFile = options.roomStateFile || makeTempStateFile('co-study-integration');
@@ -201,6 +257,9 @@ async function startServer(options = {}) {
     const fakeSfu = options.withFakeSfu && !externalSfuBaseUrl
         ? await startFakeSfu(options.fakeSfuOptions || {})
         : null;
+    const fakeRealtimeKit = options.withFakeRealtimeKit
+        ? await startFakeRealtimeKit(options.fakeRealtimeKitOptions || {})
+        : null;
 
     const stdout = [];
     const stderr = [];
@@ -212,6 +271,13 @@ async function startServer(options = {}) {
             PORT: String(port),
             ROOM_STATE_FILE: roomStateFile,
             SFU_BASE_URL: fakeSfu ? fakeSfu.baseUrl : '',
+            ...(fakeRealtimeKit ? {
+                VIDEO_PROVIDER: 'realtimekit',
+                CLOUDFLARE_ACCOUNT_ID: 'fake-account',
+                CLOUDFLARE_REALTIMEKIT_APP_ID: 'fake-app',
+                CLOUDFLARE_REALTIMEKIT_API_TOKEN: 'fake-secret-token',
+                CLOUDFLARE_REALTIMEKIT_API_BASE_URL: fakeRealtimeKit.baseUrl
+            } : {}),
             ...options.env
         },
         stdio: ['ignore', 'pipe', 'pipe']
@@ -237,6 +303,9 @@ async function startServer(options = {}) {
         if (fakeSfu) {
             await fakeSfu.stop();
         }
+        if (fakeRealtimeKit) {
+            await fakeRealtimeKit.stop();
+        }
         await stopChild(child);
         const combinedLogs = `${stdout.join('')}\n${stderr.join('')}`.trim();
         throw new Error(`Failed to start test server: ${error.message}\n${combinedLogs}`);
@@ -249,18 +318,27 @@ async function startServer(options = {}) {
         roomStateFile,
         sfuBaseUrl: fakeSfu ? fakeSfu.baseUrl : (options.env?.SFU_BASE_URL) || '',
         fakeSfuPid: fakeSfu ? fakeSfu.pid : null,
+        realtimeKitBaseUrl: fakeRealtimeKit ? fakeRealtimeKit.baseUrl : '',
+        fakeRealtimeKitPid: fakeRealtimeKit ? fakeRealtimeKit.pid : null,
         async stop() {
             await stopChild(child);
             if (fakeSfu) {
                 await fakeSfu.stop();
+            }
+            if (fakeRealtimeKit) {
+                await fakeRealtimeKit.stop();
             }
         },
         logs() {
             return {
                 stdout: stdout.join(''),
                 stderr: stderr.join(''),
-                fakeSfu: fakeSfu ? fakeSfu.logs() : null
+                fakeSfu: fakeSfu ? fakeSfu.logs() : null,
+                fakeRealtimeKit: fakeRealtimeKit ? fakeRealtimeKit.logs() : null
             };
+        },
+        async realtimeKitState() {
+            return fakeRealtimeKit ? fakeRealtimeKit.state() : null;
         },
         async request(pathname, requestOptions) {
             return request(baseUrl, pathname, requestOptions);

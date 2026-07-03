@@ -4,7 +4,8 @@
     "co-study-server.js",
     "scripts/*.js",
     "tests/integration/*.test.js",
-    "tests/helpers/fake-sfu-fixture.js"
+    "tests/helpers/fake-sfu-fixture.js",
+    "tests/helpers/fake-realtimekit-fixture.js"
   ],
   "project": [
     "*.js",

@@ -11,6 +11,8 @@ function createRoomStore(options = {}) {
         roomHistoryLimit = 80,
         normalizeRoom,
         normalizeMediaMode,
+        normalizeVideoProvider,
+        buildVideoPolicy,
         sanitizeRoomName,
         sanitizeBoardGoal,
         sanitizeBoardTaskText,
@@ -23,6 +25,12 @@ function createRoomStore(options = {}) {
     }
     if (typeof normalizeMediaMode !== 'function') {
         throw new TypeError('createRoomStore requires normalizeMediaMode');
+    }
+    if (typeof normalizeVideoProvider !== 'function') {
+        throw new TypeError('createRoomStore requires normalizeVideoProvider');
+    }
+    if (typeof buildVideoPolicy !== 'function') {
+        throw new TypeError('createRoomStore requires buildVideoPolicy');
     }
     if (typeof sanitizeRoomName !== 'function') {
         throw new TypeError('createRoomStore requires sanitizeRoomName');
@@ -102,6 +110,43 @@ function createRoomStore(options = {}) {
         };
     }
 
+    function sanitizeVideoProvider(raw) {
+        if (typeof raw !== 'string' || !raw.trim()) return null;
+        try {
+            return normalizeVideoProvider(raw);
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    function sanitizeVideoProviderStatus(raw) {
+        return ['active', 'closed', 'error'].includes(raw) ? raw : null;
+    }
+
+    function sanitizeVideoPolicy(policy = {}) {
+        const safe = buildVideoPolicy({
+            maxRoomParticipants: Number.isInteger(policy.maxParticipants) && policy.maxParticipants > 0
+                ? policy.maxParticipants
+                : 20,
+            maxGlobalParticipants: Number.isInteger(policy.maxGlobalParticipants) && policy.maxGlobalParticipants > 0
+                ? policy.maxGlobalParticipants
+                : 20,
+            maxRoomDurationMinutes: Number.isInteger(policy.maxRoomDurationMinutes) && policy.maxRoomDurationMinutes > 0
+                ? policy.maxRoomDurationMinutes
+                : 180,
+            recordingEnabled: false,
+            screenshareEnabled: !!policy.screenshareEnabled,
+            chatEnabled: !!policy.chatEnabled
+        });
+        return {
+            maxParticipants: safe.maxRoomParticipants,
+            recordingEnabled: false,
+            screenshareEnabled: !!safe.screenshareEnabled,
+            micDefaultEnabled: false,
+            chatEnabled: !!safe.chatEnabled
+        };
+    }
+
     /**
      * @param {Record<string, any>} room
      * @param {number} [_index]
@@ -135,6 +180,15 @@ function createRoomStore(options = {}) {
             requirePassword: room.requirePassword === undefined ? !!passwordHash : !!room.requirePassword,
             passwordHash,
             mediaMode: normalizeMediaMode(room.mediaMode),
+            videoProvider: sanitizeVideoProvider(room.videoProvider),
+            videoProviderMeetingId: typeof room.videoProviderMeetingId === 'string' && room.videoProviderMeetingId.trim()
+                ? room.videoProviderMeetingId.trim()
+                : null,
+            videoProviderMeetingCreatedAt: Number.isFinite(room.videoProviderMeetingCreatedAt)
+                ? room.videoProviderMeetingCreatedAt
+                : null,
+            videoProviderStatus: sanitizeVideoProviderStatus(room.videoProviderStatus),
+            videoPolicy: sanitizeVideoPolicy(room.videoPolicy),
             createdAt: typeof room.createdAt === 'number' ? room.createdAt : Date.now(),
             messages: safeMessages,
             board: {

@@ -38,6 +38,11 @@ production-shaped values and inline notes. The critical production settings:
   the empty-list fallback.
 - **`ICE_SERVERS_JSON`** — set a TURN relay. STUN-only (the default) fails across
   the CGNAT'd mobile networks common in the Gulf.
+- **RealtimeKit env** — set `VIDEO_PROVIDER=realtimekit`,
+  `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_REALTIMEKIT_APP_ID`, and
+  `CLOUDFLARE_REALTIMEKIT_API_TOKEN`. These are server-only secrets.
+- **Video caps** — keep `MAX_GLOBAL_VIDEO_PARTICIPANTS=20` and
+  `MAX_ROOM_VIDEO_PARTICIPANTS=20` for launch cost control.
 
 `ecosystem.config.js` already targets:
 - `PORT=3000`
@@ -49,10 +54,22 @@ If you want explicit shell exports instead:
 ```bash
 export PORT=3000
 export TRUST_PROXY=1
-export ROOM_STATE_FILE='/var/www/Co-study/data/rooms.json'
-export ROOM_STATE_BACKUP_DIR='/var/www/Co-study/data/backups'
+export ROOM_STATE_FILE='/var/lib/halastudy/rooms.json'
+export ROOM_STATE_BACKUP_DIR='/var/lib/halastudy/backups'
 export ALLOWED_ORIGINS='https://your-domain.com'
 export MESH_PARTICIPANT_LIMIT=4
+export VIDEO_PROVIDER=realtimekit
+export VIDEO_JOIN_DISABLED=false
+export MAX_GLOBAL_VIDEO_PARTICIPANTS=20
+export MAX_ROOM_VIDEO_PARTICIPANTS=20
+export MAX_ROOM_DURATION_MINUTES=180
+export VIDEO_RECORDING_ENABLED=false
+export VIDEO_SCREENSHARE_ENABLED=false
+export VIDEO_CHAT_ENABLED=false
+export VIDEO_DEFAULT_PRESET_NAME=halastudy_student
+export CLOUDFLARE_ACCOUNT_ID='replace_me'
+export CLOUDFLARE_REALTIMEKIT_APP_ID='replace_me'
+export CLOUDFLARE_REALTIMEKIT_API_TOKEN='replace_me'
 ```
 
 Optional TURN config:
@@ -66,11 +83,24 @@ export ICE_SERVERS_JSON='[
 
 If you set `SFU_BASE_URL`, it must be an absolute `http(s)` URL.
 
-Managed media behavior in production:
-- `mesh` is the default room mode and respects `MESH_PARTICIPANT_LIMIT`
-- `sfu` rooms are available only when `SFU_BASE_URL` is configured
-- Rooms do not migrate between `mesh` and `sfu` after creation
-- AI focus monitoring stays available in mesh rooms only
+RealtimeKit behavior in production:
+- The backend creates/reuses one RealtimeKit meeting per Halastudy room.
+- The browser receives only the participant `authToken`, never Cloudflare account/app/API credentials.
+- New video token issuance is blocked when the global active video count reaches 20 or the room active video count reaches 20.
+- Expired idle provider meetings are recycled after `MAX_ROOM_DURATION_MINUTES`; active expired meetings reject new video tokens.
+- Set `VIDEO_JOIN_DISABLED=true` as a kill switch if provider errors or costs spike.
+- Recording, screenshare, and provider chat stay disabled for launch.
+- `VIDEO_PROVIDER=mesh` is an emergency fallback to the legacy P2P path; `sfu` rooms remain available only when `SFU_BASE_URL` is configured.
+
+Launch budget math:
+
+```text
+20 users x 4 hours/day x 60 minutes x 30 days = 144,000 participant-minutes/month
+144,000 x $0.002 = $288/month
+```
+
+This estimate depends on the hard 20-user global cap and keeping recording,
+screenshare, transcription, and AI extras off.
 
 ## 4. Start the App with PM2
 
@@ -190,10 +220,11 @@ npm run verify:deploy -- https://your-domain.com
 `/api/ready` should return `200` with all checks set to `true`.
 
 Manual media spot-check before launch:
-- create a mesh room and confirm video works with 2 participants
-- confirm the 5th participant is blocked from a full mesh room
-- create an SFU room and confirm the embedded media session loads
-- verify a password-protected room in both mesh and SFU modes
+- create a RealtimeKit room and confirm video works with 2 participants
+- confirm participants 1-20 can join and the 21st participant is rejected
+- verify camera defaults on, microphone defaults off, recording is unavailable, and screenshare is disabled unless explicitly enabled
+- if `VIDEO_PROVIDER=mesh` is used as a fallback, confirm the legacy 4-person mesh cap still blocks the 5th participant
+- verify a password-protected room before requesting a RealtimeKit token
 - verify reconnect behavior after a participant drops and rejoins
 
 ## Backup and Restore

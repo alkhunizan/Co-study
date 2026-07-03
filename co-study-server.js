@@ -5,6 +5,16 @@ const crypto = require('node:crypto');
 const { Server } = require('socket.io');
 const { createRoomStore } = require('./room-store');
 const {
+    VIDEO_PROVIDER_MESH,
+    VIDEO_PROVIDER_REALTIMEKIT,
+    buildVideoPolicy,
+    normalizeVideoProvider,
+    resolveVideoConfig
+} = require('./server-config');
+const { createLogger } = require('./services/logging/logger');
+const { createVideoProvider } = require('./services/video');
+const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
+const {
     buildScheduleSummary,
     normalizeSchedule,
     recordScheduleJoin,
@@ -42,6 +52,9 @@ const ROOM_LOOKUP_RATE = { limit: 12, windowMs: 60 * 1000 };
 const PASSWORD_FAILURE_RATE = { limit: 5, windowMs: 10 * 60 * 1000 };
 const CHAT_RATE = { limit: 20, windowMs: 30 * 1000 };
 const BOARD_RATE = { limit: 40, windowMs: 30 * 1000 };
+const VIDEO_TOKEN_RATE = { limit: 12, windowMs: 60 * 1000 };
+const VIDEO_HEARTBEAT_RATE = { limit: 90, windowMs: 60 * 1000 };
+const VIDEO_SESSION_SWEEP_MS = 60 * 1000;
 
 class SlidingWindowRateLimiter {
     constructor({ limit, windowMs }) {
@@ -290,6 +303,7 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
     const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS);
     const trustProxy = parseTrustProxy(env.TRUST_PROXY);
     const sfuBaseUrl = parseSfuBaseUrl(env.SFU_BASE_URL);
+    const video = resolveVideoConfig(env);
     const meshParticipantLimit = parsePositiveInteger(
         env.MESH_PARTICIPANT_LIMIT,
         'MESH_PARTICIPANT_LIMIT',
@@ -312,7 +326,8 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
         supportedMediaModes: sfuBaseUrl ? [MEDIA_MODE_MESH, MEDIA_MODE_SFU] : [MEDIA_MODE_MESH],
         meshParticipantLimit,
         runtimeIceServers: runtimeIce.iceServers,
-        iceMode: runtimeIce.source
+        iceMode: runtimeIce.source,
+        video
     };
 }
 
@@ -554,15 +569,33 @@ function getExpectedOrigin(headers = {}, mode = 'http', trustProxy = false) {
     return `${protocol}://${host}`;
 }
 
-function buildContentSecurityPolicy(sfuOrigin = '') {
+/**
+ * @param {{ sfuOrigin?: string, videoConfig?: Record<string, any> }} [options]
+ */
+function buildContentSecurityPolicy({ sfuOrigin = '', videoConfig = {} } = {}) {
+    const usesRealtimeKit = videoConfig.provider === VIDEO_PROVIDER_REALTIMEKIT;
+    const scriptSrc = ["script-src 'self' 'unsafe-inline'"];
+    const connectSrc = ["connect-src 'self'"];
+    const mediaSrc = ["media-src 'self' blob: mediastream:"];
+
+    if (usesRealtimeKit) {
+        scriptSrc.push('https://cdn.jsdelivr.net');
+        connectSrc.push(
+            'https://*.cloudflare.com',
+            'wss://*.cloudflare.com',
+            'https://*.cloudflarestream.com',
+            'wss://*.cloudflarestream.com'
+        );
+    }
+
     return [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline'",
+        scriptSrc.join(' '),
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob:",
-        "media-src 'self' blob:",
-        "connect-src 'self'",
+        mediaSrc.join(' '),
+        connectSrc.join(' '),
         sfuOrigin ? `frame-src 'self' ${sfuOrigin}` : "frame-src 'self'",
         "object-src 'none'",
         "base-uri 'self'",
@@ -570,12 +603,16 @@ function buildContentSecurityPolicy(sfuOrigin = '') {
     ].join('; ');
 }
 
-function buildPermissionsPolicy(sfuOrigin = '') {
+/**
+ * @param {{ sfuOrigin?: string, videoConfig?: Record<string, any> }} [options]
+ */
+function buildPermissionsPolicy({ sfuOrigin = '', videoConfig = {} } = {}) {
     // The SFU iframe is cross-origin; camera/mic/display-capture delegation
     // through its allow="" attribute only works if the embedding document's
     // policy allow-lists that origin too.
     const allowList = sfuOrigin ? `(self "${sfuOrigin}")` : '(self)';
-    return `camera=${allowList}, microphone=${allowList}, display-capture=${allowList}`;
+    const displayCapture = videoConfig.screenshareEnabled ? allowList : '()';
+    return `camera=${allowList}, microphone=${allowList}, display-capture=${displayCapture}`;
 }
 
 function isOriginAllowed({ origin, expectedOrigin, allowedOrigins }) {
@@ -604,20 +641,32 @@ function getSocketRequestIp(request, trustProxy) {
 function createCoStudyServer(options = {}) {
     const { env = process.env, mode = 'http', createServer } = options;
     const config = resolveServerConfig({ env, mode });
+    const logger = createLogger({ service: 'halastudy' });
     const sfuOrigin = config.sfuAvailable ? new URL(config.sfuBaseUrl).origin : '';
-    const contentSecurityPolicy = buildContentSecurityPolicy(sfuOrigin);
-    const permissionsPolicy = buildPermissionsPolicy(sfuOrigin);
+    const contentSecurityPolicy = buildContentSecurityPolicy({ sfuOrigin, videoConfig: config.video });
+    const permissionsPolicy = buildPermissionsPolicy({ sfuOrigin, videoConfig: config.video });
     const pendingLeaveTimers = new Map();
     const skippedDisconnects = new Set();
     const rooms = new Map();
+    const meetingCreationLocks = new Map();
     const rateLimiters = {
         createRoom: new SlidingWindowRateLimiter(CREATE_ROOM_RATE),
         joinRoom: new SlidingWindowRateLimiter(JOIN_ATTEMPT_RATE),
         roomLookup: new SlidingWindowRateLimiter(ROOM_LOOKUP_RATE),
         passwordFailures: new SlidingWindowRateLimiter(PASSWORD_FAILURE_RATE),
         chatMessages: new SlidingWindowRateLimiter(CHAT_RATE),
-        boardMutations: new SlidingWindowRateLimiter(BOARD_RATE)
+        boardMutations: new SlidingWindowRateLimiter(BOARD_RATE),
+        videoToken: new SlidingWindowRateLimiter(VIDEO_TOKEN_RATE),
+        videoHeartbeat: new SlidingWindowRateLimiter(VIDEO_HEARTBEAT_RATE)
     };
+    const videoProvider = createVideoProvider({ config: config.video, logger });
+    const videoSessionRegistry = createVideoSessionRegistry({ logger });
+    config.video.warnings.forEach((message) => {
+        logger.warn({
+            event: 'video_config_warning',
+            message
+        });
+    });
     const readinessState = {
         config: true,
         roomStore: false,
@@ -661,11 +710,93 @@ function createCoStudyServer(options = {}) {
         roomHistoryLimit: ROOM_HISTORY_LIMIT,
         normalizeRoom,
         normalizeMediaMode,
+        normalizeVideoProvider,
+        buildVideoPolicy,
         sanitizeRoomName,
         sanitizeBoardGoal,
         sanitizeBoardTaskText,
         normalizeBoardPriority
     });
+
+    function getDefaultRoomVideoPolicy(policy = {}) {
+        const basePolicy = buildVideoPolicy(config.video);
+        return {
+            maxParticipants: Number.isInteger(policy.maxParticipants) && policy.maxParticipants > 0
+                ? Math.min(policy.maxParticipants, config.video.maxRoomParticipants)
+                : config.video.maxRoomParticipants,
+            recordingEnabled: false,
+            screenshareEnabled: !!basePolicy.screenshareEnabled,
+            micDefaultEnabled: false,
+            chatEnabled: !!basePolicy.chatEnabled
+        };
+    }
+
+    function getClientVideoPolicy(room) {
+        const roomPolicy = getDefaultRoomVideoPolicy(room?.videoPolicy);
+        return {
+            micDefaultEnabled: false,
+            recordingEnabled: false,
+            screenshareEnabled: !!roomPolicy.screenshareEnabled,
+            chatEnabled: !!roomPolicy.chatEnabled,
+            maxRoomParticipants: roomPolicy.maxParticipants,
+            maxGlobalParticipants: config.video.maxGlobalParticipants,
+            maxRoomDurationMinutes: config.video.maxRoomDurationMinutes
+        };
+    }
+
+    function getRoomVideoProvider(room) {
+        try {
+            return normalizeVideoProvider(room?.videoProvider || config.video.provider);
+        } catch (_error) {
+            return config.video.provider;
+        }
+    }
+
+    function applyRoomVideoDefaults(room) {
+        if (!room) return room;
+        room.videoProvider = getRoomVideoProvider(room);
+        room.videoProviderMeetingId = typeof room.videoProviderMeetingId === 'string' && room.videoProviderMeetingId.trim()
+            ? room.videoProviderMeetingId.trim()
+            : null;
+        room.videoProviderMeetingCreatedAt = Number.isFinite(room.videoProviderMeetingCreatedAt)
+            ? room.videoProviderMeetingCreatedAt
+            : null;
+        room.videoProviderStatus = ['active', 'closed', 'error'].includes(room.videoProviderStatus)
+            ? room.videoProviderStatus
+            : (room.videoProviderMeetingId ? 'active' : null);
+        room.videoPolicy = getDefaultRoomVideoPolicy(room.videoPolicy);
+        return room;
+    }
+
+    function buildVideoCapacityPayload(roomId) {
+        const normalizedRoom = normalizeRoom(roomId);
+        return {
+            roomId: normalizedRoom,
+            activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom),
+            activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+            maxRoomVideoParticipants: config.video.maxRoomParticipants,
+            maxGlobalVideoParticipants: config.video.maxGlobalParticipants
+        };
+    }
+
+    function emitVideoCapacity(roomId) {
+        io.to(roomId).emit('video-capacity-updated', buildVideoCapacityPayload(roomId));
+    }
+
+    function emitVideoSessionEnded(session) {
+        if (!session?.roomId) return;
+        io.to(session.roomId).emit('video-session-ended', {
+            roomId: session.roomId,
+            userId: session.userId,
+            clientSessionId: session.clientSessionId,
+            reason: session.leaveReason || 'left'
+        });
+        emitVideoCapacity(session.roomId);
+    }
+
+    function emitEndedVideoSessions(sessions = []) {
+        sessions.forEach(emitVideoSessionEnded);
+    }
 
     function roomSnapshot(roomId) {
         const normalized = normalizeRoom(roomId);
@@ -676,6 +807,10 @@ function createCoStudyServer(options = {}) {
                 name: normalized,
                 requirePassword: false,
                 mediaMode: MEDIA_MODE_MESH,
+                videoProvider: config.video.provider,
+                videoPolicy: getClientVideoPolicy(null),
+                activeVideoParticipantCount: 0,
+                maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
                 participantCount: 0,
                 participantLimit: config.meshParticipantLimit,
                 participants: [],
@@ -688,12 +823,18 @@ function createCoStudyServer(options = {}) {
         if (scheduleChanged) {
             persistRoomsSoon();
         }
+        applyRoomVideoDefaults(room);
         const board = cloneBoard(ensureRoomBoard(room));
         return {
             roomId: normalized,
             name: room.name || normalized,
             requirePassword: !!room.requirePassword,
             mediaMode: normalizeMediaMode(room.mediaMode),
+            videoProvider: getRoomVideoProvider(room),
+            videoProviderStatus: room.videoProviderStatus || null,
+            videoPolicy: getClientVideoPolicy(room),
+            activeVideoParticipantCount: videoSessionRegistry.countActiveRoomVideoParticipants(normalized),
+            maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
             participantCount: room.users.size,
             participantLimit: normalizeMediaMode(room.mediaMode) === MEDIA_MODE_MESH ? config.meshParticipantLimit : null,
             participants: Array.from(room.users.values()).map((user) => ({
@@ -718,12 +859,17 @@ function createCoStudyServer(options = {}) {
             titleFallback: sanitizeRoomName(room.name || room.id || '') || normalizeRoom(room.id || room.roomId || room.code || ''),
             strict: false
         });
-        return {
+        return applyRoomVideoDefaults({
             id: normalizeRoom(room.id || room.roomId || room.code || ''),
             name: sanitizeRoomName(room.name || room.id || '') || normalizeRoom(room.id || room.roomId || room.code || ''),
             requirePassword: !!room.requirePassword,
             passwordHash: room.passwordHash || null,
             mediaMode: normalizeMediaMode(room.mediaMode),
+            videoProvider: room.videoProvider || config.video.provider,
+            videoProviderMeetingId: typeof room.videoProviderMeetingId === 'string' ? room.videoProviderMeetingId : null,
+            videoProviderMeetingCreatedAt: Number.isFinite(room.videoProviderMeetingCreatedAt) ? room.videoProviderMeetingCreatedAt : null,
+            videoProviderStatus: typeof room.videoProviderStatus === 'string' ? room.videoProviderStatus : null,
+            videoPolicy: room.videoPolicy,
             createdAt: typeof room.createdAt === 'number' ? room.createdAt : Date.now(),
             users: new Map(),
             messages: Array.isArray(room.messages) ? room.messages.map((message) => ({ ...message })) : [],
@@ -731,7 +877,7 @@ function createCoStudyServer(options = {}) {
             schedule,
             identities: new Map(),
             cleanupTimer: null
-        };
+        });
     }
 
     function getRoomMediaMode(room) {
@@ -791,6 +937,7 @@ function createCoStudyServer(options = {}) {
                 requirePassword: !!meta.requirePassword,
                 passwordHash: meta.passwordHash || null,
                 mediaMode: normalizeMediaMode(meta.mediaMode),
+                videoProvider: meta.videoProvider || config.video.provider,
                 createdAt: meta.createdAt || Date.now(),
                 schedule,
                 board: {
@@ -815,6 +962,7 @@ function createCoStudyServer(options = {}) {
             room.requirePassword = !!room.passwordHash;
         }
         room.mediaMode = normalizeMediaMode(room.mediaMode);
+        applyRoomVideoDefaults(room);
         room.schedule = normalizeSchedule(room.schedule, {
             titleFallback: room.name || normalized,
             strict: false
@@ -915,6 +1063,115 @@ function createCoStudyServer(options = {}) {
         return false;
     }
 
+    function sendVideoError(res, status, errorCode) {
+        res.status(status).json({
+            ok: false,
+            errorCode,
+            error: errorCode
+        });
+    }
+
+    function findRoomVideoMember(req, room, displayName, clientSessionId) {
+        const cookies = parseCookies(req.headers.cookie || '');
+        const sessionId = cookies[SESSION_COOKIE_NAME] || '';
+        const users = Array.from(room.users.values());
+        return users.find((user) => {
+            if (!user || user.name !== displayName) return false;
+            if (clientSessionId && user.clientId === clientSessionId) return true;
+            if (clientSessionId && user.sessionId === clientSessionId) return true;
+            if (sessionId && user.sessionId === sessionId) return true;
+            return false;
+        }) || null;
+    }
+
+    async function ensureRealtimeKitMeeting(roomId, room) {
+        applyRoomVideoDefaults(room);
+        if (room.videoProviderMeetingId && room.videoProviderStatus !== 'closed') {
+            return {
+                provider: getRoomVideoProvider(room),
+                meetingId: room.videoProviderMeetingId,
+                reused: true
+            };
+        }
+
+        const existingLock = meetingCreationLocks.get(roomId);
+        if (existingLock) return existingLock;
+
+        const createPromise = (async () => {
+            const meeting = await videoProvider.ensureRoomMeeting({
+                roomId,
+                roomName: room.name || roomId
+            });
+            room.videoProviderMeetingId = meeting.meetingId;
+            room.videoProviderMeetingCreatedAt = Date.now();
+            room.videoProviderStatus = 'active';
+            persistRoomsSoon();
+            logger.info({
+                event: 'video_meeting_ready',
+                provider: getRoomVideoProvider(room),
+                roomId,
+                meetingId: room.videoProviderMeetingId,
+                reused: !!meeting.reused
+            });
+            return meeting;
+        })();
+
+        meetingCreationLocks.set(roomId, createPromise);
+        try {
+            return await createPromise;
+        } catch (error) {
+            room.videoProviderStatus = 'error';
+            persistRoomsSoon();
+            throw error;
+        } finally {
+            meetingCreationLocks.delete(roomId);
+        }
+    }
+
+    async function refreshExpiredRoomMeetingIfIdle(roomId, room) {
+        if (!room?.videoProviderMeetingCreatedAt) return true;
+        const meetingAgeMs = Date.now() - room.videoProviderMeetingCreatedAt;
+        const maxMeetingAgeMs = config.video.maxRoomDurationMinutes * 60 * 1000;
+        if (meetingAgeMs <= maxMeetingAgeMs) return true;
+
+        const activeRoomVideoParticipants = videoSessionRegistry.countActiveRoomVideoParticipants(roomId);
+        if (activeRoomVideoParticipants > 0) {
+            return false;
+        }
+
+        const oldMeetingId = room.videoProviderMeetingId;
+        room.videoProviderMeetingId = null;
+        room.videoProviderMeetingCreatedAt = null;
+        room.videoProviderStatus = 'closed';
+        persistRoomsSoon();
+
+        if (oldMeetingId && typeof videoProvider.closeRoomMeeting === 'function') {
+            void videoProvider.closeRoomMeeting({ meetingId: oldMeetingId });
+        }
+        logger.info({
+            event: 'video_meeting_recycled',
+            provider: getRoomVideoProvider(room),
+            roomId,
+            oldMeetingId,
+            maxRoomDurationMinutes: config.video.maxRoomDurationMinutes
+        });
+        return true;
+    }
+
+    function isSameActiveVideoSession(session, roomId, userId, clientSessionId) {
+        return session
+            && !session.leftAt
+            && session.roomId === roomId
+            && session.userId === userId
+            && session.clientSessionId === clientSessionId;
+    }
+
+    function findActiveVideoSession(roomId, userId, clientSessionId) {
+        return videoSessionRegistry.listActive().find((session) => {
+            return isSameActiveVideoSession(session, roomId, userId, clientSessionId);
+        }) || null;
+    }
+
     function originGuard(req, res, next) {
         const origin = req.headers.origin;
         const allowed = isOriginAllowed({
@@ -996,11 +1253,17 @@ function createCoStudyServer(options = {}) {
     }
 
     const loadedRoomCount = loadPersistedRooms();
+    const videoSweepTimer = setInterval(() => {
+        const ended = videoSessionRegistry.sweepStaleVideoSessions();
+        emitEndedVideoSessions(ended);
+    }, VIDEO_SESSION_SWEEP_MS);
+    videoSweepTimer.unref();
 
     let isShuttingDown = false;
     async function flushRoomStateAndExit(signal) {
         if (isShuttingDown) return;
         isShuttingDown = true;
+        clearInterval(videoSweepTimer);
         console.log(`Received ${signal}. Persisting room state to ${roomStore.filePath}...`);
         try {
             await roomStore.flush(rooms);
@@ -1031,6 +1294,7 @@ function createCoStudyServer(options = {}) {
     // present on rsync-style deploys) — never serve it.
     app.use('/videos/hero/source', (_req, res) => res.status(404).end());
     app.use('/videos', express.static(path.join(__dirname, 'videos'), { maxAge: '1d' }));
+    app.use('/js', express.static(path.join(__dirname, 'public', 'js'), { maxAge: '1h' }));
     // The pages only need the stylesheets; the rest of design-system/ is
     // internal documentation and must not be publicly fetchable.
     app.use('/design-system', (req, res, next) => {
@@ -1061,7 +1325,214 @@ function createCoStudyServer(options = {}) {
             sfuBaseUrl: config.sfuBaseUrl,
             sfuAvailable: config.sfuAvailable,
             supportedMediaModes: [...config.supportedMediaModes],
-            meshParticipantLimit: config.meshParticipantLimit
+            meshParticipantLimit: config.meshParticipantLimit,
+            videoProvider: config.video.provider,
+            videoPolicy: getClientVideoPolicy(null),
+            activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+            maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
+            videoJoinDisabled: !!config.video.joinDisabled,
+            publicApiBaseUrl: config.video.publicApiBaseUrl
+        });
+    });
+
+    app.post('/api/rooms/:roomId/video-token', async (req, res) => {
+        const { roomId } = req.params;
+        const requestIp = getRequestIp(req);
+        if (!applyHttpRateLimit(req, res, rateLimiters.videoToken, requestIp)) {
+            return;
+        }
+
+        const normalizedRoom = normalizeRoom(roomId);
+        const room = rooms.get(normalizedRoom);
+        if (!normalizedRoom || !room) {
+            sendVideoError(res, 404, 'ROOM_NOT_FOUND');
+            return;
+        }
+
+        const displayName = sanitizeNickname(req.body?.displayName);
+        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
+        const role = typeof req.body?.role === 'string' && req.body.role.trim()
+            ? req.body.role.trim().toLowerCase()
+            : 'student';
+
+        if (!displayName || !clientSessionId || role !== 'student') {
+            sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
+            return;
+        }
+        if (config.video.joinDisabled) {
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'VIDEO_JOIN_DISABLED',
+                roomId: normalizedRoom,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants()
+            });
+            sendVideoError(res, 503, 'VIDEO_JOIN_DISABLED');
+            return;
+        }
+
+        applyRoomVideoDefaults(room);
+        const roomVideoProvider = getRoomVideoProvider(room);
+        if (roomVideoProvider !== VIDEO_PROVIDER_REALTIMEKIT) {
+            sendVideoError(res, 409, 'VIDEO_PROVIDER_UNAVAILABLE');
+            return;
+        }
+
+        const member = findRoomVideoMember(req, room, displayName, clientSessionId);
+        if (!member) {
+            sendVideoError(res, 403, 'ROOM_NOT_JOINED');
+            return;
+        }
+
+        const userId = member.clientId || member.sessionId || clientSessionId;
+        const existingActive = findActiveVideoSession(normalizedRoom, userId, clientSessionId);
+        const activeGlobal = videoSessionRegistry.countActiveGlobalVideoParticipants();
+        const activeRoom = videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom);
+        const effectiveGlobal = activeGlobal - (existingActive ? 1 : 0);
+        const effectiveRoom = activeRoom - (existingActive ? 1 : 0);
+        const roomPolicy = getDefaultRoomVideoPolicy(room.videoPolicy);
+
+        if (effectiveGlobal >= config.video.maxGlobalParticipants) {
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'GLOBAL_VIDEO_LIMIT_REACHED',
+                roomId: normalizedRoom,
+                activeGlobalVideoParticipants: activeGlobal
+            });
+            sendVideoError(res, 409, 'GLOBAL_VIDEO_LIMIT_REACHED');
+            return;
+        }
+        if (effectiveRoom >= roomPolicy.maxParticipants) {
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'ROOM_FULL',
+                roomId: normalizedRoom,
+                activeRoomVideoParticipants: activeRoom
+            });
+            sendVideoError(res, 409, 'ROOM_FULL');
+            return;
+        }
+        if (!await refreshExpiredRoomMeetingIfIdle(normalizedRoom, room)) {
+            sendVideoError(res, 409, 'ROOM_DURATION_LIMIT_REACHED');
+            return;
+        }
+
+        videoSessionRegistry.registerVideoSession({
+            roomId: normalizedRoom,
+            userId,
+            clientSessionId,
+            socketId: member.socketId,
+            provider: roomVideoProvider,
+            providerMeetingId: room.videoProviderMeetingId,
+            displayName,
+            joinedAt: existingActive?.joinedAt || Date.now(),
+            lastSeenAt: Date.now()
+        });
+
+        try {
+            const meeting = await ensureRealtimeKitMeeting(normalizedRoom, room);
+            const tokenPayload = await videoProvider.createParticipantToken({
+                roomId: normalizedRoom,
+                meetingId: meeting.meetingId,
+                userId,
+                displayName
+            });
+
+            videoSessionRegistry.updateVideoSession({ roomId: normalizedRoom, userId, clientSessionId }, {
+                providerMeetingId: tokenPayload.meetingId,
+                providerParticipantId: tokenPayload.participantId,
+                lastSeenAt: Date.now()
+            });
+            emitVideoCapacity(normalizedRoom);
+            logger.info({
+                event: 'video_token_issued',
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                userId,
+                clientSessionId,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
+            });
+
+            res.json({
+                ok: true,
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                meetingId: tokenPayload.meetingId,
+                participantId: tokenPayload.participantId,
+                authToken: tokenPayload.authToken,
+                expiresAt: tokenPayload.expiresAt || null,
+                policy: getClientVideoPolicy(room)
+            });
+        } catch (error) {
+            videoSessionRegistry.markVideoSessionLeft({ roomId: normalizedRoom, userId, clientSessionId }, 'provider_failure');
+            emitVideoCapacity(normalizedRoom);
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'VIDEO_PROVIDER_UNAVAILABLE',
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                message: error.message
+            });
+            sendVideoError(res, error.status || 502, 'VIDEO_PROVIDER_UNAVAILABLE');
+        }
+    });
+
+    app.post('/api/rooms/:roomId/video-heartbeat', (req, res) => {
+        const requestIp = getRequestIp(req);
+        if (!applyHttpRateLimit(req, res, rateLimiters.videoHeartbeat, requestIp)) {
+            return;
+        }
+
+        const normalizedRoom = normalizeRoom(req.params.roomId);
+        const room = rooms.get(normalizedRoom);
+        if (!room) {
+            sendVideoError(res, 404, 'ROOM_NOT_FOUND');
+            return;
+        }
+        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
+        const displayName = sanitizeNickname(req.body?.displayName);
+        const member = displayName && clientSessionId
+            ? findRoomVideoMember(req, room, displayName, clientSessionId)
+            : null;
+        const userId = member?.clientId || member?.sessionId || clientSessionId;
+        if (!clientSessionId || !userId) {
+            sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
+            return;
+        }
+        const session = videoSessionRegistry.touchVideoSession({ roomId: normalizedRoom, userId, clientSessionId });
+        if (!session) {
+            sendVideoError(res, 404, 'VIDEO_SESSION_NOT_FOUND');
+            return;
+        }
+        res.json({
+            ok: true,
+            ...buildVideoCapacityPayload(normalizedRoom)
+        });
+    });
+
+    app.post('/api/rooms/:roomId/video-leave', (req, res) => {
+        const normalizedRoom = normalizeRoom(req.params.roomId);
+        const room = rooms.get(normalizedRoom);
+        if (!room) {
+            sendVideoError(res, 404, 'ROOM_NOT_FOUND');
+            return;
+        }
+        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
+        const displayName = sanitizeNickname(req.body?.displayName);
+        const member = displayName && clientSessionId
+            ? findRoomVideoMember(req, room, displayName, clientSessionId)
+            : null;
+        const userId = member?.clientId || member?.sessionId || clientSessionId;
+        if (!clientSessionId || !userId) {
+            sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
+            return;
+        }
+        const ended = videoSessionRegistry.markVideoSessionLeft({ roomId: normalizedRoom, userId, clientSessionId }, 'client_leave');
+        if (ended) emitVideoSessionEnded(ended);
+        res.json({
+            ok: true,
+            ...buildVideoCapacityPayload(normalizedRoom)
         });
     });
 
@@ -1163,6 +1634,7 @@ function createCoStudyServer(options = {}) {
                 requirePassword: shouldProtect,
                 passwordHash,
                 mediaMode,
+                videoProvider: config.video.provider,
                 createdAt: Date.now(),
                 schedule
             });
@@ -1278,7 +1750,10 @@ function createCoStudyServer(options = {}) {
                 }
             });
 
-            if (roomUsesMesh(room) && !isRejoin && room.users.size >= config.meshParticipantLimit) {
+            if (getRoomVideoProvider(room) === VIDEO_PROVIDER_MESH
+                && roomUsesMesh(room)
+                && !isRejoin
+                && room.users.size >= config.meshParticipantLimit) {
                 return ackError(ack, 'ROOM_FULL');
             }
 
@@ -1567,6 +2042,7 @@ function createCoStudyServer(options = {}) {
                 return;
             }
 
+            emitEndedVideoSessions(videoSessionRegistry.markSocketSessionsLeft(socket.id, 'socket_disconnect'));
             const { roomId, sessionId: userSessionId, clientId: userClientId } = socket.data;
             if (!roomId) return;
             const room = rooms.get(roomId);
@@ -1631,7 +2107,11 @@ function createCoStudyServer(options = {}) {
                 loadedRoomCount,
                 iceMode: config.iceMode,
                 sfuAvailable: config.sfuAvailable,
-                meshParticipantLimit: config.meshParticipantLimit
+                meshParticipantLimit: config.meshParticipantLimit,
+                videoProvider: config.video.provider,
+                maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
+                maxRoomVideoParticipants: config.video.maxRoomParticipants,
+                videoJoinDisabled: !!config.video.joinDisabled
             };
             console.log(JSON.stringify(startupSummary));
             if (typeof callback === 'function') {
@@ -1651,6 +2131,7 @@ function createCoStudyServer(options = {}) {
         io,
         config,
         roomStore,
+        videoSessionRegistry,
         rooms,
         listen,
         evaluateReadiness,
