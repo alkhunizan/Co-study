@@ -5,14 +5,6 @@ Completed items move to the bottom with the version that shipped them.
 
 ## Server
 
-### Gate /api/rooms/:roomId details for password-protected rooms
-**Priority:** P1
-Anyone holding a 6-character room code can read a protected room's chat history
-and participant list — the password gates joining, not reading. Needs a trimmed
-public snapshot (name, requirePassword, mediaMode, counts — what the join
-preview uses) and updates to the tests that read `snapshot.body.messages`.
-Found by the /ship security pass on `feat/landing-redesign` (pre-existing).
-
 ### Deploy-time manual QA: real-SFU camera delegation
 **Priority:** P1
 The Permissions-Policy/CSP allow-listing is integration-tested at the header
@@ -69,6 +61,10 @@ preview" label; community copy still says "Real students". Swap in real footage
 
 ## Completed
 
+- Gate /api/rooms/:roomId behind a trimmed public snapshot (roomId, name,
+  requirePassword, mediaMode, counts, schedule) — chat history, participants,
+  and board no longer readable over unauthenticated HTTP; asserts moved to
+  join-room acks + regression test. **Completed:** fix/room-snapshot-privacy (2026-07-02)
 - Landing/open split with review fix-set: SFU-aware security headers,
   protected-room password handoff, /open scroll restoration, room-code RTL fix,
   sanitizer hardening, storage-migration parity, IANA clocks, honesty label,

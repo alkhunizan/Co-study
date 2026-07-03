@@ -231,10 +231,6 @@ test('persisted room state survives restart and protected join still validates p
     assert.equal(snapshot.body.schedule.focusMinutes, 45);
     assert.equal(snapshot.body.schedule.breakMinutes, 15);
     assert.equal(snapshot.body.schedule.boardGoalTemplate, 'Protect the launch room');
-    assert.equal(snapshot.body.board.goal, 'Protect the room state');
-    assert.equal(snapshot.body.board.tasks.length, 1);
-    assert.equal(snapshot.body.board.tasks[0].text, 'Confirm restart persistence');
-    assert.ok(snapshot.body.messages.some((message) => message.text === 'Persistence integration message'));
 
     verifierSocket = await connectSocket(server.baseUrl, { clientId: 'verifier-client' });
 
@@ -255,8 +251,73 @@ test('persisted room state survives restart and protected join still validates p
     });
     assert.equal(validJoin.ok, true);
     assert.equal(validJoin.room.board.goal, 'Protect the room state');
+    assert.equal(validJoin.room.board.tasks.length, 1);
     assert.equal(validJoin.room.board.tasks[0].text, 'Confirm restart persistence');
     assert.equal(validJoin.room.schedule.focusMinutes, 45);
+    assert.ok(validJoin.room.messages.some((message) => message.text === 'Persistence integration message'));
+});
+
+test('room lookup endpoint exposes only the public join preview fields', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'privacy-owner' });
+    const guestSocket = await connectSocket(server.baseUrl, { clientId: 'privacy-guest' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(guestSocket);
+    });
+
+    const createProtected = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'Privacy Room',
+        password: 'privacy123',
+        requirePassword: true
+    });
+    assert.equal(createProtected.ok, true);
+    const protectedRoomId = createProtected.room.roomId;
+
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
+        roomId: protectedRoomId,
+        username: 'Owner',
+        clientId: 'privacy-owner',
+        password: 'privacy123'
+    });
+    assert.equal(ownerJoin.ok, true);
+    assert.equal((await emitAck(ownerSocket, 'send-message', { roomId: protectedRoomId, text: 'Private chat line' })).ok, true);
+    assert.equal((await emitAck(ownerSocket, 'board-set-goal', { goal: 'Private goal' })).ok, true);
+
+    const protectedSnapshot = await server.request(`/api/rooms/${protectedRoomId}`);
+    assert.equal(protectedSnapshot.status, 200);
+    assert.equal(protectedSnapshot.body.roomId, protectedRoomId);
+    assert.equal(protectedSnapshot.body.name, 'Privacy Room');
+    assert.equal(protectedSnapshot.body.requirePassword, true);
+    assert.equal(protectedSnapshot.body.mediaMode, 'mesh');
+    assert.equal(protectedSnapshot.body.participantCount, 1);
+    assert.equal(typeof protectedSnapshot.body.participantLimit, 'number');
+    assert.equal(protectedSnapshot.body.messages, undefined);
+    assert.equal(protectedSnapshot.body.participants, undefined);
+    assert.equal(protectedSnapshot.body.board, undefined);
+
+    const createOpen = await emitAck(guestSocket, 'create-room', {
+        roomName: 'Open Privacy Room'
+    });
+    assert.equal(createOpen.ok, true);
+    const openRoomId = createOpen.room.roomId;
+
+    const guestJoin = await emitAck(guestSocket, 'join-room', {
+        roomId: openRoomId,
+        username: 'Guest',
+        clientId: 'privacy-guest'
+    });
+    assert.equal(guestJoin.ok, true);
+    assert.equal((await emitAck(guestSocket, 'send-message', { roomId: openRoomId, text: 'Open room chat line' })).ok, true);
+
+    const openSnapshot = await server.request(`/api/rooms/${openRoomId}`);
+    assert.equal(openSnapshot.status, 200);
+    assert.equal(openSnapshot.body.requirePassword, false);
+    assert.equal(openSnapshot.body.messages, undefined);
+    assert.equal(openSnapshot.body.participants, undefined);
+    assert.equal(openSnapshot.body.board, undefined);
 });
 
 test('scheduled rooms validate create payloads and expose schedule summaries', async (t) => {
@@ -666,10 +727,16 @@ test('socket payloads are bounded at server boundaries', async (t) => {
     assert.equal(userMessage.text.length, 500);
     assert.equal(userMessage.text, oversizedMessage.trim().slice(0, 500));
 
-    const snapshot = await server.request(`/api/rooms/${roomId}`);
-    assert.equal(snapshot.status, 200);
-    assert.equal(snapshot.body.participants[0].name.length, 20);
-    assert.ok(snapshot.body.messages.some((message) => message.type === 'user' && message.text.length === 500));
+    const rejoin = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: oversizedName,
+        clientId: 'bounds-owner'
+    });
+    assert.equal(rejoin.ok, true);
+    const ownerEntry = rejoin.room.participants.find((participant) => participant.name === oversizedName.trim().slice(0, 20));
+    assert.ok(ownerEntry);
+    assert.equal(ownerEntry.name.length, 20);
+    assert.ok(rejoin.room.messages.some((message) => message.type === 'user' && message.text.length === 500));
 });
 
 test('open alias and media mounts serve published assets only', async (t) => {
@@ -741,9 +808,13 @@ test('sanitizers strip invisible characters and reject non-string payloads', asy
     });
     assert.equal(emojiMessage.ok, true);
 
-    const snapshot = await server.request(`/api/rooms/${roomId}`);
-    assert.equal(snapshot.status, 200);
-    const emojiStored = snapshot.body.messages.find((message) => message.type === 'user');
+    const rejoin = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'evil\u202Etxt',
+        clientId: 'invisible-owner'
+    });
+    assert.equal(rejoin.ok, true);
+    const emojiStored = rejoin.room.messages.find((message) => message.type === 'user');
     assert.ok(emojiStored);
     // Truncation counts code points and never leaves a lone surrogate.
     assert.equal(Array.from(emojiStored.text).length, 500);
@@ -885,8 +956,21 @@ test('backup restore tooling and deploy verification work against the HTTP app',
 
     const snapshot = await server.request(`/api/rooms/${roomId}`);
     assert.equal(snapshot.status, 200);
-    assert.equal(snapshot.body.board.goal, 'Backup goal');
-    assert.ok(snapshot.body.messages.some((message) => message.text === 'Backup message'));
+    assert.equal(snapshot.body.requirePassword, true);
+
+    const restoredSocket = await connectSocket(server.baseUrl, { clientId: 'backup-owner' });
+    t.after(async () => {
+        await closeSocket(restoredSocket);
+    });
+    const restoredJoin = await emitAck(restoredSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'backup-owner',
+        password: 'backup123'
+    });
+    assert.equal(restoredJoin.ok, true);
+    assert.equal(restoredJoin.room.board.goal, 'Backup goal');
+    assert.ok(restoredJoin.room.messages.some((message) => message.text === 'Backup message'));
 
     const verifyAfterRestore = runNodeScript('scripts/verify-deploy.js', [server.baseUrl]);
     assert.equal(verifyAfterRestore.status, 0, verifyAfterRestore.stderr);

@@ -709,6 +709,21 @@ function createCoStudyServer(options = {}) {
         };
     }
 
+    // HTTP is unauthenticated: expose only what the /open join preview needs.
+    // Full snapshots stay on socket paths, where join-room enforces the password.
+    function publicRoomSnapshot(roomId) {
+        const full = roomSnapshot(roomId);
+        return {
+            roomId: full.roomId,
+            name: full.name,
+            requirePassword: full.requirePassword,
+            mediaMode: full.mediaMode,
+            participantCount: full.participantCount,
+            participantLimit: full.participantLimit,
+            schedule: full.schedule
+        };
+    }
+
     function emitBoardState(roomId, room) {
         io.to(roomId).emit('board-state', cloneBoard(ensureRoomBoard(room)));
     }
@@ -1077,13 +1092,12 @@ function createCoStudyServer(options = {}) {
             return;
         }
 
-        const snapshot = roomSnapshot(roomId);
         if (!rooms.has(normalizeRoom(roomId))) {
             res.status(404).json({ error: 'Room not found' });
             return;
         }
 
-        res.json(snapshot);
+        res.json(publicRoomSnapshot(roomId));
     });
 
     app.get('/', (_req, res) => {
