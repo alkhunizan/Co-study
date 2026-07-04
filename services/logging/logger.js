@@ -54,6 +54,5 @@ function createLogger(defaults = {}) {
 }
 
 module.exports = {
-    createLogger,
-    sanitizeLogPayload
+    createLogger
 };

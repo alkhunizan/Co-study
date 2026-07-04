@@ -125,6 +125,5 @@ function createVideoSessionRegistry(options = {}) {
 }
 
 module.exports = {
-    createSessionKey,
     createVideoSessionRegistry
 };

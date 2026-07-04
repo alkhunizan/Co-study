@@ -10,6 +10,7 @@
   ],
   "project": [
     "*.js",
+    "services/**/*.js",
     "scripts/**/*.js",
     "tests/**/*.js"
   ],

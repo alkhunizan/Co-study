@@ -6,6 +6,8 @@ node_modules/
 .DS_Store
 data/rooms.json
 data/rooms.json.tmp
+data/users.json
+data/users.json.tmp
 data/backups/
 playwright-report/
 test-results/

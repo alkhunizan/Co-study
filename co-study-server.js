@@ -12,6 +12,7 @@ const {
     resolveVideoConfig
 } = require('./server-config');
 const { createLogger } = require('./services/logging/logger');
+const { hashPassword, verifyPassword } = require('./services/auth/password');
 const { createVideoProvider } = require('./services/video');
 const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
 const {
@@ -20,10 +21,6 @@ const {
     recordScheduleJoin,
     rollScheduleAttendance
 } = require('./schedule-utils');
-
-const HASH_ITERATIONS = 100000;
-const HASH_KEY_LENGTH = 64;
-const HASH_DIGEST = 'sha512';
 
 const ROOM_HISTORY_LIMIT = 80;
 const ROOM_TTL_MS = 1000 * 60 * 30;
@@ -441,32 +438,6 @@ function cloneBoard(board = {}) {
             done: !!task.done
         }))
     };
-}
-
-async function hashPassword(password) {
-    return new Promise((resolve, reject) => {
-        const salt = crypto.randomBytes(16).toString('hex');
-        crypto.pbkdf2(password, salt, HASH_ITERATIONS, HASH_KEY_LENGTH, HASH_DIGEST, (err, key) => {
-            if (err) return reject(err);
-            resolve(`${salt}:${key.toString('hex')}`);
-        });
-    });
-}
-
-async function verifyPassword(password, hash) {
-    return new Promise((resolve, reject) => {
-        if (!hash?.includes(':')) return resolve(false);
-        const [salt, key] = hash.split(':');
-        crypto.pbkdf2(password, salt, HASH_ITERATIONS, HASH_KEY_LENGTH, HASH_DIGEST, (err, derivedKey) => {
-            if (err) return reject(err);
-            const keyBuffer = Buffer.from(key, 'hex');
-            const derivedBuffer = Buffer.from(derivedKey.toString('hex'), 'hex');
-            if (keyBuffer.length !== derivedBuffer.length) {
-                return resolve(false);
-            }
-            resolve(crypto.timingSafeEqual(keyBuffer, derivedBuffer));
-        });
-    });
 }
 
 function generateRoomCode(rooms, length = ROOM_CODE_LENGTH) {
