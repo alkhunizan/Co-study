@@ -24,6 +24,11 @@ ordered path — do the steps top to bottom.
 - [ ] Open firewall ports 80, 443, and 22 (SSH). See `DEPLOYMENT.md §7`.
 - [ ] Point the domain's A record at the VM's static IP.
 
+> **Optional but recommended:** put Cloudflare in front of the VM (DNS, edge TLS,
+> asset caching, DDoS shield). Full setup — including the **critical Nginx real-IP
+> restoration** so per-IP rate limiting keeps working behind the proxy — is in
+> **`docs/CLOUDFLARE.md §1`**. Do it after step 2's Nginx is up.
+
 ## 2. Deploy the app (~20 min, follow DEPLOYMENT.md §1–§6)
 
 - [ ] Install Node 22, clone the repo, `npm ci --omit=dev`.
@@ -58,11 +63,12 @@ VIDEO_DEFAULT_PRESET_NAME=halastudy_student
 ## 3. Wire managed TURN (~15 min) — do NOT skip
 
 STUN-only fails across the CGNAT'd mobile networks common in the Gulf, so camera
-connections would silently fail for real users. Use a managed TURN provider
-(Cloudflare Calls TURN, or Metered) and put its credentials in `ICE_SERVERS_JSON`.
-Include a `turns:…:443?transport=tcp` entry so calls survive restrictive firewalls.
+connections would silently fail for real users. Cloudflare Realtime TURN is the
+recommended relay — see **`docs/CLOUDFLARE.md §2`** for the full setup, then:
 
-- [ ] `ICE_SERVERS_JSON` set with a real TURN relay (not the default Google STUN).
+- [ ] TURN key created, `CLOUDFLARE_TURN_*` in `.env`.
+- [ ] `npm run cloudflare:turn` → paste the printed `ICE_SERVERS_JSON=…` into `.env`.
+- [ ] Restart the app so `/api/runtime-config` serves the new ICE servers.
 
 ## 4. Verify the live box (~5 min)
 
