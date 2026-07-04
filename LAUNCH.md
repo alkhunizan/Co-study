@@ -29,7 +29,23 @@ ordered path — do the steps top to bottom.
 > restoration** so per-IP rate limiting keeps working behind the proxy — is in
 > **`docs/CLOUDFLARE.md §1`**. Do it after step 2's Nginx is up.
 
-## 2. Deploy the app (~20 min, follow DEPLOYMENT.md §1–§6)
+## 2. Deploy the app — one command (~10 min)
+
+On the fresh Lightsail box:
+
+```bash
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/alkhunizan/Co-study.git /tmp/halastudy-bootstrap
+sudo bash /tmp/halastudy-bootstrap/scripts/deploy/bootstrap.sh halastudy.com
+```
+
+That installs Node 22 + Nginx + certbot, clones the app to `/opt/halastudy`,
+creates the state dirs at `/var/lib/halastudy`, installs the Nginx site, and
+opens the firewall. It then prints the three remaining steps (env file → certbot
+→ `start.sh`), which need your secrets and DNS pointing at the box. The manual
+long-form is below if you prefer it step by step.
+
+<details><summary>Manual long-form (DEPLOYMENT.md §1–§6)</summary>
 
 - [ ] Install Node 22, clone the repo, `npm ci --omit=dev`.
 - [ ] Create the state dir **outside** the repo: `sudo mkdir -p /var/lib/halastudy && sudo chown $USER /var/lib/halastudy`.
@@ -59,6 +75,8 @@ VIDEO_DEFAULT_PRESET_NAME=halastudy_student
 
 - [ ] Start under PM2, **single instance** (persistence is single-process by design): `pm2 start ecosystem.config.js`.
 - [ ] Configure Nginx as the TLS terminator + reverse proxy (`DEPLOYMENT.md §5`) and issue the cert with certbot (`§6`).
+
+</details>
 
 ## 3. Wire managed TURN (~15 min) — do NOT skip
 
