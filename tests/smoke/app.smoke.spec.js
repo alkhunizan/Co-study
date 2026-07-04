@@ -263,6 +263,53 @@ test('chat and shared board stay in sync across two participants', async ({ brow
     }
 });
 
+test('timer preset chips apply durations and session goal syncs to peers', async ({ browser }) => {
+    const owner = await createSmokePage(browser);
+    const peer = await createSmokePage(browser);
+
+    try {
+        const roomCode = await createRoomFromLanding(owner.page, {
+            roomName: 'Preset Smoke Room'
+        });
+
+        await owner.page.click('#btn-enter-room');
+        await joinRoom(owner.page, { name: 'Owner', roomCode });
+        await expectJoined(owner.page);
+
+        // Default 25/5 chip is active on load.
+        await expect(owner.page.locator('.timer-preset-chip[data-focus="25"]')).toHaveClass(/active/);
+
+        // Clicking 50/10 updates inputs + display and moves the active state.
+        await owner.page.click('.timer-preset-chip[data-focus="50"]');
+        await expect(owner.page.locator('#cfg-f')).toHaveValue('50');
+        await expect(owner.page.locator('#cfg-b')).toHaveValue('10');
+        await expect(owner.page.locator('#timer-disp')).toHaveText('50:00');
+        await expect(owner.page.locator('.timer-preset-chip[data-focus="50"]')).toHaveClass(/active/);
+        await expect(owner.page.locator('.timer-preset-chip[data-focus="25"]')).not.toHaveClass(/active/);
+
+        // Manual edit clears the active chip.
+        await owner.page.fill('#cfg-f', '42');
+        await expect(owner.page.locator('.timer-preset-chip.active')).toHaveCount(0);
+
+        // Chip click while the timer is running resets it to the preset.
+        await owner.page.click('#btn-toggle');
+        await owner.page.click('.timer-preset-chip[data-focus="90"]');
+        await expect(owner.page.locator('#timer-disp')).toHaveText('90:00');
+        await expect(owner.page.locator('#btn-toggle')).toHaveText('▶');
+
+        // Session goal propagates to the peer's participant list.
+        await peer.page.goto(`/index.html?room=${roomCode}`);
+        await joinRoom(peer.page, { name: 'Peer', roomCode });
+        await expectJoined(peer.page);
+
+        await owner.page.fill('#status-goal', 'Solve 25 quant questions');
+        await expect(peer.page.locator('#user-list .user-goal-text')).toContainText('Solve 25 quant questions');
+    } finally {
+        await owner.context.close();
+        await peer.context.close();
+    }
+});
+
 test('scheduled rooms expose timer defaults and invite actions', async ({ browser }) => {
     const owner = await createSmokePage(browser);
 

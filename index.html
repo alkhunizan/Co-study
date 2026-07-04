@@ -457,6 +457,10 @@
         .config-item { display: flex; align-items: center; gap: 8px; }
         .config-input { width: 40px; text-align: center; border: none; background: var(--bg-card); border-radius: 8px; padding: 4px 0; color: var(--text-main); font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
+        .timer-presets { display: flex; gap: 8px; margin-block-end: 10px; }
+        .timer-preset-chip { border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; background: var(--bg-input); color: var(--text-sec); transition: 0.2s; }
+        .timer-preset-chip:hover { color: var(--text-main); border-color: var(--accent); }
+        .timer-preset-chip.active { background: rgba(224,176,139,0.14); border-color: var(--accent); color: var(--accent-3); }
         .timer-controls { display: flex; gap: 30px; align-items: center; margin-top: 10px; }
         .btn-ctrl { width: 64px; height: 64px; border-radius: 50%; border: none; background: var(--bg-card); color: var(--text-main); font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-btn); transition: all 0.2s ease; }
         .btn-ctrl:active { box-shadow: var(--shadow-btn-inset); transform: scale(0.95); }
@@ -769,6 +773,12 @@
                 </div>
             </div>
 
+            <div class="timer-presets" id="timer-presets" role="group" aria-label="Timer presets">
+                <button type="button" class="timer-preset-chip" data-focus="25" data-break="5" data-lang-title="preset25">25/5</button>
+                <button type="button" class="timer-preset-chip" data-focus="50" data-break="10" data-lang-title="preset50">50/10</button>
+                <button type="button" class="timer-preset-chip" data-focus="90" data-break="15" data-lang-title="preset90">90/15</button>
+            </div>
+
             <div class="timer-controls">
                 <button class="btn-ctrl" onclick="resetTimer()">↻</button>
                 <button class="btn-ctrl main" id="btn-toggle" onclick="toggleTimer()">▶</button>
@@ -926,6 +936,9 @@
             goalLabel: 'Session goal',
             goalPlaceholder: 'What are you working on?',
             goalRecapToast: 'Focus session done — did you reach your goal?',
+            preset25: '25 min focus / 5 min break',
+            preset50: '50 min focus / 10 min break',
+            preset90: '90 min focus / 15 min break',
             ambientSound: 'Ambient sound',
             ambientTitle: 'Choose ambient sound',
             ambientShowStatus: 'Show in status',
@@ -1082,6 +1095,9 @@
             goalLabel: 'هدف الجلسة',
             goalPlaceholder: 'على ماذا تعمل اليوم؟',
             goalRecapToast: 'انتهت جلسة التركيز — هل حققت هدفك؟',
+            preset25: '٢٥ دقيقة تركيز / ٥ دقائق استراحة',
+            preset50: '٥٠ دقيقة تركيز / ١٠ دقائق استراحة',
+            preset90: '٩٠ دقيقة تركيز / ١٥ دقيقة استراحة',
             ambientSound: 'الصوت المحيط',
             ambientTitle: 'اختر الصوت المحيط',
             ambientShowStatus: 'إظهاره في الحالة',
@@ -3193,6 +3209,27 @@
         timerRunning = false;
         updateDisp();
         refreshStatusState();
+        updatePresetActiveState();
+    }
+
+    // 25/5, 50/10, 90/15 one-click presets. Always route through resetTimer():
+    // toggleTimer() only re-reads cfg-f when timeLeft is at the untouched
+    // default, so setting the inputs alone would silently not apply.
+    function applyTimerPreset(focusMinutes, breakMinutes) {
+        document.getElementById('cfg-f').value = String(focusMinutes);
+        document.getElementById('cfg-b').value = String(breakMinutes);
+        resetTimer();
+    }
+
+    function updatePresetActiveState() {
+        const presetsEl = document.getElementById('timer-presets');
+        if (!presetsEl) return;
+        const focusVal = parseInt(document.getElementById('cfg-f').value, 10) || 25;
+        const breakVal = parseInt(document.getElementById('cfg-b').value, 10) || 5;
+        presetsEl.querySelectorAll('.timer-preset-chip').forEach(chip => {
+            const match = parseInt(chip.dataset.focus, 10) === focusVal && parseInt(chip.dataset.break, 10) === breakVal;
+            chip.classList.toggle('active', match);
+        });
     }
 
     function generateRoomCode() {
@@ -3584,6 +3621,21 @@
             refreshStatusState();
         });
     }
+    (function initTimerPresets() {
+        const presetsEl = document.getElementById('timer-presets');
+        if (presetsEl) {
+            presetsEl.addEventListener('click', event => {
+                const chip = event.target.closest('.timer-preset-chip');
+                if (!chip) return;
+                applyTimerPreset(parseInt(chip.dataset.focus, 10) || 25, parseInt(chip.dataset.break, 10) || 5);
+            });
+        }
+        ['cfg-f', 'cfg-b'].forEach(id => {
+            const input = document.getElementById(id);
+            if (input) input.addEventListener('input', updatePresetActiveState);
+        });
+        updatePresetActiveState();
+    })();
     if (statusGoalInput) {
         statusGoalInput.addEventListener('input', () => {
             const value = statusGoalInput.value.slice(0, 80);
