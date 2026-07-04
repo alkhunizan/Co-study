@@ -22,7 +22,7 @@ function sanitizeLogPayload(payload = {}) {
     return safe;
 }
 
-function createLogger(defaults = {}) {
+function createLogger(defaults = {}, { onEntry } = {}) {
     function write(level, payload = {}) {
         const entry = {
             level,
@@ -37,6 +37,13 @@ function createLogger(defaults = {}) {
             console.warn(line);
         } else {
             console.log(line);
+        }
+        // Feed warn/error entries (already redacted above) to observers —
+        // the admin console's recent-errors view hangs off this.
+        if (typeof onEntry === 'function' && (level === 'warn' || level === 'error')) {
+            try {
+                onEntry(entry);
+            } catch (_err) { /* observers must never break logging */ }
         }
     }
 

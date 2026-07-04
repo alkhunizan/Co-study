@@ -12,6 +12,8 @@ const {
     resolveVideoConfig
 } = require('./server-config');
 const { createLogger } = require('./services/logging/logger');
+const { createErrorBuffer } = require('./services/ops/error-buffer');
+const { createBackupScheduler } = require('./services/ops/backup-scheduler');
 const { hashPassword, verifyPassword } = require('./services/auth/password');
 const { createSessionToken, verifySessionToken } = require('./services/auth');
 const { createAuthRouter } = require('./services/auth/auth-routes');
@@ -700,7 +702,12 @@ function getSocketRequestIp(request, trustProxy) {
 function createCoStudyServer(options = {}) {
     const { env = process.env, mode = 'http', createServer } = options;
     const config = resolveServerConfig({ env, mode });
-    const logger = createLogger({ service: 'halastudy' });
+    const errorBuffer = createErrorBuffer({ capacity: 200 });
+    const logger = createLogger({ service: 'halastudy' }, { onEntry: errorBuffer.push });
+    // Admin-toggleable runtime overrides. In-memory by design: a restart
+    // falls back to the env-configured defaults (fail-safe).
+    const runtimeFlags = { videoJoinDisabled: null };
+    const isVideoJoinDisabled = () => runtimeFlags.videoJoinDisabled ?? !!config.video.joinDisabled;
     const sfuOrigin = config.sfuAvailable ? new URL(config.sfuBaseUrl).origin : '';
     const contentSecurityPolicy = buildContentSecurityPolicy({ sfuOrigin, videoConfig: config.video });
     const permissionsPolicy = buildPermissionsPolicy({ sfuOrigin, videoConfig: config.video });
@@ -799,6 +806,17 @@ function createCoStudyServer(options = {}) {
 
     const userStore = createUserStore({
         filePath: config.userStateFile,
+        logger
+    });
+
+    const backupScheduler = createBackupScheduler({
+        intervalMinutes: config.backup.intervalMinutes,
+        retentionCount: config.backup.retentionCount,
+        backupDir: config.roomStateBackupDir,
+        targets: [
+            { label: 'rooms', filePath: config.roomStateFile },
+            { label: 'users', filePath: config.userStateFile }
+        ],
         logger
     });
     /** @type {Map<string, any>} userId -> user record */
@@ -1455,6 +1473,7 @@ function createCoStudyServer(options = {}) {
 
     const loadedRoomCount = loadPersistedRooms();
     const loadedUserCount = loadPersistedUsers();
+    backupScheduler.start();
     const videoSweepTimer = setInterval(() => {
         const ended = videoSessionRegistry.sweepStaleVideoSessions();
         emitEndedVideoSessions(ended);
@@ -1466,6 +1485,7 @@ function createCoStudyServer(options = {}) {
         if (isShuttingDown) return;
         isShuttingDown = true;
         clearInterval(videoSweepTimer);
+        backupScheduler.stop();
         console.log(`Received ${signal}. Persisting room state to ${roomStore.filePath}...`);
         const flushResults = await Promise.allSettled([
             roomStore.flush(rooms),
@@ -1542,6 +1562,25 @@ function createCoStudyServer(options = {}) {
         });
     });
 
+    // Coarse public metrics for uptime monitors — no per-room or per-user
+    // detail (that lives behind the admin API).
+    app.get('/api/metrics', (req, res) => {
+        if (!applyHttpRateLimit(req, res, rateLimiters.metrics, getRequestIp(req))) return;
+        let participantCount = 0;
+        for (const room of rooms.values()) {
+            participantCount += room.users ? room.users.size : 0;
+        }
+        res.json({
+            status: 'ok',
+            uptimeSeconds: Math.round(process.uptime()),
+            roomCount: rooms.size,
+            participantCount,
+            activeVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+            memoryRssMb: Math.round(process.memoryUsage().rss / (1024 * 1024)),
+            mode: config.mode
+        });
+    });
+
     app.get('/api/runtime-config', (_req, res) => {
         res.json({
             iceServers: cloneIceServerList(config.runtimeIceServers),
@@ -1553,7 +1592,7 @@ function createCoStudyServer(options = {}) {
             videoPolicy: getClientVideoPolicy(null),
             activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
             maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
-            videoJoinDisabled: !!config.video.joinDisabled,
+            videoJoinDisabled: isVideoJoinDisabled(),
             publicApiBaseUrl: config.video.publicApiBaseUrl
         });
     });
@@ -1582,7 +1621,7 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
             return;
         }
-        if (config.video.joinDisabled) {
+        if (isVideoJoinDisabled()) {
             logger.warn({
                 event: 'video_token_rejected',
                 reason: 'VIDEO_JOIN_DISABLED',
@@ -1805,6 +1844,29 @@ function createCoStudyServer(options = {}) {
 
     app.get(['/index.html', '/study', '/workspace', '/room'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'index.html'));
+    });
+
+    // ---- Terminal handlers: keep these registered after every route ----
+    app.use((req, res) => {
+        if (req.path.startsWith('/api')) {
+            res.status(404).json({ errorCode: 'NOT_FOUND' });
+            return;
+        }
+        res.status(404).sendFile(path.join(__dirname, '404.html'));
+    });
+
+    // Express identifies error middleware by arity — the 4th param must stay.
+    app.use((err, req, res, _next) => {
+        logger.error({
+            event: 'unhandled_request_error',
+            method: req.method,
+            path: req.path,
+            message: err?.message
+        });
+        if (res.headersSent) return;
+        res.status(err?.status === 400 ? 400 : 500).json({
+            errorCode: err?.status === 400 ? 'BAD_REQUEST' : 'INTERNAL_ERROR'
+        });
     });
 
     io.on('connection', (socket) => {
