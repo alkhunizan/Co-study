@@ -15,6 +15,9 @@ This release ships with:
 
 - Custom room names with shareable room codes
 - Optional password protection with PBKDF2 hashing
+- Optional accounts (email + password, no verification wall): synced focus minutes and day streaks, My Rooms with one-click rejoin, reserved nickname, avatar accent + bio. Instant rooms stay guest-open; scheduled rooms require an account
+- Self-serve, immediate delete-my-data flow on the account page (PDPL)
+- Hidden admin ops console at an env-secret path: live overview, room inspect/force-close/kick, runtime video kill-switch, user ban/unban, site-wide broadcast banner, backup-now, recent errors
 - Cloudflare RealtimeKit video rooms with server-issued participant tokens, plus legacy mesh fallback
 - Live Socket.IO chat and room presence
 - Pomodoro timer with daily focus tracking
@@ -24,7 +27,7 @@ This release ships with:
 - TURN-ready runtime ICE config
 - Launch guardrails: 20 global active video participants, 20 per room, mic off by default, recording off
 - AI focus monitoring through the browser FaceDetector API
-- Health/readiness endpoints, abuse controls, and manual room-state backup/restore
+- Health/readiness/metrics endpoints, abuse controls, automated + manual state backup/restore, bilingual 404, and a PWA manifest
 
 ## Quick Start
 

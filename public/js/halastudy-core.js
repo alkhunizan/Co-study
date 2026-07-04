@@ -195,13 +195,83 @@
         });
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initAuthEntry);
-    } else {
+    /* ---------- admin broadcast banner ----------
+     * Hairline strip under the topbar. Dismissal is per-announcement id.
+     * Pages get it via a boot fetch; in-room clients also receive the
+     * 'announcement' socket event and call HalaCore.showAnnouncement. */
+    var ANNOUNCE_DISMISS_KEY = 'halastudyAnnouncementDismissed';
+
+    function announcementMessage(announcement) {
+        if (!announcement) return '';
+        return getLang() === 'ar'
+            ? (announcement.messageAr || announcement.messageEn || '')
+            : (announcement.messageEn || announcement.messageAr || '');
+    }
+
+    function clearAnnouncement() {
+        var banner = document.getElementById('announce-banner');
+        if (banner) banner.remove();
+    }
+
+    function showAnnouncement(announcement) {
+        clearAnnouncement();
+        if (!announcement || !announcement.id) return;
+        var message = announcementMessage(announcement);
+        if (!message) return;
+        try {
+            if (localStorage.getItem(ANNOUNCE_DISMISS_KEY) === announcement.id) return;
+        } catch (e) { /* storage unavailable */ }
+
+        var banner = document.createElement('div');
+        banner.id = 'announce-banner';
+        banner.setAttribute('role', 'status');
+        banner.style.cssText = 'display:flex;align-items:center;gap:10px;padding-block:10px;padding-inline:20px;'
+            + 'background:var(--inset,#F8F3ED);border-block-end:1px solid var(--line-2,#EFE7DA);'
+            + 'color:var(--ink,#2D3436);font-size:14px;';
+        var text = document.createElement('span');
+        text.style.cssText = 'flex:1;min-inline-size:0;';
+        text.textContent = message;
+        var dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.setAttribute('aria-label', 'Dismiss');
+        dismiss.textContent = '×';
+        dismiss.style.cssText = 'border:0;background:transparent;cursor:pointer;color:inherit;'
+            + 'font-size:16px;line-height:1;min-inline-size:32px;min-block-size:32px;border-radius:50%;';
+        dismiss.addEventListener('click', () => {
+            banner.remove();
+            try { localStorage.setItem(ANNOUNCE_DISMISS_KEY, announcement.id); } catch (e) {}
+        });
+        banner.appendChild(text);
+        banner.appendChild(dismiss);
+
+        var topbar = document.querySelector('.topbar, header');
+        if (topbar?.parentNode) {
+            topbar.parentNode.insertBefore(banner, topbar.nextSibling);
+        } else {
+            document.body.insertBefore(banner, document.body.firstChild);
+        }
+    }
+
+    function initAnnouncement() {
+        requestJson('GET', '/api/announcement')
+            .then((payload) => { showAnnouncement(payload?.announcement); })
+            .catch(() => { /* banner is best-effort */ });
+    }
+
+    function boot() {
         initAuthEntry();
+        initAnnouncement();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
     }
 
     (/** @type {any} */ (global)).HalaCore = {
+        showAnnouncement: showAnnouncement,
+        clearAnnouncement: clearAnnouncement,
         getLang: getLang,
         initLang: initLang,
         t: (key) => activeCopy()[key],

@@ -1557,6 +1557,11 @@ function createCoStudyServer(options = {}) {
         logger
     }));
 
+    app.get('/manifest.webmanifest', (_req, res) => {
+        res.type('application/manifest+json');
+        res.sendFile(path.join(__dirname, 'public', 'manifest.webmanifest'));
+    });
+
     app.get('/api/health', (_req, res) => {
         res.json({
             status: 'ok',

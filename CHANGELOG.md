@@ -3,6 +3,21 @@
 All notable Halastudy changes, newest first.
 Versions follow `MAJOR.MINOR.PATCH.MICRO`; dates are `YYYY-MM-DD`.
 
+## [1.2.0.0] - 2026-07-04
+
+### Added
+- **Optional accounts** — email + password sign-up at `/account.html` (bilingual, RTL-first). Guests keep full instant create/join; signing in unlocks: server-synced focus minutes + Riyadh-day streaks (with one-time import of the device's local stats), a My Rooms list with one-click rejoin, a reserved nickname prefilled everywhere, and profile perks (6 muted avatar accents shown as tile rings + chat dots, short bio, streak badge). Scheduled-room creation now requires an account so attendance and streaks attach to a real identity; a quiet gate panel in the create form explains why.
+- **Local user store** (`user-store.js`, `data/users.json`) mirroring the rooms pattern: debounced atomic writes, strict fail-fast load, full re-sanitization at the trust boundary. Auth is dependency-free: PBKDF2-SHA512 passwords, stateless HMAC-signed cookies with per-user epoch revocation, login lockout keyed `ip:email` with no account enumeration.
+- **Hidden admin ops console** at the env-secret `ADMIN_PATH` (requires `ADMIN_PASSWORD_HASH`; both unset → the path 404s like any other). Live overview, room inspect/force-close/kick, runtime video kill-switch, user ban/unban (kills live sessions instantly), bilingual site-wide broadcast banner, backup-now, recent-errors view. `npm run admin:hash` generates the password hash.
+- **Pro-level plumbing** — `GET /api/metrics` for uptime monitors; automated rooms+users backups with retention (`BACKUP_INTERVAL_MINUTES`); a redacted in-memory error ring buffer; a bilingual 404 page (JSON for `/api/*`); a PWA manifest + icon set; shared `halastudy-core.js` (storage migration, pre-paint theme, lang engine, auth cache) and `ui.js` (toasts, accessible `<dialog>` confirms with typed confirmation, avatar chip) replacing per-page boilerplate.
+- 24 new integration tests (auth + admin suites) and hardened harness (per-server temp user state, cookie jar, fixed test `SESSION_SECRET`).
+
+### Changed
+- `SESSION_SECRET` is now required in production (startup fails without it).
+- The privacy page documents optional accounts and the self-serve, immediate delete-my-data flow (`/account.html#delete`).
+- The in-room theme toggle now persists across visits (was per-session).
+- The join-overlay book emoji is a Lucide line icon (design contract §10).
+
 ## [1.1.0.0] - 2026-06-10
 
 ### Added

@@ -43,6 +43,32 @@ production-shaped values and inline notes. The critical production settings:
   `CLOUDFLARE_REALTIMEKIT_API_TOKEN`. These are server-only secrets.
 - **Video caps** — keep `MAX_GLOBAL_VIDEO_PARTICIPANTS=20` and
   `MAX_ROOM_VIDEO_PARTICIPANTS=20` for launch cost control.
+- **`SESSION_SECRET`** — REQUIRED in production (min 32 chars); startup fails
+  without it. HMAC key for user/admin auth cookies. Rotating it signs everyone
+  out. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+- **`USER_STATE_FILE`** — point it outside the repo like the room state
+  (e.g. `/var/lib/halastudy/users.json`).
+- **`BACKUP_INTERVAL_MINUTES` / `BACKUP_RETENTION_COUNT`** — automated
+  rooms+users backups into `ROOM_STATE_BACKUP_DIR` (e.g. `60` / `48` keeps two
+  days of hourly snapshots).
+
+### Hidden admin portal
+
+The ops console exists only when BOTH vars are set; otherwise every admin URL
+404s exactly like any unknown path:
+
+```bash
+npm run admin:hash -- "your-strong-admin-password"   # prints ADMIN_PASSWORD_HASH=...
+export ADMIN_PATH='/ops-<random-slug>'               # 8-64 chars, keep it unguessable
+export ADMIN_PASSWORD_HASH='<salt:hex from above>'
+```
+
+Then open `https://your-domain.com$ADMIN_PATH`. The console covers: live
+overview, room inspect/force-close/kick, the runtime video kill-switch, user
+search + ban/unban, the site-wide broadcast banner, backup-now, and the
+recent-errors view. The admin session cookie is Path-scoped to `ADMIN_PATH`
+and expires after 12 hours. If the path ever leaks (proxy logs, browser
+history), rotate `ADMIN_PATH` — the password remains the real gate.
 
 `ecosystem.config.js` already targets:
 - `PORT=3000`

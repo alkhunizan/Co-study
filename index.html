@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Halastudy | غرفة التركيز</title>
     <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/images/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#F5F2EB">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Halastudy webfonts -->
@@ -540,7 +543,13 @@
             <button type="button" class="lang-option active" data-lang-value="ar">AR</button>
             <button type="button" class="lang-option" data-lang-value="en">EN</button>
         </div>
-        <div class="join-icon">📚</div>
+        <!-- Lucide book-open (1.5px line) — DESIGN.md §10: no emoji in chrome. -->
+        <div class="join-icon" aria-hidden="true">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+        </div>
         <h2 data-lang="joinTitle">Join the focus room</h2>
         <p class="join-sub" data-lang="joinSubtitle">Enter your nickname and room code to start focusing together.</p>
         <label class="join-label" for="join-name" data-lang="joinName">Your nickname</label>
@@ -922,6 +931,8 @@
             focusMinutesSuffix: 'min',
             guestLabel: 'Guest',
             navSignIn: 'Sign in',
+            kickedMsg: 'A moderator removed you from this room.',
+            roomClosedMsg: 'This room was closed by a moderator.',
             nicknameReservedNote: 'Reserved for you',
             streakBadgeLabel: 'Streak',
             focusSyncHint: 'Your focus minutes only live on this device.',
@@ -1073,6 +1084,8 @@
             focusMinutesSuffix: 'دقيقة',
             guestLabel: 'زائر',
             navSignIn: 'تسجيل الدخول',
+            kickedMsg: 'أخرجك مشرف من هذه الغرفة.',
+            roomClosedMsg: 'أغلق مشرف هذه الغرفة.',
             nicknameReservedNote: 'محجوز لك',
             streakBadgeLabel: 'سلسلة',
             focusSyncHint: 'دقائق تركيزك محفوظة على هذا الجهاز فقط.',
@@ -3425,6 +3438,20 @@
         });
         socket.on('status-update', handleStatusUpdate);
         socket.on('camera-status', handleCameraStatusEvent);
+        socket.on('announcement', (announcement) => {
+            if (window.HalaCore) window.HalaCore.showAnnouncement(announcement);
+        });
+        socket.on('announcement-clear', () => {
+            if (window.HalaCore) window.HalaCore.clearAnnouncement();
+        });
+        socket.on('kicked', () => {
+            if (window.HalaUI) window.HalaUI.toast(currentCopy().kickedMsg, { kind: 'error', duration: 6000 });
+            setTimeout(() => window.location.assign('/'), 2500);
+        });
+        socket.on('room-closed', () => {
+            if (window.HalaUI) window.HalaUI.toast(currentCopy().roomClosedMsg, { kind: 'error', duration: 6000 });
+            setTimeout(() => window.location.assign('/'), 2500);
+        });
         socket.on('rtc-offer', handleIncomingOffer);
         socket.on('rtc-answer', handleIncomingAnswer);
         socket.on('rtc-ice', handleIncomingIce);
