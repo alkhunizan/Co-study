@@ -81,6 +81,7 @@
         html[lang="ar"] .card-title,
         html[lang="ar"] .user-status-text,
         html[lang="ar"] .user-goal-text,
+        html[lang="ar"] .report-reasons,
         html[lang="ar"] .status-preview,
         html[lang="ar"] .media-state-panel,
         html[lang="ar"] .media-state-text,
@@ -726,6 +727,7 @@
                 <div class="cam-placeholder" data-lang="camMe">My camera</div>
                 <div class="cam-controls">
                     <button class="cam-btn" id="camera-toggle" data-lang="cameraToggleOn">Enable camera</button>
+                    <button class="cam-btn" id="blur-toggle" type="button" aria-pressed="true" hidden>Blur: on</button>
                 </div>
             </div>
             <div class="cam-feed" id="remote-cam">
@@ -956,6 +958,8 @@
             reportRateLimited: 'Too many reports — try again later',
             reportErrorGeneric: 'Could not send the report',
             userHiddenTag: 'Hidden',
+            blurOn: 'Blur: on',
+            blurOff: 'Blur: off',
             ambientSound: 'Ambient sound',
             ambientTitle: 'Choose ambient sound',
             ambientShowStatus: 'Show in status',
@@ -1110,11 +1114,11 @@
             statusShare: '🔒 مشاركة مع الغرفة',
             statusCustomPlaceholder: 'حالة مخصصة...',
             goalLabel: 'هدف الجلسة',
-            goalPlaceholder: 'على ماذا تعمل اليوم؟',
+            goalPlaceholder: 'على ماذا تعمل؟',
             goalRecapToast: 'انتهت جلسة التركيز — هل حققت هدفك؟',
-            preset25: '٢٥ دقيقة تركيز / ٥ دقائق استراحة',
-            preset50: '٥٠ دقيقة تركيز / ١٠ دقائق استراحة',
-            preset90: '٩٠ دقيقة تركيز / ١٥ دقيقة استراحة',
+            preset25: '25 دقيقة تركيز / 5 دقائق استراحة',
+            preset50: '50 دقيقة تركيز / 10 دقائق استراحة',
+            preset90: '90 دقيقة تركيز / 15 دقيقة استراحة',
             reportUser: 'تبليغ',
             reportReasonSpam: 'إزعاج متكرر',
             reportReasonHarassment: 'إساءة',
@@ -1124,6 +1128,8 @@
             reportRateLimited: 'بلاغات كثيرة — حاول لاحقًا',
             reportErrorGeneric: 'تعذر إرسال البلاغ',
             userHiddenTag: 'مخفي',
+            blurOn: 'التمويه: مفعّل',
+            blurOff: 'التمويه: معطّل',
             ambientSound: 'الصوت المحيط',
             ambientTitle: 'اختر الصوت المحيط',
             ambientShowStatus: 'إظهاره في الحالة',
@@ -1342,6 +1348,30 @@
     let realtimeKitJoining = false;
     let localStream = null;
     let cameraEnabled = false;
+
+    // --- Whole-frame privacy blur (mesh only) ---
+    // Raw gUM stream -> hidden <video> -> canvas ctx.filter blur ->
+    // canvas.captureStream() becomes localStream. Peers and the local
+    // preview both get the blurred feed; the FaceDetector reads the
+    // hidden raw video so focus detection is unaffected.
+    const BLUR_PREF_KEY = 'halastudyBlurPref';
+    let rawStream = null;
+    let blurEnabled = (() => {
+        try {
+            const saved = localStorage.getItem(BLUR_PREF_KEY);
+            return saved === null ? true : saved === 'on';
+        } catch (_) { return true; }
+    })();
+    const blurPipeline = { canvas: null, ctx: null, rawVideo: null, rafId: null, intervalId: null, running: false, processedTrack: null };
+    const supportsCanvasFilter = (() => {
+        try {
+            const probe = document.createElement('canvas');
+            const probeCtx = probe.getContext('2d');
+            if (!probeCtx || typeof probe.captureStream !== 'function') return false;
+            probeCtx.filter = 'blur(1px)';
+            return probeCtx.filter === 'blur(1px)';
+        } catch (_) { return false; }
+    })();
     let aiMonitorTimer = null;
     let aiDetector = null;
     const BOARD_GOAL_MAX_LENGTH = 80;
@@ -2096,6 +2126,130 @@
         clearRemoteStream();
     }
 
+    function drawBlurFrame() {
+        const { ctx, canvas, rawVideo } = blurPipeline;
+        if (!ctx || !rawVideo || !rawVideo.videoWidth) return;
+        ctx.filter = 'blur(14px)';
+        ctx.drawImage(rawVideo, 0, 0, canvas.width, canvas.height);
+    }
+
+    function startBlurLoop() {
+        // rAF while visible; interval fallback while hidden (rAF throttles in
+        // background tabs, which would freeze the outgoing feed for peers).
+        const stepRaf = () => {
+            if (!blurPipeline.running) return;
+            drawBlurFrame();
+            blurPipeline.rafId = requestAnimationFrame(stepRaf);
+        };
+        if (blurPipeline.rafId) cancelAnimationFrame(blurPipeline.rafId);
+        if (blurPipeline.intervalId) clearInterval(blurPipeline.intervalId);
+        blurPipeline.rafId = null;
+        blurPipeline.intervalId = null;
+        if (document.hidden) {
+            blurPipeline.intervalId = setInterval(drawBlurFrame, 1000 / 15);
+        } else {
+            blurPipeline.rafId = requestAnimationFrame(stepRaf);
+        }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (blurPipeline.running) startBlurLoop();
+    });
+
+    async function startBlurPipeline(stream) {
+        stopBlurPipeline({ keepRaw: true });
+        const rawVideo = document.createElement('video');
+        rawVideo.muted = true;
+        rawVideo.playsInline = true;
+        rawVideo.autoplay = true;
+        // Off-screen but not display:none — hidden videos can stall decoding.
+        rawVideo.style.cssText = 'position:fixed;inset-inline-start:-9999px;inline-size:2px;block-size:2px;opacity:0;pointer-events:none;';
+        document.body.appendChild(rawVideo);
+        rawVideo.srcObject = stream;
+        await new Promise((resolve) => {
+            if (rawVideo.readyState >= 1 && rawVideo.videoWidth) return resolve();
+            rawVideo.onloadedmetadata = () => resolve();
+            setTimeout(resolve, 3000);
+        });
+        try { await rawVideo.play(); } catch (_) {}
+        const track = stream.getVideoTracks()[0];
+        const settings = track && track.getSettings ? track.getSettings() : {};
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.min(settings.width || rawVideo.videoWidth || 640, 640);
+        canvas.height = Math.min(settings.height || rawVideo.videoHeight || 480, 480);
+        blurPipeline.canvas = canvas;
+        blurPipeline.ctx = canvas.getContext('2d');
+        blurPipeline.rawVideo = rawVideo;
+        blurPipeline.running = true;
+        // At least one frame must be drawn before captureStream, or peers
+        // receive black video until the first draw lands.
+        drawBlurFrame();
+        const processed = canvas.captureStream(Math.min(settings.frameRate || 24, 30));
+        blurPipeline.processedTrack = processed.getVideoTracks()[0];
+        startBlurLoop();
+        debugLog('BLUR', 'Pipeline started', { width: canvas.width, height: canvas.height });
+        return processed;
+    }
+
+    // Single teardown owner for everything the pipeline created. Stops the
+    // raw camera tracks too unless keepRaw is set (blur-off keeps the camera
+    // running and hands the raw stream back to peers).
+    function stopBlurPipeline(options = {}) {
+        const { keepRaw = false } = options;
+        blurPipeline.running = false;
+        if (blurPipeline.rafId) { cancelAnimationFrame(blurPipeline.rafId); blurPipeline.rafId = null; }
+        if (blurPipeline.intervalId) { clearInterval(blurPipeline.intervalId); blurPipeline.intervalId = null; }
+        if (blurPipeline.processedTrack) {
+            try { blurPipeline.processedTrack.stop(); } catch (_) {}
+            blurPipeline.processedTrack = null;
+        }
+        if (blurPipeline.rawVideo) {
+            blurPipeline.rawVideo.srcObject = null;
+            blurPipeline.rawVideo.remove();
+            blurPipeline.rawVideo = null;
+        }
+        blurPipeline.canvas = null;
+        blurPipeline.ctx = null;
+        if (!keepRaw && rawStream) {
+            rawStream.getTracks().forEach(track => { try { track.stop(); } catch (_) {} });
+            rawStream = null;
+        }
+    }
+
+    async function toggleBlur() {
+        blurEnabled = !blurEnabled;
+        try { localStorage.setItem(BLUR_PREF_KEY, blurEnabled ? 'on' : 'off'); } catch (_) {}
+        updateBlurToggleLabel();
+        if (!cameraEnabled || !rawStream) return;
+        try {
+            if (blurEnabled && supportsCanvasFilter) {
+                localStream = await startBlurPipeline(rawStream);
+            } else {
+                stopBlurPipeline({ keepRaw: true });
+                localStream = rawStream;
+            }
+        } catch (err) {
+            debugLog('ERROR', 'Blur toggle failed', err.message);
+            stopBlurPipeline({ keepRaw: true });
+            localStream = rawStream;
+        }
+        localVideo.srcObject = localStream;
+        // existingSender.replaceTrack path — swaps without renegotiation.
+        for (const pc of peerConnections.values()) {
+            await attachLocalStream(pc);
+        }
+    }
+
+    function updateBlurToggleLabel() {
+        const blurBtn = document.getElementById('blur-toggle');
+        if (!blurBtn) return;
+        const showButton = supportsCanvasFilter && isMeshRoom();
+        blurBtn.hidden = !showButton;
+        if (!showButton) return;
+        blurBtn.textContent = blurEnabled ? langDict[curLang].blurOn : langDict[curLang].blurOff;
+        blurBtn.setAttribute('aria-pressed', blurEnabled ? 'true' : 'false');
+    }
+
     function disableCamera(options = {}) {
         const { notify = true, preserveStatusText = false } = options;
         if (!cameraEnabled && !localStream) {
@@ -2105,6 +2259,10 @@
             return;
         }
         cameraEnabled = false;
+        // Blur on: localVideo holds the processed canvas track, so stopping
+        // only srcObject tracks would leave the raw camera (and its light)
+        // running. stopBlurPipeline() stops the raw tracks too.
+        stopBlurPipeline();
         if (localVideo.srcObject) {
             localVideo.srcObject.getTracks().forEach(track => track.stop());
             localVideo.srcObject = null;
@@ -3278,7 +3436,9 @@
                         // quiet one-time nudge that these minutes are local-only.
                         onFocusSessionComplete(focusDur);
                         if (statusState.goal && window.HalaUI) {
-                            window.HalaUI.toast(`${currentCopy().goalRecapToast} ${statusState.goal}`, { duration: 8000 });
+                            // FSI/PDI isolate the user-entered goal so mixed
+                            // AR/EN text doesn't reorder around the AR copy.
+                            window.HalaUI.toast(`${currentCopy().goalRecapToast} ⁨${statusState.goal}⁩`, { duration: 8000 });
                         }
                     }
 
@@ -3802,6 +3962,14 @@
             toggleCamera();
         });
     }
+    (function initBlurToggle() {
+        const blurBtn = document.getElementById('blur-toggle');
+        if (!blurBtn) return;
+        blurBtn.addEventListener('click', e => {
+            e.preventDefault();
+            void toggleBlur();
+        });
+    })();
     if (mediaRetryBtn) {
         mediaRetryBtn.addEventListener('click', () => {
             if (isRealtimeKitRoom() && roomId) {
@@ -3819,6 +3987,7 @@
 
     function updateCameraToggleLabel(state) {
         if (!cameraToggleBtn) return;
+        updateBlurToggleLabel();
         if (state === 'loading') {
             cameraToggleBtn.disabled = true;
             cameraToggleBtn.textContent = langDict[curLang].cameraToggleStarting;
@@ -3893,11 +4062,29 @@
         updateCameraToggleLabel('loading');
         try {
             debugLog('CAMERA', 'Requesting camera access...');
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            rawStream = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
+                audio: false
+            });
+            rawStream.getVideoTracks().forEach(track => {
+                track.onended = () => disableCamera();
+            });
+            if (blurEnabled && supportsCanvasFilter) {
+                try {
+                    localStream = await startBlurPipeline(rawStream);
+                } catch (blurErr) {
+                    debugLog('ERROR', 'Blur pipeline failed, sending raw', blurErr.message);
+                    stopBlurPipeline({ keepRaw: true });
+                    localStream = rawStream;
+                }
+            } else {
+                localStream = rawStream;
+            }
             cameraEnabled = true;
             debugLog('CAMERA', 'Camera enabled', {
                 streamId: localStream.id,
-                tracks: localStream.getTracks().length
+                tracks: localStream.getTracks().length,
+                blurred: localStream !== rawStream
             });
             localVideo.srcObject = localStream;
             localVideo.style.display = 'block';
@@ -4479,7 +4666,12 @@
             return;
         }
         try {
-            const faces = await aiDetector.detect(localVideo);
+            // With blur on, localVideo shows the blurred canvas — faces would
+            // never be detected. Read the hidden raw video instead.
+            const detectSource = (blurPipeline.running && blurPipeline.rawVideo && blurPipeline.rawVideo.videoWidth)
+                ? blurPipeline.rawVideo
+                : localVideo;
+            const faces = await aiDetector.detect(detectSource);
             if (faces.length) {
                 aiStatusEl.textContent = langDict[curLang].aiFocused;
                 setAiDotState();

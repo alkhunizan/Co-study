@@ -1,5 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
+const { startServer } = require('../helpers/server-control');
+
 let smokeIpCounter = 10;
 
 async function createSmokePage(browser) {
@@ -307,6 +309,83 @@ test('timer preset chips apply durations and session goal syncs to peers', async
     } finally {
         await owner.context.close();
         await peer.context.close();
+    }
+});
+
+test('privacy blur sends a canvas track by default and tears the camera down cleanly', async ({ playwright }) => {
+    // Boots its own server: the shared smoke app defaults to the RealtimeKit
+    // video provider, and the blur pipeline is mesh-only. Also launches a
+    // dedicated Chromium with a fake camera instead of the shared fixture
+    // whose getUserMedia stub always throws.
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
+    const browser = await playwright.chromium.launch({
+        args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
+    });
+    const context = await browser.newContext({
+        baseURL: server.baseUrl,
+        permissions: ['camera']
+    });
+    const page = await context.newPage();
+    const consoleErrors = [];
+    page.on('console', (message) => {
+        // Third-party font/CDN noise is irrelevant to the blur pipeline.
+        if (message.type() === 'error' && !/fonts\.gstatic|net::ERR_FAILED/.test(message.text())) {
+            consoleErrors.push(message.text());
+        }
+    });
+    await page.addInitScript(() => {
+        try { delete window.FaceDetector; } catch (_error) {}
+        try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
+    });
+
+    try {
+        const roomCode = await createRoomFromLanding(page, { roomName: 'Blur Smoke Room' });
+        await page.click('#btn-enter-room');
+        await joinRoom(page, { name: 'Blurred', roomCode });
+        await expectJoined(page);
+
+        const videoCountBefore = await page.locator('video').count();
+
+        const localTrackLabel = () => page.evaluate(() => {
+            const video = document.getElementById('local-video');
+            const track = video.srcObject && video.srcObject.getVideoTracks()[0];
+            return track ? { label: track.label, state: track.readyState } : null;
+        });
+
+        // Enable camera: blur defaults ON, so the outgoing track is
+        // canvas-sourced, not the fake capture device.
+        await page.click('#camera-toggle');
+        await expect(page.locator('#blur-toggle')).toBeVisible();
+        await expect(page.locator('#blur-toggle')).toHaveText('Blur: on');
+        await expect.poll(async () => (await localTrackLabel())?.state).toBe('live');
+        const blurredTrack = await localTrackLabel();
+        expect(blurredTrack.label).not.toMatch(/fake/i);
+        // The pipeline adds its hidden raw <video> to the DOM.
+        await expect(page.locator('video')).toHaveCount(videoCountBefore + 1);
+
+        // Blur off mid-call: the raw fake-device track takes over.
+        await page.click('#blur-toggle');
+        await expect(page.locator('#blur-toggle')).toHaveText('Blur: off');
+        await expect.poll(async () => (await localTrackLabel())?.label).toMatch(/fake/i);
+        await expect(page.locator('video')).toHaveCount(videoCountBefore);
+
+        // Blur back on: canvas track again, no errors accumulated.
+        await page.click('#blur-toggle');
+        await expect(page.locator('#blur-toggle')).toHaveText('Blur: on');
+        await expect.poll(async () => (await localTrackLabel())?.label).not.toMatch(/fake/i);
+
+        // Disable camera: preview cleared AND the hidden raw video is gone
+        // (the raw tracks are stopped by the same teardown — a leak here
+        // means the camera light stays on).
+        await page.click('#camera-toggle');
+        await expect.poll(() => page.evaluate(() => document.getElementById('local-video').srcObject === null)).toBe(true);
+        await expect(page.locator('video')).toHaveCount(videoCountBefore);
+
+        expect(consoleErrors).toEqual([]);
+    } finally {
+        await context.close();
+        await browser.close();
+        await server.stop();
     }
 });
 
