@@ -463,3 +463,31 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 1. Restart your 5 dev servers I accidentally killed (see above) — sorry.
 2. Hosting: try Oracle Jeddah free tier first, or go straight to Lightsail Bahrain?
 3. Webfont trim (self-host WOFF2) — worth a follow-up, or leave the Google Fonts request as-is for launch?
+
+## 2026-07-04 — Blog-promise gap closure (4 features)
+
+**Goal for this session:** close the 4 built-vs-promised gaps found by auditing the two new Arabic SEO blog drafts in project-knowledge/ (ذاكر معي أونلاين + أفضل غرف مذاكرة جماعية) against the product.
+
+**What worked:**
+- Per-user session goal: rides the existing user-status event (sanitizeStatus + 80-char cap + hidden-status blanking), shows 🎯 line in participant list, recap toast on focus completion. Zero new persistence.
+- 25/50/90 timer preset chips: route through resetTimer() to dodge the toggleTimer quirk (focusDur only re-read at the untouched 25:00 default).
+- Report user (تبليغ): rate-limited socket event (3/min), persisted on room (capped 50, session-id prefixes only), silent (never broadcast/leaked to clients), admin Reports tab with Resolve+Kick, reporter-side local hide (video tile + name-keyed chat filter).
+- Whole-frame privacy blur, ON by default (mesh only): gUM → hidden video → canvas ctx.filter blur → captureStream becomes localStream. FaceDetector reads the hidden raw video. Interval fallback while document.hidden. Full test:ci green (58 integration + 25 smoke).
+
+**What broke:**
+- Edit tool wrote a null byte into a test file when embedding a raw U+202E char ("binary file matches" from grep). Fixed byte-level; switched to safer quoting. Lesson: avoid raw bidi control chars in source via Edit.
+- First blur smoke run: shared smoke server defaults VIDEO_PROVIDER=realtimekit → no mesh camera → #camera-toggle never clickable ("Camera room unavailable"). Fixed by booting a dedicated server with VIDEO_PROVIDER=mesh in-test (create-timeout pattern).
+- extraHTTPHeaders x-forwarded-for leaks to fonts.gstatic.com → CORS console errors tripped the no-console-errors assertion. Dropped the header for the dedicated server.
+- A concurrent session swept my sanitizeStatus edit into its own commit (b29a1b0 accounts) before I committed — content fine, attribution off.
+
+**What I changed:**
+- index.html, co-study-server.js, room-store.js, services/admin/admin-routes.js, admin.html, + integration/admin/smoke tests. Commits: 87d9a5a, 2eae41a, cef68f5, 07c8b2c, cedc406.
+- RTL audit applied: Western digits in AR preset tooltips (DESIGN.md §5), FSI/PDI-isolated goal in recap toast, معطّل antonym, .report-reasons in the RTL selector list.
+
+**Next session starts with:**
+- 2-browser manual mesh QA of blur on real hardware (peer-side view + camera light), then publish the two blog drafts to blog.html.
+
+**Open questions for Aziz:**
+1. Blur default ON confirmed good after real-device QA? (perf on low-end laptops)
+2. قدرات/تحصيلي room presets (item #5) — schedule as next feature block?
+3. Deploy these 4 features to Lightsail before or after blog publish?
