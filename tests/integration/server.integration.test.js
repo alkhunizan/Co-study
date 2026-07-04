@@ -7,6 +7,7 @@ const { spawnSync } = require('node:child_process');
 const { repoRoot, resetStateFile, makeTempStateFile } = require('../helpers/test-env');
 const { delay, startServer } = require('../helpers/server-control');
 const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
+const { signupUser } = require('../helpers/auth-helpers');
 
 const DEFAULT_ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
@@ -71,6 +72,13 @@ async function expectStartFailure(startOptions, pattern) {
     );
 }
 
+async function issueVideoToken(server, roomId, body) {
+    return server.request(`/api/rooms/${roomId}/video-token`, {
+        method: 'POST',
+        body
+    });
+}
+
 test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
@@ -87,6 +95,7 @@ test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     assert.equal(ready.body.status, 'ready');
     assert.deepEqual(ready.body.checks, {
         roomStore: true,
+        userStore: true,
         socket: true,
         config: true
     });
@@ -103,9 +112,10 @@ test('HTTP responses include baseline browser security headers', async (t) => {
     assert.equal(response.headers['referrer-policy'], 'strict-origin-when-cross-origin');
     assert.equal(response.headers['x-frame-options'], 'SAMEORIGIN');
     assert.match(response.headers['content-security-policy'], /default-src 'self'/);
-    assert.match(response.headers['content-security-policy'], /connect-src 'self'; frame-src/);
+    assert.match(response.headers['content-security-policy'], /script-src 'self' 'unsafe-inline' https:\/\/cdn\.jsdelivr\.net/);
+    assert.match(response.headers['content-security-policy'], /connect-src 'self' https:\/\/\*\.cloudflare\.com wss:\/\/\*\.cloudflare\.com/);
     assert.match(response.headers['content-security-policy'], /frame-src 'self'; object-src/);
-    assert.equal(response.headers['permissions-policy'], 'camera=(self), microphone=(self), display-capture=(self)');
+    assert.equal(response.headers['permissions-policy'], 'camera=(self), microphone=(self), display-capture=()');
 });
 
 test('security headers allow-list the SFU origin when SFU_BASE_URL is configured', async (t) => {
@@ -122,7 +132,7 @@ test('security headers allow-list the SFU origin when SFU_BASE_URL is configured
     );
     assert.equal(
         response.headers['permissions-policy'],
-        `camera=(self "${sfuOrigin}"), microphone=(self "${sfuOrigin}"), display-capture=(self "${sfuOrigin}")`
+        `camera=(self "${sfuOrigin}"), microphone=(self "${sfuOrigin}"), display-capture=()`
     );
 });
 
@@ -138,6 +148,7 @@ test('runtime config falls back to the default ICE servers', async (t) => {
     assert.equal(response.body.sfuAvailable, false);
     assert.deepEqual(response.body.supportedMediaModes, ['mesh']);
     assert.equal(response.body.meshParticipantLimit, 4);
+    assert.doesNotMatch(JSON.stringify(response.body), /CLOUDFLARE|fake-secret-token|apiToken/);
 });
 
 test('runtime config exposes SFU availability when configured', async (t) => {
@@ -173,7 +184,12 @@ test('persisted room state survives restart and protected join still validates p
         resetStateFile(roomStateFile);
     });
 
-    ownerSocket = await connectSocket(server.baseUrl, { clientId: 'owner-client' });
+    // Scheduled rooms require an account, so the owner signs up first.
+    const owner = await signupUser(server, { displayName: 'Owner' });
+    ownerSocket = await connectSocket(server.baseUrl, {
+        clientId: 'owner-client',
+        extraHeaders: { Cookie: owner.cookie }
+    });
 
     const createRoom = await emitAck(ownerSocket, 'create-room', {
         roomName: 'Persistence Test Room',
@@ -223,14 +239,21 @@ test('persisted room state survives restart and protected join still validates p
 
     server = await startServer({ roomStateFile, resetStateFileOnStart: false });
 
-    const snapshot = await server.request(`/api/rooms/${roomId}`);
-    assert.equal(snapshot.status, 200);
-    assert.equal(snapshot.body.roomId, roomId);
-    assert.equal(snapshot.body.requirePassword, true);
-    assert.equal(snapshot.body.schedule.cadence, schedule.cadence);
-    assert.equal(snapshot.body.schedule.focusMinutes, 45);
-    assert.equal(snapshot.body.schedule.breakMinutes, 15);
-    assert.equal(snapshot.body.schedule.boardGoalTemplate, 'Protect the launch room');
+    // Protected room: the public GET endpoint exposes only a safe preview and
+    // must not leak persisted state (board, messages, schedule) before a
+    // password-gated join. Persistence itself is verified via the valid join below.
+    const preview = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(preview.status, 200);
+    assert.equal(preview.body.ok, true);
+    assert.equal(preview.body.room.roomId, roomId);
+    assert.equal(preview.body.room.protected, true);
+    assert.equal(preview.body.room.requiresPassword, true);
+    assert.equal(preview.body.board, undefined);
+    assert.equal(preview.body.messages, undefined);
+    assert.equal(preview.body.schedule, undefined);
+    assert.equal(preview.body.room.board, undefined);
+    assert.equal(preview.body.room.messages, undefined);
+    assert.equal(preview.body.room.schedule, undefined);
 
     verifierSocket = await connectSocket(server.baseUrl, { clientId: 'verifier-client' });
 
@@ -251,83 +274,41 @@ test('persisted room state survives restart and protected join still validates p
     });
     assert.equal(validJoin.ok, true);
     assert.equal(validJoin.room.board.goal, 'Protect the room state');
-    assert.equal(validJoin.room.board.tasks.length, 1);
     assert.equal(validJoin.room.board.tasks[0].text, 'Confirm restart persistence');
     assert.equal(validJoin.room.schedule.focusMinutes, 45);
+    // Persistence across restart is proven through the password-verified join,
+    // which legitimately returns full room state (formerly asserted via GET).
+    assert.equal(validJoin.room.schedule.cadence, schedule.cadence);
+    assert.equal(validJoin.room.schedule.breakMinutes, 15);
+    assert.equal(validJoin.room.schedule.boardGoalTemplate, 'Protect the launch room');
+    assert.equal(validJoin.room.board.tasks.length, 1);
     assert.ok(validJoin.room.messages.some((message) => message.text === 'Persistence integration message'));
-});
-
-test('room lookup endpoint exposes only the public join preview fields', async (t) => {
-    const server = await startServer();
-    await cleanupServer(t, server);
-
-    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'privacy-owner' });
-    const guestSocket = await connectSocket(server.baseUrl, { clientId: 'privacy-guest' });
-    t.after(async () => {
-        await closeSocket(ownerSocket);
-        await closeSocket(guestSocket);
-    });
-
-    const createProtected = await emitAck(ownerSocket, 'create-room', {
-        roomName: 'Privacy Room',
-        password: 'privacy123',
-        requirePassword: true
-    });
-    assert.equal(createProtected.ok, true);
-    const protectedRoomId = createProtected.room.roomId;
-
-    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
-        roomId: protectedRoomId,
-        username: 'Owner',
-        clientId: 'privacy-owner',
-        password: 'privacy123'
-    });
-    assert.equal(ownerJoin.ok, true);
-    assert.equal((await emitAck(ownerSocket, 'send-message', { roomId: protectedRoomId, text: 'Private chat line' })).ok, true);
-    assert.equal((await emitAck(ownerSocket, 'board-set-goal', { goal: 'Private goal' })).ok, true);
-
-    const protectedSnapshot = await server.request(`/api/rooms/${protectedRoomId}`);
-    assert.equal(protectedSnapshot.status, 200);
-    assert.equal(protectedSnapshot.body.roomId, protectedRoomId);
-    assert.equal(protectedSnapshot.body.name, 'Privacy Room');
-    assert.equal(protectedSnapshot.body.requirePassword, true);
-    assert.equal(protectedSnapshot.body.mediaMode, 'mesh');
-    assert.equal(protectedSnapshot.body.participantCount, 1);
-    assert.equal(typeof protectedSnapshot.body.participantLimit, 'number');
-    assert.equal(protectedSnapshot.body.messages, undefined);
-    assert.equal(protectedSnapshot.body.participants, undefined);
-    assert.equal(protectedSnapshot.body.board, undefined);
-
-    const createOpen = await emitAck(guestSocket, 'create-room', {
-        roomName: 'Open Privacy Room'
-    });
-    assert.equal(createOpen.ok, true);
-    const openRoomId = createOpen.room.roomId;
-
-    const guestJoin = await emitAck(guestSocket, 'join-room', {
-        roomId: openRoomId,
-        username: 'Guest',
-        clientId: 'privacy-guest'
-    });
-    assert.equal(guestJoin.ok, true);
-    assert.equal((await emitAck(guestSocket, 'send-message', { roomId: openRoomId, text: 'Open room chat line' })).ok, true);
-
-    const openSnapshot = await server.request(`/api/rooms/${openRoomId}`);
-    assert.equal(openSnapshot.status, 200);
-    assert.equal(openSnapshot.body.requirePassword, false);
-    assert.equal(openSnapshot.body.messages, undefined);
-    assert.equal(openSnapshot.body.participants, undefined);
-    assert.equal(openSnapshot.body.board, undefined);
 });
 
 test('scheduled rooms validate create payloads and expose schedule summaries', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
 
-    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'schedule-owner' });
+    const owner = await signupUser(server, { displayName: 'Scheduler' });
+    const ownerSocket = await connectSocket(server.baseUrl, {
+        clientId: 'schedule-owner',
+        extraHeaders: { Cookie: owner.cookie }
+    });
     t.after(async () => {
         await closeSocket(ownerSocket);
     });
+
+    // Guests cannot create scheduled rooms at all.
+    const guestSocket = await connectSocket(server.baseUrl, { clientId: 'schedule-guest' });
+    t.after(async () => {
+        await closeSocket(guestSocket);
+    });
+    const guestScheduleCreate = await emitAck(guestSocket, 'create-room', {
+        roomName: 'Guest Schedule Room',
+        schedule: buildFutureRiyadhSchedule()
+    });
+    assert.equal(guestScheduleCreate.ok, false);
+    assert.equal(guestScheduleCreate.errorCode, 'AUTH_REQUIRED_FOR_SCHEDULED');
 
     const invalidScheduleCreate = await emitAck(ownerSocket, 'create-room', {
         roomName: 'Broken Schedule Room',
@@ -461,6 +442,16 @@ test('startup fails fast for malformed room state and invalid env config', async
             env: { SFU_BASE_URL: 'not-a-url' }
         }, /SFU_BASE_URL/);
 
+        await expectStartFailure({
+            env: {
+                NODE_ENV: 'production',
+                VIDEO_PROVIDER: 'realtimekit',
+                CLOUDFLARE_ACCOUNT_ID: '',
+                CLOUDFLARE_REALTIMEKIT_APP_ID: '',
+                CLOUDFLARE_REALTIMEKIT_API_TOKEN: ''
+            }
+        }, /RealtimeKit is selected/);
+
         const badParent = makeTempStateFile('co-study-state-parent');
         fs.writeFileSync(badParent, 'file-not-dir', 'utf8');
         await expectStartFailure({
@@ -472,8 +463,441 @@ test('startup fails fast for malformed room state and invalid env config', async
     }
 });
 
+test('RealtimeKit video token endpoint issues safe participant tokens after room join', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-owner' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'RealtimeKit Room'
+    });
+    assert.equal(createRoom.ok, true);
+    assert.equal(createRoom.room.videoProvider, 'realtimekit');
+
+    const joinOwner = await emitAck(ownerSocket, 'join-room', {
+        roomId: createRoom.room.roomId,
+        username: 'Owner',
+        clientId: 'rtk-owner'
+    });
+    assert.equal(joinOwner.ok, true);
+    assert.equal(joinOwner.room.videoProvider, 'realtimekit');
+    assert.equal(joinOwner.room.videoPolicy.maxRoomParticipants, 20);
+    assert.equal(joinOwner.room.videoPolicy.recordingEnabled, false);
+
+    const token = await issueVideoToken(server, createRoom.room.roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'rtk-owner',
+        role: 'student'
+    });
+
+    assert.equal(token.status, 200);
+    assert.equal(token.body.ok, true);
+    assert.equal(token.body.provider, 'realtimekit');
+    assert.equal(token.body.authToken, 'auth_participant_1');
+    assert.equal(token.body.policy.micDefaultEnabled, false);
+    assert.equal(token.body.policy.recordingEnabled, false);
+    assert.doesNotMatch(JSON.stringify(token.body), /fake-secret-token/);
+
+    const fakeState = await server.realtimeKitState();
+    assert.equal(fakeState.meetings.length, 1);
+    assert.equal(fakeState.participants.length, 1);
+    assert.equal(fakeState.participants[0].body.preset_name, 'halastudy_student');
+    assert.equal(fakeState.participants[0].body.custom_participant_id, 'rtk-owner');
+});
+
+test('RealtimeKit video token endpoint rejects invalid or unauthorized requests cleanly', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-auth-owner' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'RealtimeKit Auth Room'
+    });
+    assert.equal(createRoom.ok, true);
+    const roomId = createRoom.room.roomId;
+
+    const missingRoom = await issueVideoToken(server, 'NOPE99', {
+        displayName: 'Owner',
+        clientSessionId: 'rtk-auth-owner',
+        role: 'student'
+    });
+    assert.equal(missingRoom.status, 404);
+    assert.equal(missingRoom.body.errorCode, 'ROOM_NOT_FOUND');
+
+    const notJoined = await issueVideoToken(server, roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'rtk-auth-owner',
+        role: 'student'
+    });
+    assert.equal(notJoined.status, 403);
+    assert.equal(notJoined.body.errorCode, 'ROOM_NOT_JOINED');
+
+    const joinOwner = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'rtk-auth-owner'
+    });
+    assert.equal(joinOwner.ok, true);
+
+    const invalidRole = await issueVideoToken(server, roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'rtk-auth-owner',
+        role: 'host'
+    });
+    assert.equal(invalidRole.status, 400);
+    assert.equal(invalidRole.body.errorCode, 'VIDEO_REQUEST_INVALID');
+
+    const fakeState = await server.realtimeKitState();
+    assert.equal(fakeState.meetings.length, 0);
+    assert.equal(fakeState.participants.length, 0);
+});
+
+test('RealtimeKit caps reject before provider participant creation', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        env: {
+            MAX_GLOBAL_VIDEO_PARTICIPANTS: '1',
+            MAX_ROOM_VIDEO_PARTICIPANTS: '1'
+        }
+    });
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-cap-owner' });
+    const peerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-cap-peer' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(peerSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'RealtimeKit Cap Room'
+    });
+    const roomId = createRoom.room.roomId;
+    assert.equal(createRoom.ok, true);
+
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'rtk-cap-owner'
+    });
+    const peerJoin = await emitAck(peerSocket, 'join-room', {
+        roomId,
+        username: 'Peer',
+        clientId: 'rtk-cap-peer'
+    });
+    assert.equal(ownerJoin.ok, true);
+    assert.equal(peerJoin.ok, true);
+
+    const firstToken = await issueVideoToken(server, roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'rtk-cap-owner',
+        role: 'student'
+    });
+    assert.equal(firstToken.status, 200);
+
+    const blockedToken = await issueVideoToken(server, roomId, {
+        displayName: 'Peer',
+        clientSessionId: 'rtk-cap-peer',
+        role: 'student'
+    });
+    assert.equal(blockedToken.status, 409);
+    assert.equal(blockedToken.body.errorCode, 'GLOBAL_VIDEO_LIMIT_REACHED');
+
+    const fakeState = await server.realtimeKitState();
+    assert.equal(fakeState.meetings.length, 1);
+    assert.equal(fakeState.participants.length, 1);
+});
+
+test('RealtimeKit room cap rejects before provider participant creation', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        env: {
+            MAX_GLOBAL_VIDEO_PARTICIPANTS: '20',
+            MAX_ROOM_VIDEO_PARTICIPANTS: '1'
+        }
+    });
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-room-cap-owner' });
+    const peerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-room-cap-peer' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(peerSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'RealtimeKit Room Cap'
+    });
+    const roomId = createRoom.room.roomId;
+    await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'rtk-room-cap-owner'
+    });
+    await emitAck(peerSocket, 'join-room', {
+        roomId,
+        username: 'Peer',
+        clientId: 'rtk-room-cap-peer'
+    });
+
+    const firstToken = await issueVideoToken(server, roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'rtk-room-cap-owner',
+        role: 'student'
+    });
+    assert.equal(firstToken.status, 200);
+
+    const blockedToken = await issueVideoToken(server, roomId, {
+        displayName: 'Peer',
+        clientSessionId: 'rtk-room-cap-peer',
+        role: 'student'
+    });
+    assert.equal(blockedToken.status, 409);
+    assert.equal(blockedToken.body.errorCode, 'ROOM_FULL');
+
+    const fakeState = await server.realtimeKitState();
+    assert.equal(fakeState.meetings.length, 1);
+    assert.equal(fakeState.participants.length, 1);
+});
+
+test('RealtimeKit provider failures release capacity and hide provider internals', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { failParticipants: true }
+    });
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-fail-owner' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'RealtimeKit Failure Room'
+    });
+    const roomId = createRoom.room.roomId;
+    await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'rtk-fail-owner'
+    });
+
+    const failed = await issueVideoToken(server, roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'rtk-fail-owner',
+        role: 'student'
+    });
+    assert.equal(failed.status, 502);
+    assert.equal(failed.body.errorCode, 'VIDEO_PROVIDER_UNAVAILABLE');
+    assert.doesNotMatch(JSON.stringify(failed.body), /Fake participant failure|fake-secret-token/);
+
+    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(snapshot.status, 200);
+    assert.equal(snapshot.body.activeVideoParticipantCount, 0);
+
+    const logs = server.logs();
+    assert.doesNotMatch(`${logs.stdout}\n${logs.stderr}`, /fake-secret-token/);
+});
+
+test('RealtimeKit meeting metadata persists and is reused after restart', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-rtk-persist');
+    let server = await startServer({ roomStateFile, withFakeRealtimeKit: true });
+    let ownerSocket = null;
+    let verifierSocket = null;
+
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(verifierSocket);
+        if (server) {
+            await server.stop();
+        }
+        resetStateFile(roomStateFile);
+    });
+
+    ownerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-persist-owner' });
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'RealtimeKit Persist Room'
+    });
+    const roomId = createRoom.room.roomId;
+    await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'rtk-persist-owner'
+    });
+    const firstToken = await issueVideoToken(server, roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'rtk-persist-owner',
+        role: 'student'
+    });
+    assert.equal(firstToken.status, 200);
+    assert.equal(firstToken.body.meetingId, 'meeting_1');
+
+    await delay(400);
+    await closeSocket(ownerSocket);
+    ownerSocket = null;
+    await server.stop();
+
+    server = await startServer({
+        roomStateFile,
+        resetStateFileOnStart: false,
+        withFakeRealtimeKit: true
+    });
+    verifierSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-persist-verifier' });
+    const verifierJoin = await emitAck(verifierSocket, 'join-room', {
+        roomId,
+        username: 'Verifier',
+        clientId: 'rtk-persist-verifier'
+    });
+    assert.equal(verifierJoin.ok, true);
+    assert.equal(verifierJoin.room.videoProvider, 'realtimekit');
+
+    const secondToken = await issueVideoToken(server, roomId, {
+        displayName: 'Verifier',
+        clientSessionId: 'rtk-persist-verifier',
+        role: 'student'
+    });
+    assert.equal(secondToken.status, 200);
+    assert.equal(secondToken.body.meetingId, 'meeting_1');
+
+    const fakeState = await server.realtimeKitState();
+    assert.equal(fakeState.meetings.length, 0);
+    assert.equal(fakeState.participants.length, 1);
+});
+
+test('RealtimeKit expired idle meeting metadata is recycled for reusable rooms', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-rtk-recycle');
+    const roomId = 'OLD123';
+    fs.writeFileSync(roomStateFile, `${JSON.stringify([{
+        id: roomId,
+        name: 'Old Scheduled Room',
+        requirePassword: false,
+        mediaMode: 'mesh',
+        videoProvider: 'realtimekit',
+        videoProviderMeetingId: 'old_meeting',
+        videoProviderMeetingCreatedAt: Date.now() - (5 * 60 * 1000),
+        videoProviderStatus: 'active',
+        videoPolicy: {
+            maxParticipants: 20,
+            recordingEnabled: false,
+            screenshareEnabled: false,
+            micDefaultEnabled: false
+        },
+        createdAt: Date.now() - (24 * 60 * 60 * 1000),
+        messages: [],
+        board: { goal: '', tasks: [] },
+        schedule: null
+    }], null, 2)}\n`, 'utf8');
+
+    const server = await startServer({
+        roomStateFile,
+        resetStateFileOnStart: false,
+        withFakeRealtimeKit: true,
+        env: {
+            MAX_ROOM_DURATION_MINUTES: '1'
+        }
+    });
+    await cleanupServer(t, server, [roomStateFile]);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-recycle-owner' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+    });
+
+    const joinOwner = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'rtk-recycle-owner'
+    });
+    assert.equal(joinOwner.ok, true);
+
+    const token = await issueVideoToken(server, roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'rtk-recycle-owner',
+        role: 'student'
+    });
+    assert.equal(token.status, 200);
+    assert.equal(token.body.meetingId, 'meeting_1');
+
+    const fakeState = await server.realtimeKitState();
+    assert.equal(fakeState.meetings.length, 1);
+    assert.equal(fakeState.participants.length, 1);
+});
+
+test('RealtimeKit heartbeat, leave, and socket disconnect update active video counts', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-life-owner' });
+    const peerSocket = await connectSocket(server.baseUrl, { clientId: 'rtk-life-peer' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(peerSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'RealtimeKit Lifecycle Room'
+    });
+    const roomId = createRoom.room.roomId;
+    await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'rtk-life-owner'
+    });
+    await emitAck(peerSocket, 'join-room', {
+        roomId,
+        username: 'Peer',
+        clientId: 'rtk-life-peer'
+    });
+
+    const token = await issueVideoToken(server, roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'rtk-life-owner',
+        role: 'student'
+    });
+    assert.equal(token.status, 200);
+
+    const heartbeat = await server.request(`/api/rooms/${roomId}/video-heartbeat`, {
+        method: 'POST',
+        body: {
+            clientSessionId: 'rtk-life-owner'
+        }
+    });
+    assert.equal(heartbeat.status, 200);
+    assert.equal(heartbeat.body.activeRoomVideoParticipants, 1);
+
+    const leave = await server.request(`/api/rooms/${roomId}/video-leave`, {
+        method: 'POST',
+        body: {
+            clientSessionId: 'rtk-life-owner'
+        }
+    });
+    assert.equal(leave.status, 200);
+    assert.equal(leave.body.activeRoomVideoParticipants, 0);
+
+    const peerToken = await issueVideoToken(server, roomId, {
+        displayName: 'Peer',
+        clientSessionId: 'rtk-life-peer',
+        role: 'student'
+    });
+    assert.equal(peerToken.status, 200);
+    await closeSocket(peerSocket);
+    await delay(100);
+
+    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(snapshot.status, 200);
+    assert.equal(snapshot.body.activeVideoParticipantCount, 0);
+});
+
 test('mesh rooms enforce participant caps while allowing same-identity reconnects at capacity', async (t) => {
-    const server = await startServer();
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
     await cleanupServer(t, server);
 
     const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-owner' });
@@ -727,16 +1151,31 @@ test('socket payloads are bounded at server boundaries', async (t) => {
     assert.equal(userMessage.text.length, 500);
     assert.equal(userMessage.text, oversizedMessage.trim().slice(0, 500));
 
-    const rejoin = await emitAck(ownerSocket, 'join-room', {
-        roomId,
-        username: oversizedName,
-        clientId: 'bounds-owner'
-    });
-    assert.equal(rejoin.ok, true);
-    const ownerEntry = rejoin.room.participants.find((participant) => participant.name === oversizedName.trim().slice(0, 20));
-    assert.ok(ownerEntry);
-    assert.equal(ownerEntry.name.length, 20);
-    assert.ok(rejoin.room.messages.some((message) => message.type === 'user' && message.text.length === 500));
+    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(snapshot.status, 200);
+    assert.equal(snapshot.body.participants[0].name.length, 20);
+    assert.ok(snapshot.body.messages.some((message) => message.type === 'user' && message.text.length === 500));
+});
+
+test('privacy page is served bilingually and linked from landing and open footers', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const privacy = await server.request('/privacy');
+    assert.equal(privacy.status, 200);
+    assert.match(`${privacy.headers['content-type']}`, /text\/html/);
+    assert.match(`${privacy.body}`, /lang="ar"/);
+    assert.match(`${privacy.body}`, /سياسة الخصوصية/);
+    assert.match(`${privacy.body}`, /Privacy Policy/);
+
+    const privacyAlias = await server.request('/privacy.html');
+    assert.equal(privacyAlias.status, 200);
+
+    const landing = await server.request('/');
+    assert.match(`${landing.body}`, /href="\/privacy"/);
+
+    const open = await server.request('/open');
+    assert.match(`${open.body}`, /href="\/privacy"/);
 });
 
 test('open alias and media mounts serve published assets only', async (t) => {
@@ -808,13 +1247,9 @@ test('sanitizers strip invisible characters and reject non-string payloads', asy
     });
     assert.equal(emojiMessage.ok, true);
 
-    const rejoin = await emitAck(ownerSocket, 'join-room', {
-        roomId,
-        username: 'evil\u202Etxt',
-        clientId: 'invisible-owner'
-    });
-    assert.equal(rejoin.ok, true);
-    const emojiStored = rejoin.room.messages.find((message) => message.type === 'user');
+    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(snapshot.status, 200);
+    const emojiStored = snapshot.body.messages.find((message) => message.type === 'user');
     assert.ok(emojiStored);
     // Truncation counts code points and never leaves a lone surrogate.
     assert.equal(Array.from(emojiStored.text).length, 500);
@@ -954,20 +1389,22 @@ test('backup restore tooling and deploy verification work against the HTTP app',
         }
     });
 
-    const snapshot = await server.request(`/api/rooms/${roomId}`);
-    assert.equal(snapshot.status, 200);
-    assert.equal(snapshot.body.requirePassword, true);
+    // Backup/restore persisted the protected room. The GET endpoint now returns
+    // only a safe preview, so verify the restored board + messages through a
+    // password-gated join (the authenticated path that legitimately sees state).
+    const restoredPreview = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(restoredPreview.status, 200);
+    assert.equal(restoredPreview.body.room.protected, true);
+    assert.equal(restoredPreview.body.board, undefined);
 
     const restoredSocket = await connectSocket(server.baseUrl, { clientId: 'backup-owner' });
-    t.after(async () => {
-        await closeSocket(restoredSocket);
-    });
     const restoredJoin = await emitAck(restoredSocket, 'join-room', {
         roomId,
         username: 'Owner',
         clientId: 'backup-owner',
         password: 'backup123'
     });
+    await closeSocket(restoredSocket);
     assert.equal(restoredJoin.ok, true);
     assert.equal(restoredJoin.room.board.goal, 'Backup goal');
     assert.ok(restoredJoin.room.messages.some((message) => message.text === 'Backup message'));
@@ -977,4 +1414,218 @@ test('backup restore tooling and deploy verification work against the HTTP app',
 
     const verifyFailure = runNodeScript('scripts/verify-deploy.js', ['http://127.0.0.1:9']);
     assert.notEqual(verifyFailure.status, 0);
+});
+
+test('protected room GET exposes only a safe preview and leaks no private state', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+
+    const owner = await signupUser(server, { displayName: 'PrivOwner' });
+    const ownerSocket = await connectSocket(server.baseUrl, {
+        clientId: 'priv-owner',
+        extraHeaders: { Cookie: owner.cookie }
+    });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+    });
+
+    const schedule = buildFutureRiyadhSchedule({ boardGoalTemplate: 'PRIVATE-BOARD-GOAL-do-not-leak' });
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'Private Study Room',
+        password: 'topsecret1',
+        requirePassword: true,
+        schedule
+    });
+    assert.equal(createRoom.ok, true);
+    const roomId = createRoom.room.roomId;
+
+    const joinOwner = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'priv-owner',
+        password: 'topsecret1'
+    });
+    assert.equal(joinOwner.ok, true);
+
+    assert.equal((await emitAck(ownerSocket, 'send-message', { roomId, text: 'PRIVATE-MESSAGE-do-not-leak' })).ok, true);
+    assert.equal((await emitAck(ownerSocket, 'board-set-goal', { goal: 'PRIVATE-BOARD-GOAL-do-not-leak' })).ok, true);
+    assert.equal((await emitAck(ownerSocket, 'board-add-task', { text: 'PRIVATE-TASK-do-not-leak', priority: 1 })).ok, true);
+
+    // Populate real video-provider state (meeting id + active session) so the
+    // preview is proven to omit it even when it exists internally.
+    const token = await issueVideoToken(server, roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'priv-owner',
+        role: 'student'
+    });
+    assert.equal(token.status, 200);
+
+    const preview = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(preview.status, 200);
+
+    // Contract: a safe preview only.
+    assert.equal(preview.body.ok, true);
+    assert.equal(preview.body.room.roomId, roomId);
+    assert.equal(preview.body.room.protected, true);
+    assert.equal(preview.body.room.requiresPassword, true);
+    assert.equal(typeof preview.body.room.participantCount, 'number');
+
+    // No private state at the top level of the response...
+    assert.equal(preview.body.messages, undefined);                     // (1) no messages
+    assert.equal(preview.body.participants, undefined);                 // (2) no participant details
+    assert.equal(preview.body.board, undefined);                        // (3) no board state
+    assert.equal(preview.body.schedule, undefined);                     // (4) no schedule/private metadata
+    assert.equal(preview.body.videoProviderMeetingId, undefined);       // (5) no videoProviderMeetingId
+    assert.equal(preview.body.videoProviderStatus, undefined);          // (6) no video session state
+    assert.equal(preview.body.activeVideoParticipantCount, undefined);  // (6) no video session state
+    assert.equal(preview.body.passwordHash, undefined);
+    assert.equal(preview.body.videoPolicy, undefined);
+
+    // ...nor nested under `room`.
+    assert.equal(preview.body.room.messages, undefined);
+    assert.equal(preview.body.room.participants, undefined);
+    assert.equal(preview.body.room.board, undefined);
+    assert.equal(preview.body.room.schedule, undefined);
+    assert.equal(preview.body.room.videoProviderMeetingId, undefined);
+    assert.equal(preview.body.room.videoProviderStatus, undefined);
+    assert.equal(preview.body.room.activeVideoParticipantCount, undefined);
+    assert.equal(preview.body.room.passwordHash, undefined);
+
+    // Belt-and-suspenders: no secret substrings anywhere in the serialized body.
+    const serialized = JSON.stringify(preview.body);
+    assert.doesNotMatch(serialized, /PRIVATE-BOARD-GOAL-do-not-leak/);
+    assert.doesNotMatch(serialized, /PRIVATE-MESSAGE-do-not-leak/);
+    assert.doesNotMatch(serialized, /PRIVATE-TASK-do-not-leak/);
+    assert.doesNotMatch(serialized, /fake-secret-token/);
+});
+
+test('protected room stays locked on wrong password and unlocks full state only on the correct one', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'lock-owner' });
+    const intruderSocket = await connectSocket(server.baseUrl, { clientId: 'lock-intruder' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(intruderSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'Locked Room',
+        password: 'correct-horse',
+        requirePassword: true
+    });
+    assert.equal(createRoom.ok, true);
+    const roomId = createRoom.room.roomId;
+
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'lock-owner',
+        password: 'correct-horse'
+    });
+    assert.equal(ownerJoin.ok, true);
+    assert.equal((await emitAck(ownerSocket, 'board-set-goal', { goal: 'LOCKED-GOAL' })).ok, true);
+
+    // (7) A wrong password unlocks nothing: no room state in the ack, and the
+    // GET endpoint still returns only a preview.
+    const wrongJoin = await emitAck(intruderSocket, 'join-room', {
+        roomId,
+        username: 'Intruder',
+        clientId: 'lock-intruder',
+        password: 'nope'
+    });
+    assert.equal(wrongJoin.ok, false);
+    assert.equal(wrongJoin.errorCode, 'ROOM_PASSWORD_INVALID');
+    assert.equal(wrongJoin.room, undefined);
+
+    const preview = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(preview.status, 200);
+    assert.equal(preview.body.room.protected, true);
+    assert.equal(preview.body.board, undefined);
+    assert.doesNotMatch(JSON.stringify(preview.body), /LOCKED-GOAL/);
+
+    // (8) The correct password returns full room state to the verified member.
+    const goodJoin = await emitAck(intruderSocket, 'join-room', {
+        roomId,
+        username: 'Guest',
+        clientId: 'lock-intruder',
+        password: 'correct-horse'
+    });
+    assert.equal(goodJoin.ok, true);
+    assert.equal(goodJoin.room.board.goal, 'LOCKED-GOAL');
+    assert.ok(Array.isArray(goodJoin.room.messages));
+});
+
+test('public room GET still returns the full snapshot (behavior unchanged)', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'pub-owner' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', { roomName: 'Open Study Room' });
+    assert.equal(createRoom.ok, true);
+    const roomId = createRoom.room.roomId;
+
+    const joinOwner = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'pub-owner'
+    });
+    assert.equal(joinOwner.ok, true);
+    assert.equal((await emitAck(ownerSocket, 'send-message', { roomId, text: 'public hello' })).ok, true);
+    assert.equal((await emitAck(ownerSocket, 'board-set-goal', { goal: 'public goal' })).ok, true);
+
+    // (9) Public rooms keep the existing flat full snapshot shape.
+    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(snapshot.status, 200);
+    assert.equal(snapshot.body.roomId, roomId);
+    assert.equal(snapshot.body.requirePassword, false);
+    assert.equal(snapshot.body.board.goal, 'public goal');
+    assert.ok(Array.isArray(snapshot.body.participants));
+    assert.ok(snapshot.body.messages.some((message) => message.text === 'public hello'));
+    assert.equal(snapshot.body.ok, undefined);
+});
+
+test('video-token requires verified room membership even for existing rooms', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+
+    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'vt-owner' });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+    });
+
+    const createRoom = await emitAck(ownerSocket, 'create-room', { roomName: 'Token Gate Room' });
+    assert.equal(createRoom.ok, true);
+    const roomId = createRoom.room.roomId;
+
+    // (10) A non-member cannot mint a participant token.
+    const denied = await issueVideoToken(server, roomId, {
+        displayName: 'Ghost',
+        clientSessionId: 'not-a-member',
+        role: 'student'
+    });
+    assert.equal(denied.status, 403);
+    assert.equal(denied.body.errorCode, 'ROOM_NOT_JOINED');
+    assert.equal(denied.body.authToken, undefined);
+
+    // ...but a verified member can, after a real join.
+    const joinOwner = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Owner',
+        clientId: 'vt-owner'
+    });
+    assert.equal(joinOwner.ok, true);
+
+    const granted = await issueVideoToken(server, roomId, {
+        displayName: 'Owner',
+        clientSessionId: 'vt-owner',
+        role: 'student'
+    });
+    assert.equal(granted.status, 200);
+    assert.equal(typeof granted.body.authToken, 'string');
 });

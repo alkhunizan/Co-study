@@ -126,6 +126,23 @@ html[lang="ar"] .is-open-page { font-family: var(--font-body-ar); }
 
 .topbar-right { display: inline-flex; gap: 10px; align-items: center; }
 
+/* Quiet auth entry — a text link, never a competing accent moment. Swapped
+   for the avatar chip by halastudy-core.js when a session exists. */
+.topbar-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 120ms var(--ease-soft);
+}
+.topbar-link:hover { color: var(--ink); }
+.topbar-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-radius: 6px;
+}
+
 .icon-btn {
   width: 36px; height: 36px;
   border-radius: 12px;
@@ -1420,6 +1437,60 @@ html[lang="ar"] .form-title { font-family: var(--font-display-ar); font-weight: 
   background: var(--accent-soft);
 }
 .schedule-panel[hidden] { display: none; }
+/* Guest gate shown in place of the schedule fields until sign-in. */
+.schedule-signin-gate[hidden],
+#schedule-fields-inner[hidden] { display: none; }
+.schedule-signin-gate h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.schedule-signin-gate .btn { margin-block-start: 10px; }
+
+/* Signed-in "your rooms" shortcut above the create/join choice. */
+.my-rooms-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  margin-block-end: 20px;
+}
+.my-rooms-card[hidden] { display: none; }
+.my-rooms-card h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.my-rooms-list { display: flex; flex-direction: column; gap: 8px; }
+.my-room-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  padding-block: 10px;
+  padding-inline: 14px;
+}
+.my-room-row .my-room-name {
+  flex: 1;
+  min-inline-size: 0;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.my-room-row .my-room-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  letter-spacing: var(--ls-num);
+  font-variant-numeric: tabular-nums;
+}
+.my-room-row .btn { padding-block: 8px; padding-inline: 16px; font-size: 13px; }
 .schedule-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

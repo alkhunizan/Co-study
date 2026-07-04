@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halastudy | الصفحة غير موجودة</title>
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <style>
+    .nf-shell {
+      min-block-size: 70vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-inline: 20px;
+    }
+    .nf-card {
+      max-inline-size: 480px;
+      text-align: start;
+    }
+    .nf-code {
+      font-family: var(--font-mono);
+      font-size: var(--t-caption);
+      color: var(--ink-3);
+      letter-spacing: var(--ls-eyebrow);
+      text-transform: uppercase;
+      margin-block-end: 12px;
+    }
+    .nf-card h1 {
+      font-family: var(--font-display);
+      font-size: var(--t-h2);
+      margin: 0 0 10px;
+      color: var(--ink);
+    }
+    html[lang="ar"] .nf-card h1 { font-family: var(--font-display-ar); }
+    .nf-card p { color: var(--ink-2); margin: 0 0 24px; line-height: var(--lh-loose); }
+  </style>
+</head>
+<body class="is-landing-page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Halastudy home">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <div class="topbar-right">
+      <div class="lang-switch" role="tablist" aria-label="Language">
+        <button type="button" data-lang-value="en">EN</button>
+        <button type="button" data-lang-value="ar" class="is-on">ع</button>
+      </div>
+    </div>
+  </header>
+  <main class="nf-shell">
+    <div class="nf-card">
+      <div class="nf-code" dir="ltr">404</div>
+      <h1 data-lang="notFoundTitle">الصفحة غير موجودة</h1>
+      <p data-lang="notFoundBody">يمكن الرابط تغيّر، أو الغرفة اللي تدور عليها انتهت وراحت. المصابيح لا تزال شغّالة في مكان ثاني.</p>
+      <a class="btn btn-secondary" href="/" data-lang="notFoundCta">العودة للرئيسية</a>
+    </div>
+  </main>
+  <script>
+    window.HalaCore.initLang({
+      en: {
+        pageTitle: 'Halastudy | Page not found',
+        notFoundTitle: 'Page not found',
+        notFoundBody: 'The link may have changed, or the room you are looking for wrapped up and moved on. The lamps are still on elsewhere.',
+        notFoundCta: 'Back to the home page'
+      },
+      ar: {
+        pageTitle: 'هلاستدي | الصفحة غير موجودة',
+        notFoundTitle: 'الصفحة غير موجودة',
+        notFoundBody: 'يمكن الرابط تغيّر، أو الغرفة اللي تدور عليها انتهت وراحت. المصابيح لا تزال شغّالة في مكان ثاني.',
+        notFoundCta: 'العودة للرئيسية'
+      }
+    });
+  </script>
+</body>
+</html>

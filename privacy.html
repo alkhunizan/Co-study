@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halastudy | سياسة الخصوصية · Privacy Policy</title>
+  <meta name="description" content="سياسة الخصوصية لهلاستدي — ماذا نخزّن، وماذا لا نخزّن، وكم يبقى. Halastudy privacy policy — what we store, what we never store, and for how long.">
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600&family=Inter:wght@400;500;600&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <style>
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Tajawal', 'Inter', system-ui, sans-serif;
+      line-height: 1.75;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-block: 16px;
+      padding-inline: clamp(16px, 4vw, 48px);
+      border-block-end: 1px solid var(--line);
+    }
+    .topbar a {
+      color: inherit;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    main {
+      max-width: 720px;
+      margin-inline: auto;
+      padding-block: 40px 80px;
+      padding-inline: clamp(16px, 4vw, 32px);
+    }
+    h1 {
+      font-family: 'Tajawal', sans-serif;
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+      margin-block-end: 4px;
+    }
+    section[lang="en"] h1,
+    section[lang="en"] {
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    h2 {
+      font-size: 1.1rem;
+      margin-block: 28px 8px;
+    }
+    p, li { margin-block: 6px; }
+    ul { padding-inline-start: 22px; }
+    main a {
+      color: var(--accent-3);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .updated {
+      color: var(--ink-2);
+      font-size: 0.9rem;
+      margin-block-end: 28px;
+    }
+    .lang-divider {
+      border: none;
+      border-block-start: 1px solid var(--line);
+      margin-block: 48px;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a href="/">هلاستدي · <bdi>Halastudy</bdi></a>
+    <a href="/open">افتح غرفة · <bdi>Open a room</bdi></a>
+  </header>
+
+  <main>
+    <section lang="ar" dir="rtl">
+      <h1>سياسة الخصوصية</h1>
+      <p class="updated">آخر تحديث: 2 يوليو 2026</p>
+
+      <p>هلاستدي غرفة مذاكرة هادئة. نجمع أقل قدر ممكن من البيانات لتشغيل الغرف — الحساب اختياري تماماً، بدون رقم جوال، وبدون أدوات تتبّع إعلانية.</p>
+
+      <h2>ماذا نخزّن على الخادم؟</h2>
+      <ul>
+        <li>اسم الغرفة ورمزها، ووضع الوسائط، والجدول الزمني إن وُجد.</li>
+        <li>كلمة مرور الغرفة بصيغة مشفّرة أحادية الاتجاه (PBKDF2) — لا نخزّن كلمة المرور نفسها أبداً.</li>
+        <li>آخر 80 رسالة دردشة في كل غرفة، ولوحة المهام المشتركة.</li>
+        <li>الاسم المستعار الذي تدخله عند الانضمام، وعدّادات الحضور للغرف المجدولة.</li>
+      </ul>
+
+      <h2>ماذا لا يصل إلى الخادم أبداً؟</h2>
+      <ul>
+        <li><strong>الكاميرا والمايك:</strong> الفيديو والصوت ينتقلان مباشرة بين المشاركين (نظير إلى نظير). الخادم يمرر رسائل إعداد الاتصال فقط، ولا يستقبل أو يسجل أي وسائط.</li>
+        <li>إذا تعذّر الاتصال المباشر، قد تمر الوسائط <em>مشفّرة</em> عبر خادم ترحيل (TURN) لا يستطيع فك تشفيرها.</li>
+        <li>لا توجد تحليلات طرف ثالث ولا ملفات تعريف إعلانية.</li>
+      </ul>
+
+      <h2>كم تبقى البيانات؟</h2>
+      <ul>
+        <li>الغرف غير المجدولة تُحذف تلقائياً بعد نحو 30 دقيقة من مغادرة آخر مشارك، ومعها الدردشة واللوحة.</li>
+        <li>الغرف المجدولة تبقى بين الجلسات حتى يحذفها منشئها أو تنتهي صلاحيتها.</li>
+        <li>عناوين IP تُستخدم في الذاكرة فقط للحماية من إساءة الاستخدام (حدود المعدل) ولا تُخزّن على القرص.</li>
+      </ul>
+
+      <h2>الحسابات الاختيارية</h2>
+      <ul>
+        <li>التسجيل اختياري — فتح الغرف الفورية والانضمام إليها لا يحتاج حساباً أبداً.</li>
+        <li>إذا أنشأت حساباً نخزّن: بريدك الإلكتروني، وكلمة مرورك بصيغة مشفّرة أحادية الاتجاه (PBKDF2)، واسمك، ودقائق تركيزك وسلسلة أيامك، وقائمة غرفك الأخيرة.</li>
+        <li>رسائل الدردشة داخل الغرف غير مربوطة بحسابك — الغرف الفورية تُحذف بمحتواها تلقائياً.</li>
+        <li>تحذف بياناتك بنفسك في أي وقت من <a href="/account.html#delete">صفحة الحساب</a> — الحذف فوري ونهائي ويشمل البريد ودقائق التركيز والسلسلة.</li>
+      </ul>
+
+      <h2>ملفات تعريف الارتباط والتخزين المحلي</h2>
+      <ul>
+        <li>ملف تعريف جلسة وظيفي واحد (معرّف عشوائي، صلاحيته 30 يوماً) — لا ملفات تتبّع.</li>
+        <li>ملف تعريف ثانٍ موقّع لتسجيل الدخول، فقط إذا أنشأت حساباً.</li>
+        <li>تفضيلاتك (اللغة، السمة، الاسم المستعار) تبقى في متصفحك أنت، ولا تُرسل إلينا.</li>
+      </ul>
+
+      <h2>تواصل معنا</h2>
+      <p>لأي سؤال عن الخصوصية أو لطلب حذف بيانات غرفة، راسلنا على <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a> أو اتصل بنا على <a href="tel:+966599161315" dir="ltr">+966&nbsp;59&nbsp;916&nbsp;1315</a>.</p>
+    </section>
+
+    <hr class="lang-divider">
+
+    <section lang="en" dir="ltr">
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: July 2, 2026</p>
+
+      <p>Halastudy is a quiet study room. We collect the minimum needed to run rooms — accounts are entirely optional, no phone number, and no advertising trackers.</p>
+
+      <h2>What we store on the server</h2>
+      <ul>
+        <li>Room name and code, media mode, and the schedule if one is set.</li>
+        <li>The room password as a one-way hash (PBKDF2) — the password itself is never stored.</li>
+        <li>The last 80 chat messages per room, and the shared task board.</li>
+        <li>The nickname you enter when joining, and attendance counters for scheduled rooms.</li>
+      </ul>
+
+      <h2>What never reaches the server</h2>
+      <ul>
+        <li><strong>Camera and microphone:</strong> video and audio travel directly between participants (peer-to-peer). The server only relays connection-setup messages and never receives or records media.</li>
+        <li>When a direct connection is impossible, media may pass <em>encrypted</em> through a relay server (TURN) that cannot decrypt it.</li>
+        <li>No third-party analytics, no advertising profiles.</li>
+      </ul>
+
+      <h2>How long data is kept</h2>
+      <ul>
+        <li>Unscheduled rooms are deleted automatically about 30 minutes after the last participant leaves, along with their chat and board.</li>
+        <li>Scheduled rooms persist between sessions until their creator deletes them or they expire.</li>
+        <li>IP addresses are used in memory only for abuse protection (rate limiting) and are never written to disk.</li>
+      </ul>
+
+      <h2>Optional accounts</h2>
+      <ul>
+        <li>Signing up is optional — opening and joining instant rooms never requires an account.</li>
+        <li>If you create one, we store: your email, your password as a one-way hash (PBKDF2), your name, your focus minutes and day streak, and your recent rooms list.</li>
+        <li>Room chat is not linked to your account — instant rooms and their content are deleted automatically.</li>
+        <li>You can delete your data yourself at any time from the <a href="/account.html#delete">account page</a> — deletion is immediate, permanent, and covers your email, focus history, and streak.</li>
+      </ul>
+
+      <h2>Cookies and local storage</h2>
+      <ul>
+        <li>One functional session cookie (a random identifier, 30-day lifetime) — no tracking cookies.</li>
+        <li>A second signed cookie for sign-in, only if you create an account.</li>
+        <li>Your preferences (language, theme, nickname) stay in your own browser and are not sent to us.</li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>For privacy questions or to request deletion of a room's data, email <a href="mailto:info@halastudy.com">info@halastudy.com</a> or call <a href="tel:+966599161315">+966&nbsp;59&nbsp;916&nbsp;1315</a>.</p>
+    </section>
+  </main>
+</body>
+</html>

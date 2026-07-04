@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halastudy | حسابك</title>
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/images/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#F5F2EB">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <script src="/js/ui.js" defer></script>
+  <style>
+    .account-shell {
+      max-inline-size: 640px;
+      margin-inline: auto;
+      /* The topbar is fixed — clear it. */
+      padding-block: 110px 80px;
+      padding-inline: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .auth-tabs {
+      display: inline-flex;
+      gap: 4px;
+      background: var(--inset);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px;
+      margin-block-end: 20px;
+      align-self: flex-start;
+    }
+    .auth-tabs button {
+      border: 0;
+      background: transparent;
+      color: var(--ink-2);
+      font: 600 var(--t-body-sm)/1 var(--font-body);
+      padding-block: 10px;
+      padding-inline: 20px;
+      border-radius: 999px;
+      cursor: pointer;
+      min-block-size: 36px;
+    }
+    .auth-tabs button:focus-visible { outline: none; box-shadow: var(--sh-focus); }
+    .auth-tabs button.is-on { background: var(--card); color: var(--ink); box-shadow: 0 1px 4px rgba(28,24,20,0.08); }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .stat-tile {
+      background: var(--inset);
+      border: 1px solid var(--line-2);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .stat-tile strong {
+      display: block;
+      font-size: var(--t-h2);
+      font-weight: var(--w-bold);
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-tile span { color: var(--ink-2); font-size: var(--t-caption); }
+    .swatch-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .swatch-row input[type="radio"] {
+      appearance: none;
+      inline-size: 44px;
+      block-size: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      cursor: pointer;
+      background: var(--swatch, var(--accent-soft));
+    }
+    /* Back-arrow mirrors toward reading-start in RTL (DESIGN.md §6). */
+    html[dir="rtl"] .back-arrow { display: inline-block; transform: scaleX(-1); }
+    .swatch-row input[type="radio"]:focus-visible { outline: none; box-shadow: var(--sh-focus); }
+    .swatch-row input[type="radio"]:checked { border: 2px solid var(--ink); }
+    .rooms-list { display: flex; flex-direction: column; gap: 10px; }
+    .room-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--line-2);
+      border-radius: 16px;
+      padding-block: 12px;
+      padding-inline: 16px;
+    }
+    .room-row .room-meta { flex: 1; min-inline-size: 0; }
+    .room-row .room-name { font-weight: var(--w-semibold); }
+    .room-row .room-code {
+      font-family: var(--font-mono);
+      font-size: var(--t-caption);
+      color: var(--ink-2);
+      letter-spacing: var(--ls-num);
+      font-variant-numeric: tabular-nums;
+    }
+    .danger-card { border-color: var(--danger-soft); }
+    .btn-danger-ghost {
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      background: transparent;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body class="is-open-page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Halastudy home">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <div class="topbar-right">
+      <div class="lang-switch" role="tablist" aria-label="Language">
+        <button type="button" id="lang-en" data-lang-value="en">EN</button>
+        <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
+      </div>
+      <button class="icon-btn" id="theme-toggle" data-lang-title="themeToggleTitle" aria-label="Toggle theme" title="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="account-shell">
+    <!-- Guest view: sign in / sign up -->
+    <section id="auth-view" class="hidden">
+      <div class="auth-tabs" role="tablist" aria-label="Sign in or sign up">
+        <button type="button" id="tab-signin" class="is-on" role="tab" aria-selected="true" data-lang="tabSignIn">دخول</button>
+        <button type="button" id="tab-signup" role="tab" aria-selected="false" data-lang="tabSignUp">حساب جديد</button>
+      </div>
+
+      <form class="form-card" id="signin-form" autocomplete="on" novalidate>
+        <h3 class="form-title" data-lang="signinTitle">أهلاً من جديد</h3>
+        <div class="input-group">
+          <label for="signin-email" data-lang="labelEmail">البريد الإلكتروني</label>
+          <input type="email" id="signin-email" name="email" maxlength="254" data-force-ltr dir="ltr" autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <div class="input-group">
+          <label for="signin-password" data-lang="labelPassword">كلمة المرور</label>
+          <input type="password" id="signin-password" name="password" maxlength="64" autocomplete="current-password" required>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" data-lang="btnSignIn">ادخل</button>
+        </div>
+        <p class="form-feedback" id="signin-feedback"></p>
+      </form>
+
+      <form class="form-card hidden" id="signup-form" autocomplete="on" novalidate>
+        <h3 class="form-title" data-lang="signupTitle">احجز مقعدك</h3>
+        <div class="input-group">
+          <label for="signup-nickname" data-lang="labelNickname">اسمك في الغرفة</label>
+          <input type="text" id="signup-nickname" name="nickname" maxlength="20" autocomplete="nickname" required>
+        </div>
+        <div class="input-group">
+          <label for="signup-email" data-lang="labelEmail">البريد الإلكتروني</label>
+          <input type="email" id="signup-email" name="email" maxlength="254" data-force-ltr dir="ltr" autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <div class="input-group">
+          <label for="signup-password" data-lang="labelPassword">كلمة المرور</label>
+          <input type="password" id="signup-password" name="password" maxlength="64" autocomplete="new-password" required>
+        </div>
+        <p class="form-note" data-lang="noteNoVerification">لا حاجة لتأكيد البريد — تدخل مباشرة.</p>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" data-lang="btnSignUp">أنشئ الحساب</button>
+        </div>
+        <p class="form-feedback" id="signup-feedback"></p>
+      </form>
+    </section>
+
+    <!-- Signed-in view: account hub -->
+    <section id="account-view" class="hidden">
+      <div class="form-card">
+        <h3 class="form-title" data-lang="statsTitle">تركيزك</h3>
+        <div class="stats-row">
+          <div class="stat-tile">
+            <strong id="stat-streak" class="num-eastern">٠</strong>
+            <span data-lang="statStreak">سلسلة الأيام</span>
+          </div>
+          <div class="stat-tile">
+            <strong id="stat-best" class="num-eastern">٠</strong>
+            <span data-lang="statBest">أفضل سلسلة</span>
+          </div>
+          <div class="stat-tile">
+            <strong id="stat-hours" class="num-eastern">٠</strong>
+            <span data-lang="statTotalFocus">ساعات التركيز</span>
+          </div>
+        </div>
+      </div>
+
+      <form class="form-card" id="profile-form" novalidate>
+        <h3 class="form-title" data-lang="profileTitle">ملفك</h3>
+        <div class="input-group">
+          <label for="profile-nickname" data-lang="labelNickname">اسمك في الغرفة</label>
+          <input type="text" id="profile-nickname" maxlength="20" autocomplete="nickname">
+        </div>
+        <div class="input-group">
+          <label data-lang="labelAccentColor">لون حضورك</label>
+          <div class="swatch-row" id="swatch-row" role="radiogroup" aria-label="Accent color"></div>
+        </div>
+        <div class="input-group">
+          <label for="profile-bio" data-lang="labelBio">نبذة قصيرة</label>
+          <input type="text" id="profile-bio" maxlength="160" data-lang-placeholder="placeholderBio" placeholder="إيش تذاكر هالفترة؟">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-secondary" data-lang="btnSaveProfile">احفظ التغييرات</button>
+        </div>
+        <p class="form-feedback" id="profile-feedback"></p>
+      </form>
+
+      <div class="form-card">
+        <h3 class="form-title" data-lang="roomsTitle">غرفك</h3>
+        <div class="rooms-list" id="rooms-list"></div>
+        <p class="form-note hidden" id="rooms-empty" data-lang="roomsEmpty">أول ما تفتح غرفة أو تدخل وحدة، بتلقاها هنا.</p>
+      </div>
+
+      <div class="form-card danger-card" id="danger-card">
+        <h3 class="form-title" data-lang="dangerTitle">إدارة الحساب</h3>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="btn-signout" data-lang="btnSignOutFull">تسجيل الخروج</button>
+        </div>
+        <hr class="lang-divider">
+        <p class="form-note" data-lang="deleteNote">حذف الحساب يمسح بريدك ودقائق تركيزك وسلسلتك نهائيًا. حسب نظام حماية البيانات، هذا الحذف فوري ولا يمكن التراجع عنه.</p>
+        <div class="input-group">
+          <label for="delete-password" data-lang="labelPasswordConfirm">كلمة المرور للتأكيد</label>
+          <input type="password" id="delete-password" maxlength="64" autocomplete="current-password">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-danger-ghost" id="btn-delete" data-lang="btnDeleteData">احذف بياناتي</button>
+        </div>
+        <p class="form-feedback" id="danger-feedback"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div><span data-lang="footerTag">هلاستدي · غرفة هادية. مفتوحة طول الليل.</span></div>
+    <div class="links">
+      <a href="/" aria-label="Halastudy home"><span class="back-arrow" aria-hidden="true">←</span> Halastudy</a>
+      <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
+    </div>
+  </footer>
+
+  <script>
+    (function accountApp() {
+      const dict = {
+        en: {
+          pageTitle: 'Halastudy | Your account',
+          themeToggleTitle: 'Toggle theme',
+          tabSignIn: 'Sign in',
+          tabSignUp: 'New account',
+          signinTitle: 'Welcome back',
+          signupTitle: 'Save your seat',
+          labelEmail: 'Email',
+          labelPassword: 'Password',
+          labelNickname: 'Your name in the room',
+          noteNoVerification: 'No email verification — you are in right away.',
+          btnSignIn: 'Sign in',
+          btnSignUp: 'Create account',
+          statsTitle: 'Your focus',
+          statStreak: 'Day streak',
+          statBest: 'Best streak',
+          statTotalFocus: 'Focus hours',
+          profileTitle: 'Your profile',
+          labelAccentColor: 'Your presence color',
+          labelBio: 'Short bio',
+          placeholderBio: 'What are you studying these days?',
+          btnSaveProfile: 'Save changes',
+          roomsTitle: 'Your rooms',
+          roomsEmpty: 'Rooms you open or join will show up here.',
+          btnRejoin: 'Rejoin',
+          roomGone: 'Expired',
+          dangerTitle: 'Account',
+          btnSignOutFull: 'Sign out',
+          deleteNote: 'Deleting your account erases your email, focus minutes, and streak permanently. Per data-protection law this is immediate and irreversible.',
+          labelPasswordConfirm: 'Password to confirm',
+          btnDeleteData: 'Delete my data',
+          deleteConfirmTitle: 'Delete this account?',
+          deleteConfirmBody: 'Everything goes: your email, focus history, streak, and room list. This cannot be undone.',
+          deleteConfirmLabel: 'Delete forever',
+          deleteCancelLabel: 'Keep my account',
+          deleteTypePrompt: 'Type your room name to confirm',
+          profileSavedToast: 'Profile saved',
+          signedOutToast: 'Signed out',
+          deletedToast: 'Your data has been deleted',
+          signupSuccessToast: 'Welcome',
+          errEMAIL_INVALID: 'That email does not look right.',
+          errPASSWORD_INVALID: 'Password must be 8-64 characters.',
+          errDISPLAY_NAME_REQUIRED: 'Please enter your name.',
+          errEMAIL_TAKEN: 'This email already has an account — try signing in.',
+          errINVALID_CREDENTIALS: 'Wrong email or password.',
+          errACCOUNT_BANNED: 'This account has been suspended.',
+          errRATE_LIMITED: 'Too many attempts. Wait a moment and try again.',
+          errAUTH_REQUIRED: 'Please sign in again.',
+          errNETWORK: 'Connection hiccup. Try again.'
+        },
+        ar: {
+          pageTitle: 'هلاستدي | حسابك',
+          themeToggleTitle: 'تبديل المظهر',
+          tabSignIn: 'دخول',
+          tabSignUp: 'حساب جديد',
+          signinTitle: 'أهلاً من جديد',
+          signupTitle: 'احجز مقعدك',
+          labelEmail: 'البريد الإلكتروني',
+          labelPassword: 'كلمة المرور',
+          labelNickname: 'اسمك في الغرفة',
+          noteNoVerification: 'لا حاجة لتأكيد البريد — تدخل مباشرة.',
+          btnSignIn: 'ادخل',
+          btnSignUp: 'أنشئ الحساب',
+          statsTitle: 'تركيزك',
+          statStreak: 'سلسلة الأيام',
+          statBest: 'أفضل سلسلة',
+          statTotalFocus: 'ساعات التركيز',
+          profileTitle: 'ملفك',
+          labelAccentColor: 'لون حضورك',
+          labelBio: 'نبذة قصيرة',
+          placeholderBio: 'إيش تذاكر هالفترة؟',
+          btnSaveProfile: 'احفظ التغييرات',
+          roomsTitle: 'غرفك',
+          roomsEmpty: 'أول ما تفتح غرفة أو تدخل وحدة، بتلقاها هنا.',
+          btnRejoin: 'ارجع',
+          roomGone: 'انتهت',
+          dangerTitle: 'إدارة الحساب',
+          btnSignOutFull: 'تسجيل الخروج',
+          deleteNote: 'حذف الحساب يمسح بريدك ودقائق تركيزك وسلسلتك نهائيًا. حسب نظام حماية البيانات، هذا الحذف فوري ولا يمكن التراجع عنه.',
+          labelPasswordConfirm: 'كلمة المرور للتأكيد',
+          btnDeleteData: 'احذف بياناتي',
+          deleteConfirmTitle: 'تحذف الحساب؟',
+          deleteConfirmBody: 'كل شيء يروح: بريدك، سجل تركيزك، سلسلتك، وقائمة غرفك. ما فيه رجعة.',
+          deleteConfirmLabel: 'احذف نهائيًا',
+          deleteCancelLabel: 'خلّ الحساب',
+          deleteTypePrompt: 'اكتب اسمك في الغرفة للتأكيد',
+          profileSavedToast: 'تم حفظ الملف',
+          signedOutToast: 'تم تسجيل الخروج',
+          deletedToast: 'تم حذف بياناتك',
+          signupSuccessToast: 'أهلاً',
+          errEMAIL_INVALID: 'البريد الإلكتروني ما يبدو صحيح.',
+          errPASSWORD_INVALID: 'كلمة المرور لازم تكون بين 8 و64 حرف.',
+          errDISPLAY_NAME_REQUIRED: 'اكتب اسمك أول.',
+          errEMAIL_TAKEN: 'هذا البريد له حساب — جرّب الدخول.',
+          errINVALID_CREDENTIALS: 'البريد أو كلمة المرور غلط.',
+          errACCOUNT_BANNED: 'هذا الحساب موقوف.',
+          errRATE_LIMITED: 'محاولات كثيرة. انتظر شوي وجرّب.',
+          errAUTH_REQUIRED: 'سجّل دخولك من جديد.',
+          errNETWORK: 'النت تعثّر. جرّب مرة ثانية.'
+        }
+      };
+
+      const SWATCHES = {
+        amber: 'rgba(224, 176, 139, 0.55)',
+        sage: 'rgba(90, 140, 92, 0.45)',
+        terracotta: 'rgba(199, 85, 69, 0.42)',
+        dusk: 'rgba(108, 143, 173, 0.45)',
+        sand: 'rgba(212, 162, 86, 0.48)',
+        stone: 'rgba(154, 160, 164, 0.48)'
+      };
+
+      const core = window.HalaCore;
+      const auth = window.HalaAuth;
+      core.initLang(dict);
+
+      const themeBtn = document.getElementById('theme-toggle');
+      if (themeBtn) themeBtn.addEventListener('click', core.toggleTheme);
+
+      const authView = document.getElementById('auth-view');
+      const accountView = document.getElementById('account-view');
+      const tabSignin = document.getElementById('tab-signin');
+      const tabSignup = document.getElementById('tab-signup');
+      const signinForm = document.getElementById('signin-form');
+      const signupForm = document.getElementById('signup-form');
+
+      function t(key) { return core.t(key) || key; }
+      // Emotional numbers (streak, focus hours) render Eastern in Arabic — the
+      // .num-eastern CSS class alone doesn't convert ASCII digits (DESIGN.md §5).
+      function formatEmotional(value) {
+        return core.getLang() === 'ar' ? new Intl.NumberFormat('ar-EG').format(value) : String(value);
+      }
+      var SWATCH_LABELS = {
+        en: { amber: 'Amber', sage: 'Sage', terracotta: 'Terracotta', dusk: 'Dusk', sand: 'Sand', stone: 'Stone' },
+        ar: { amber: 'كراك', sage: 'مريمية', terracotta: 'طيني', dusk: 'غسق', sand: 'رملي', stone: 'حجري' }
+      };
+      function errText(error) {
+        return t(`err${error && error.code ? error.code : 'NETWORK'}`);
+      }
+      function setFeedback(id, message, kind) {
+        const el = document.getElementById(id);
+        el.textContent = message || '';
+        el.className = `form-feedback${kind ? ` ${kind}` : ''}`;
+      }
+      function resolveNextUrl() {
+        const next = new URLSearchParams(location.search).get('next') || '';
+        // Same-site paths only — never an absolute URL (open-redirect guard).
+        return next.startsWith('/') && !next.startsWith('//') ? next : '/open.html';
+      }
+
+      /* ---------- tabs ---------- */
+      function setTab(which) {
+        const signin = which === 'signin';
+        tabSignin.classList.toggle('is-on', signin);
+        tabSignup.classList.toggle('is-on', !signin);
+        tabSignin.setAttribute('aria-selected', String(signin));
+        tabSignup.setAttribute('aria-selected', String(!signin));
+        signinForm.classList.toggle('hidden', !signin);
+        signupForm.classList.toggle('hidden', signin);
+      }
+      tabSignin.addEventListener('click', () => setTab('signin'));
+      tabSignup.addEventListener('click', () => setTab('signup'));
+      if (new URLSearchParams(location.search).get('signup') === '1' || location.hash === '#signup') {
+        setTab('signup');
+      }
+
+      /* ---------- guest: sign in / sign up ---------- */
+      async function importLocalFocusStats() {
+        try {
+          const raw = localStorage.getItem('halastudyFocusStats');
+          if (!raw) return;
+          const parsed = JSON.parse(raw);
+          if (!parsed || !parsed.date || !parsed.totalSeconds) return;
+          const minutes = Math.round(parsed.totalSeconds / 60);
+          if (minutes < 1) return;
+          await core.postJson('/api/me/stats/import', {
+            days: { [parsed.date]: { focusMinutes: minutes, sessions: 1 } }
+          });
+        } catch (e) { /* import is best-effort — never blocks signup */ }
+      }
+
+      signinForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setFeedback('signin-feedback', '');
+        try {
+          const payload = await core.postJson('/api/auth/login', {
+            email: document.getElementById('signin-email').value,
+            password: document.getElementById('signin-password').value
+          });
+          try { localStorage.setItem('halastudyName', payload.user.displayName); } catch (e) {}
+          location.assign(resolveNextUrl());
+        } catch (error) {
+          setFeedback('signin-feedback', errText(error), 'error');
+        }
+      });
+
+      signupForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setFeedback('signup-feedback', '');
+        try {
+          const payload = await core.postJson('/api/auth/signup', {
+            displayName: document.getElementById('signup-nickname').value,
+            email: document.getElementById('signup-email').value,
+            password: document.getElementById('signup-password').value
+          });
+          try { localStorage.setItem('halastudyName', payload.user.displayName); } catch (e) {}
+          // Keep the nudge's promise: today's guest minutes come along.
+          await importLocalFocusStats();
+          window.HalaUI.toast(`${t('signupSuccessToast')} ${payload.user.displayName}`, { kind: 'success' });
+          setTimeout(() => location.assign(resolveNextUrl()), 600);
+        } catch (error) {
+          setFeedback('signup-feedback', errText(error), 'error');
+        }
+      });
+
+      /* ---------- signed in: account hub ---------- */
+      let currentUser = null;
+
+      function renderStats(stats, streak) {
+        const hours = Math.round(((stats && stats.totalFocusMinutes) || 0) / 60 * 10) / 10;
+        document.getElementById('stat-streak').textContent = formatEmotional((streak && streak.current) || 0);
+        document.getElementById('stat-best').textContent = formatEmotional((streak && streak.best) || 0);
+        document.getElementById('stat-hours').textContent = formatEmotional(hours);
+      }
+
+      function renderSwatches(selected) {
+        const row = document.getElementById('swatch-row');
+        row.innerHTML = '';
+        Object.keys(SWATCHES).forEach((colorId) => {
+          const input = document.createElement('input');
+          input.type = 'radio';
+          input.name = 'avatarColor';
+          input.value = colorId;
+          input.checked = colorId === selected;
+          input.setAttribute('aria-label', (SWATCH_LABELS[core.getLang()] || SWATCH_LABELS.en)[colorId] || colorId);
+          input.style.setProperty('--swatch', SWATCHES[colorId]);
+          row.appendChild(input);
+        });
+      }
+
+      function renderRooms(roomsList) {
+        const list = document.getElementById('rooms-list');
+        const empty = document.getElementById('rooms-empty');
+        list.innerHTML = '';
+        empty.classList.toggle('hidden', roomsList.length > 0);
+        roomsList.slice(0, 5).forEach((room) => {
+          const row = document.createElement('div');
+          row.className = 'room-row';
+          const meta = document.createElement('div');
+          meta.className = 'room-meta';
+          const name = document.createElement('div');
+          name.className = 'room-name';
+          name.textContent = room.name;
+          const code = document.createElement('div');
+          code.className = 'room-code';
+          code.setAttribute('dir', 'ltr');
+          code.textContent = room.roomId;
+          meta.appendChild(name);
+          meta.appendChild(code);
+          row.appendChild(meta);
+          if (room.exists) {
+            const rejoin = document.createElement('a');
+            rejoin.className = 'btn btn-secondary';
+            rejoin.href = `/study?room=${encodeURIComponent(room.roomId)}`;
+            rejoin.textContent = t('btnRejoin');
+            row.appendChild(rejoin);
+          } else {
+            const gone = document.createElement('span');
+            gone.className = 'room-code';
+            gone.textContent = t('roomGone');
+            row.appendChild(gone);
+          }
+          list.appendChild(row);
+        });
+      }
+
+      async function loadAccount(user) {
+        currentUser = user;
+        authView.classList.add('hidden');
+        accountView.classList.remove('hidden');
+        document.getElementById('profile-nickname').value = user.displayName;
+        document.getElementById('profile-bio').value = user.bio || '';
+        renderSwatches(user.avatarColor);
+        renderStats(null, user.streak);
+        try {
+          const stats = await core.requestJson('GET', '/api/me/stats');
+          renderStats(stats.focusStats, stats.streak);
+        } catch (e) { /* stats stay at defaults */ }
+        try {
+          const mine = await core.requestJson('GET', '/api/me/rooms');
+          renderRooms(mine.rooms || []);
+        } catch (e) {
+          renderRooms([]);
+        }
+      }
+
+      document.getElementById('profile-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setFeedback('profile-feedback', '');
+        const selectedSwatch = document.querySelector('#swatch-row input:checked');
+        try {
+          const payload = await core.requestJson('PATCH', '/api/me/profile', {
+            displayName: document.getElementById('profile-nickname').value,
+            avatarColor: selectedSwatch ? selectedSwatch.value : 'amber',
+            bio: document.getElementById('profile-bio').value
+          });
+          try { localStorage.setItem('halastudyName', payload.user.displayName); } catch (e) {}
+          window.HalaUI.toast(t('profileSavedToast'), { kind: 'success' });
+        } catch (error) {
+          setFeedback('profile-feedback', errText(error), 'error');
+        }
+      });
+
+      document.getElementById('btn-signout').addEventListener('click', async () => {
+        await auth.signout();
+        window.HalaUI.toast(t('signedOutToast'));
+        setTimeout(() => location.assign('/'), 400);
+      });
+
+      document.getElementById('btn-delete').addEventListener('click', async () => {
+        setFeedback('danger-feedback', '');
+        const password = document.getElementById('delete-password').value;
+        if (!password) {
+          setFeedback('danger-feedback', t('errINVALID_CREDENTIALS'), 'error');
+          return;
+        }
+        const confirmed = await window.HalaUI.confirm({
+          title: t('deleteConfirmTitle'),
+          body: t('deleteConfirmBody'),
+          confirmLabel: t('deleteConfirmLabel'),
+          cancelLabel: t('deleteCancelLabel'),
+          destructive: true,
+          typedConfirmation: currentUser ? currentUser.displayName : ''
+        });
+        if (!confirmed) return;
+        try {
+          await core.requestJson('DELETE', '/api/me', { password });
+          window.HalaUI.toast(t('deletedToast'));
+          setTimeout(() => location.assign('/'), 800);
+        } catch (error) {
+          setFeedback('danger-feedback', errText(error), 'error');
+        }
+      });
+
+      /* ---------- boot ---------- */
+      auth.getUser().then((user) => {
+        if (user) {
+          void loadAccount(user);
+        } else {
+          authView.classList.remove('hidden');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

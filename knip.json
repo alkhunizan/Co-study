@@ -3,11 +3,14 @@
   "entry": [
     "co-study-server.js",
     "scripts/*.js",
+    "scripts/cloudflare/*.js",
     "tests/integration/*.test.js",
-    "tests/helpers/fake-sfu-fixture.js"
+    "tests/helpers/fake-sfu-fixture.js",
+    "tests/helpers/fake-realtimekit-fixture.js"
   ],
   "project": [
     "*.js",
+    "services/**/*.js",
     "scripts/**/*.js",
     "tests/**/*.js"
   ],

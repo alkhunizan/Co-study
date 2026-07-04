@@ -12,7 +12,10 @@ module.exports = async () => {
         roomStateFile: SMOKE_ROOM_STATE_FILE,
         withFakeSfu: true,
         env: {
-            TRUST_PROXY: '1'
+            TRUST_PROXY: '1',
+            // Admin console under test (precomputed hash of "smoke-admin-password").
+            ADMIN_PATH: '/ops-smoke-test-1234',
+            ADMIN_PASSWORD_HASH: '5368261dff0e47c096a7f53dd6b12e59:3e6d92f21a9166c11cb9a46d04ac8043e67428d5b6c776128ac3c3d88db36bd6489cd46455dbcd57bc997587da6b36750cb995ae720b59a97f296dad71635e29'
         }
     });
 

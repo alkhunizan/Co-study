@@ -77,6 +77,10 @@ function request(baseUrl, pathname, options = {}) {
             if (!requestOptions.headers['Content-Type']) {
                 req.setHeader('Content-Type', 'application/json');
             }
+            // Node's http client does not chunk bodies on DELETE (and other
+            // bodyless-by-default methods); without an explicit length the
+            // server sees a malformed request and answers 400.
+            req.setHeader('Content-Length', Buffer.byteLength(payload));
             req.write(payload);
         }
 
@@ -119,7 +123,7 @@ async function waitForPath(baseUrl, pathname, timeoutMs = 15000) {
 }
 
 async function stopChild(childProcess, timeoutMs = 10000) {
-    if (!childProcess || childProcess.exitCode !== null) {
+    if (!childProcess || childProcess.exitCode !== null || childProcess.signalCode !== null) {
         return;
     }
 
@@ -189,17 +193,81 @@ async function startFakeSfu(options = {}) {
     };
 }
 
+async function startFakeRealtimeKit(options = {}) {
+    const port = options.port || await getFreePort();
+    const stdout = [];
+    const stderr = [];
+    const child = spawn(process.execPath, ['tests/helpers/fake-realtimekit-fixture.js'], {
+        cwd: repoRoot,
+        env: {
+            ...process.env,
+            PORT: String(port),
+            REALTIMEKIT_FAIL_PARTICIPANT: options.failParticipants ? '1' : '0'
+        },
+        stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    child.stdout.on('data', (chunk) => {
+        stdout.push(chunk.toString());
+    });
+    child.stderr.on('data', (chunk) => {
+        stderr.push(chunk.toString());
+    });
+
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const exitedEarly = new Promise((_, reject) => {
+        child.once('exit', (code, signal) => {
+            reject(new Error(`Fake RealtimeKit exited before becoming ready (code=${code}, signal=${signal || 'none'}).`));
+        });
+    });
+
+    try {
+        await Promise.race([waitForPath(baseUrl, '/health'), exitedEarly]);
+    } catch (error) {
+        await stopChild(child);
+        const combinedLogs = `${stdout.join('')}\n${stderr.join('')}`.trim();
+        throw new Error(`Failed to start fake RealtimeKit server: ${error.message}\n${combinedLogs}`);
+    }
+
+    return {
+        pid: child.pid,
+        port,
+        baseUrl,
+        async state() {
+            const response = await request(baseUrl, '/__state');
+            return response.body;
+        },
+        async stop() {
+            await stopChild(child);
+        },
+        logs() {
+            return {
+                stdout: stdout.join(''),
+                stderr: stderr.join('')
+            };
+        }
+    };
+}
+
+// Fixed so signed cookies stay valid across the restart-persistence tests.
+const TEST_SESSION_SECRET = 'halastudy-integration-test-secret-0123456789abcdef';
+
 async function startServer(options = {}) {
     const port = options.port || await getFreePort();
     const roomStateFile = options.roomStateFile || makeTempStateFile('co-study-integration');
+    const userStateFile = options.userStateFile || makeTempStateFile('co-study-users');
     const shouldResetStateFile = options.resetStateFileOnStart !== false;
     if (shouldResetStateFile) {
         resetStateFile(roomStateFile);
+        resetStateFile(userStateFile);
     }
 
     const externalSfuBaseUrl = options.env?.SFU_BASE_URL;
     const fakeSfu = options.withFakeSfu && !externalSfuBaseUrl
         ? await startFakeSfu(options.fakeSfuOptions || {})
+        : null;
+    const fakeRealtimeKit = options.withFakeRealtimeKit
+        ? await startFakeRealtimeKit(options.fakeRealtimeKitOptions || {})
         : null;
 
     const stdout = [];
@@ -211,7 +279,16 @@ async function startServer(options = {}) {
             NODE_ENV: 'test',
             PORT: String(port),
             ROOM_STATE_FILE: roomStateFile,
+            USER_STATE_FILE: userStateFile,
+            SESSION_SECRET: TEST_SESSION_SECRET,
             SFU_BASE_URL: fakeSfu ? fakeSfu.baseUrl : '',
+            ...(fakeRealtimeKit ? {
+                VIDEO_PROVIDER: 'realtimekit',
+                CLOUDFLARE_ACCOUNT_ID: 'fake-account',
+                CLOUDFLARE_REALTIMEKIT_APP_ID: 'fake-app',
+                CLOUDFLARE_REALTIMEKIT_API_TOKEN: 'fake-secret-token',
+                CLOUDFLARE_REALTIMEKIT_API_BASE_URL: fakeRealtimeKit.baseUrl
+            } : {}),
             ...options.env
         },
         stdio: ['ignore', 'pipe', 'pipe']
@@ -237,6 +314,9 @@ async function startServer(options = {}) {
         if (fakeSfu) {
             await fakeSfu.stop();
         }
+        if (fakeRealtimeKit) {
+            await fakeRealtimeKit.stop();
+        }
         await stopChild(child);
         const combinedLogs = `${stdout.join('')}\n${stderr.join('')}`.trim();
         throw new Error(`Failed to start test server: ${error.message}\n${combinedLogs}`);
@@ -247,20 +327,30 @@ async function startServer(options = {}) {
         port,
         baseUrl,
         roomStateFile,
+        userStateFile,
         sfuBaseUrl: fakeSfu ? fakeSfu.baseUrl : (options.env?.SFU_BASE_URL) || '',
         fakeSfuPid: fakeSfu ? fakeSfu.pid : null,
+        realtimeKitBaseUrl: fakeRealtimeKit ? fakeRealtimeKit.baseUrl : '',
+        fakeRealtimeKitPid: fakeRealtimeKit ? fakeRealtimeKit.pid : null,
         async stop() {
             await stopChild(child);
             if (fakeSfu) {
                 await fakeSfu.stop();
+            }
+            if (fakeRealtimeKit) {
+                await fakeRealtimeKit.stop();
             }
         },
         logs() {
             return {
                 stdout: stdout.join(''),
                 stderr: stderr.join(''),
-                fakeSfu: fakeSfu ? fakeSfu.logs() : null
+                fakeSfu: fakeSfu ? fakeSfu.logs() : null,
+                fakeRealtimeKit: fakeRealtimeKit ? fakeRealtimeKit.logs() : null
             };
+        },
+        async realtimeKitState() {
+            return fakeRealtimeKit ? fakeRealtimeKit.state() : null;
         },
         async request(pathname, requestOptions) {
             return request(baseUrl, pathname, requestOptions);

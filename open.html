@@ -5,11 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Halastudy | Open a room</title>
   <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/images/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#F5F2EB">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/design-system/colors_and_type.css">
   <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <script src="/js/ui.js" defer></script>
 </head>
 <body class="is-open-page">
   <header class="topbar">
@@ -19,6 +24,7 @@
       <span class="ar" aria-hidden="true">هلا</span>
     </a>
     <div class="topbar-right">
+      <a class="topbar-link" id="auth-entry" href="/account.html" data-lang="navSignIn">تسجيل الدخول</a>
       <div class="lang-switch" role="tablist" aria-label="Language">
         <button type="button" id="lang-en" data-lang-value="en">EN</button>
         <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
@@ -39,6 +45,10 @@
             <span data-lang="chooserTitle">اختر طريقتك</span>
           </h1>
           <p data-lang="chooserDesc">افتح غرفة جديدة أو ادخل وحدة شغّالة.</p>
+          <div class="my-rooms-card" id="my-rooms-card" hidden>
+            <h3 data-lang="myRoomsTitle">غرفك</h3>
+            <div class="my-rooms-list" id="my-rooms-list"></div>
+          </div>
           <div class="choice-stack">
             <button type="button" class="choice-card active" data-choice="create" aria-pressed="true">
               <span class="choice-icon" aria-hidden="true">✦</span>
@@ -91,6 +101,12 @@
               <label for="enable-schedule" data-lang="labelEnableSchedule">اجعلها غرفة مجدولة</label>
             </div>
             <div class="schedule-panel" id="schedule-fields" hidden>
+              <div class="schedule-signin-gate" id="schedule-signin-gate" hidden>
+                <h4 data-lang="scheduleGateTitle">الغرف المجدولة تحتاج حساب</h4>
+                <p class="form-note" data-lang="scheduleGateBody">عشان نحفظ حضورك وسلسلتك من جلسة لجلسة، الجدولة مربوطة بحسابك. الغرف الفورية تظل مفتوحة للجميع.</p>
+                <a class="btn btn-secondary" id="schedule-gate-cta" href="/account.html?signup=1&next=%2Fopen.html%3Fschedule%3D1" data-lang="scheduleGateCta">سجّل وارجع هنا</a>
+              </div>
+              <div id="schedule-fields-inner">
               <p class="form-note schedule-note" data-lang="scheduleNote">تستخدم توقيت الرياض (غرينتش+3). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.</p>
               <div class="schedule-grid">
                 <div class="input-group">
@@ -122,6 +138,7 @@
                   <label for="schedule-goal-template" data-lang="labelScheduleGoal">هدف اللوحة عند البداية</label>
                   <input type="text" id="schedule-goal-template" name="scheduleGoalTemplate" maxlength="80" data-lang-placeholder="placeholderScheduleGoal" placeholder="مثال: إنهاء عرض الإطلاق">
                 </div>
+              </div>
               </div>
             </div>
             <div class="form-actions">
@@ -179,50 +196,14 @@
     </div>
     <div class="links">
       <a href="/" aria-label="Halastudy home">← Halastudy</a>
+      <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
     </div>
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    /* -------------------------------------------------------------------
-     * Halastudy storage-key migration (was: coStudy*).
-     * One-shot copy-forward. Runs before any storage reads. Idempotent —
-     * a sentinel flag prevents re-running. Old keys are preserved (read-only)
-     * for one release so a user who briefly downgrades doesn't lose state.
-     * Drop the old keys + this block after the next release ships clean.
-     * ----------------------------------------------------------------- */
-    (function migrateCoStudyToHalastudy() {
-        try {
-            const SENTINEL = 'halastudy:migratedFromCoStudy:v1';
-            if (localStorage.getItem(SENTINEL)) return;
-            const localMap = {
-                coStudyLang:          'halastudyLang',
-                coStudyStatusState:   'halastudyStatusState',
-                coStudyAmbientState:  'halastudyAmbientState',
-                coStudyFocusStats:    'halastudyFocusStats',
-                coStudyClientId:      'halastudyClientId',
-                coStudyName:          'halastudyName',
-            };
-            const sessionMap = {
-                coStudyRoomPassword:  'halastudyRoomPassword',
-                coStudyRoomCode:      'halastudyRoomCode',
-            };
-            Object.entries(localMap).forEach(([oldK, newK]) => {
-                const v = localStorage.getItem(oldK);
-                if (v !== null && localStorage.getItem(newK) === null) {
-                    localStorage.setItem(newK, v);
-                }
-            });
-            Object.entries(sessionMap).forEach(([oldK, newK]) => {
-                const v = sessionStorage.getItem(oldK);
-                if (v !== null && sessionStorage.getItem(newK) === null) {
-                    sessionStorage.setItem(newK, v);
-                }
-            });
-            localStorage.setItem(SENTINEL, String(Date.now()));
-        } catch (e) { /* storage unavailable — skip */ }
-    })();
-
+    /* Storage-key migration + pre-paint theme now live in /js/halastudy-core.js
+     * (loaded in <head> before this script runs). */
     (function() {
         'use strict';
 
@@ -242,14 +223,16 @@
                 placeholderRoomName: 'e.g. Deep work · 9pm crew',
                 labelMediaMode: 'Room media mode',
                 mediaModeMeshTitle: 'Standard room',
-                mediaModeMeshDesc: 'Recommended for up to {limit} people. Uses browser-to-browser video.',
+                mediaModeMeshDesc: 'Camera study rooms support up to {limit} people. Mic stays off by default.',
                 mediaModeSfuTitle: 'Large room',
                 mediaModeSfuDesc: 'Uses the room media service for larger groups.',
                 mediaModeMeshBadge: 'Mesh room',
                 mediaModeSfuBadge: 'Large room',
+                mediaModeRealtimeKitBadge: 'Study camera room',
                 roomAccessOpen: 'Open access',
                 roomAccessProtected: 'Password protected',
-                roomPreviewMeshNote: 'Best for up to {limit} people before video quality starts dropping.',
+                roomPreviewMeshNote: 'Camera room supports up to {limit} people. Mic stays off by default.',
+                roomPreviewRealtimeKitNote: 'Camera room supports up to {limit} people. Mic stays off by default.',
                 roomPreviewSfuNote: 'Media runs in the managed room session for larger groups.',
                 labelRequirePassword: 'Require password',
                 labelPassword: 'Access password',
@@ -283,6 +266,13 @@
                 inviteCadenceLabel: 'Cadence',
                 errorPasswordRequired: 'Please enter a room password.',
                 errorScheduleInvalid: 'Please add a valid Riyadh date and time for this scheduled room.',
+                errorScheduleNeedsAccount: 'Scheduled rooms need an account — sign in and try again.',
+                navSignIn: 'Sign in',
+                myRoomsTitle: 'Your rooms',
+                myRoomsRejoin: 'Rejoin',
+                scheduleGateTitle: 'Scheduled rooms need an account',
+                scheduleGateBody: 'Attendance and streaks follow your account from session to session. Instant rooms stay open to everyone.',
+                scheduleGateCta: 'Sign up and come back',
                 joinFormTitle: 'Join a study room',
                 labelJoinCode: 'Room code',
                 placeholderJoinCode: 'ABC123',
@@ -295,6 +285,7 @@
                 errorCheckingRoom: 'Checking room...',
                 errorCreating: 'Creating room...',
                 errorCreateFailed: 'Could not create the room right now. Please try again.',
+                errorCreateTimeout: 'The room is taking too long to create. Check your connection and try again.',
                 errorJoinLookupFailed: 'Unable to verify this room right now. Please try again.',
                 errorRoomNotFound: 'That room code does not exist.',
                 errorRoomFull: 'This mesh room is full. Ask the host to create a large room.',
@@ -304,7 +295,8 @@
                 successCreated: 'Room created successfully.',
                 redirecting: 'Redirecting...',
                 errorRoomCodeGeneration: 'Could not generate a room code. Please try again.',
-                rateLimited: 'Too many attempts. Slow down and try again in a moment.'
+                rateLimited: 'Too many attempts. Slow down and try again in a moment.',
+                footerPrivacy: 'Privacy'
             },
             ar: {
                 pageTitle: 'هلاستدي | غرفة هادئة. مفتوحة طول الليل.',
@@ -320,14 +312,16 @@
                 placeholderRoomName: 'مثال: جلسة عمل عميق',
                 labelMediaMode: 'وضع وسائط الغرفة',
                 mediaModeMeshTitle: 'غرفة عادية',
-                mediaModeMeshDesc: 'موصى بها لما يصل إلى {limit} أشخاص. تستخدم فيديو مباشرًا بين المتصفحات.',
+                mediaModeMeshDesc: 'غرف كاميرا المذاكرة تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
                 mediaModeSfuTitle: 'غرفة كبيرة',
                 mediaModeSfuDesc: 'تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.',
                 mediaModeMeshBadge: 'غرفة Mesh',
                 mediaModeSfuBadge: 'غرفة كبيرة',
+                mediaModeRealtimeKitBadge: 'غرفة كاميرا للمذاكرة',
                 roomAccessOpen: 'دخول مفتوح',
                 roomAccessProtected: 'محمية بكلمة مرور',
-                roomPreviewMeshNote: 'مناسبة لما يصل إلى {limit} أشخاص قبل أن تبدأ جودة الفيديو بالانخفاض.',
+                roomPreviewMeshNote: 'غرفة الكاميرا تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
+                roomPreviewRealtimeKitNote: 'غرفة الكاميرا تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
                 roomPreviewSfuNote: 'تعمل الوسائط داخل الجلسة المُدارة للغرفة للمجموعات الأكبر.',
                 labelRequirePassword: 'تفعيل كلمة مرور',
                 labelPassword: 'كلمة مرور الدخول',
@@ -361,6 +355,13 @@
                 inviteCadenceLabel: 'التكرار',
                 errorPasswordRequired: 'فضلاً أدخل كلمة مرور للغرفة.',
                 errorScheduleInvalid: 'أضف تاريخًا ووقتًا صحيحين بتوقيت الرياض لهذه الغرفة المجدولة.',
+                errorScheduleNeedsAccount: 'الغرف المجدولة تحتاج حساب — سجّل دخولك وجرّب من جديد.',
+                navSignIn: 'تسجيل الدخول',
+                myRoomsTitle: 'غرفك',
+                myRoomsRejoin: 'ارجع',
+                scheduleGateTitle: 'الغرف المجدولة تحتاج حساب',
+                scheduleGateBody: 'الحضور والسلسلة يتبعون حسابك من جلسة لجلسة. الغرف الفورية تظل مفتوحة للجميع.',
+                scheduleGateCta: 'سجّل وارجع هنا',
                 joinFormTitle: 'الدخول إلى غرفة مذاكرة',
                 labelJoinCode: 'رمز الغرفة',
                 placeholderJoinCode: 'ABC123',
@@ -373,6 +374,7 @@
                 errorCheckingRoom: 'جارٍ التحقق من الغرفة...',
                 errorCreating: 'جارٍ إنشاء الغرفة...',
                 errorCreateFailed: 'تعذر إنشاء الغرفة حالياً. حاول مرة أخرى.',
+                errorCreateTimeout: 'إنشاء الغرفة يأخذ وقتاً أطول من المعتاد. تأكد من اتصالك وحاول مرة أخرى.',
                 errorJoinLookupFailed: 'تعذر التحقق من هذه الغرفة حالياً. حاول مرة أخرى.',
                 errorRoomNotFound: 'رمز الغرفة هذا غير موجود.',
                 errorRoomFull: 'غرفة الـ Mesh هذه ممتلئة. اطلب من المضيف إنشاء غرفة كبيرة.',
@@ -382,7 +384,8 @@
                 successCreated: 'تم إنشاء الغرفة بنجاح.',
                 redirecting: 'جارٍ التحويل...',
                 errorRoomCodeGeneration: 'تعذر إنشاء رمز الغرفة. حاول مرة أخرى.',
-                rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.'
+                rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.',
+                footerPrivacy: 'الخصوصية'
             }
         };
         const errorKeyMap = {
@@ -393,11 +396,14 @@
             ROOM_MEDIA_UNAVAILABLE: 'errorMediaUnavailable',
             ROOM_FULL: 'errorRoomFull',
             SCHEDULE_INVALID: 'errorScheduleInvalid',
+            AUTH_REQUIRED_FOR_SCHEDULED: 'errorScheduleNeedsAccount',
             RATE_LIMITED: 'rateLimited'
         };
 
         const MEDIA_MODE_MESH = 'mesh';
         const MEDIA_MODE_SFU = 'sfu';
+        const VIDEO_PROVIDER_MESH = 'mesh';
+        const VIDEO_PROVIDER_REALTIMEKIT = 'realtimekit';
         const DEFAULT_MESH_PARTICIPANT_LIMIT = 4;
         const DEFAULT_SCHEDULE_TIMEZONE = 'Asia/Riyadh';
         const DEFAULT_SCHEDULE_CADENCE = 'weekdays';
@@ -415,7 +421,9 @@
         let runtimeConfig = {
             sfuAvailable: false,
             supportedMediaModes: [MEDIA_MODE_MESH],
-            meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT
+            meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT,
+            videoProvider: VIDEO_PROVIDER_MESH,
+            videoPolicy: null
         };
         let joinPreviewRoom = null;
         let landingScheduleRefreshTimer = null;
@@ -486,13 +494,27 @@
             return mode === MEDIA_MODE_SFU ? MEDIA_MODE_SFU : MEDIA_MODE_MESH;
         }
 
+        function normalizeVideoProvider(provider) {
+            return provider === VIDEO_PROVIDER_REALTIMEKIT ? VIDEO_PROVIDER_REALTIMEKIT : VIDEO_PROVIDER_MESH;
+        }
+
         function getMeshParticipantLimit() {
             return Number.isInteger(runtimeConfig.meshParticipantLimit) && runtimeConfig.meshParticipantLimit > 0
                 ? runtimeConfig.meshParticipantLimit
                 : DEFAULT_MESH_PARTICIPANT_LIMIT;
         }
 
-        function formatMediaModeLabel(mode) {
+        function getRoomVideoLimit(room = null) {
+            const roomLimit = room?.videoPolicy?.maxRoomParticipants || room?.videoPolicy?.maxParticipants;
+            if (Number.isInteger(roomLimit) && roomLimit > 0) return roomLimit;
+            const runtimeLimit = runtimeConfig.videoPolicy?.maxRoomParticipants || runtimeConfig.videoPolicy?.maxParticipants;
+            return Number.isInteger(runtimeLimit) && runtimeLimit > 0 ? runtimeLimit : 20;
+        }
+
+        function formatMediaModeLabel(mode, provider = runtimeConfig.videoProvider) {
+            if (normalizeVideoProvider(provider) === VIDEO_PROVIDER_REALTIMEKIT) {
+                return copy().mediaModeRealtimeKitBadge;
+            }
             return normalizeMediaMode(mode) === MEDIA_MODE_SFU
                 ? copy().mediaModeSfuBadge
                 : copy().mediaModeMeshBadge;
@@ -563,11 +585,72 @@
             scheduleBreakInput.value = '5';
         }
 
+        let signedInUser = null;
+
         function toggleScheduleFields() {
             if (!enableScheduleCheckbox || !scheduleFields) {
                 return;
             }
             scheduleFields.hidden = !enableScheduleCheckbox.checked;
+            // Guests see the sign-in gate where the schedule fields would be.
+            const gate = document.getElementById('schedule-signin-gate');
+            const inner = document.getElementById('schedule-fields-inner');
+            if (gate && inner) {
+                gate.hidden = !!signedInUser;
+                inner.hidden = !signedInUser;
+            }
+        }
+
+        function renderMyRooms(roomsList) {
+            const card = document.getElementById('my-rooms-card');
+            const list = document.getElementById('my-rooms-list');
+            if (!card || !list) return;
+            const liveRooms = (roomsList || []).filter((room) => room.exists).slice(0, 5);
+            if (!liveRooms.length) {
+                card.hidden = true;
+                return;
+            }
+            list.innerHTML = '';
+            liveRooms.forEach((room) => {
+                const row = document.createElement('div');
+                row.className = 'my-room-row';
+                const name = document.createElement('span');
+                name.className = 'my-room-name';
+                name.textContent = room.name;
+                const code = document.createElement('span');
+                code.className = 'my-room-code';
+                code.setAttribute('dir', 'ltr');
+                code.textContent = room.roomId;
+                const rejoin = document.createElement('a');
+                rejoin.className = 'btn btn-secondary';
+                rejoin.href = `/study?room=${encodeURIComponent(room.roomId)}`;
+                rejoin.textContent = copy().myRoomsRejoin;
+                row.appendChild(name);
+                row.appendChild(code);
+                row.appendChild(rejoin);
+                list.appendChild(row);
+            });
+            card.hidden = false;
+        }
+
+        function initAccountFeatures() {
+            if (!window.HalaAuth) return;
+            window.HalaAuth.getUser().then((user) => {
+                signedInUser = user;
+                toggleScheduleFields();
+                if (!user) return;
+                window.HalaCore.requestJson('GET', '/api/me/rooms')
+                    .then((payload) => renderMyRooms(payload.rooms))
+                    .catch(() => {});
+                // Returning from the schedule gate: reopen the schedule panel.
+                if (new URLSearchParams(window.location.search).get('schedule') === '1'
+                    && enableScheduleCheckbox && !enableScheduleCheckbox.checked) {
+                    enableScheduleCheckbox.checked = true;
+                    setDefaultScheduleFields();
+                    toggleScheduleFields();
+                    if (scheduleDateInput) scheduleDateInput.focus();
+                }
+            });
         }
 
         function formatScheduleCadenceLabel(cadence) {
@@ -1009,18 +1092,22 @@
                 button.setAttribute('aria-checked', active ? 'true' : 'false');
             });
             if (mediaModeSfuButton) {
-                mediaModeSfuButton.hidden = !runtimeConfig.sfuAvailable;
+                mediaModeSfuButton.hidden = runtimeConfig.videoProvider !== VIDEO_PROVIDER_MESH || !runtimeConfig.sfuAvailable;
             }
             if (mediaModeMeshDesc) {
                 mediaModeMeshDesc.textContent = interpolate(copy().mediaModeMeshDesc, {
-                    limit: getMeshParticipantLimit()
+                    limit: runtimeConfig.videoProvider === VIDEO_PROVIDER_REALTIMEKIT
+                        ? getRoomVideoLimit()
+                        : getMeshParticipantLimit()
                 });
             }
         }
 
         function setSelectedMediaMode(mode) {
             const nextMode = normalizeMediaMode(mode);
-            selectedMediaMode = nextMode === MEDIA_MODE_SFU && runtimeConfig.sfuAvailable
+            selectedMediaMode = nextMode === MEDIA_MODE_SFU
+                && runtimeConfig.videoProvider === VIDEO_PROVIDER_MESH
+                && runtimeConfig.sfuAvailable
                 ? MEDIA_MODE_SFU
                 : MEDIA_MODE_MESH;
             syncMediaModeUi();
@@ -1042,26 +1129,33 @@
             }
 
             const mode = normalizeMediaMode(room.mediaMode);
-            const limit = mode === MEDIA_MODE_MESH
+            const provider = normalizeVideoProvider(room.videoProvider || runtimeConfig.videoProvider);
+            const limit = provider === VIDEO_PROVIDER_REALTIMEKIT
+                ? getRoomVideoLimit(room)
+                : mode === MEDIA_MODE_MESH
                 ? (Number.isInteger(room.participantLimit) && room.participantLimit > 0 ? room.participantLimit : getMeshParticipantLimit())
                 : null;
             const count = Number.isInteger(room.participantCount) ? room.participantCount : 0;
-            const isFullMeshRoom = mode === MEDIA_MODE_MESH && limit !== null && count >= limit;
-            const largeRoomUnavailable = mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable;
+            const activeVideoCount = Number.isInteger(room.activeVideoParticipantCount) ? room.activeVideoParticipantCount : count;
+            const isFullMeshRoom = provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_MESH && limit !== null && count >= limit;
+            const isFullRealtimeKitRoom = provider === VIDEO_PROVIDER_REALTIMEKIT && limit !== null && activeVideoCount >= limit;
+            const largeRoomUnavailable = provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable;
 
             joinRoomPreview.hidden = false;
             joinRoomPreviewName.textContent = room.name || room.roomId || joinCodeInput.value.trim().toUpperCase();
-            joinRoomPreviewMode.textContent = formatMediaModeLabel(mode);
-            joinRoomPreviewCount.textContent = formatParticipantCount(count, limit);
+            joinRoomPreviewMode.textContent = formatMediaModeLabel(mode, provider);
+            joinRoomPreviewCount.textContent = formatParticipantCount(provider === VIDEO_PROVIDER_REALTIMEKIT ? activeVideoCount : count, limit);
             joinRoomPreviewAccess.textContent = room.requirePassword ? copy().roomAccessProtected : copy().roomAccessOpen;
-            const mediaNote = mode === MEDIA_MODE_SFU
+            const mediaNote = provider === VIDEO_PROVIDER_REALTIMEKIT
+                ? interpolate(copy().roomPreviewRealtimeKitNote, { limit: limit || getRoomVideoLimit(room) })
+                : mode === MEDIA_MODE_SFU
                 ? copy().roomPreviewSfuNote
                 : interpolate(copy().roomPreviewMeshNote, { limit: limit || getMeshParticipantLimit() });
             const scheduleNote = room.schedule ? buildScheduleSummaryLine(room.schedule) : '';
             joinRoomPreviewNote.textContent = [mediaNote, scheduleNote].filter(Boolean).join(' · ');
             joinRoomPreviewWarning.textContent = largeRoomUnavailable
                 ? copy().errorMediaUnavailable
-                : (isFullMeshRoom ? copy().errorRoomFull : '');
+                : (isFullMeshRoom || isFullRealtimeKitRoom ? copy().errorRoomFull : '');
             syncLandingScheduleRefreshTimer();
         }
 
@@ -1074,7 +1168,9 @@
                 supportedMediaModes: Array.isArray(payload.supportedMediaModes) && payload.supportedMediaModes.length
                     ? payload.supportedMediaModes.map(normalizeMediaMode)
                     : [MEDIA_MODE_MESH],
-                meshParticipantLimit
+                meshParticipantLimit,
+                videoProvider: normalizeVideoProvider(payload.videoProvider),
+                videoPolicy: payload.videoPolicy || null
             };
             if (!runtimeConfig.sfuAvailable) {
                 selectedMediaMode = MEDIA_MODE_MESH;
@@ -1327,13 +1423,19 @@
                 return;
             }
 
-            socket.emit('create-room', {
+            socket.timeout(8000).emit('create-room', {
                 roomName,
                 password,
                 requirePassword,
                 mediaMode: selectedMediaMode,
                 schedule: schedulePayload.schedule
-            }, (response = {}) => {
+            }, (timeoutError, response = {}) => {
+                if (timeoutError) {
+                    feedback.textContent = copy().errorCreateTimeout;
+                    feedback.className = 'form-feedback error';
+                    return;
+                }
+
                 if (!response.ok) {
                     feedback.textContent = getErrorMessage(response.errorCode, 'errorCreateFailed');
                     feedback.className = 'form-feedback error';
@@ -1403,12 +1505,13 @@
                 room = lookup.room;
             }
 
-            if (room && room.mediaMode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable) {
+            const roomProvider = normalizeVideoProvider(room?.videoProvider || runtimeConfig.videoProvider);
+            if (room && roomProvider === VIDEO_PROVIDER_MESH && room.mediaMode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable) {
                 feedback.textContent = copy().errorMediaUnavailable;
                 feedback.className = 'form-feedback error';
                 return;
             }
-            if (room && room.mediaMode === MEDIA_MODE_MESH && room.participantLimit && room.participantCount >= room.participantLimit) {
+            if (room && roomProvider === VIDEO_PROVIDER_MESH && room.mediaMode === MEDIA_MODE_MESH && room.participantLimit && room.participantCount >= room.participantLimit) {
                 feedback.textContent = copy().errorRoomFull;
                 feedback.className = 'form-feedback error';
                 return;
@@ -1435,6 +1538,7 @@
         void loadRuntimeConfig();
         setDefaultScheduleFields();
         toggleScheduleFields();
+        initAccountFeatures();
         applyLanguage();
         // Patched 2026-05-17: honor /open.html#join from landing's secondary CTA — open the join form on load.
         if (window.location.hash === '#join') currentMode = 'join';

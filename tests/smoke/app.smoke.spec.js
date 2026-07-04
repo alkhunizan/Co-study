@@ -34,6 +34,20 @@ async function createSmokePage(browser) {
     return { context, page };
 }
 
+// Scheduled rooms require an account — sign up via the API using the page's
+// own cookie jar so the browser (and its socket) is authenticated after.
+async function signupViaApi(page, displayName = 'Smoke Owner') {
+    const unique = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const response = await page.request.post('/api/auth/signup', {
+        data: {
+            email: `smoke-${unique}@example.com`,
+            password: 'smoke-password-1',
+            displayName
+        }
+    });
+    expect(response.ok()).toBeTruthy();
+}
+
 async function createRoomFromLanding(page, options = {}) {
     const {
         roomName = `QA Room ${Date.now()}`,
@@ -253,6 +267,7 @@ test('scheduled rooms expose timer defaults and invite actions', async ({ browse
     const owner = await createSmokePage(browser);
 
     try {
+        await signupViaApi(owner.page, 'Owner');
         const schedule = buildFutureRiyadhSchedule();
         const roomCode = await createRoomFromLanding(owner.page, {
             roomName: 'Scheduled Smoke Room',
@@ -294,6 +309,7 @@ test('schedule helpers recalculate recurring sessions after stale snapshot data'
             };
         });
 
+        await signupViaApi(probe.page, 'Owner');
         const roomCode = await createRoomFromLanding(probe.page, {
             roomName: 'Scheduled Roll Forward Room',
             schedule: buildFutureRiyadhSchedule({
@@ -329,14 +345,14 @@ test('schedule helpers recalculate recurring sessions after stale snapshot data'
     }
 });
 
-test('large rooms switch into embedded SFU mode', async ({ browser }) => {
+test('large-mode rooms use the RealtimeKit provider by default', async ({ browser }) => {
     const owner = await createSmokePage(browser);
 
     try {
         const roomCode = await createRoomFromLanding(owner.page, {
-            roomName: 'Large Room Smoke',
-            mediaMode: 'sfu'
+            roomName: 'RealtimeKit Room Smoke'
         });
+        await expect(owner.page.locator('[data-media-mode="sfu"]')).toBeHidden();
 
         await owner.page.click('#btn-enter-room');
         await joinRoom(owner.page, {
@@ -345,19 +361,15 @@ test('large rooms switch into embedded SFU mode', async ({ browser }) => {
         });
         await expectJoined(owner.page);
 
-        await expect(owner.page.locator('#media-mode-value')).toContainText(/large room/i);
-        await expect(owner.page.locator('.video-box')).toHaveClass(/sfu-mode/);
-        await expect(owner.page.locator('#media-state-text')).toContainText(/embedded session|loading room media/i);
-
-        const frame = owner.page.frameLocator('#sfu-frame');
-        await expect(frame.locator('#fake-sfu-root')).toBeVisible();
-        await expect(frame.locator('#fake-sfu-room')).toContainText(roomCode);
+        await expect(owner.page.locator('#media-mode-value')).toContainText(/study camera room/i);
+        await expect(owner.page.locator('.video-box')).toHaveClass(/realtimekit-mode/);
+        await expect(owner.page.locator('#media-state-text')).toContainText(/camera room/i);
     } finally {
         await owner.context.close();
     }
 });
 
-test('a fifth participant is blocked from a full mesh room', async ({ browser }) => {
+test('five participants can join a default RealtimeKit room shell', async ({ browser }) => {
     const users = await Promise.all(Array.from({ length: 5 }, () => createSmokePage(browser)));
 
     try {
@@ -384,8 +396,9 @@ test('a fifth participant is blocked from a full mesh room', async ({ browser })
             name: 'User 5',
             roomCode
         });
-        await expect(users[4].page.locator('#join-error')).toContainText(/full/i);
-        await expect(users[4].page.locator('#join-overlay')).not.toHaveClass(/hidden/);
+        await expectJoined(users[4].page);
+        await expect(users[4].page.locator('#presence-count')).toContainText('5');
+        await expect(users[4].page.locator('#media-mode-value')).toContainText(/study camera room/i);
     } finally {
         await Promise.all(users.map(({ context }) => context.close()));
     }
