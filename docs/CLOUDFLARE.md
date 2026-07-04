@@ -133,6 +133,40 @@ two-carrier camera test (`LAUNCH.md §5`).
 
 ---
 
+## 3. R2 — off-site state backups
+
+Local backups (`data/backups/`) die with the VM. R2 is object storage that keeps
+a durable off-box copy of the room + user state.
+
+1. In the dashboard → **R2 → Manage API Tokens**, create an S3-compatible token.
+   It gives an **Access Key ID**, **Secret Access Key**, and an account endpoint
+   `https://<account-id>.r2.cloudflarestorage.com`.
+2. Add to `.env` (see `.env.example` → Cloudflare R2):
+   ```bash
+   R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+   R2_ACCESS_KEY_ID=<...>
+   R2_SECRET_ACCESS_KEY=<...>
+   R2_BUCKET=halastudy-backups
+   ```
+3. Verify the credentials (creates the bucket if missing, PUT/GET/DELETE round-trip):
+   ```bash
+   npm run backup:r2 -- --check
+   ```
+4. Upload the current state on demand:
+   ```bash
+   npm run backup:r2      # → rooms/rooms.<ts>.json + users/users.<ts>.json
+   ```
+5. Cron it on the VM alongside the app, e.g. hourly:
+   ```cron
+   0 * * * * cd /opt/halastudy && /usr/bin/npm run backup:r2 >> /var/log/halastudy-r2.log 2>&1
+   ```
+
+The uploader signs requests with AWS SigV4 using only `node:crypto`
+(`scripts/cloudflare/r2-client.js`) — no aws-sdk, consistent with the app's
+zero-runtime-dependency rule. The S3 data operations use the Access Key pair; the
+`cfat_` Bearer token (if you saved it as `R2_API_TOKEN`) is only for REST bucket
+management and isn't needed for uploads.
+
 ## What I can automate once the Cloudflare connector is authorized
 There is currently no Cloudflare MCP connector attached to this session, so the
 steps above are manual (dashboard + one `.env` paste). If you add the **Cloudflare**

@@ -99,6 +99,7 @@ problem — don't gate the beta on it.
 
 - [ ] Point an uptime monitor at `/api/metrics` (or `/api/health`).
 - [ ] `data/backups/` fills hourly (rooms + users) — spot-check after day 1.
+- [ ] Off-site backups to Cloudflare R2 (survives VM loss): set `R2_*` in `.env`, `npm run backup:r2 -- --check`, then cron `npm run backup:r2`. See `docs/CLOUDFLARE.md §3`.
 - [ ] Keep the admin video kill-switch in mind: if RealtimeKit cost spikes, flip it from the console (Video tab) to stop new joins instantly without a redeploy.
 - [ ] `npm run cloudflare:cost-check` to watch participant-minutes vs the $288/mo guardrail.
 
