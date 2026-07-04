@@ -137,6 +137,9 @@ html[lang="ar"] .is-open-page { font-family: var(--font-body-ar); }
   transition: color 120ms var(--ease-soft);
 }
 .topbar-link:hover { color: var(--ink); }
+
+/* Directional back-arrow mirrors toward reading-start in RTL (DESIGN.md §6). */
+html[dir="rtl"] .back-arrow { display: inline-block; transform: scaleX(-1); }
 .topbar-link:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--accent-glow);

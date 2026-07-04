@@ -251,6 +251,7 @@ function createReporter(title) {
 
 module.exports = {
     loadCloudflareRealtimeKitEnv,
+    loadDotEnv: loadDotEnvIntoProcess,
     redact,
     cfFetch,
     requireEnv,
