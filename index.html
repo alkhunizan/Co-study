@@ -464,7 +464,7 @@
         .focus-sync-hint[hidden] { display: none; }
         .focus-sync-hint a { color: var(--accent-3); text-decoration: underline; text-underline-offset: 2px; }
         .focus-sync-hint a:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); border-radius: 4px; }
-        .focus-sync-hint button { border: 0; background: transparent; color: var(--text-soft); cursor: pointer; font-size: 14px; line-height: 1; min-inline-size: 24px; min-block-size: 24px; border-radius: 50%; }
+        .focus-sync-hint button { border: 0; background: transparent; color: var(--text-soft); cursor: pointer; font-size: 14px; line-height: 1; min-inline-size: 44px; min-block-size: 44px; border-radius: 50%; }
         .focus-sync-hint button:hover { color: var(--text-main); background: rgba(0,0,0,0.06); }
 
         /* --- Chat & Ambient --- */
@@ -1496,7 +1496,8 @@
     }
 
     function formatFocusMinutes(totalMinutes) {
-        return `${totalMinutes} ${currentCopy().focusMinutesSuffix}`;
+        // Today's focus is an emotional number — Eastern numerals in AR (§5).
+        return `${formatEmotionalNumber(totalMinutes)} ${currentCopy().focusMinutesSuffix}`;
     }
 
     function formatScheduleCadenceLabel(cadence) {

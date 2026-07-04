@@ -71,13 +71,15 @@
     .swatch-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .swatch-row input[type="radio"] {
       appearance: none;
-      inline-size: 36px;
-      block-size: 36px;
+      inline-size: 44px;
+      block-size: 44px;
       border-radius: 50%;
       border: 1px solid var(--line);
       cursor: pointer;
       background: var(--swatch, var(--accent-soft));
     }
+    /* Back-arrow mirrors toward reading-start in RTL (DESIGN.md §6). */
+    html[dir="rtl"] .back-arrow { display: inline-block; transform: scaleX(-1); }
     .swatch-row input[type="radio"]:focus-visible { outline: none; box-shadow: var(--sh-focus); }
     .swatch-row input[type="radio"]:checked { border: 2px solid var(--ink); }
     .rooms-list { display: flex; flex-direction: column; gap: 10px; }
@@ -242,7 +244,7 @@
   <footer class="footer">
     <div><span data-lang="footerTag">هلاستدي · غرفة هادية. مفتوحة طول الليل.</span></div>
     <div class="links">
-      <a href="/" aria-label="Halastudy home">← Halastudy</a>
+      <a href="/" aria-label="Halastudy home"><span class="back-arrow" aria-hidden="true">←</span> Halastudy</a>
       <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
     </div>
   </footer>
@@ -376,6 +378,15 @@
       const signupForm = document.getElementById('signup-form');
 
       function t(key) { return core.t(key) || key; }
+      // Emotional numbers (streak, focus hours) render Eastern in Arabic — the
+      // .num-eastern CSS class alone doesn't convert ASCII digits (DESIGN.md §5).
+      function formatEmotional(value) {
+        return core.getLang() === 'ar' ? new Intl.NumberFormat('ar-EG').format(value) : String(value);
+      }
+      var SWATCH_LABELS = {
+        en: { amber: 'Amber', sage: 'Sage', terracotta: 'Terracotta', dusk: 'Dusk', sand: 'Sand', stone: 'Stone' },
+        ar: { amber: 'كراك', sage: 'مريمية', terracotta: 'طيني', dusk: 'غسق', sand: 'رملي', stone: 'حجري' }
+      };
       function errText(error) {
         return t(`err${error && error.code ? error.code : 'NETWORK'}`);
       }
@@ -460,9 +471,9 @@
 
       function renderStats(stats, streak) {
         const hours = Math.round(((stats && stats.totalFocusMinutes) || 0) / 60 * 10) / 10;
-        document.getElementById('stat-streak').textContent = String((streak && streak.current) || 0);
-        document.getElementById('stat-best').textContent = String((streak && streak.best) || 0);
-        document.getElementById('stat-hours').textContent = String(hours);
+        document.getElementById('stat-streak').textContent = formatEmotional((streak && streak.current) || 0);
+        document.getElementById('stat-best').textContent = formatEmotional((streak && streak.best) || 0);
+        document.getElementById('stat-hours').textContent = formatEmotional(hours);
       }
 
       function renderSwatches(selected) {
@@ -474,7 +485,7 @@
           input.name = 'avatarColor';
           input.value = colorId;
           input.checked = colorId === selected;
-          input.setAttribute('aria-label', colorId);
+          input.setAttribute('aria-label', (SWATCH_LABELS[core.getLang()] || SWATCH_LABELS.en)[colorId] || colorId);
           input.style.setProperty('--swatch', SWATCHES[colorId]);
           row.appendChild(input);
         });

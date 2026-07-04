@@ -186,8 +186,16 @@
         getUser().then((user) => {
             if (!user) return;
             const ui = (/** @type {any} */ (global)).HalaUI;
+            const ar = getLang() === 'ar';
             if (ui && typeof ui.renderAuthChip === 'function') {
-                ui.renderAuthChip(entry, user);
+                ui.renderAuthChip(entry, user, {
+                    menuItems: [
+                        { label: ar ? 'حسابي' : 'My account', href: '/account.html' },
+                        { label: ar ? 'تسجيل الخروج' : 'Sign out', danger: true, onSelect: () => {
+                            signout().then(() => { global.location.assign('/'); });
+                        } }
+                    ]
+                });
             } else {
                 entry.textContent = user.displayName;
                 entry.setAttribute('href', '/account.html');
@@ -233,7 +241,7 @@
         text.textContent = message;
         var dismiss = document.createElement('button');
         dismiss.type = 'button';
-        dismiss.setAttribute('aria-label', 'Dismiss');
+        dismiss.setAttribute('aria-label', getLang() === 'ar' ? 'إغلاق' : 'Dismiss');
         dismiss.textContent = '×';
         dismiss.style.cssText = 'border:0;background:transparent;cursor:pointer;color:inherit;'
             + 'font-size:16px;line-height:1;min-inline-size:32px;min-block-size:32px;border-radius:50%;';

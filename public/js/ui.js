@@ -18,7 +18,7 @@
         '.hala-toast--success .hala-toast__dot{background:var(--success);}',
         '.hala-toast--error .hala-toast__dot{background:var(--danger);}',
         '.hala-toast__msg{flex:1;min-inline-size:0;}',
-        '.hala-toast__close{flex:none;inline-size:36px;block-size:36px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink-3);border-radius:50%;cursor:pointer;font-size:16px;line-height:1;}',
+        '.hala-toast__close{flex:none;inline-size:44px;block-size:44px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink-3);border-radius:50%;cursor:pointer;font-size:16px;line-height:1;}',
         '.hala-toast__close:hover{color:var(--ink);background:var(--inset);}',
         '.hala-toast__close:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-glow);}',
         'dialog.hala-modal{border:1px solid var(--line);border-radius:24px;background:var(--card);color:var(--ink);padding:28px;inline-size:min(560px,calc(100vw - 32px));box-shadow:0 24px 64px rgba(28,24,20,0.22);}',
@@ -34,7 +34,7 @@
         '.hala-modal__btn[disabled]{opacity:0.45;cursor:default;}',
         '.hala-modal__btn--confirm{background:var(--accent);border-color:var(--accent);color:var(--ink);}',
         '.hala-modal__btn--danger{background:var(--danger);border-color:var(--danger);color:var(--ink-inv);}',
-        '.hala-chip{display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;cursor:pointer;padding:4px;border-radius:999px;}',
+        '.hala-chip{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;background:transparent;cursor:pointer;padding:6px;border-radius:999px;min-inline-size:44px;min-block-size:44px;}',
         '.hala-chip:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-glow);}',
         '.hala-chip__avatar{inline-size:32px;block-size:32px;border-radius:50%;display:grid;place-items:center;font:600 var(--t-body-sm)/1 var(--font-body);color:var(--ink);background:var(--member-accent,var(--accent-soft));border:1px solid var(--line);}',
         '.hala-chip__menu{position:absolute;inset-block-start:calc(100% + 8px);inset-inline-end:0;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 32px rgba(28,24,20,0.16);padding:6px;display:flex;flex-direction:column;min-inline-size:180px;z-index:1000;}',
@@ -92,7 +92,8 @@
         var close = document.createElement('button');
         close.type = 'button';
         close.className = 'hala-toast__close';
-        close.setAttribute('aria-label', 'Dismiss');
+        var hcore = (/** @type {any} */ (global)).HalaCore;
+        close.setAttribute('aria-label', hcore && hcore.getLang() === 'ar' ? 'إغلاق' : 'Dismiss');
         close.textContent = '×';
 
         el.appendChild(dot);
