@@ -850,6 +850,25 @@ function createCoStudyServer(options = {}) {
         };
     }
 
+    // Safe pre-join view for a protected room. The public GET /api/rooms/:roomId
+    // endpoint must never leak protected-room internals (messages, board,
+    // participant details, schedule/private metadata, video provider/session
+    // state) to an unauthenticated reader. Full state is delivered only through
+    // the password-gated socket join-room flow. Fail closed.
+    function roomPreview(normalizedRoomId, room) {
+        return {
+            ok: true,
+            room: {
+                roomId: normalizedRoomId,
+                name: room.name || normalizedRoomId,
+                protected: true,
+                status: 'active',
+                participantCount: room.users.size,
+                requiresPassword: true
+            }
+        };
+    }
+
     function emitBoardState(roomId, room) {
         io.to(roomId).emit('board-state', cloneBoard(ensureRoomBoard(room)));
     }
@@ -1548,13 +1567,20 @@ function createCoStudyServer(options = {}) {
             return;
         }
 
-        const snapshot = roomSnapshot(roomId);
-        if (!rooms.has(normalizeRoom(roomId))) {
+        const normalizedRoom = normalizeRoom(roomId);
+        const room = rooms.get(normalizedRoom);
+        if (!room) {
             res.status(404).json({ error: 'Room not found' });
             return;
         }
 
-        res.json(snapshot);
+        // Protected rooms leak nothing before a verified, password-gated join.
+        if (room.requirePassword) {
+            res.json(roomPreview(normalizedRoom, room));
+            return;
+        }
+
+        res.json(roomSnapshot(roomId));
     });
 
     app.get('/', (_req, res) => {
