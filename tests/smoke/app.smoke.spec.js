@@ -334,7 +334,7 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
         }
     });
     await page.addInitScript(() => {
-        try { delete window.FaceDetector; } catch (_error) {}
+        try { delete (/** @type {any} */ (window)).FaceDetector; } catch (_error) {}
         try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
     });
 
@@ -347,8 +347,9 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
         const videoCountBefore = await page.locator('video').count();
 
         const localTrackLabel = () => page.evaluate(() => {
-            const video = document.getElementById('local-video');
-            const track = video.srcObject && video.srcObject.getVideoTracks()[0];
+            const video = /** @type {HTMLVideoElement} */ (document.getElementById('local-video'));
+            const stream = /** @type {MediaStream|null} */ (video.srcObject);
+            const track = stream?.getVideoTracks()[0];
             return track ? { label: track.label, state: track.readyState } : null;
         });
 
@@ -378,7 +379,10 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
         // (the raw tracks are stopped by the same teardown — a leak here
         // means the camera light stays on).
         await page.click('#camera-toggle');
-        await expect.poll(() => page.evaluate(() => document.getElementById('local-video').srcObject === null)).toBe(true);
+        await expect.poll(() => page.evaluate(() => {
+            const video = /** @type {HTMLVideoElement} */ (document.getElementById('local-video'));
+            return video.srcObject === null;
+        })).toBe(true);
         await expect(page.locator('video')).toHaveCount(videoCountBefore);
 
         expect(consoleErrors).toEqual([]);

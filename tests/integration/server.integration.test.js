@@ -1436,7 +1436,7 @@ test('per-user session goal rides on user-status: sanitized, broadcast, and hidd
     // Bob listens for Alice's status broadcast before she emits it.
     const statusReceived = new Promise((resolve) => {
         bobSocket.on('status-update', (payload) => {
-            if (payload && payload.status && payload.status.goal) resolve(payload);
+            if (payload?.status?.goal) resolve(payload);
         });
     });
     assert.equal((await emitAck(bobSocket, 'join-room', { roomId, username: 'Bob', clientId: 'goal-bob' })).ok, true);

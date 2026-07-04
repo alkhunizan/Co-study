@@ -298,7 +298,7 @@ function createAdminRouter(deps) {
                     roomId: room.id,
                     roomName: room.name,
                     ...report,
-                    targetStillConnected: !!(room.users && room.users.has(report.targetSocketId))
+                    targetStillConnected: !!room.users?.has(report.targetSocketId)
                 });
             }
         }
