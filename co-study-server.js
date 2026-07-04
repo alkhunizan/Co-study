@@ -1948,6 +1948,15 @@ function createCoStudyServer(options = {}) {
         res.sendFile(path.join(__dirname, 'blog.html'));
     });
 
+    // Individual blog posts — explicit slug→file map (no dynamic path lookup, so
+    // no traversal surface). Add a line here per new article.
+    app.get('/blog/best-online-group-study-rooms-saudi', (_req, res) => {
+        res.sendFile(path.join(__dirname, 'blog-best-study-rooms.html'));
+    });
+    app.get('/blog/study-with-me-online-arabic', (_req, res) => {
+        res.sendFile(path.join(__dirname, 'blog-study-with-me.html'));
+    });
+
     app.get(['/account.html', '/account'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'account.html'));
     });
