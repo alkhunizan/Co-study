@@ -54,6 +54,7 @@ function createR2Client(config = {}) {
         const datestamp = amz.slice(0, 8);
         const payloadHash = sha256Hex(body);
 
+        /** @type {Record<string, string>} */
         const headers = {
             host,
             'x-amz-content-sha256': payloadHash,
@@ -99,7 +100,8 @@ function createR2Client(config = {}) {
             const response = await fetch(`https://${host}${canonicalPath}`, {
                 method,
                 headers,
-                body: method === 'GET' || method === 'HEAD' ? undefined : body,
+                // Node's fetch accepts a Buffer body; TS's DOM BodyInit doesn't list it.
+                body: method === 'GET' || method === 'HEAD' ? undefined : /** @type {any} */ (body),
                 signal: controller.signal
             });
             const text = await response.text();
