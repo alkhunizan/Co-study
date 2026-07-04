@@ -67,6 +67,18 @@
       border-block-start: 1px solid var(--line);
       margin-block: 48px;
     }
+    .legal-footer {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      padding-block: 22px;
+      border-block-start: 1px solid var(--line);
+      font-size: 0.9rem;
+    }
+    .legal-footer a { color: var(--ink-2); text-decoration: none; }
+    .legal-footer a:hover { color: var(--ink); }
+    .legal-footer a[aria-current="page"] { color: var(--ink); font-weight: 600; }
   </style>
 </head>
 <body>
@@ -78,9 +90,18 @@
   <main>
     <section lang="ar" dir="rtl">
       <h1>سياسة الخصوصية</h1>
-      <p class="updated">آخر تحديث: 2 يوليو 2026</p>
+      <p class="updated">آخر تحديث: 4 يوليو 2026</p>
 
       <p>هلاستدي غرفة مذاكرة هادئة. نجمع أقل قدر ممكن من البيانات لتشغيل الغرف — الحساب اختياري تماماً، بدون رقم جوال، وبدون أدوات تتبّع إعلانية.</p>
+
+      <h2>من نحن</h2>
+      <p>هلاستدي خدمة تديرها <strong>مؤسسة هلا</strong>، وهي منشأة فردية يملكها <strong>عزيز الخنيزان</strong>، ومقرها <strong>الرياض، المملكة العربية السعودية</strong>. نحن <strong>جهة التحكم في البيانات</strong> المسؤولة عن معالجة بياناتك بموجب نظام حماية البيانات الشخصية السعودي (PDPL). لأي سؤال يتعلق بالخصوصية: <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a> أو <a href="tel:+966599161315" dir="ltr">+966&nbsp;59&nbsp;916&nbsp;1315</a>.</p>
+
+      <h2>الحد الأدنى للعمر</h2>
+      <p>هلاستدي مخصّصة لمن أعمارهم <strong>18 سنة فأكثر</strong>. لأن الكاميرا تعمل داخل الغرف، لا نسمح باستخدام الخدمة لمن هم دون هذا السن. إذا علمنا بأن حساباً يخص شخصاً دون السن المسموح، نحذفه. إن كنت ولي أمر وتعتقد أن قاصراً أنشأ حساباً، راسلنا فوراً.</p>
+
+      <h2>الأساس النظامي للمعالجة</h2>
+      <p>نعالج بياناتك بناءً على <strong>موافقتك</strong> عند إنشاء الحساب أو فتح غرفة، وبناءً على <strong>المصلحة المشروعة</strong> في تشغيل الخدمة وحمايتها من إساءة الاستخدام. يمكنك سحب موافقتك في أي وقت بحذف بياناتك.</p>
 
       <h2>ماذا نخزّن على الخادم؟</h2>
       <ul>
@@ -94,8 +115,11 @@
       <ul>
         <li><strong>الكاميرا والمايك:</strong> الفيديو والصوت ينتقلان مباشرة بين المشاركين (نظير إلى نظير). الخادم يمرر رسائل إعداد الاتصال فقط، ولا يستقبل أو يسجل أي وسائط.</li>
         <li>إذا تعذّر الاتصال المباشر، قد تمر الوسائط <em>مشفّرة</em> عبر خادم ترحيل (TURN) لا يستطيع فك تشفيرها.</li>
-        <li>لا توجد تحليلات طرف ثالث ولا ملفات تعريف إعلانية.</li>
+        <li>لا نسجّل أي جلسة مذاكرة، ولا نحتفظ بأي صورة أو صوت منها.</li>
       </ul>
+
+      <h2>التحليلات والقياس</h2>
+      <p>لا نستخدم تحليلات طرف ثالث ولا ملفات تعريف إعلانية. إن استخدمنا مستقبلاً أدوات قياس، فستكون <strong>صديقة للخصوصية وبلا تتبّع للأفراد</strong> (إحصاءات مجمّعة فقط)، وسنحدّث هذه السياسة قبل تفعيلها.</p>
 
       <h2>كم تبقى البيانات؟</h2>
       <ul>
@@ -119,6 +143,24 @@
         <li>تفضيلاتك (اللغة، السمة، الاسم المستعار) تبقى في متصفحك أنت، ولا تُرسل إلينا.</li>
       </ul>
 
+      <h2>مزودو الخدمة</h2>
+      <p>نستعين بمزودي خدمة موثوقين لتشغيل هلاستدي: <strong>الاستضافة السحابية (AWS)</strong>، و<strong>مزوّد خدمة ترحيل الوسائط (TURN)</strong>. يعالج هؤلاء البيانات نيابة عنا وفق تعليماتنا فقط، ولا يُسمح لهم باستخدامها لأي غرض آخر.</p>
+
+      <h2>نقل البيانات خارج المملكة</h2>
+      <p>قد تُعالَج بعض البيانات على بنية تحتية سحابية خارج المملكة العربية السعودية (حالياً خوادم AWS في مومباي، الهند). عند حدوث ذلك، نطبّق الضمانات التي يشترطها نظام حماية البيانات الشخصية لحماية بياناتك أثناء النقل.</p>
+
+      <h2>كيف نحمي بياناتك</h2>
+      <p>نطبّق تدابير تقنية وتنظيمية معقولة: تشفير كلمات المرور (PBKDF2)، ونقل الوسائط نظير إلى نظير، وتقليل البيانات إلى أدنى حد، وحذفها تلقائياً. لا توجد وسيلة نقل عبر الإنترنت آمنة بنسبة 100%، لكننا نلتزم بحماية بياناتك بأفضل الممارسات.</p>
+
+      <h2>حقوقك</h2>
+      <p>بموجب نظام حماية البيانات الشخصية، لك الحق في: <strong>العلم</strong> بكيفية معالجة بياناتك، و<strong>الوصول</strong> إليها، و<strong>تصحيحها</strong>، و<strong>حذفها</strong>، و<strong>سحب موافقتك</strong>. لممارسة أي من هذه الحقوق راسلنا على <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>. إذا رأيت أننا لم نعالج طلبك بشكل صحيح، يحق لك التقدّم بشكوى إلى <strong>الجهة المختصة (الهيئة السعودية للبيانات والذكاء الاصطناعي — سدايا)</strong>.</p>
+
+      <h2>تغييرات على هذه السياسة</h2>
+      <p>قد نحدّث هذه السياسة من وقت لآخر. ننشر النسخة المحدّثة هنا مع تعديل تاريخ "آخر تحديث"، وإن كان التغيير جوهرياً ننبّهك داخل الخدمة.</p>
+
+      <h2>النظام الواجب التطبيق</h2>
+      <p>تخضع هذه السياسة لأنظمة المملكة العربية السعودية، وتختص محاكمها بأي نزاع ينشأ عنها.</p>
+
       <h2>تواصل معنا</h2>
       <p>لأي سؤال عن الخصوصية أو لطلب حذف بيانات غرفة، راسلنا على <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a> أو اتصل بنا على <a href="tel:+966599161315" dir="ltr">+966&nbsp;59&nbsp;916&nbsp;1315</a>.</p>
     </section>
@@ -127,9 +169,18 @@
 
     <section lang="en" dir="ltr">
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated: July 2, 2026</p>
+      <p class="updated">Last updated: July 4, 2026</p>
 
       <p>Halastudy is a quiet study room. We collect the minimum needed to run rooms — accounts are entirely optional, no phone number, and no advertising trackers.</p>
+
+      <h2>Who we are</h2>
+      <p>Halastudy is operated by <strong>Hala</strong>, a sole proprietorship owned by <strong>Aziz Al Khunizan</strong>, based in <strong>Riyadh, Kingdom of Saudi Arabia</strong>. We are the <strong>data controller</strong> responsible for processing your data under the Saudi Personal Data Protection Law (PDPL). For any privacy question: <a href="mailto:info@halastudy.com">info@halastudy.com</a> or <a href="tel:+966599161315">+966&nbsp;59&nbsp;916&nbsp;1315</a>.</p>
+
+      <h2>Minimum age</h2>
+      <p>Halastudy is for people aged <strong>18 and over</strong>. Because the camera is on inside rooms, we do not allow use by anyone under this age. If we learn that an account belongs to someone underage, we delete it. If you are a guardian and believe a minor created an account, contact us right away.</p>
+
+      <h2>Legal basis for processing</h2>
+      <p>We process your data based on your <strong>consent</strong> when you create an account or open a room, and on our <strong>legitimate interest</strong> in running the service and protecting it from abuse. You can withdraw consent at any time by deleting your data.</p>
 
       <h2>What we store on the server</h2>
       <ul>
@@ -143,8 +194,11 @@
       <ul>
         <li><strong>Camera and microphone:</strong> video and audio travel directly between participants (peer-to-peer). The server only relays connection-setup messages and never receives or records media.</li>
         <li>When a direct connection is impossible, media may pass <em>encrypted</em> through a relay server (TURN) that cannot decrypt it.</li>
-        <li>No third-party analytics, no advertising profiles.</li>
+        <li>We never record a study session, and we keep no image or audio from one.</li>
       </ul>
+
+      <h2>Analytics and measurement</h2>
+      <p>We use no third-party analytics and no advertising profiles. If we ever add measurement tools, they will be <strong>privacy-friendly and non-tracking</strong> (aggregate counts only), and we will update this policy before turning them on.</p>
 
       <h2>How long data is kept</h2>
       <ul>
@@ -168,9 +222,32 @@
         <li>Your preferences (language, theme, nickname) stay in your own browser and are not sent to us.</li>
       </ul>
 
+      <h2>Service providers</h2>
+      <p>We rely on trusted providers to run Halastudy: <strong>cloud hosting (AWS)</strong> and a <strong>media relay (TURN) provider</strong>. They process data on our behalf, only on our instructions, and may not use it for any other purpose.</p>
+
+      <h2>International data transfers</h2>
+      <p>Some data may be processed on cloud infrastructure outside Saudi Arabia (currently AWS servers in Mumbai, India). Where this happens, we apply the safeguards required by the PDPL to protect your data in transit.</p>
+
+      <h2>How we protect your data</h2>
+      <p>We apply reasonable technical and organizational measures: password hashing (PBKDF2), peer-to-peer media, data minimization, and automatic deletion. No method of internet transmission is 100% secure, but we are committed to protecting your data using best practices.</p>
+
+      <h2>Your rights</h2>
+      <p>Under the PDPL you have the right to: <strong>be informed</strong> about how your data is processed, <strong>access</strong> it, <strong>correct</strong> it, <strong>delete</strong> it, and <strong>withdraw consent</strong>. To exercise any of these, email <a href="mailto:info@halastudy.com">info@halastudy.com</a>. If you believe we have not handled your request properly, you have the right to file a complaint with the <strong>competent authority (Saudi Data &amp; AI Authority — SDAIA)</strong>.</p>
+
+      <h2>Changes to this policy</h2>
+      <p>We may update this policy from time to time. We post the updated version here with a revised "last updated" date, and for material changes we will notify you inside the service.</p>
+
+      <h2>Governing law</h2>
+      <p>This policy is governed by the laws of Saudi Arabia, and its courts have jurisdiction over any dispute arising from it.</p>
+
       <h2>Contact</h2>
       <p>For privacy questions or to request deletion of a room's data, email <a href="mailto:info@halastudy.com">info@halastudy.com</a> or call <a href="tel:+966599161315">+966&nbsp;59&nbsp;916&nbsp;1315</a>.</p>
     </section>
   </main>
+
+  <footer class="legal-footer">
+    <a href="/privacy" aria-current="page">الخصوصية · Privacy</a>
+    <a href="/terms">الشروط · Terms</a>
+  </footer>
 </body>
 </html>

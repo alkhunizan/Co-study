@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halastudy | المدونة · The Blog</title>
+  <meta name="description" content="مدونة هلاستدي — عن التركيز والمرافقة بالوجود والمذاكرة في ليل الخليج. The Halastudy blog — on focus, body-doubling, and studying through the Gulf night.">
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/images/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#F5F2EB">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700&family=Amiri:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <style>
+    .blog-shell {
+      min-block-size: 66vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-inline: 20px;
+    }
+    .blog-card { max-inline-size: 520px; text-align: start; }
+    .blog-card h1 {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 5vw, 44px);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin: 10px 0 14px;
+      text-wrap: balance;
+    }
+    html[lang="ar"] .blog-card h1 { font-family: var(--font-display-ar); letter-spacing: 0; }
+    .blog-card p { color: var(--ink-2); line-height: 1.7; margin: 0 0 26px; }
+  </style>
+</head>
+<body class="is-landing-page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Halastudy home">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <div class="topbar-right">
+      <div class="lang-switch" role="tablist" aria-label="Language">
+        <button type="button" data-lang-value="en">EN</button>
+        <button type="button" data-lang-value="ar" class="is-on">ع</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="blog-shell">
+    <div class="blog-card">
+      <div class="eyebrow" data-lang="blogEyebrow">المدونة</div>
+      <h1 data-lang="blogTitle">أول التدوينات في الطريق.</h1>
+      <p data-lang="blogBody">نكتب عن التركيز، والمرافقة بالوجود، والمذاكرة في ليل الخليج. ارجع قريباً — أو اقعد على مكتب الحين.</p>
+      <a class="btn btn-primary" href="/open" data-lang="blogCta">افتح غرفة</a>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="links">
+      <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
+      <a href="/terms" data-lang="footerTerms">الشروط</a>
+    </div>
+    <div class="footer-contact">
+      <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
+      <a href="tel:+966599161315" dir="ltr">+966&nbsp;59&nbsp;916&nbsp;1315</a>
+    </div>
+  </footer>
+
+  <script>
+    window.HalaCore.initLang({
+      en: {
+        pageTitle: 'Halastudy | The Blog',
+        blogEyebrow: 'The Blog',
+        blogTitle: 'First dispatches are on the way.',
+        blogBody: 'We’re writing about focus, body-doubling, and studying through the Gulf night. Check back soon — or pull up a desk in the meantime.',
+        blogCta: 'Open a room',
+        footerPrivacy: 'Privacy',
+        footerTerms: 'Terms'
+      },
+      ar: {
+        pageTitle: 'هلاستدي | المدونة',
+        blogEyebrow: 'المدونة',
+        blogTitle: 'أول التدوينات في الطريق.',
+        blogBody: 'نكتب عن التركيز، والمرافقة بالوجود، والمذاكرة في ليل الخليج. ارجع قريباً — أو اقعد على مكتب الحين.',
+        blogCta: 'افتح غرفة',
+        footerPrivacy: 'الخصوصية',
+        footerTerms: 'الشروط'
+      }
+    });
+  </script>
+</body>
+</html>

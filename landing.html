@@ -25,9 +25,11 @@
       <span class="ar" aria-hidden="true">هلا</span>
     </a>
     <nav class="nav-links" aria-label="Primary">
+      <a href="#why" data-i18n="navWhy">ليش هلا؟</a>
       <a href="#how" data-i18n="navHow">كيف تشتغل</a>
       <a href="#rooms" data-i18n="navRooms">الغرف</a>
       <a class="nav-extra" href="#community" data-i18n="navTonight">الطلاب</a>
+      <a class="nav-extra" href="/blog" data-i18n="navBlog">المدونة</a>
     </nav>
     <div class="topbar-right">
       <a class="topbar-link" id="auth-entry" href="/account.html" data-i18n="navSignIn">تسجيل الدخول</a>
@@ -160,6 +162,32 @@
           <div class="tile-name"><span data-tile-name="5">مريم</span><span class="city">Manama</span></div>
           <div class="tile-timer" data-tile-timer="5">19:07</div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="steps" id="why">
+    <div class="eyebrow steps-eyebrow" data-i18n="whyEyebrow">ليش هلاستدي</div>
+    <h2 class="steps-title">
+      <span data-i18n="whyTitle1">الوجود</span>
+      <em data-i18n="whyTitle2">أقوى من العزيمة.</em>
+    </h2>
+    <div class="steps-grid">
+      <div class="step">
+        <h3 data-i18n="why1H">ما انت لحالك على المكتب</h3>
+        <p data-i18n="why1P">المرافقة بالوجود تحوّل المذاكرة الفردية إلى زخم مشترك. لما فيه أحد شغّال قدامك والكاميرا مفتوحة، تكمّل معه.</p>
+      </div>
+      <div class="step">
+        <h3 data-i18n="why2H">هادية بالتصميم</h3>
+        <p data-i18n="why2P">المايك مقفول افتراضياً. لا كلام ولا استعراض — وجودك هو الاتفاق كله.</p>
+      </div>
+      <div class="step">
+        <h3 data-i18n="why3H">مبنية لنا</h3>
+        <p data-i18n="why3P">عربية أول، جداول بتوقيت الرياض، وإيقاع مذاكرة الخليج بالليل — مو تطبيق غربي مركّب عليه عربي.</p>
+      </div>
+      <div class="step">
+        <h3 data-i18n="why4H">بدون حاجز، بدون تكلفة</h3>
+        <p data-i18n="why4P">بدون تنزيل، وبدون تسجيل عشان تبدأ، ومجانية في التجربة. افتح غرفة بثوانٍ.</p>
       </div>
     </div>
   </section>
@@ -320,12 +348,18 @@
   </section>
 
   <footer class="footer">
-    <div data-i18n="footerTag">هلاستدي · غرفة هادية. مفتوحة طول الليل.</div>
+    <div data-i18n="footerTag">هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.</div>
     <div class="links">
       <a href="#" data-i18n="footerManifesto">البيان</a>
+      <a href="/blog" data-i18n="footerBlog">المدونة</a>
       <a href="/privacy" data-i18n="footerPrivacy">الخصوصية</a>
+      <a href="/terms" data-i18n="footerTerms">الشروط</a>
       <a href="#" data-i18n="footerStatus">الحالة</a>
       <a href="#" data-i18n="footerWhatsapp">دعوة واتساب</a>
+    </div>
+    <div class="footer-contact">
+      <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
+      <a href="tel:+966599161315" dir="ltr">+966&nbsp;59&nbsp;916&nbsp;1315</a>
     </div>
   </footer>
 
@@ -341,8 +375,18 @@
     /* ---------- i18n ---------- */
     var I18N = {
       en: {
-        navHow: 'How it works', navRooms: 'Rooms', navTonight: 'Tonight',
+        navWhy: 'Why Hala?', navHow: 'How it works', navRooms: 'Rooms', navTonight: 'Tonight', navBlog: 'Blog',
         navSignIn: 'Sign in',
+        whyEyebrow: 'Why Halastudy',
+        whyTitle1: 'Presence beats', whyTitle2: 'willpower.',
+        why1H: 'You’re not alone at the desk',
+        why1P: 'Body-doubling turns solo study into shared momentum. When someone is working across from you — camera on — you keep going too.',
+        why2H: 'Quiet by design',
+        why2P: 'Mic off by default. No talking, no performance — your presence is the whole contract.',
+        why3H: 'Built for here',
+        why3P: 'Arabic-first, Riyadh-time schedules, and the Gulf’s late-night study rhythm — not a Western app with Arabic bolted on.',
+        why4H: 'No wall, no cost',
+        why4P: 'No download, no login to start, free during beta. Open a room in seconds.',
         ctaOpen: 'Open a room', ctaOpenShort: 'Open a room', ctaJoin: 'See who’s live',
         livePillLabel: 'lamps on right now',
         illustrativeNote: 'Illustrative preview',
@@ -372,14 +416,24 @@
         member5Name: 'Mariam Fathi',   member5Major: 'Biotechnology',
         closerTitle1: 'One lamp on at 1am.', closerTitle2: 'You are not the only one.',
         closerSub: 'Halastudy is a quiet room, open all night, where the cameras stay on and the conversation stays off.',
-        footerTag: 'Halastudy · A quiet room. Open all night.',
-        footerManifesto: 'Manifesto', footerPrivacy: 'Privacy', footerStatus: 'Status', footerWhatsapp: 'WhatsApp invite',
+        footerTag: 'Halastudy · Online focus rooms for studying and working — study or work live, with serious people.',
+        footerManifesto: 'Manifesto', footerBlog: 'Blog', footerPrivacy: 'Privacy', footerTerms: 'Terms', footerStatus: 'Status', footerWhatsapp: 'WhatsApp invite',
         tileNames: ['Saud', 'Nouf', 'Tariq', 'Al-Anoud', 'Majed', 'Mariam'],
         previewNames: ['Saud', 'Nouf', 'Majed']
       },
       ar: {
-        navHow: 'كيف تشتغل', navRooms: 'الغرف', navTonight: 'الطلاب',
+        navWhy: 'ليش هلا؟', navHow: 'كيف تشتغل', navRooms: 'الغرف', navTonight: 'الطلاب', navBlog: 'المدونة',
         navSignIn: 'تسجيل الدخول',
+        whyEyebrow: 'ليش هلاستدي',
+        whyTitle1: 'الوجود', whyTitle2: 'أقوى من العزيمة.',
+        why1H: 'ما انت لحالك على المكتب',
+        why1P: 'المرافقة بالوجود تحوّل المذاكرة الفردية إلى زخم مشترك. لما فيه أحد شغّال قدامك والكاميرا مفتوحة، تكمّل معه.',
+        why2H: 'هادية بالتصميم',
+        why2P: 'المايك مقفول افتراضياً. لا كلام ولا استعراض — وجودك هو الاتفاق كله.',
+        why3H: 'مبنية لنا',
+        why3P: 'عربية أول، جداول بتوقيت الرياض، وإيقاع مذاكرة الخليج بالليل — مو تطبيق غربي مركّب عليه عربي.',
+        why4H: 'بدون حاجز، بدون تكلفة',
+        why4P: 'بدون تنزيل، وبدون تسجيل عشان تبدأ، ومجانية في التجربة. افتح غرفة بثوانٍ.',
         ctaOpen: 'افتح غرفة', ctaOpenShort: 'افتح غرفة', ctaJoin: 'شوف اللي شغّال',
         livePillLabel: 'مصباح شغّال الآن',
         illustrativeNote: 'عرض توضيحي',
@@ -409,8 +463,8 @@
         member5Name: 'مريم فتحي',  member5Major: 'تقنية حيوية',
         closerTitle1: 'مصباح واحد شغّال الساعة ١.', closerTitle2: 'انت مو لحالك.',
         closerSub: 'هلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.',
-        footerTag: 'هلاستدي · غرفة هادية. مفتوحة طول الليل.',
-        footerManifesto: 'البيان', footerPrivacy: 'الخصوصية', footerStatus: 'الحالة', footerWhatsapp: 'دعوة واتساب',
+        footerTag: 'هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.',
+        footerManifesto: 'البيان', footerBlog: 'المدونة', footerPrivacy: 'الخصوصية', footerTerms: 'الشروط', footerStatus: 'الحالة', footerWhatsapp: 'دعوة واتساب',
         tileNames: ['سعود', 'نوف', 'طارق', 'العنود', 'ماجد', 'مريم'],
         previewNames: ['سعود', 'نوف', 'ماجد']
       }

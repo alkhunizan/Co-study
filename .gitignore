@@ -8,6 +8,9 @@ data/rooms.json
 data/rooms.json.tmp
 data/users.json
 data/users.json.tmp
+# Transient legal-content source drafts (transcribed into privacy.html/terms.html)
+halastudy-privacy-policy.md
+halastudy-terms-of-service.md
 data/backups/
 playwright-report/
 test-results/

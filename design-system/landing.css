@@ -1244,6 +1244,17 @@ html[lang="ar"] .marq-item { font-family: var(--font-display-ar); font-style: no
   gap: 20px;
   flex-wrap: wrap;
 }
+.footer-contact {
+  display: inline-flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+/* Longer SEO tagline: wrap cleanly, never overflow horizontally on mobile. */
+.footer [data-i18n="footerTag"],
+.footer [data-lang="footerTag"] {
+  overflow-wrap: anywhere;
+}
 
 /* ============================================================
    DEVIATION §6: paper grain — 0.05 → 0.03 so editorial type carries
