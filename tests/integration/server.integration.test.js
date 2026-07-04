@@ -1416,6 +1416,84 @@ test('backup restore tooling and deploy verification work against the HTTP app',
     assert.notEqual(verifyFailure.status, 0);
 });
 
+test('per-user session goal rides on user-status: sanitized, broadcast, and hidden with status', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const aliceSocket = await connectSocket(server.baseUrl, { clientId: 'goal-alice' });
+    const bobSocket = await connectSocket(server.baseUrl, { clientId: 'goal-bob' });
+    t.after(async () => {
+        await closeSocket(aliceSocket);
+        await closeSocket(bobSocket);
+    });
+
+    const createRoom = await emitAck(aliceSocket, 'create-room', { roomName: 'Goal Room' });
+    assert.equal(createRoom.ok, true);
+    const roomId = createRoom.room.roomId;
+
+    assert.equal((await emitAck(aliceSocket, 'join-room', { roomId, username: 'Alice', clientId: 'goal-alice' })).ok, true);
+
+    // Bob listens for Alice's status broadcast before she emits it.
+    const statusReceived = new Promise((resolve) => {
+        bobSocket.on('status-update', (payload) => {
+            if (payload && payload.status && payload.status.goal) resolve(payload);
+        });
+    });
+    assert.equal((await emitAck(bobSocket, 'join-room', { roomId, username: 'Bob', clientId: 'goal-bob' })).ok, true);
+
+    const setStatus = await emitAck(aliceSocket, 'user-status', {
+        status: { text: 'Studying', visible: true, goal: 'Solve 25 quant questions' }
+    });
+    assert.equal(setStatus.ok, true);
+
+    const broadcast = await statusReceived;
+    assert.equal(broadcast.status.goal, 'Solve 25 quant questions');
+
+    // Join snapshot carries the goal for late joiners.
+    const carolSocket = await connectSocket(server.baseUrl, { clientId: 'goal-carol' });
+    t.after(async () => {
+        await closeSocket(carolSocket);
+    });
+    const carolJoin = await emitAck(carolSocket, 'join-room', { roomId, username: 'Carol', clientId: 'goal-carol' });
+    assert.equal(carolJoin.ok, true);
+    const aliceRecord = carolJoin.room.participants.find((p) => p.name === 'Alice');
+    assert.equal(aliceRecord.status.goal, 'Solve 25 quant questions');
+
+    // Over-long goals are truncated to 80 code points at the trust boundary,
+    // and bidi overrides (U+202E) are stripped like other user text.
+    const nextStatusUpdate = () => new Promise((resolve) => {
+        bobSocket.once('status-update', resolve);
+    });
+
+    let pending = nextStatusUpdate();
+    assert.equal((await emitAck(aliceSocket, 'user-status', {
+        status: { text: '', visible: true, goal: 'g'.repeat(120) }
+    })).ok, true);
+    assert.equal((await pending).status.goal.length, 80);
+
+    pending = nextStatusUpdate();
+    assert.equal((await emitAck(aliceSocket, 'user-status', {
+        status: { text: '', visible: true, goal: `${'‮'}reversed goal` }
+    })).ok, true);
+    assert.equal((await pending).status.goal, 'reversed goal');
+
+    // Hidden status blanks the goal server-side (privacy contract).
+    assert.equal((await emitAck(aliceSocket, 'user-status', {
+        status: { text: 'secret', visible: false, goal: 'secret goal' }
+    })).ok, true);
+
+    const daveSocket = await connectSocket(server.baseUrl, { clientId: 'goal-dave' });
+    t.after(async () => {
+        await closeSocket(daveSocket);
+    });
+    const daveJoin = await emitAck(daveSocket, 'join-room', { roomId, username: 'Dave', clientId: 'goal-dave' });
+    assert.equal(daveJoin.ok, true);
+    const hiddenAlice = daveJoin.room.participants.find((p) => p.name === 'Alice');
+    assert.equal(hiddenAlice.status.goal, '');
+    assert.equal(hiddenAlice.status.text, '');
+    assert.equal(hiddenAlice.status.visible, false);
+});
+
 test('protected room GET exposes only a safe preview and leaks no private state', async (t) => {
     const server = await startServer({ withFakeRealtimeKit: true });
     await cleanupServer(t, server);

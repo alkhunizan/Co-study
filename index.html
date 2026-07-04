@@ -80,6 +80,7 @@
         html[lang="ar"] .focus-summary-text,
         html[lang="ar"] .card-title,
         html[lang="ar"] .user-status-text,
+        html[lang="ar"] .user-goal-text,
         html[lang="ar"] .status-preview,
         html[lang="ar"] .media-state-panel,
         html[lang="ar"] .media-state-text,
@@ -220,6 +221,14 @@
             font-size: 0.85rem;
             line-height: 1.45;
         }
+        .user-goal-text {
+            color: var(--text-sec);
+            font-size: 0.8rem;
+            line-height: 1.4;
+            opacity: 0.85;
+            overflow-wrap: anywhere;
+        }
+        .status-goal-label { margin-block-start: 10px; }
         .user-empty {
             padding: 14px 16px;
             border-radius: 18px;
@@ -624,6 +633,8 @@
                 <button class="status-btn" type="button" data-status="working">💼 <span data-lang="statusWorking">Working</span></button>
             </div>
             <input type="text" id="status-custom" class="status-input" maxlength="20" data-lang-placeholder="statusCustomPlaceholder" placeholder="Custom status...">
+            <label class="status-label status-goal-label" for="status-goal" data-lang="goalLabel">Session goal</label>
+            <input type="text" id="status-goal" class="status-input" maxlength="80" data-lang-placeholder="goalPlaceholder" placeholder="What are you working on?">
             <div class="status-options">
                 <label class="status-toggle">
                     <input type="checkbox" id="status-auto-sync">
@@ -912,6 +923,9 @@
             statusAutoSync: '🔄 Sync with timer',
             statusShare: '🔒 Share with room',
             statusCustomPlaceholder: 'Custom status...',
+            goalLabel: 'Session goal',
+            goalPlaceholder: 'What are you working on?',
+            goalRecapToast: 'Focus session done — did you reach your goal?',
             ambientSound: 'Ambient sound',
             ambientTitle: 'Choose ambient sound',
             ambientShowStatus: 'Show in status',
@@ -1065,6 +1079,9 @@
             statusAutoSync: '🔄 مزامنة مع المؤقت',
             statusShare: '🔒 مشاركة مع الغرفة',
             statusCustomPlaceholder: 'حالة مخصصة...',
+            goalLabel: 'هدف الجلسة',
+            goalPlaceholder: 'على ماذا تعمل اليوم؟',
+            goalRecapToast: 'انتهت جلسة التركيز — هل حققت هدفك؟',
             ambientSound: 'الصوت المحيط',
             ambientTitle: 'اختر الصوت المحيط',
             ambientShowStatus: 'إظهاره في الحالة',
@@ -1200,6 +1217,7 @@
     const userListEl = document.getElementById('user-list');
     const userListCountEl = document.getElementById('user-list-count');
     const statusCustomInput = document.getElementById('status-custom');
+    const statusGoalInput = document.getElementById('status-goal');
     const statusAutoSyncToggle = document.getElementById('status-auto-sync');
     const statusShareToggle = document.getElementById('status-share');
     const statusPresetButtons = document.querySelectorAll('.status-btn');
@@ -1288,7 +1306,7 @@
     let boardFeedbackKey = '';
     let boardState = { goal: '', tasks: [] };
     const STATUS_PRESET_MAP = { meal: 'statusMeal', away: 'statusAway', studying: 'statusStudying', working: 'statusWorking' };
-    const statusState = { manualText: '', manualPreset: null, autoSync: false, isShared: true, lastUpdated: null };
+    const statusState = { manualText: '', manualPreset: null, goal: '', autoSync: false, isShared: true, lastUpdated: null };
     const ambientSoundState = { type: null, enabled: false, volume: 0.5, showInStatus: true, audio: null, cache: {} };
     const AMBIENT_SOUNDS = {
         rain: { src: '/audio/rain.mp3', labelKey: 'soundRain', icon: '🌧️' },
@@ -2399,6 +2417,7 @@
         return {
             text: payloadText,
             visible,
+            goal: visible ? (statusState.goal || '') : '',
             manual: statusState.manualText || '',
             manualPreset: statusState.manualPreset,
             autoSync: !!statusState.autoSync,
@@ -2420,6 +2439,7 @@
             localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify({
                 manualText: statusState.manualText,
                 manualPreset: statusState.manualPreset,
+                goal: statusState.goal,
                 autoSync: statusState.autoSync,
                 isShared: statusState.isShared
             }));
@@ -2438,10 +2458,12 @@
         if (saved) {
             statusState.manualText = saved.manualText || '';
             statusState.manualPreset = saved.manualPreset || null;
+            statusState.goal = typeof saved.goal === 'string' ? saved.goal.slice(0, 80) : '';
             statusState.autoSync = !!saved.autoSync;
             statusState.isShared = saved.isShared !== false;
         }
         if (statusCustomInput) statusCustomInput.value = statusState.manualText;
+        if (statusGoalInput) statusGoalInput.value = statusState.goal;
         if (statusAutoSyncToggle) statusAutoSyncToggle.checked = statusState.autoSync;
         if (statusShareToggle) statusShareToggle.checked = statusState.isShared;
         updateStatusPresetUI(statusState.manualPreset);
@@ -2520,6 +2542,12 @@
                 statusLine.textContent = text || '';
             }
             body.appendChild(statusLine);
+            if (record.status && record.status.visible !== false && record.status.goal) {
+                const goalLine = document.createElement('div');
+                goalLine.className = 'user-goal-text';
+                goalLine.textContent = `🎯 ${record.status.goal}`;
+                body.appendChild(goalLine);
+            }
             item.appendChild(body);
             userListEl.appendChild(item);
         });
@@ -3141,6 +3169,9 @@
                         // Signed in: sync to the account (streaks). Guest:
                         // quiet one-time nudge that these minutes are local-only.
                         onFocusSessionComplete(focusDur);
+                        if (statusState.goal && window.HalaUI) {
+                            window.HalaUI.toast(`${currentCopy().goalRecapToast} ${statusState.goal}`, { duration: 8000 });
+                        }
                     }
 
                     mode = mode==='focus' ? 'break' : 'focus';
@@ -3550,6 +3581,14 @@
             statusState.manualText = value;
             statusState.manualPreset = null;
             updateStatusPresetUI(null);
+            refreshStatusState();
+        });
+    }
+    if (statusGoalInput) {
+        statusGoalInput.addEventListener('input', () => {
+            const value = statusGoalInput.value.slice(0, 80);
+            statusGoalInput.value = value;
+            statusState.goal = value;
             refreshStatusState();
         });
     }
