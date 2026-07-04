@@ -7,6 +7,7 @@ const { spawnSync } = require('node:child_process');
 const { repoRoot, resetStateFile, makeTempStateFile } = require('../helpers/test-env');
 const { delay, startServer } = require('../helpers/server-control');
 const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
+const { signupUser } = require('../helpers/auth-helpers');
 
 const DEFAULT_ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
@@ -94,6 +95,7 @@ test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     assert.equal(ready.body.status, 'ready');
     assert.deepEqual(ready.body.checks, {
         roomStore: true,
+        userStore: true,
         socket: true,
         config: true
     });
@@ -182,7 +184,12 @@ test('persisted room state survives restart and protected join still validates p
         resetStateFile(roomStateFile);
     });
 
-    ownerSocket = await connectSocket(server.baseUrl, { clientId: 'owner-client' });
+    // Scheduled rooms require an account, so the owner signs up first.
+    const owner = await signupUser(server, { displayName: 'Owner' });
+    ownerSocket = await connectSocket(server.baseUrl, {
+        clientId: 'owner-client',
+        extraHeaders: { Cookie: owner.cookie }
+    });
 
     const createRoom = await emitAck(ownerSocket, 'create-room', {
         roomName: 'Persistence Test Room',
@@ -282,10 +289,26 @@ test('scheduled rooms validate create payloads and expose schedule summaries', a
     const server = await startServer();
     await cleanupServer(t, server);
 
-    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'schedule-owner' });
+    const owner = await signupUser(server, { displayName: 'Scheduler' });
+    const ownerSocket = await connectSocket(server.baseUrl, {
+        clientId: 'schedule-owner',
+        extraHeaders: { Cookie: owner.cookie }
+    });
     t.after(async () => {
         await closeSocket(ownerSocket);
     });
+
+    // Guests cannot create scheduled rooms at all.
+    const guestSocket = await connectSocket(server.baseUrl, { clientId: 'schedule-guest' });
+    t.after(async () => {
+        await closeSocket(guestSocket);
+    });
+    const guestScheduleCreate = await emitAck(guestSocket, 'create-room', {
+        roomName: 'Guest Schedule Room',
+        schedule: buildFutureRiyadhSchedule()
+    });
+    assert.equal(guestScheduleCreate.ok, false);
+    assert.equal(guestScheduleCreate.errorCode, 'AUTH_REQUIRED_FOR_SCHEDULED');
 
     const invalidScheduleCreate = await emitAck(ownerSocket, 'create-room', {
         roomName: 'Broken Schedule Room',
@@ -1397,7 +1420,11 @@ test('protected room GET exposes only a safe preview and leaks no private state'
     const server = await startServer({ withFakeRealtimeKit: true });
     await cleanupServer(t, server);
 
-    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'priv-owner' });
+    const owner = await signupUser(server, { displayName: 'PrivOwner' });
+    const ownerSocket = await connectSocket(server.baseUrl, {
+        clientId: 'priv-owner',
+        extraHeaders: { Cookie: owner.cookie }
+    });
     t.after(async () => {
         await closeSocket(ownerSocket);
     });

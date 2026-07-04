@@ -4,7 +4,7 @@
  * <dialog>.showModal() — focus trap, Escape, and top-layer come free; focus
  * returns to the opener on close. */
 (function attachHalastudyUI(global) {
-    'use strict';
+    
 
     var CSS = [
         '#hala-toast-region{position:fixed;inset-block-end:20px;inset-inline-end:20px;display:flex;flex-direction:column;gap:10px;z-index:2147483000;pointer-events:none;max-inline-size:min(360px,calc(100vw - 40px));}',
@@ -78,7 +78,7 @@
         }
 
         var el = document.createElement('div');
-        el.className = 'hala-toast hala-toast--' + kind;
+        el.className = `hala-toast hala-toast--${kind}`;
         el.setAttribute('role', 'status');
         el.setAttribute('aria-live', kind === 'error' ? 'assertive' : 'polite');
         el.setAttribute('data-entering', '');
@@ -99,14 +99,14 @@
         el.appendChild(msg);
         el.appendChild(close);
         region.appendChild(el);
-        requestAnimationFrame(function () { el.removeAttribute('data-entering'); });
+        requestAnimationFrame(() => { el.removeAttribute('data-entering'); });
 
         var timer = null;
         function dismiss() {
             if (timer) clearTimeout(timer);
             if (!el.parentNode) return;
             el.setAttribute('data-leaving', '');
-            setTimeout(function () {
+            setTimeout(() => {
                 if (el.parentNode) el.parentNode.removeChild(el);
             }, 240);
         }
@@ -114,7 +114,7 @@
             if (duration > 0) timer = setTimeout(dismiss, duration);
         }
         close.addEventListener('click', dismiss);
-        el.addEventListener('mouseenter', function () { if (timer) clearTimeout(timer); });
+        el.addEventListener('mouseenter', () => { if (timer) clearTimeout(timer); });
         el.addEventListener('mouseleave', arm);
         arm();
         return { dismiss: dismiss };
@@ -124,13 +124,13 @@
     function confirmDialog(options) {
         ensureCss();
         var opts = options || {};
-        return new Promise(function (resolve) {
+        return new Promise((resolve) => {
             var dialog = document.createElement('dialog');
             dialog.className = 'hala-modal';
 
             var title = document.createElement('h2');
             title.className = 'hala-modal__title';
-            title.id = 'hala-modal-title-' + Date.now();
+            title.id = `hala-modal-title-${Date.now()}`;
             title.textContent = opts.title || '';
             dialog.setAttribute('aria-labelledby', title.id);
 
@@ -153,7 +153,7 @@
             actions.className = 'hala-modal__actions';
             var confirmBtn = document.createElement('button');
             confirmBtn.type = 'button';
-            confirmBtn.className = 'hala-modal__btn ' + (opts.destructive ? 'hala-modal__btn--danger' : 'hala-modal__btn--confirm');
+            confirmBtn.className = `hala-modal__btn ${opts.destructive ? 'hala-modal__btn--danger' : 'hala-modal__btn--confirm'}`;
             confirmBtn.textContent = opts.confirmLabel || 'OK';
             var cancelBtn = document.createElement('button');
             cancelBtn.type = 'button';
@@ -170,7 +170,7 @@
 
             if (input) {
                 confirmBtn.disabled = true;
-                input.addEventListener('input', function () {
+                input.addEventListener('input', () => {
                     confirmBtn.disabled = input.value.trim() !== opts.typedConfirmation;
                 });
             }
@@ -182,10 +182,10 @@
                 dialog.close();
                 resolve(result);
             }
-            confirmBtn.addEventListener('click', function () { finish(true); });
-            cancelBtn.addEventListener('click', function () { finish(false); });
-            dialog.addEventListener('cancel', function () { finish(false); });
-            dialog.addEventListener('close', function () {
+            confirmBtn.addEventListener('click', () => { finish(true); });
+            cancelBtn.addEventListener('click', () => { finish(false); });
+            dialog.addEventListener('cancel', () => { finish(false); });
+            dialog.addEventListener('close', () => {
                 if (!settled) { settled = true; resolve(false); }
                 dialog.remove();
             });
@@ -239,7 +239,7 @@
             var items = opts.menuItems || [
                 { label: opts.accountLabel || 'Account', href: '/account.html' }
             ];
-            items.forEach(function (item) {
+            items.forEach((item) => {
                 var node;
                 if (item.href) {
                     node = document.createElement('a');
@@ -247,12 +247,12 @@
                 } else {
                     node = document.createElement('button');
                     node.type = 'button';
-                    node.addEventListener('click', function () {
+                    node.addEventListener('click', () => {
                         closeMenu();
                         if (item.onSelect) item.onSelect();
                     });
                 }
-                node.className = 'hala-chip__item' + (item.danger ? ' hala-chip__item--danger' : '');
+                node.className = `hala-chip__item${item.danger ? ' hala-chip__item--danger' : ''}`;
                 node.setAttribute('role', 'menuitem');
                 node.textContent = item.label;
                 menu.appendChild(node);
@@ -263,10 +263,10 @@
             if (first) first.focus();
         }
         chip.addEventListener('click', openMenu);
-        document.addEventListener('click', function (event) {
+        document.addEventListener('click', (event) => {
             if (menu && !wrap.contains(/** @type {Node} */ (event.target))) closeMenu();
         });
-        document.addEventListener('keydown', function (event) {
+        document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') closeMenu();
         });
 

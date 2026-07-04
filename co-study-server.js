@@ -13,6 +13,9 @@ const {
 } = require('./server-config');
 const { createLogger } = require('./services/logging/logger');
 const { hashPassword, verifyPassword } = require('./services/auth/password');
+const { createSessionToken, verifySessionToken } = require('./services/auth');
+const { createAuthRouter } = require('./services/auth/auth-routes');
+const { createUserStore, recordMyRoom } = require('./user-store');
 const { createVideoProvider } = require('./services/video');
 const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
 const {
@@ -26,6 +29,11 @@ const ROOM_HISTORY_LIMIT = 80;
 const ROOM_TTL_MS = 1000 * 60 * 30;
 const SESSION_COOKIE_NAME = 'coStudySessionId';
 const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+const AUTH_COOKIE_NAME = 'coStudyAuth';
+const AUTH_COOKIE_MAX_AGE_MS = SESSION_COOKIE_MAX_AGE * 1000;
+const ADMIN_COOKIE_NAME = 'coStudyAdmin';
+const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const ADMIN_USER_ID = 'admin';
 const CLIENT_ID_MAX_LENGTH = 64;
 const ROOM_CODE_LENGTH = 6;
 const ROOM_NAME_MAX_LENGTH = 48;
@@ -52,6 +60,13 @@ const BOARD_RATE = { limit: 40, windowMs: 30 * 1000 };
 const VIDEO_TOKEN_RATE = { limit: 12, windowMs: 60 * 1000 };
 const VIDEO_HEARTBEAT_RATE = { limit: 90, windowMs: 60 * 1000 };
 const VIDEO_SESSION_SWEEP_MS = 60 * 1000;
+const AUTH_SIGNUP_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
+const AUTH_LOGIN_RATE = { limit: 10, windowMs: 15 * 60 * 1000 };
+const AUTH_FAILURE_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
+const PROFILE_MUTATION_RATE = { limit: 20, windowMs: 5 * 60 * 1000 };
+const FOCUS_LOG_RATE = { limit: 30, windowMs: 60 * 60 * 1000 };
+const ADMIN_LOGIN_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
+const METRICS_RATE = { limit: 30, windowMs: 60 * 1000 };
 
 class SlidingWindowRateLimiter {
     constructor({ limit, windowMs }) {
@@ -521,6 +536,17 @@ function buildIdentityKey(roomId, sessionId, clientId) {
     return `${roomId}:${sessionId || ''}:${clientId || ''}`;
 }
 
+function appendSetCookie(res, cookie) {
+    const existing = res.getHeader('Set-Cookie');
+    if (!existing) {
+        res.setHeader('Set-Cookie', cookie);
+    } else if (Array.isArray(existing)) {
+        res.setHeader('Set-Cookie', [...existing, cookie]);
+    } else {
+        res.setHeader('Set-Cookie', [existing, cookie]);
+    }
+}
+
 function parseCookies(cookieHeader = '') {
     return cookieHeader.split(';').reduce((acc, part) => {
         if (!part) return acc;
@@ -690,7 +716,14 @@ function createCoStudyServer(options = {}) {
         chatMessages: new SlidingWindowRateLimiter(CHAT_RATE),
         boardMutations: new SlidingWindowRateLimiter(BOARD_RATE),
         videoToken: new SlidingWindowRateLimiter(VIDEO_TOKEN_RATE),
-        videoHeartbeat: new SlidingWindowRateLimiter(VIDEO_HEARTBEAT_RATE)
+        videoHeartbeat: new SlidingWindowRateLimiter(VIDEO_HEARTBEAT_RATE),
+        authSignup: new SlidingWindowRateLimiter(AUTH_SIGNUP_RATE),
+        authLogin: new SlidingWindowRateLimiter(AUTH_LOGIN_RATE),
+        authFailure: new SlidingWindowRateLimiter(AUTH_FAILURE_RATE),
+        profileMutation: new SlidingWindowRateLimiter(PROFILE_MUTATION_RATE),
+        focusLog: new SlidingWindowRateLimiter(FOCUS_LOG_RATE),
+        adminLogin: new SlidingWindowRateLimiter(ADMIN_LOGIN_RATE),
+        metrics: new SlidingWindowRateLimiter(METRICS_RATE)
     };
     const videoProvider = createVideoProvider({ config: config.video, logger });
     const videoSessionRegistry = createVideoSessionRegistry({ logger });
@@ -700,9 +733,22 @@ function createCoStudyServer(options = {}) {
             message
         });
     });
+    if (config.sessionSecretEphemeral) {
+        logger.warn({
+            event: 'session_secret_ephemeral',
+            message: 'SESSION_SECRET is not set — using an ephemeral secret; all sessions reset on restart.'
+        });
+    }
+    if (config.admin.partial) {
+        logger.warn({
+            event: 'admin_config_partial',
+            message: 'Only one of ADMIN_PATH / ADMIN_PASSWORD_HASH is set — admin portal stays disabled.'
+        });
+    }
     const readinessState = {
         config: true,
         roomStore: false,
+        userStore: false,
         socket: false
     };
 
@@ -750,6 +796,106 @@ function createCoStudyServer(options = {}) {
         sanitizeBoardTaskText,
         normalizeBoardPriority
     });
+
+    const userStore = createUserStore({
+        filePath: config.userStateFile,
+        logger
+    });
+    /** @type {Map<string, any>} userId -> user record */
+    const users = new Map();
+    /** @type {Map<string, string>} normalized email -> userId */
+    const usersByEmail = new Map();
+
+    function persistUsersSoon() {
+        return userStore.scheduleSave(users);
+    }
+
+    function loadPersistedUsers() {
+        const persistedUsers = userStore.loadUsers({ strict: true });
+        persistedUsers.forEach((user) => {
+            users.set(user.id, user);
+            usersByEmail.set(user.email, user.id);
+        });
+        readinessState.userStore = true;
+        return persistedUsers.length;
+    }
+
+    /** Public projection — never expose passwordHash/tokenEpoch. */
+    function publicUser(user) {
+        return {
+            id: user.id,
+            email: user.email,
+            displayName: user.displayName,
+            avatarColor: user.avatarColor,
+            bio: user.bio,
+            createdAt: user.createdAt,
+            streak: { ...user.streak }
+        };
+    }
+
+    function setAuthCookie(req, res, user) {
+        const token = createSessionToken({
+            userId: user.id,
+            tokenEpoch: user.tokenEpoch,
+            secret: config.sessionSecret
+        });
+        const cookieParts = [
+            `${AUTH_COOKIE_NAME}=${token}`,
+            'Path=/',
+            'HttpOnly',
+            'SameSite=Lax',
+            `Max-Age=${SESSION_COOKIE_MAX_AGE}`
+        ];
+        if (req.secure) {
+            cookieParts.push('Secure');
+        }
+        appendSetCookie(res, cookieParts.join('; '));
+    }
+
+    function clearAuthCookie(req, res) {
+        const cookieParts = [
+            `${AUTH_COOKIE_NAME}=`,
+            'Path=/',
+            'HttpOnly',
+            'SameSite=Lax',
+            'Max-Age=0'
+        ];
+        if (req.secure) {
+            cookieParts.push('Secure');
+        }
+        appendSetCookie(res, cookieParts.join('; '));
+    }
+
+    /** Resolves a verified, live (not banned, epoch-current) user from an
+     *  auth token string, or null. Shared by HTTP middleware and sockets. */
+    function resolveUserFromToken(token) {
+        const verified = verifySessionToken(token, {
+            secret: config.sessionSecret,
+            maxAgeMs: AUTH_COOKIE_MAX_AGE_MS
+        });
+        if (!verified || verified.userId === ADMIN_USER_ID) return null;
+        const user = users.get(verified.userId);
+        if (!user || user.banned || user.tokenEpoch !== verified.tokenEpoch) return null;
+        return user;
+    }
+
+    function attachUser(req, _res, next) {
+        const cookies = parseCookies(req.headers.cookie || '');
+        const user = resolveUserFromToken(cookies[AUTH_COOKIE_NAME]);
+        if (user) {
+            req.user = user;
+            req.userId = user.id;
+        }
+        next();
+    }
+
+    function requireUser(req, res, next) {
+        if (!req.user) {
+            res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+            return;
+        }
+        next();
+    }
 
     function getDefaultRoomVideoPolicy(policy = {}) {
         const basePolicy = buildVideoPolicy(config.video);
@@ -875,7 +1021,9 @@ function createCoStudyServer(options = {}) {
                 name: user.name,
                 joinedAt: user.joinedAt,
                 cameraOn: !!user.cameraOn,
-                status: user.status || null
+                status: user.status || null,
+                avatarColor: user.avatarColor || null,
+                streakCurrent: Number.isInteger(user.streakCurrent) ? user.streakCurrent : null
             })),
             messages: room.messages,
             board,
@@ -1275,7 +1423,7 @@ function createCoStudyServer(options = {}) {
             if (req.secure) {
                 cookieParts.push('Secure');
             }
-            res.setHeader('Set-Cookie', cookieParts.join('; '));
+            appendSetCookie(res, cookieParts.join('; '));
         }
         req.sessionId = sessionId;
         next();
@@ -1284,6 +1432,7 @@ function createCoStudyServer(options = {}) {
     function evaluateReadiness({ logFailures = false } = {}) {
         const checks = {
             roomStore: readinessState.roomStore,
+            userStore: readinessState.userStore,
             // @ts-expect-error internal socket.io flag for closed state
             socket: readinessState.socket && !io._closed,
             config: readinessState.config
@@ -1305,6 +1454,7 @@ function createCoStudyServer(options = {}) {
     }
 
     const loadedRoomCount = loadPersistedRooms();
+    const loadedUserCount = loadPersistedUsers();
     const videoSweepTimer = setInterval(() => {
         const ended = videoSessionRegistry.sweepStaleVideoSessions();
         emitEndedVideoSessions(ended);
@@ -1317,11 +1467,15 @@ function createCoStudyServer(options = {}) {
         isShuttingDown = true;
         clearInterval(videoSweepTimer);
         console.log(`Received ${signal}. Persisting room state to ${roomStore.filePath}...`);
-        try {
-            await roomStore.flush(rooms);
-        } catch (err) {
-            console.error('Final room state flush failed:', err);
-        }
+        const flushResults = await Promise.allSettled([
+            roomStore.flush(rooms),
+            userStore.flush(users)
+        ]);
+        flushResults.forEach((result) => {
+            if (result.status === 'rejected') {
+                console.error('Final state flush failed:', result.reason);
+            }
+        });
         server.close(() => {
             process.exit(0);
         });
@@ -1340,6 +1494,7 @@ function createCoStudyServer(options = {}) {
     app.use(originGuard);
     app.use(express.json());
     app.use(sessionMiddleware);
+    app.use(attachUser);
     app.use('/audio', express.static(path.join(__dirname, 'audio'), { maxAge: '7d' }));
     app.use('/images', express.static(path.join(__dirname, 'images'), { maxAge: '1d' }));
     // Raw source footage lives beside the published clips (gitignored, but
@@ -1353,6 +1508,22 @@ function createCoStudyServer(options = {}) {
         if (req.path.endsWith('.css')) return next();
         res.status(404).end();
     }, express.static(path.join(__dirname, 'design-system'), { maxAge: '1d' }));
+
+    app.use('/api', createAuthRouter({
+        users,
+        usersByEmail,
+        rooms,
+        rateLimiters,
+        applyHttpRateLimit,
+        getRequestIp,
+        publicUser,
+        setAuthCookie,
+        clearAuthCookie,
+        persistUsersSoon,
+        flushUsers: () => userStore.flush(users),
+        requireUser,
+        logger
+    }));
 
     app.get('/api/health', (_req, res) => {
         res.json({
@@ -1642,6 +1813,18 @@ function createCoStudyServer(options = {}) {
         socket.data.clientId = handshakeClientId || sessionId;
         socket.data.ip = ip;
 
+        // Same-origin pages send cookies on the Socket.IO handshake, so a
+        // signed-in browser gets its account attached to the socket.
+        const handshakeCookies = parseCookies(socket.handshake?.headers?.cookie || '');
+        const authedUser = resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME]);
+        socket.data.userId = authedUser ? authedUser.id : null;
+
+        function getSocketUser() {
+            if (!socket.data.userId) return null;
+            const user = users.get(socket.data.userId);
+            return user && !user.banned ? user : null;
+        }
+
         socket.on('create-room', async (payload = {}, ack = () => {}) => {
             const { roomName, password, requirePassword } = payload;
             const cleanName = sanitizeRoomName(roomName);
@@ -1668,6 +1851,11 @@ function createCoStudyServer(options = {}) {
             }
             if (payload.schedule !== undefined && payload.schedule !== null && !schedule) {
                 return ackError(ack, 'SCHEDULE_INVALID');
+            }
+            // Scheduled rooms attach attendance/streak commitments — those need
+            // a real account. Instant rooms stay guest-open.
+            if (schedule && !getSocketUser()) {
+                return ackError(ack, 'AUTH_REQUIRED_FOR_SCHEDULED');
             }
 
             const roomCode = generateRoomCode(rooms);
@@ -1700,6 +1888,13 @@ function createCoStudyServer(options = {}) {
 
             scheduleRoomCleanup(roomCode);
             persistRoomsSoon();
+
+            const creator = getSocketUser();
+            if (creator) {
+                recordMyRoom(creator, { roomId: roomCode, name: cleanName, role: 'created' });
+                persistUsersSoon();
+            }
+
             const snapshot = roomSnapshot(roomCode);
 
             return ack({
@@ -1817,6 +2012,7 @@ function createCoStudyServer(options = {}) {
             }
 
             const scheduleChanged = recordScheduleJoin(room.schedule, Date.now());
+            const joiningUser = getSocketUser();
             const userRecord = {
                 socketId: socket.id,
                 name: cleanName,
@@ -1825,8 +2021,17 @@ function createCoStudyServer(options = {}) {
                 identityKey,
                 joinedAt: Date.now(),
                 cameraOn: false,
-                status: null
+                status: null,
+                // Profile perks relayed to peers via presence (user content,
+                // not chrome — single-accent rule stays intact client-side).
+                avatarColor: joiningUser ? joiningUser.avatarColor : null,
+                streakCurrent: joiningUser ? joiningUser.streak.current : null
             };
+
+            if (joiningUser) {
+                recordMyRoom(joiningUser, { roomId: normalizedRoom, name: room.name, role: 'joined' });
+                persistUsersSoon();
+            }
 
             room.users.set(socket.id, userRecord);
             if (identityKey) {
@@ -2163,7 +2368,11 @@ function createCoStudyServer(options = {}) {
                 mode: config.mode,
                 port: config.port,
                 roomStateFile: roomStore.filePath,
+                userStateFile: userStore.filePath,
                 loadedRoomCount,
+                loadedUserCount,
+                sessionSecretEphemeral: !!config.sessionSecretEphemeral,
+                adminEnabled: !!config.admin.enabled,
                 iceMode: config.iceMode,
                 sfuAvailable: config.sfuAvailable,
                 meshParticipantLimit: config.meshParticipantLimit,
@@ -2190,12 +2399,17 @@ function createCoStudyServer(options = {}) {
         io,
         config,
         roomStore,
+        userStore,
         videoSessionRegistry,
         rooms,
+        users,
         listen,
         evaluateReadiness,
         getLoadedRoomCount() {
             return loadedRoomCount;
+        },
+        getLoadedUserCount() {
+            return loadedUserCount;
         }
     };
 }

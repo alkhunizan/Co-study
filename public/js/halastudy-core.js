@@ -7,7 +7,7 @@
  * the three original pages keep their own engines), postJson, and the auth
  * session cache (HalaAuth). No socket, form, or timer logic lives here. */
 (function attachHalastudyCore(global) {
-    'use strict';
+    
 
     var LANG_KEY = 'halastudyLang';
     var THEME_KEY = 'halastudyTheme';
@@ -31,31 +31,31 @@
                 coStudyRoomPassword: 'halastudyRoomPassword',
                 coStudyRoomCode: 'halastudyRoomCode'
             };
-            Object.keys(localMap).forEach(function (oldK) {
+            Object.keys(localMap).forEach((oldK) => {
                 const v = localStorage.getItem(oldK);
                 if (v !== null && localStorage.getItem(localMap[oldK]) === null) {
                     localStorage.setItem(localMap[oldK], v);
                 }
             });
-            Object.keys(sessionMap).forEach(function (oldK) {
+            Object.keys(sessionMap).forEach((oldK) => {
                 const v = sessionStorage.getItem(oldK);
                 if (v !== null && sessionStorage.getItem(sessionMap[oldK]) === null) {
                     sessionStorage.setItem(sessionMap[oldK], v);
                 }
             });
             localStorage.setItem(SENTINEL, String(Date.now()));
-        } catch (e) { /* storage unavailable — skip */ }
+        } catch (_e) { /* storage unavailable — skip */ }
     })();
 
     /* ---------- theme ---------- */
     function getStoredTheme() {
-        try { return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light'; } catch (e) { return 'light'; }
+        try { return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light'; } catch (_e) { return 'light'; }
     }
     function applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
     }
     function setTheme(theme) {
-        try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+        try { localStorage.setItem(THEME_KEY, theme); } catch (_e) {}
         applyTheme(theme);
     }
     function toggleTheme() {
@@ -67,10 +67,10 @@
 
     /* ---------- language ---------- */
     function getLang() {
-        try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ar'; } catch (e) { return 'ar'; }
+        try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ar'; } catch (_e) { return 'ar'; }
     }
     function setStoredLang(lang) {
-        try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
+        try { localStorage.setItem(LANG_KEY, lang); } catch (_e) {}
     }
 
     /* Lang engine for pages without their own (account.html, 404.html).
@@ -92,36 +92,36 @@
         document.documentElement.lang = langState.lang;
         document.documentElement.dir = langState.lang === 'ar' ? 'rtl' : 'ltr';
         if (copy.pageTitle) document.title = copy.pageTitle;
-        ['data-i18n', 'data-lang'].forEach(function (attr) {
-            document.querySelectorAll('[' + attr + ']').forEach(function (el) {
+        ['data-i18n', 'data-lang'].forEach((attr) => {
+            document.querySelectorAll(`[${attr}]`).forEach((el) => {
                 var key = el.getAttribute(attr);
                 if (copy[key] != null) el.textContent = copy[key];
             });
         });
-        document.querySelectorAll('[data-lang-placeholder]').forEach(function (el) {
+        document.querySelectorAll('[data-lang-placeholder]').forEach((el) => {
             var key = el.getAttribute('data-lang-placeholder');
             if (copy[key] != null) el.setAttribute('placeholder', copy[key]);
         });
-        document.querySelectorAll('[data-lang-title]').forEach(function (el) {
+        document.querySelectorAll('[data-lang-title]').forEach((el) => {
             var key = el.getAttribute('data-lang-title');
             if (copy[key] != null) el.setAttribute('title', copy[key]);
         });
-        document.querySelectorAll('[data-lang-aria]').forEach(function (el) {
+        document.querySelectorAll('[data-lang-aria]').forEach((el) => {
             var key = el.getAttribute('data-lang-aria');
             if (copy[key] != null) el.setAttribute('aria-label', copy[key]);
         });
-        document.querySelectorAll('[data-lang-value]').forEach(function (b) {
+        document.querySelectorAll('[data-lang-value]').forEach((b) => {
             b.classList.toggle('is-on', b.getAttribute('data-lang-value') === langState.lang);
         });
-        langState.listeners.forEach(function (cb) {
-            try { cb(langState.lang, copy); } catch (e) {}
+        langState.listeners.forEach((cb) => {
+            try { cb(langState.lang, copy); } catch (_e) {}
         });
     }
 
     function initLang(dict) {
         langState.dict = dict;
-        document.querySelectorAll('[data-lang-value]').forEach(function (b) {
-            b.addEventListener('click', function () {
+        document.querySelectorAll('[data-lang-value]').forEach((b) => {
+            b.addEventListener('click', () => {
                 langState.lang = b.getAttribute('data-lang-value') === 'en' ? 'en' : 'ar';
                 setStoredLang(langState.lang);
                 applyLangToDom();
@@ -142,8 +142,7 @@
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body || {});
         }
-        return fetch(url, options).then(function (response) {
-            return response.json().catch(function () { return {}; }).then(function (payload) {
+        return fetch(url, options).then((response) => response.json().catch(() => ({})).then((payload) => {
                 if (!response.ok) {
                     /** @type {Error & { status?: number, code?: string, payload?: any }} */
                     const error = new Error(`Request failed: ${response.status}`);
@@ -153,8 +152,7 @@
                     throw error;
                 }
                 return payload;
-            });
-        });
+            }));
     }
 
     /* ---------- auth session cache ---------- */
@@ -163,8 +161,8 @@
     function getUser() {
         if (!userPromise) {
             userPromise = requestJson('GET', '/api/auth/me')
-                .then(function (payload) { return payload && payload.user ? payload.user : null; })
-                .catch(function () { return null; });
+                .then((payload) => payload?.user ? payload.user : null)
+                .catch(() => null);
         }
         return userPromise;
     }
@@ -176,8 +174,8 @@
 
     function signout() {
         return requestJson('POST', '/api/auth/logout')
-            .catch(function () { /* already signed out */ })
-            .then(function () { userPromise = Promise.resolve(null); return null; });
+            .catch(() => { /* already signed out */ })
+            .then(() => { userPromise = Promise.resolve(null); return null; });
     }
 
     /* Swap the quiet "Sign in" topbar link (#auth-entry) for the avatar chip
@@ -185,7 +183,7 @@
     function initAuthEntry() {
         var entry = document.getElementById('auth-entry');
         if (!entry) return;
-        getUser().then(function (user) {
+        getUser().then((user) => {
             if (!user) return;
             const ui = (/** @type {any} */ (global)).HalaUI;
             if (ui && typeof ui.renderAuthChip === 'function') {
@@ -206,13 +204,13 @@
     (/** @type {any} */ (global)).HalaCore = {
         getLang: getLang,
         initLang: initLang,
-        t: function (key) { return activeCopy()[key]; },
-        onLangChange: function (cb) { langState.listeners.push(cb); },
+        t: (key) => activeCopy()[key],
+        onLangChange: (cb) => { langState.listeners.push(cb); },
         applyTheme: applyTheme,
         setTheme: setTheme,
         toggleTheme: toggleTheme,
         requestJson: requestJson,
-        postJson: function (url, body) { return requestJson('POST', url, body); }
+        postJson: (url, body) => requestJson('POST', url, body)
     };
 
     (/** @type {any} */ (global)).HalaAuth = {

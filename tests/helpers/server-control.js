@@ -77,6 +77,10 @@ function request(baseUrl, pathname, options = {}) {
             if (!requestOptions.headers['Content-Type']) {
                 req.setHeader('Content-Type', 'application/json');
             }
+            // Node's http client does not chunk bodies on DELETE (and other
+            // bodyless-by-default methods); without an explicit length the
+            // server sees a malformed request and answers 400.
+            req.setHeader('Content-Length', Buffer.byteLength(payload));
             req.write(payload);
         }
 
