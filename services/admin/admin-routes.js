@@ -36,6 +36,7 @@ function createAdminRouter(deps) {
         buildScheduleSummary,
         deleteRoom,
         persistUsersSoon,
+        dashboard,
         logger
     } = deps;
 
@@ -163,6 +164,35 @@ function createAdminRouter(deps) {
                 lastError: backupScheduler.status.lastError
             }
         });
+    });
+
+    // ---- dashboard (Supabase views: aggregates + time-series not held in
+    // memory). Absent backend → available:false, so the console degrades
+    // gracefully to its in-memory overview. ----
+
+    router.get('/api/dashboard', requireAdmin, async (_req, res) => {
+        if (!dashboard) {
+            res.json({ ok: true, available: false, source: 'memory' });
+            return;
+        }
+        try {
+            const [overview, userStats, dailyActive] = await Promise.all([
+                dashboard.overview(),
+                dashboard.userStats(),
+                dashboard.dailyActive()
+            ]);
+            res.json({
+                ok: true,
+                available: true,
+                source: 'supabase',
+                overview: Array.isArray(overview) ? overview[0] || null : null,
+                userStats: Array.isArray(userStats) ? userStats : [],
+                dailyActive: Array.isArray(dailyActive) ? dailyActive : []
+            });
+        } catch (error) {
+            logger.warn({ event: 'admin_dashboard_failed', error: error && error.message });
+            res.status(502).json({ errorCode: 'DASHBOARD_UNAVAILABLE' });
+        }
     });
 
     // ---- rooms ----

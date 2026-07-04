@@ -18,7 +18,10 @@ const { createAdminRouter } = require('./services/admin/admin-routes');
 const { hashPassword, verifyPassword } = require('./services/auth/password');
 const { createSessionToken, verifySessionToken } = require('./services/auth');
 const { createAuthRouter } = require('./services/auth/auth-routes');
+const { createGoogleAuthRouter } = require('./services/auth/google-routes');
 const { createUserStore, recordMyRoom } = require('./user-store');
+const { createSupabaseClient } = require('./services/supabase/client');
+const { createSupabaseUserStore } = require('./supabase-user-store');
 const { createVideoProvider } = require('./services/video');
 const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
 const {
@@ -360,6 +363,21 @@ function resolveRuntimeIceServers(rawValue) {
     }
 }
 
+function resolveSupabaseConfig(env) {
+    const url = typeof env.SUPABASE_URL === 'string' ? env.SUPABASE_URL.trim().replace(/\/+$/, '') : '';
+    const serviceKey = typeof env.SUPABASE_SERVICE_ROLE_KEY === 'string' ? env.SUPABASE_SERVICE_ROLE_KEY.trim() : '';
+    return { enabled: !!(url && serviceKey), url, serviceKey };
+}
+
+function resolveGoogleConfig(env, allowedOrigins) {
+    const clientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
+    const clientSecret = typeof env.GOOGLE_CLIENT_SECRET === 'string' ? env.GOOGLE_CLIENT_SECRET.trim() : '';
+    const explicitRedirect = typeof env.GOOGLE_REDIRECT_URI === 'string' ? env.GOOGLE_REDIRECT_URI.trim() : '';
+    const fallbackBase = Array.isArray(allowedOrigins) && allowedOrigins[0] ? allowedOrigins[0] : '';
+    const redirectUri = explicitRedirect || (fallbackBase ? `${fallbackBase}/auth/google/callback` : '');
+    return { enabled: !!(clientId && clientSecret && redirectUri), clientId, clientSecret, redirectUri };
+}
+
 function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
     const portEnvName = mode === 'https' ? 'HTTPS_PORT' : 'PORT';
     const defaultPort = mode === 'https' ? DEFAULT_HTTPS_PORT : DEFAULT_HTTP_PORT;
@@ -374,6 +392,8 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
     const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS);
     const trustProxy = parseTrustProxy(env.TRUST_PROXY);
     const sfuBaseUrl = parseSfuBaseUrl(env.SFU_BASE_URL);
+    const supabase = resolveSupabaseConfig(env);
+    const google = resolveGoogleConfig(env, allowedOrigins);
     const video = resolveVideoConfig(env);
     const meshParticipantLimit = parsePositiveInteger(
         env.MESH_PARTICIPANT_LIMIT,
@@ -404,6 +424,8 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
         meshParticipantLimit,
         runtimeIceServers: runtimeIce.iceServers,
         iceMode: runtimeIce.source,
+        supabase,
+        google,
         video
     };
 }
@@ -584,12 +606,15 @@ function isSameIdentity(record = {}, sessionId, clientId) {
 /** @param {Record<string, any>} input */
 function sanitizeStatus(input = {}) {
     if (!input || typeof input !== 'object') {
-        return { text: '', visible: false, updatedAt: Date.now() };
+        return { text: '', goal: '', visible: false, updatedAt: Date.now() };
     }
     const visible = input.visible !== false;
     const safeText = typeof input.text === 'string' ? input.text.slice(0, 80) : '';
     return {
         text: visible ? safeText : '',
+        // Session goal rides on status: same 80-char cap as the board goal,
+        // stripped at the trust boundary, hidden when status is hidden.
+        goal: visible ? sanitizeUserText(input.goal, 80) : '',
         visible,
         manual: typeof input.manual === 'string' ? input.manual.slice(0, 40) : '',
         manualPreset: typeof input.manualPreset === 'string' ? input.manualPreset : null,
@@ -816,10 +841,21 @@ function createCoStudyServer(options = {}) {
         normalizeBoardPriority
     });
 
-    const userStore = createUserStore({
-        filePath: config.userStateFile,
-        logger
-    });
+    // Persistence backend: Supabase profiles table when configured (accounts +
+    // dashboards), otherwise the local users.json file store (dev default).
+    let supabaseClient = null;
+    let userStore;
+    if (config.supabase.enabled) {
+        supabaseClient = createSupabaseClient({
+            url: config.supabase.url,
+            serviceKey: config.supabase.serviceKey
+        });
+        userStore = createSupabaseUserStore({ client: supabaseClient, logger });
+        logger.info({ event: 'user_store_backend', backend: 'supabase' });
+    } else {
+        userStore = createUserStore({ filePath: config.userStateFile, logger });
+        logger.info({ event: 'user_store_backend', backend: 'file' });
+    }
 
     const backupScheduler = createBackupScheduler({
         intervalMinutes: config.backup.intervalMinutes,
@@ -827,7 +863,9 @@ function createCoStudyServer(options = {}) {
         backupDir: config.roomStateBackupDir,
         targets: [
             { label: 'rooms', filePath: config.roomStateFile },
-            { label: 'users', filePath: config.userStateFile }
+            // Skip the users.json backup target when Supabase owns accounts —
+            // the file is never written in that mode.
+            ...(config.supabase.enabled ? [] : [{ label: 'users', filePath: config.userStateFile }])
         ],
         logger
     });
@@ -841,6 +879,25 @@ function createCoStudyServer(options = {}) {
     }
 
     function loadPersistedUsers() {
+        // Supabase load is async (network); the file store is sync (disk). For
+        // Supabase we hydrate in the background and flip readiness when done —
+        // /api/ready stays not-ready until then, so the boot path never blocks.
+        if (typeof userStore.hydrate === 'function') {
+            userStore.hydrate()
+                .then((persistedUsers) => {
+                    for (const user of persistedUsers) {
+                        if (users.has(user.id)) continue; // don't clobber a signup that raced boot
+                        users.set(user.id, user);
+                        usersByEmail.set(user.email, user.id);
+                    }
+                    readinessState.userStore = true;
+                    logger.info({ event: 'user_store_hydrated', backend: 'supabase', count: persistedUsers.length });
+                })
+                .catch((error) => {
+                    logger.error({ event: 'user_store_hydrate_failed', error: error && error.message });
+                });
+            return 0;
+        }
         const persistedUsers = userStore.loadUsers({ strict: true });
         persistedUsers.forEach((user) => {
             users.set(user.id, user);
@@ -1554,6 +1611,27 @@ function createCoStudyServer(options = {}) {
         persistUsersSoon,
         flushUsers: () => userStore.flush(users),
         requireUser,
+        // Analytics event log (Supabase only) — powers user + admin dashboards.
+        logFocusSession: typeof userStore.logFocusSession === 'function'
+            ? (payload) => userStore.logFocusSession(payload)
+            : null,
+        logger
+    }));
+
+    // Google OAuth (only mounts real handlers when GOOGLE_* env is set; every
+    // route 404s otherwise, exactly like an unknown path).
+    app.use('/', createGoogleAuthRouter({
+        config: config.google,
+        users,
+        usersByEmail,
+        rateLimiters,
+        applyHttpRateLimit,
+        getRequestIp,
+        setAuthCookie,
+        appendSetCookie,
+        parseCookies,
+        persistUsersSoon,
+        sessionSecret: config.sessionSecret,
         logger
     }));
 
@@ -1610,7 +1688,8 @@ function createCoStudyServer(options = {}) {
             activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
             maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
             videoJoinDisabled: isVideoJoinDisabled(),
-            publicApiBaseUrl: config.video.publicApiBaseUrl
+            publicApiBaseUrl: config.video.publicApiBaseUrl,
+            googleAuthEnabled: config.google.enabled
         });
     });
 
@@ -1889,6 +1968,13 @@ function createCoStudyServer(options = {}) {
             buildScheduleSummary,
             deleteRoom,
             persistUsersSoon,
+            dashboard: typeof userStore.readAdminOverview === 'function'
+                ? {
+                    overview: () => userStore.readAdminOverview(),
+                    userStats: () => userStore.readUserStats(),
+                    dailyActive: () => userStore.readDailyActive()
+                }
+                : null,
             logger
         }));
     }

@@ -124,7 +124,7 @@ function applyFocusSession(user, { minutes, now = Date.now() } = /** @type {any}
     }
     streak.lastActiveDay = dayKey;
     streak.best = Math.max(streak.best, streak.current);
-    return { focusStats: stats, streak };
+    return { focusStats: stats, streak, dayKey, minutes: safeMinutes };
 }
 
 /**
@@ -148,6 +148,41 @@ function recordMyRoom(user, { roomId, name, role, now = Date.now() } = /** @type
     user.myRooms.length = Math.min(user.myRooms.length, MY_ROOMS_LIMIT);
 }
 
+/** The persisted store (users.json OR the Supabase profiles table) is a trust
+ *  boundary — everything loaded is re-sanitized, mirroring room-store's
+ *  sanitizeRoom. Module-level + pure so both the file store and the Supabase
+ *  store share one canonical sanitizer.
+ *  @param {Record<string, any>} raw */
+function sanitizeUser(raw = {}) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+
+    const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : null;
+    const email = normalizeEmail(raw.email);
+    const passwordHash = typeof raw.passwordHash === 'string' && raw.passwordHash.includes(':')
+        ? raw.passwordHash.trim()
+        : null;
+    const displayName = sanitizeUserText(raw.displayName, DISPLAY_NAME_MAX_LENGTH);
+    if (!id || !email || !passwordHash || !displayName) return null;
+
+    const focusStats = sanitizeFocusStats(raw.focusStats);
+    return {
+        id,
+        email,
+        passwordHash,
+        displayName,
+        avatarColor: normalizeAvatarColor(raw.avatarColor),
+        bio: sanitizeUserText(raw.bio, BIO_MAX_LENGTH),
+        createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(),
+        banned: !!raw.banned,
+        tokenEpoch: Number.isInteger(raw.tokenEpoch) && raw.tokenEpoch > 0 ? raw.tokenEpoch : 1,
+        focusStats,
+        streak: sanitizeStreak(raw.streak, focusStats),
+        myRooms: Array.isArray(raw.myRooms)
+            ? raw.myRooms.map(sanitizeMyRoom).filter(Boolean).slice(0, MY_ROOMS_LIMIT)
+            : []
+    };
+}
+
 function createUserStore(options = {}) {
     const {
         filePath = process.env.USER_STATE_FILE || path.join(__dirname, 'data', 'users.json'),
@@ -166,39 +201,6 @@ function createUserStore(options = {}) {
             return;
         }
         console.warn(message, error || '');
-    }
-
-    /** The users.json file is a trust boundary — everything loaded from disk
-     *  is re-sanitized, mirroring room-store's sanitizeRoom. */
-    /** @param {Record<string, any>} raw */
-    function sanitizeUser(raw = {}) {
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-
-        const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : null;
-        const email = normalizeEmail(raw.email);
-        const passwordHash = typeof raw.passwordHash === 'string' && raw.passwordHash.includes(':')
-            ? raw.passwordHash.trim()
-            : null;
-        const displayName = sanitizeUserText(raw.displayName, DISPLAY_NAME_MAX_LENGTH);
-        if (!id || !email || !passwordHash || !displayName) return null;
-
-        const focusStats = sanitizeFocusStats(raw.focusStats);
-        return {
-            id,
-            email,
-            passwordHash,
-            displayName,
-            avatarColor: normalizeAvatarColor(raw.avatarColor),
-            bio: sanitizeUserText(raw.bio, BIO_MAX_LENGTH),
-            createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(),
-            banned: !!raw.banned,
-            tokenEpoch: Number.isInteger(raw.tokenEpoch) && raw.tokenEpoch > 0 ? raw.tokenEpoch : 1,
-            focusStats,
-            streak: sanitizeStreak(raw.streak, focusStats),
-            myRooms: Array.isArray(raw.myRooms)
-                ? raw.myRooms.map(sanitizeMyRoom).filter(Boolean).slice(0, MY_ROOMS_LIMIT)
-                : []
-        };
     }
 
     function buildSnapshot(users) {
@@ -328,5 +330,6 @@ module.exports = {
     createUser,
     applyFocusSession,
     recordMyRoom,
-    sanitizeFocusStats
+    sanitizeFocusStats,
+    sanitizeUser
 };

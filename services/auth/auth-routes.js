@@ -32,6 +32,7 @@ function createAuthRouter(deps) {
         persistUsersSoon,
         flushUsers,
         requireUser,
+        logFocusSession,
         logger
     } = deps;
 
@@ -162,6 +163,11 @@ function createAuthRouter(deps) {
         }
         const result = applyFocusSession(req.user, { minutes });
         persistUsersSoon();
+        // Append an analytics event (Supabase only) — the aggregate lives on the
+        // profile, but the per-session log powers the dashboards. Fire-and-forget.
+        if (typeof logFocusSession === 'function') {
+            logFocusSession({ userId: req.user.id, minutes: result.minutes, dayKey: result.dayKey });
+        }
         res.json({ ok: true, focusStats: result.focusStats, streak: result.streak });
     });
 
