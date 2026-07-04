@@ -19,6 +19,7 @@
     "deadcode": "knip --no-progress",
     "test:integration": "node --test \"tests/integration/*.test.js\"",
     "admin:hash": "node scripts/hash-admin-password.js",
+    "secret:gen": "node -e \"console.log('SESSION_SECRET=' + require('crypto').randomBytes(32).toString('hex'))\"",
     "test:smoke": "playwright test --config=playwright.config.js",
     "test:ci": "npm run check && npm run typecheck && npm run lint && npm run deadcode && npm run audit:prod && npm run test:integration && npm run test:smoke",
     "cloudflare:setup": "node scripts/cloudflare/realtimekit-setup.js",

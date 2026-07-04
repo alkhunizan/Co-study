@@ -58,8 +58,16 @@ async function main() {
         throw new Error(`Readiness check failed with status ${ready.status}.`);
     }
 
+    // Metrics endpoint confirms the accounts/ops build is live and reports
+    // the store/participant counters an uptime monitor can trend.
+    const metrics = await requestJson(new URL('/api/metrics', baseUrl));
+    if (metrics.status !== 200 || !metrics.body || typeof metrics.body.roomCount !== 'number') {
+        throw new Error(`Metrics check failed with status ${metrics.status}.`);
+    }
+
     console.log(`Health OK: ${health.body.mode}`);
-    console.log(`Readiness OK: ${baseUrl.origin}`);
+    console.log(`Readiness OK: ${Object.keys(ready.body.checks || {}).join(', ')}`);
+    console.log(`Metrics OK: ${metrics.body.roomCount} rooms, ${metrics.body.participantCount} participants, rss ${metrics.body.memoryRssMb}MB`);
 }
 
 main().catch((error) => {
