@@ -1,6 +1,9 @@
 (function attachRealtimeKitClient(global) {
-    const UI_LOADER_URL = 'https://cdn.jsdelivr.net/npm/@cloudflare/realtimekit-ui@latest/loader/index.es2017.js';
-    const CORE_SDK_URL = 'https://cdn.jsdelivr.net/npm/@cloudflare/realtimekit@latest/dist/browser.js';
+    // RealtimeKit CDN versions are pinned for beta stability.
+    // Upgrade intentionally after running npm run cloudflare:smoke and manual camera QA.
+    const REALTIMEKIT_VERSION = '2.0.0';
+    const UI_LOADER_URL = `https://cdn.jsdelivr.net/npm/@cloudflare/realtimekit-ui@${REALTIMEKIT_VERSION}/loader/index.es2017.js`;
+    const CORE_SDK_URL = `https://cdn.jsdelivr.net/npm/@cloudflare/realtimekit@${REALTIMEKIT_VERSION}/dist/browser.js`;
     const SDK_LOAD_TIMEOUT_MS = 15000;
     let sdkLoadPromise = null;
 
