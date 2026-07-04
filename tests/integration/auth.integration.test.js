@@ -159,7 +159,7 @@ test('login lockout engages after repeated failures and clears on success', asyn
     assert.equal(otherLogin.status, 200);
 });
 
-test('logout clears the cookie and /api/auth/me returns 401 after', async (t) => {
+test('logout clears the cookie and /api/auth/me reports a guest after', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
 
@@ -169,9 +169,10 @@ test('logout clears the cookie and /api/auth/me returns 401 after', async (t) =>
     const clearedCookie = extractCookies(logout.headers['set-cookie']);
     assert.match(clearedCookie, /coStudyAuth=/);
 
+    // 200 + user:null (not 401): this probe runs on every guest page load.
     const me = await authedRequest(server, '/api/auth/me', clearedCookie);
-    assert.equal(me.status, 401);
-    assert.equal(me.body.errorCode, 'AUTH_REQUIRED');
+    assert.equal(me.status, 200);
+    assert.equal(me.body.user, null);
 });
 
 test('profile updates validate avatar color and bio bounds', async (t) => {
@@ -334,7 +335,8 @@ test('account deletion re-authenticates, removes the record from disk, and kills
     assert.doesNotMatch(onDisk, /delete-me@example\.com/);
 
     const me = await authedRequest(server, '/api/auth/me', cookie);
-    assert.equal(me.status, 401);
+    assert.equal(me.status, 200);
+    assert.equal(me.body.user, null);
 
     const login = await server.request('/api/auth/login', {
         method: 'POST',

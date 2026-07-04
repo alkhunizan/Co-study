@@ -116,12 +116,10 @@ function createAuthRouter(deps) {
         res.json({ ok: true });
     });
 
+    // 200 with user:null for guests (not 401) — this probe runs on every page
+    // load and a 401 would spam the browser console for every signed-out visitor.
     router.get('/auth/me', (req, res) => {
-        if (!req.user) {
-            res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
-            return;
-        }
-        res.json({ ok: true, user: publicUser(req.user) });
+        res.json({ ok: true, user: req.user ? publicUser(req.user) : null });
     });
 
     router.patch('/me/profile', requireUser, (req, res) => {

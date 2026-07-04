@@ -21,6 +21,7 @@
       <span class="ar" aria-hidden="true">هلا</span>
     </a>
     <div class="topbar-right">
+      <a class="topbar-link" id="auth-entry" href="/account.html" data-lang="navSignIn">تسجيل الدخول</a>
       <div class="lang-switch" role="tablist" aria-label="Language">
         <button type="button" id="lang-en" data-lang-value="en">EN</button>
         <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
@@ -41,6 +42,10 @@
             <span data-lang="chooserTitle">اختر طريقتك</span>
           </h1>
           <p data-lang="chooserDesc">افتح غرفة جديدة أو ادخل وحدة شغّالة.</p>
+          <div class="my-rooms-card" id="my-rooms-card" hidden>
+            <h3 data-lang="myRoomsTitle">غرفك</h3>
+            <div class="my-rooms-list" id="my-rooms-list"></div>
+          </div>
           <div class="choice-stack">
             <button type="button" class="choice-card active" data-choice="create" aria-pressed="true">
               <span class="choice-icon" aria-hidden="true">✦</span>
@@ -93,6 +98,12 @@
               <label for="enable-schedule" data-lang="labelEnableSchedule">اجعلها غرفة مجدولة</label>
             </div>
             <div class="schedule-panel" id="schedule-fields" hidden>
+              <div class="schedule-signin-gate" id="schedule-signin-gate" hidden>
+                <h4 data-lang="scheduleGateTitle">الغرف المجدولة تحتاج حساب</h4>
+                <p class="form-note" data-lang="scheduleGateBody">عشان نحفظ حضورك وسلسلتك من جلسة لجلسة، الجدولة مربوطة بحسابك. الغرف الفورية تظل مفتوحة للجميع.</p>
+                <a class="btn btn-secondary" id="schedule-gate-cta" href="/account.html?signup=1&next=%2Fopen.html%3Fschedule%3D1" data-lang="scheduleGateCta">سجّل وارجع هنا</a>
+              </div>
+              <div id="schedule-fields-inner">
               <p class="form-note schedule-note" data-lang="scheduleNote">تستخدم توقيت الرياض (غرينتش+3). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.</p>
               <div class="schedule-grid">
                 <div class="input-group">
@@ -124,6 +135,7 @@
                   <label for="schedule-goal-template" data-lang="labelScheduleGoal">هدف اللوحة عند البداية</label>
                   <input type="text" id="schedule-goal-template" name="scheduleGoalTemplate" maxlength="80" data-lang-placeholder="placeholderScheduleGoal" placeholder="مثال: إنهاء عرض الإطلاق">
                 </div>
+              </div>
               </div>
             </div>
             <div class="form-actions">
@@ -251,6 +263,13 @@
                 inviteCadenceLabel: 'Cadence',
                 errorPasswordRequired: 'Please enter a room password.',
                 errorScheduleInvalid: 'Please add a valid Riyadh date and time for this scheduled room.',
+                errorScheduleNeedsAccount: 'Scheduled rooms need an account — sign in and try again.',
+                navSignIn: 'Sign in',
+                myRoomsTitle: 'Your rooms',
+                myRoomsRejoin: 'Rejoin',
+                scheduleGateTitle: 'Scheduled rooms need an account',
+                scheduleGateBody: 'Attendance and streaks follow your account from session to session. Instant rooms stay open to everyone.',
+                scheduleGateCta: 'Sign up and come back',
                 joinFormTitle: 'Join a study room',
                 labelJoinCode: 'Room code',
                 placeholderJoinCode: 'ABC123',
@@ -333,6 +352,13 @@
                 inviteCadenceLabel: 'التكرار',
                 errorPasswordRequired: 'فضلاً أدخل كلمة مرور للغرفة.',
                 errorScheduleInvalid: 'أضف تاريخًا ووقتًا صحيحين بتوقيت الرياض لهذه الغرفة المجدولة.',
+                errorScheduleNeedsAccount: 'الغرف المجدولة تحتاج حساب — سجّل دخولك وجرّب من جديد.',
+                navSignIn: 'تسجيل الدخول',
+                myRoomsTitle: 'غرفك',
+                myRoomsRejoin: 'ارجع',
+                scheduleGateTitle: 'الغرف المجدولة تحتاج حساب',
+                scheduleGateBody: 'الحضور والسلسلة يتبعون حسابك من جلسة لجلسة. الغرف الفورية تظل مفتوحة للجميع.',
+                scheduleGateCta: 'سجّل وارجع هنا',
                 joinFormTitle: 'الدخول إلى غرفة مذاكرة',
                 labelJoinCode: 'رمز الغرفة',
                 placeholderJoinCode: 'ABC123',
@@ -367,6 +393,7 @@
             ROOM_MEDIA_UNAVAILABLE: 'errorMediaUnavailable',
             ROOM_FULL: 'errorRoomFull',
             SCHEDULE_INVALID: 'errorScheduleInvalid',
+            AUTH_REQUIRED_FOR_SCHEDULED: 'errorScheduleNeedsAccount',
             RATE_LIMITED: 'rateLimited'
         };
 
@@ -555,11 +582,72 @@
             scheduleBreakInput.value = '5';
         }
 
+        let signedInUser = null;
+
         function toggleScheduleFields() {
             if (!enableScheduleCheckbox || !scheduleFields) {
                 return;
             }
             scheduleFields.hidden = !enableScheduleCheckbox.checked;
+            // Guests see the sign-in gate where the schedule fields would be.
+            const gate = document.getElementById('schedule-signin-gate');
+            const inner = document.getElementById('schedule-fields-inner');
+            if (gate && inner) {
+                gate.hidden = !!signedInUser;
+                inner.hidden = !signedInUser;
+            }
+        }
+
+        function renderMyRooms(roomsList) {
+            const card = document.getElementById('my-rooms-card');
+            const list = document.getElementById('my-rooms-list');
+            if (!card || !list) return;
+            const liveRooms = (roomsList || []).filter((room) => room.exists).slice(0, 5);
+            if (!liveRooms.length) {
+                card.hidden = true;
+                return;
+            }
+            list.innerHTML = '';
+            liveRooms.forEach((room) => {
+                const row = document.createElement('div');
+                row.className = 'my-room-row';
+                const name = document.createElement('span');
+                name.className = 'my-room-name';
+                name.textContent = room.name;
+                const code = document.createElement('span');
+                code.className = 'my-room-code';
+                code.setAttribute('dir', 'ltr');
+                code.textContent = room.roomId;
+                const rejoin = document.createElement('a');
+                rejoin.className = 'btn btn-secondary';
+                rejoin.href = `/study?room=${encodeURIComponent(room.roomId)}`;
+                rejoin.textContent = copy().myRoomsRejoin;
+                row.appendChild(name);
+                row.appendChild(code);
+                row.appendChild(rejoin);
+                list.appendChild(row);
+            });
+            card.hidden = false;
+        }
+
+        function initAccountFeatures() {
+            if (!window.HalaAuth) return;
+            window.HalaAuth.getUser().then((user) => {
+                signedInUser = user;
+                toggleScheduleFields();
+                if (!user) return;
+                window.HalaCore.requestJson('GET', '/api/me/rooms')
+                    .then((payload) => renderMyRooms(payload.rooms))
+                    .catch(() => {});
+                // Returning from the schedule gate: reopen the schedule panel.
+                if (new URLSearchParams(window.location.search).get('schedule') === '1'
+                    && enableScheduleCheckbox && !enableScheduleCheckbox.checked) {
+                    enableScheduleCheckbox.checked = true;
+                    setDefaultScheduleFields();
+                    toggleScheduleFields();
+                    if (scheduleDateInput) scheduleDateInput.focus();
+                }
+            });
         }
 
         function formatScheduleCadenceLabel(cadence) {
@@ -1447,6 +1535,7 @@
         void loadRuntimeConfig();
         setDefaultScheduleFields();
         toggleScheduleFields();
+        initAccountFeatures();
         applyLanguage();
         // Patched 2026-05-17: honor /open.html#join from landing's secondary CTA — open the join form on load.
         if (window.location.hash === '#join') currentMode = 'join';

@@ -453,6 +453,16 @@
         .focus-summary strong { font-size: 1.3rem; letter-spacing: 0.5px; }
         .focus-reset-btn { border: none; border-radius: 999px; padding: 6px 16px; font-size: 0.85rem; cursor: pointer; background: rgba(0,0,0,0.08); color: var(--text-main); font-weight: 600; transition: background 0.2s, color 0.2s; }
         .focus-reset-btn:hover { background: rgba(0,0,0,0.15); }
+        /* Streak badge — emotional number, Eastern numerals per DESIGN.md §5. */
+        .streak-badge { font-size: 0.85rem; color: var(--accent-3); font-weight: 700; font-variant-numeric: tabular-nums; }
+        .streak-badge[hidden] { display: none; }
+        /* Quiet post-Pomodoro nudge for guests. Caption, dismissible, never a modal. */
+        .focus-sync-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--text-soft); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .focus-sync-hint[hidden] { display: none; }
+        .focus-sync-hint a { color: var(--accent-3); text-decoration: underline; text-underline-offset: 2px; }
+        .focus-sync-hint a:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); border-radius: 4px; }
+        .focus-sync-hint button { border: 0; background: transparent; color: var(--text-soft); cursor: pointer; font-size: 14px; line-height: 1; min-inline-size: 24px; min-block-size: 24px; border-radius: 50%; }
+        .focus-sync-hint button:hover { color: var(--text-main); background: rgba(0,0,0,0.06); }
 
         /* --- Chat & Ambient --- */
         .chat-container { flex: 1; display: flex; flex-direction: column; margin-bottom: 20px; overflow: hidden; }
@@ -461,6 +471,9 @@
         .msg.l { background: var(--bg-input); align-self: flex-start; border-bottom-left-radius: 2px; }
         .msg.r { background: var(--accent); color: var(--ink); align-self: flex-end; border-bottom-right-radius: 2px; }
         .msg-author { font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px; display: block; }
+        .msg-author-dot { display: inline-block; inline-size: 8px; block-size: 8px; border-radius: 50%; margin-inline-end: 5px; vertical-align: middle; }
+        .join-name-reserved { display: block; margin-block-start: 4px; font-size: 0.75rem; color: var(--accent-3); }
+        .join-name-reserved[hidden] { display: none; }
         .msg.system { align-self: center; background: transparent; color: var(--text-sec); font-size: 0.8rem; }
 
         .chat-input-area { position: relative; margin-top: 10px; background: var(--bg-input); border-radius: 24px; display: flex; align-items: center; padding: 6px; }
@@ -532,6 +545,7 @@
         <p class="join-sub" data-lang="joinSubtitle">Enter your nickname and room code to start focusing together.</p>
         <label class="join-label" for="join-name" data-lang="joinName">Your nickname</label>
         <input type="text" id="join-name" class="join-input" maxlength="20" autocomplete="nickname" data-lang-placeholder="joinNamePlaceholder" placeholder="Name shown to others">
+        <span class="join-name-reserved" id="join-name-reserved" data-lang="nicknameReservedNote" hidden>محجوز لك</span>
         <label class="join-label" for="join-room" data-lang="joinRoom">Room code</label>
         <input type="text" id="join-room" class="join-input" maxlength="10" autocomplete="off" data-force-ltr data-lang-placeholder="joinRoomPlaceholder" placeholder="e.g. ABC123">
         <label class="join-label" for="join-password" data-lang="joinPassword">Room password (if required)</label>
@@ -548,6 +562,7 @@
     </a>
     <div class="header-tools">
         <!-- Removed: 5-dot color picker. DESIGN.md §10 hard-no — Halastudy ships ONE accent. -->
+        <a class="topbar-link" id="auth-entry" href="/account.html" data-lang="navSignIn" style="font-size:14px;font-weight:500;color:var(--text-soft,var(--ink-2));text-decoration:none;white-space:nowrap;">تسجيل الدخول</a>
         <div class="lang-switch">
             <button type="button" class="lang-option active" id="lang-ar" data-lang-value="ar">AR</button>
             <button type="button" class="lang-option" id="lang-en" data-lang-value="en">EN</button>
@@ -709,8 +724,14 @@
                     <div class="focus-summary-text">
                         <span data-lang="focusTodayLabel">Today's focus</span>
                         <strong id="focus-total">0 min</strong>
+                        <span class="streak-badge num-eastern" id="streak-badge" hidden></span>
                     </div>
                     <button type="button" class="focus-reset-btn" id="focus-reset-btn" data-lang="focusReset">Reset</button>
+                    <p class="focus-sync-hint" id="focus-sync-hint" hidden>
+                        <span data-lang="focusSyncHint">دقائق تركيزك محفوظة على هذا الجهاز فقط.</span>
+                        <a id="focus-sync-link" href="/account.html?signup=1" data-lang="focusSyncHintCta">سجّل لحفظ سلسلتك</a>
+                        <button type="button" id="focus-sync-dismiss" aria-label="Dismiss">×</button>
+                    </p>
                 </div>
             </div>
 
@@ -900,6 +921,11 @@
             meLabel: 'Me',
             focusMinutesSuffix: 'min',
             guestLabel: 'Guest',
+            navSignIn: 'Sign in',
+            nicknameReservedNote: 'Reserved for you',
+            streakBadgeLabel: 'Streak',
+            focusSyncHint: 'Your focus minutes only live on this device.',
+            focusSyncHintCta: 'Sign up to keep your streak',
             roomNameRequired: 'Please enter a room name.',
             roomCodeGenerationFailed: 'Could not generate a room code. Please try again.',
             passwordHashFailed: 'Could not secure the room password right now.',
@@ -1046,6 +1072,11 @@
             meLabel: 'أنا',
             focusMinutesSuffix: 'دقيقة',
             guestLabel: 'زائر',
+            navSignIn: 'تسجيل الدخول',
+            nicknameReservedNote: 'محجوز لك',
+            streakBadgeLabel: 'سلسلة',
+            focusSyncHint: 'دقائق تركيزك محفوظة على هذا الجهاز فقط.',
+            focusSyncHintCta: 'سجّل لحفظ سلسلتك',
             roomNameRequired: 'فضلاً أدخل اسم الغرفة.',
             roomCodeGenerationFailed: 'تعذر إنشاء رمز للغرفة. حاول مرة أخرى.',
             passwordHashFailed: 'تعذر تأمين كلمة مرور الغرفة حالياً.',
@@ -2701,6 +2732,108 @@
         scheduleFocusStatsReset();
     }
 
+    /* ---------- account integration (signed-in unlocks) ---------- */
+    // Muted member accents — rendered only on user content (tile ring, chat
+    // dot), never chrome, so the single-accent rule stays intact.
+    const AVATAR_ACCENTS = {
+        amber: 'rgba(224, 176, 139, 0.9)',
+        sage: 'rgba(90, 140, 92, 0.85)',
+        terracotta: 'rgba(199, 85, 69, 0.85)',
+        dusk: 'rgba(108, 143, 173, 0.85)',
+        sand: 'rgba(212, 162, 86, 0.85)',
+        stone: 'rgba(154, 160, 164, 0.85)'
+    };
+    const FOCUS_HINT_DISMISS_KEY = 'halastudyHintDismissed.focusSync';
+    let accountUser = null;
+
+    function formatEmotionalNumber(value) {
+        // Streaks are emotional numbers — Eastern numerals in Arabic (DESIGN.md §5).
+        return curLang === 'ar' ? new Intl.NumberFormat('ar-EG').format(value) : String(value);
+    }
+
+    function updateStreakBadge() {
+        const badge = document.getElementById('streak-badge');
+        if (!badge) return;
+        const current = accountUser && accountUser.streak ? accountUser.streak.current : 0;
+        if (!current) {
+            badge.hidden = true;
+            return;
+        }
+        badge.textContent = `${currentCopy().streakBadgeLabel} ${formatEmotionalNumber(current)}`;
+        badge.hidden = false;
+    }
+
+    function maybeShowFocusSyncHint() {
+        if (accountUser) return;
+        try {
+            if (localStorage.getItem(FOCUS_HINT_DISMISS_KEY)) return;
+        } catch (err) { /* storage unavailable */ }
+        const hint = document.getElementById('focus-sync-hint');
+        if (!hint) return;
+        const link = document.getElementById('focus-sync-link');
+        if (link) {
+            link.href = `/account.html?signup=1&next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+        }
+        hint.hidden = false;
+    }
+
+    function onFocusSessionComplete(minutes) {
+        if (accountUser && window.HalaCore) {
+            window.HalaCore.postJson('/api/me/focus-session', { minutes })
+                .then((payload) => {
+                    accountUser.streak = payload.streak;
+                    updateStreakBadge();
+                })
+                .catch(() => { /* offline — local stats still counted */ });
+        } else {
+            maybeShowFocusSyncHint();
+        }
+    }
+
+    function applyMemberAccents() {
+        (presenceCache || []).forEach((participant) => {
+            if (!participant || !participant.id) return;
+            const slot = remoteVideoSlots.get(participant.id);
+            if (!slot || !slot.tile) return;
+            const accent = participant.avatarColor ? AVATAR_ACCENTS[participant.avatarColor] : null;
+            slot.tile.style.outline = accent ? `2px solid ${accent}` : '';
+            slot.tile.style.outlineOffset = accent ? '-2px' : '';
+        });
+    }
+
+    function getAccentForName(name) {
+        const match = (presenceCache || []).find((participant) => participant && participant.name === name && participant.avatarColor);
+        return match ? (AVATAR_ACCENTS[match.avatarColor] || null) : null;
+    }
+
+    function initAccountIntegration() {
+        const dismissBtn = document.getElementById('focus-sync-dismiss');
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', () => {
+                const hint = document.getElementById('focus-sync-hint');
+                if (hint) hint.hidden = true;
+                try {
+                    localStorage.setItem(FOCUS_HINT_DISMISS_KEY, String(Date.now()));
+                } catch (err) { /* storage unavailable */ }
+            });
+        }
+        if (!window.HalaAuth) return;
+        window.HalaAuth.getUser().then((user) => {
+            accountUser = user;
+            if (!user) return;
+            try {
+                localStorage.setItem('halastudyName', user.displayName);
+            } catch (err) { /* storage unavailable */ }
+            const joinNameInput = document.getElementById('join-name');
+            if (joinNameInput && !joinNameInput.value) {
+                joinNameInput.value = user.displayName;
+            }
+            const reserved = document.getElementById('join-name-reserved');
+            if (reserved) reserved.hidden = false;
+            updateStreakBadge();
+        });
+    }
+
     function createEmptyBoardState() {
         return { goal: '', tasks: [] };
     }
@@ -2989,6 +3122,9 @@
                     // Add focus time to daily total when focus session ends
                     if (mode === 'focus') {
                         addFocusSeconds(focusDur * 60);
+                        // Signed in: sync to the account (streaks). Guest:
+                        // quiet one-time nudge that these minutes are local-only.
+                        onFocusSessionComplete(focusDur);
                     }
 
                     mode = mode==='focus' ? 'break' : 'focus';
@@ -3050,6 +3186,7 @@
         }
         updateRemoteNameLabel();
         renderUserList();
+        applyMemberAccents();
         if (!isMeshRoom()) {
             return;
         }
@@ -3148,6 +3285,14 @@
             const authorEl = document.createElement('span');
             authorEl.className = 'msg-author';
             authorEl.textContent = message.author || (isMine ? username : currentCopy().guestLabel);
+            const accent = getAccentForName(message.author);
+            if (accent) {
+                const dot = document.createElement('span');
+                dot.className = 'msg-author-dot';
+                dot.setAttribute('aria-hidden', 'true');
+                dot.style.background = accent;
+                authorEl.prepend(dot);
+            }
             const bodyEl = document.createElement('div');
             bodyEl.textContent = message.text;
             bubble.appendChild(authorEl);
@@ -4169,6 +4314,7 @@
         loadStatusState();
         loadAmbientState();
         loadFocusStats();
+        initAccountIntegration();
         setBoardState(createEmptyBoardState());
         setBoardPriority(3);
         renderScheduleCard();

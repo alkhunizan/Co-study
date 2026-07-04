@@ -34,6 +34,20 @@ async function createSmokePage(browser) {
     return { context, page };
 }
 
+// Scheduled rooms require an account — sign up via the API using the page's
+// own cookie jar so the browser (and its socket) is authenticated after.
+async function signupViaApi(page, displayName = 'Smoke Owner') {
+    const unique = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const response = await page.request.post('/api/auth/signup', {
+        data: {
+            email: `smoke-${unique}@example.com`,
+            password: 'smoke-password-1',
+            displayName
+        }
+    });
+    expect(response.ok()).toBeTruthy();
+}
+
 async function createRoomFromLanding(page, options = {}) {
     const {
         roomName = `QA Room ${Date.now()}`,
@@ -253,6 +267,7 @@ test('scheduled rooms expose timer defaults and invite actions', async ({ browse
     const owner = await createSmokePage(browser);
 
     try {
+        await signupViaApi(owner.page, 'Owner');
         const schedule = buildFutureRiyadhSchedule();
         const roomCode = await createRoomFromLanding(owner.page, {
             roomName: 'Scheduled Smoke Room',
@@ -294,6 +309,7 @@ test('schedule helpers recalculate recurring sessions after stale snapshot data'
             };
         });
 
+        await signupViaApi(probe.page, 'Owner');
         const roomCode = await createRoomFromLanding(probe.page, {
             roomName: 'Scheduled Roll Forward Room',
             schedule: buildFutureRiyadhSchedule({
