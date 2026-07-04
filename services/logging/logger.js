@@ -22,6 +22,10 @@ function sanitizeLogPayload(payload = {}) {
     return safe;
 }
 
+/**
+ * @param {Record<string, any>} defaults
+ * @param {{ onEntry?: (entry: any) => void }} [hooks]
+ */
 function createLogger(defaults = {}, { onEntry } = {}) {
     function write(level, payload = {}) {
         const entry = {
