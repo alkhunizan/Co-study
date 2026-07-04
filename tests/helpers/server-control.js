@@ -245,12 +245,17 @@ async function startFakeRealtimeKit(options = {}) {
     };
 }
 
+// Fixed so signed cookies stay valid across the restart-persistence tests.
+const TEST_SESSION_SECRET = 'halastudy-integration-test-secret-0123456789abcdef';
+
 async function startServer(options = {}) {
     const port = options.port || await getFreePort();
     const roomStateFile = options.roomStateFile || makeTempStateFile('co-study-integration');
+    const userStateFile = options.userStateFile || makeTempStateFile('co-study-users');
     const shouldResetStateFile = options.resetStateFileOnStart !== false;
     if (shouldResetStateFile) {
         resetStateFile(roomStateFile);
+        resetStateFile(userStateFile);
     }
 
     const externalSfuBaseUrl = options.env?.SFU_BASE_URL;
@@ -270,6 +275,8 @@ async function startServer(options = {}) {
             NODE_ENV: 'test',
             PORT: String(port),
             ROOM_STATE_FILE: roomStateFile,
+            USER_STATE_FILE: userStateFile,
+            SESSION_SECRET: TEST_SESSION_SECRET,
             SFU_BASE_URL: fakeSfu ? fakeSfu.baseUrl : '',
             ...(fakeRealtimeKit ? {
                 VIDEO_PROVIDER: 'realtimekit',
@@ -316,6 +323,7 @@ async function startServer(options = {}) {
         port,
         baseUrl,
         roomStateFile,
+        userStateFile,
         sfuBaseUrl: fakeSfu ? fakeSfu.baseUrl : (options.env?.SFU_BASE_URL) || '',
         fakeSfuPid: fakeSfu ? fakeSfu.pid : null,
         realtimeKitBaseUrl: fakeRealtimeKit ? fakeRealtimeKit.baseUrl : '',

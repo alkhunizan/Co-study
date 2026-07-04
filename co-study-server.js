@@ -207,6 +207,57 @@ function parseSfuBaseUrl(value) {
     return parsed.toString().replace(/\/$/, '');
 }
 
+const ADMIN_PATH_PATTERN = /^\/[a-z0-9][a-z0-9/_-]{7,63}$/i;
+const SESSION_SECRET_MIN_LENGTH = 32;
+const PASSWORD_HASH_PATTERN = /^[0-9a-f]{32}:[0-9a-f]{128}$/i;
+
+function resolveSessionSecret(env, isProduction) {
+    const raw = typeof env.SESSION_SECRET === 'string' ? env.SESSION_SECRET.trim() : '';
+    if (raw) {
+        if (raw.length < SESSION_SECRET_MIN_LENGTH) {
+            throw new Error(`SESSION_SECRET must be at least ${SESSION_SECRET_MIN_LENGTH} characters.`);
+        }
+        return { sessionSecret: raw, sessionSecretEphemeral: false };
+    }
+    if (isProduction) {
+        throw new Error('SESSION_SECRET is required in production (min 32 chars). Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+    }
+    // Dev/test fallback: sessions die on restart, which is fine locally.
+    return { sessionSecret: crypto.randomBytes(32).toString('hex'), sessionSecretEphemeral: true };
+}
+
+function resolveAdminConfig(env) {
+    const rawPath = typeof env.ADMIN_PATH === 'string' ? env.ADMIN_PATH.trim() : '';
+    const rawHash = typeof env.ADMIN_PASSWORD_HASH === 'string' ? env.ADMIN_PASSWORD_HASH.trim() : '';
+    if (!rawPath && !rawHash) {
+        return { enabled: false, path: '', passwordHash: '', partial: false };
+    }
+    if (!rawPath || !rawHash) {
+        // One of the pair set: stay disabled but let the caller warn loudly.
+        return { enabled: false, path: '', passwordHash: '', partial: true };
+    }
+    if (!ADMIN_PATH_PATTERN.test(rawPath)) {
+        throw new Error('ADMIN_PATH must look like /ops-7f3k9qwe2 (8-64 chars of a-z, 0-9, -, _, /).');
+    }
+    if (!PASSWORD_HASH_PATTERN.test(rawHash)) {
+        throw new Error('ADMIN_PASSWORD_HASH must be a salt:hex pair from `npm run admin:hash`.');
+    }
+    return { enabled: true, path: rawPath.replace(/\/$/, ''), passwordHash: rawHash, partial: false };
+}
+
+function resolveBackupConfig(env) {
+    const rawInterval = env.BACKUP_INTERVAL_MINUTES;
+    let intervalMinutes = 0;
+    if (rawInterval !== undefined && rawInterval !== null && `${rawInterval}`.trim() !== '') {
+        intervalMinutes = Number.parseInt(rawInterval, 10);
+        if (!Number.isInteger(intervalMinutes) || (intervalMinutes !== 0 && intervalMinutes < 5)) {
+            throw new Error('BACKUP_INTERVAL_MINUTES must be 0 (off) or an integer >= 5.');
+        }
+    }
+    const retentionCount = parsePositiveInteger(env.BACKUP_RETENTION_COUNT, 'BACKUP_RETENTION_COUNT', 48);
+    return { intervalMinutes, retentionCount };
+}
+
 function ensureWritableFileParent(filePath) {
     const parentDir = path.dirname(filePath);
     fs.mkdirSync(parentDir, { recursive: true });
@@ -295,7 +346,12 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
     const portEnvName = mode === 'https' ? 'HTTPS_PORT' : 'PORT';
     const defaultPort = mode === 'https' ? DEFAULT_HTTPS_PORT : DEFAULT_HTTP_PORT;
     const roomStateFile = path.resolve(env.ROOM_STATE_FILE || path.join(__dirname, 'data', 'rooms.json'));
+    const userStateFile = path.resolve(env.USER_STATE_FILE || path.join(__dirname, 'data', 'users.json'));
     const roomStateBackupDir = path.resolve(env.ROOM_STATE_BACKUP_DIR || path.join(__dirname, 'data', 'backups'));
+    const isProduction = env.NODE_ENV === 'production';
+    const { sessionSecret, sessionSecretEphemeral } = resolveSessionSecret(env, isProduction);
+    const admin = resolveAdminConfig(env);
+    const backup = resolveBackupConfig(env);
     const runtimeIce = resolveRuntimeIceServers(env.ICE_SERVERS_JSON);
     const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS);
     const trustProxy = parseTrustProxy(env.TRUST_PROXY);
@@ -309,6 +365,7 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
     const port = parsePort(env[portEnvName], portEnvName, defaultPort);
 
     ensureWritableFileParent(roomStateFile);
+    ensureWritableFileParent(userStateFile);
     fs.mkdirSync(roomStateBackupDir, { recursive: true });
 
     return {
@@ -317,7 +374,12 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
         trustProxy,
         allowedOrigins,
         roomStateFile,
+        userStateFile,
         roomStateBackupDir,
+        sessionSecret,
+        sessionSecretEphemeral,
+        admin,
+        backup,
         sfuBaseUrl,
         sfuAvailable: !!sfuBaseUrl,
         supportedMediaModes: sfuBaseUrl ? [MEDIA_MODE_MESH, MEDIA_MODE_SFU] : [MEDIA_MODE_MESH],
