@@ -22,7 +22,8 @@ function uniqueEmail(prefix) {
     return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}@example.com`;
 }
 
-async function signupThroughUi(page, { name = 'Smokey', email, password = 'smoke-pass-123' } = {}) {
+async function signupThroughUi(page, options = /** @type {{ name?: string, email: string, password?: string }} */ ({})) {
+    const { name = 'Smokey', email, password = 'smoke-pass-123' } = options;
     await page.goto('/account.html');
     await page.click('#tab-signup');
     await page.fill('#signup-nickname', name);
@@ -193,7 +194,7 @@ test('toast is announced politely and auto-dismisses', async ({ browser }) => {
     try {
         await visitor.page.goto('/open.html');
         await visitor.page.evaluate(() => {
-            window.HalaUI.toast('Smoke toast', { duration: 1500 });
+            (/** @type {any} */ (window)).HalaUI.toast('Smoke toast', { duration: 1500 });
         });
         const toast = visitor.page.locator('.hala-toast');
         await expect(toast).toBeVisible();

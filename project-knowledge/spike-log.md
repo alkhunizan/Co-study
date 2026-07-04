@@ -407,6 +407,37 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 1. Real-SFU camera delegation is integration-tested at the header level but needs one manual deploy-time QA pass (fake SFU never calls getUserMedia).
 2. `connect-src 'self'` degrades legacy-WebKit socket.io to same-origin polling — acceptable, or pin an explicit ws/wss same-origin pair?
 
+## 2026-07-04 — Accounts, hidden admin portal, and a 360 pro-level sweep
+
+**Goal for this session:** Ship optional user accounts (sign-in/sign-up) with feature unlocking, a hidden admin ops console, and a full "make it pro-level" polish pass — all on `feat/accounts-admin`, each step landing CI-green.
+
+**What worked:**
+- **Zero new runtime dependencies.** Auth is entirely `node:crypto`: PBKDF2-SHA512 passwords (extracted to `services/auth/password.js`, shared with the room-password path), stateless HMAC-SHA256 session cookies with per-user `tokenEpoch` revocation (ban/delete/password-change kills every outstanding cookie). `user-store.js` is a near-clone of `room-store.js` — debounced atomic `data/users.json` writes, strict fail-fast load, full re-sanitization at the trust boundary.
+- **Guests stay the wedge.** Instant create/join never touch auth. Signing in unlocks: server-synced focus minutes + Riyadh-day streaks (with one-time import of the device's local stats — keeps the nudge's promise), My Rooms + reserved nickname, and profile perks (avatar accent shown as tile rings + chat dots, bio, streak badge). Only scheduled-room creation is gated (`AUTH_REQUIRED_FOR_SCHEDULED`).
+- **Hidden admin console** mounts at `ADMIN_PATH` only when `ADMIN_PASSWORD_HASH` is also set; otherwise every admin URL 404s byte-identically to any unknown path (asserted in a test). Full ops surface: overview, room inspect/force-close/kick, runtime video kill-switch, user ban/unban, bilingual broadcast banner, backup-now, recent-errors ring buffer. `admin.html` is fully inlined + EN-only (documented DESIGN.md exception).
+- **Shared frontend core.** Pulled the triple-duplicated storage migration + pre-paint theme into `public/js/halastudy-core.js` (loaded sync in `<head>`), plus `public/js/ui.js` (toasts, native-`<dialog>` confirms with typed confirmation, avatar chip). Existing smokes stayed green through the refactor — that de-risked everything downstream.
+- 24 new integration tests (auth + admin) + 10 new browser smokes. Final `npm run test:ci` green: 55 integration, 23 smoke, all 7 gates.
+
+**What broke:**
+- Writing `services/auth/index.js` with literal invisible/bidi control chars in the sanitizer regex produced a "binary file" that Edit couldn't touch and `cat -A` flagged. Fix: build the regex source from `\uXXXX` escapes in a scratchpad patch script, never paste the raw chars.
+- Node's HTTP client doesn't chunk `DELETE` bodies without an explicit `Content-Length`, so `DELETE /api/me {password}` arrived malformed → 400 instead of 401/200. Fixed in the test harness `request()` helper.
+- `/api/auth/me` first returned 401 for guests → console 401 spam on every signed-out page load (a landing smoke asserts zero console errors). Changed to 200 `{user:null}`.
+- account.html tabs sat under the `position:fixed` topbar and intercepted clicks in Playwright; needed top padding clearance.
+- Committed step 10a before the full typecheck ran; CI then caught JSDoc gaps in the new smoke spec. Lesson: run `npm run typecheck` (not just `check`) before committing test files.
+
+**What I changed:**
+- New: `user-store.js`, `services/auth/{index,password,auth-routes}.js`, `services/admin/admin-routes.js`, `services/ops/{error-buffer,backup-scheduler}.js`, `account.html`, `admin.html`, `404.html`, `public/js/{halastudy-core,ui}.js`, `public/manifest.webmanifest` + icons, `scripts/{hash-admin-password,generate-icons}.js`, `types.d.ts`, auth/admin test suites + `auth-helpers.js`.
+- Touched: `co-study-server.js` (config, stores, auth middleware, socket gating, runtime kill-switch, metrics, 404/error middleware, admin mount), all three pages (topbar entry, unlocks, nudges, banner), privacy page (honest accounts section), CHANGELOG/README/DEPLOYMENT, version → 1.2.0.
+- 17 commits vs `main`: 2 reconcile the pre-existing in-flight work (security fix + cloudflare tooling), 15 build this feature. 83 files, +10k/−305.
+
+**Next session starts with:**
+- Aziz reviews `feat/accounts-admin` and decides merge vs PR. To exercise the admin console locally: `npm run admin:hash -- "<pw>"`, put `ADMIN_PATH` + `ADMIN_PASSWORD_HASH` + a 32-char `SESSION_SECRET` in `.env`, `npm run https`, visit the path.
+
+**Open questions for Aziz:**
+1. Accounts are local-JSON now (Supabase-swappable by design). Move to Supabase before or after the Gulf-VM launch?
+2. Admin portal has no 2FA in v1 — password + lockout + path secrecy only. Acceptable for a solo-operator beta, or add TOTP now?
+3. Email is unverified in v1 (no mail infra). Wire a verification email at launch, or leave it until spam becomes a real problem?
+
 ## 2026-07-02 — Production-launch roadmap: Phases 1–5 landed (out-of-spike)
 
 **Goal for this session:** Assess repo status, produce a 10-phase production plan, then execute every phase that doesn't need Aziz's VM/domain/physical devices.
