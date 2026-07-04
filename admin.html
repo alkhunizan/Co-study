@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<!-- Halastudy Ops console. Operator tool for the founder — deliberately
+     English-only (DESIGN.md governs product surfaces; this is not one).
+     Everything is inlined: this page must not leak its existence through
+     public asset paths. Served only when ADMIN_PATH + ADMIN_PASSWORD_HASH
+     are configured. -->
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Halastudy Ops</title>
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 400 var(--t-body-sm)/1.5 var(--font-body);
+      min-height: 100vh;
+    }
+    .shell { max-width: 1080px; margin-inline: auto; padding: 24px 20px 80px; }
+    .ops-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+    .ops-header h1 { font: 600 var(--t-h3)/1.2 var(--font-body); margin: 0; }
+    .ops-header .spacer { flex: 1; }
+    .chip {
+      font-family: var(--font-mono);
+      font-size: var(--t-caption);
+      color: var(--ink-2);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-variant-numeric: tabular-nums;
+    }
+    .tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tabs button {
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink-2);
+      font: 600 var(--t-caption)/1 var(--font-body);
+      padding: 10px 18px;
+      border-radius: 999px;
+      cursor: pointer;
+      min-height: 36px;
+    }
+    .tabs button.is-on { background: var(--inset); color: var(--ink); border-color: var(--line-strong); }
+    .tabs button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+    .panel { display: none; }
+    .panel.is-on { display: block; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .tile { background: var(--inset); border: 1px solid var(--line-2); border-radius: 12px; padding: 14px; }
+    .tile strong { display: block; font-size: var(--t-h3); font-variant-numeric: tabular-nums; }
+    .tile span { color: var(--ink-2); font-size: var(--t-micro); text-transform: uppercase; letter-spacing: 0.08em; }
+    table { width: 100%; border-collapse: collapse; font-size: var(--t-caption); }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+    th { color: var(--ink-3); font-weight: 600; text-transform: uppercase; font-size: var(--t-micro); letter-spacing: 0.06em; }
+    td.mono, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    .btn {
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      font: 600 var(--t-caption)/1 var(--font-body);
+      padding: 8px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      min-height: 32px;
+    }
+    .btn:hover { border-color: var(--line-strong); }
+    .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+    .btn.danger { border-color: var(--danger); color: var(--danger); }
+    .btn.danger:hover { background: var(--danger-soft); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #2D3436; }
+    .btn[disabled] { opacity: 0.45; cursor: default; }
+    input[type="password"], input[type="text"], input[type="search"], textarea, select {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--inset);
+      color: var(--ink);
+      font: inherit;
+    }
+    input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); border-color: var(--accent); }
+    label { display: block; font-weight: 600; font-size: var(--t-caption); margin: 14px 0 6px; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .feedback { color: var(--danger); font-size: var(--t-caption); min-height: 18px; margin-top: 8px; }
+    .feedback.ok { color: var(--success); }
+    .muted { color: var(--ink-3); font-size: var(--t-caption); }
+    .login-shell { max-width: 380px; margin: 15vh auto 0; padding-inline: 20px; }
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-inline-end: 6px; }
+    .status-dot.on { background: var(--success); }
+    .status-dot.off { background: var(--danger); }
+    pre { background: var(--inset); border-radius: 10px; padding: 10px; overflow-x: auto; font-size: 11px; margin: 6px 0 0; }
+    dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--ink); padding: 24px; max-width: 420px; }
+    dialog::backdrop { background: var(--overlay); }
+    dialog h3 { margin: 0 0 10px; }
+    dialog input { margin: 14px 0; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- Login -->
+  <div class="login-shell" id="login-view">
+    <div class="card">
+      <h1 style="font-size:18px;margin:0 0 14px;">Halastudy Ops</h1>
+      <form id="login-form">
+        <label for="admin-password">Password</label>
+        <input type="password" id="admin-password" autocomplete="current-password" required>
+        <div class="row" style="margin-top:16px;">
+          <button type="submit" class="btn primary">Sign in</button>
+        </div>
+        <p class="feedback" id="login-feedback"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Shell -->
+  <div class="shell hidden" id="ops-shell">
+    <div class="ops-header">
+      <h1>Halastudy Ops</h1>
+      <span class="chip" id="uptime-chip">up —</span>
+      <span class="chip" id="memory-chip">rss —</span>
+      <div class="spacer"></div>
+      <button type="button" class="btn" id="btn-refresh">Refresh</button>
+      <button type="button" class="btn" id="btn-admin-signout">Sign out</button>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button data-panel="overview" class="is-on">Overview</button>
+      <button data-panel="rooms">Rooms</button>
+      <button data-panel="users">Users</button>
+      <button data-panel="video">Video</button>
+      <button data-panel="announce">Announce</button>
+      <button data-panel="system">System</button>
+    </div>
+
+    <section class="panel is-on" id="panel-overview">
+      <div class="card">
+        <div class="tiles" id="overview-tiles"></div>
+        <p class="muted" id="overview-updated" style="margin:12px 0 0;"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-rooms">
+      <div class="card">
+        <table>
+          <thead><tr><th>Code</th><th>Name</th><th>People</th><th>Mode</th><th>Video</th><th>Locked</th><th></th></tr></thead>
+          <tbody id="rooms-tbody"></tbody>
+        </table>
+        <p class="muted" id="rooms-empty" hidden>No live rooms.</p>
+      </div>
+      <div class="card hidden" id="room-inspect">
+        <div class="row">
+          <h3 style="margin:0;flex:1;" id="inspect-title">Room</h3>
+          <button type="button" class="btn" id="inspect-close-view">Close view</button>
+          <button type="button" class="btn danger" id="inspect-force-close">Force close room</button>
+        </div>
+        <table style="margin-top:12px;">
+          <thead><tr><th>Name</th><th>Session</th><th>Camera</th><th>Joined</th><th></th></tr></thead>
+          <tbody id="inspect-participants"></tbody>
+        </table>
+        <p class="muted" id="inspect-meta" style="margin:10px 0 0;"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-users">
+      <div class="card">
+        <div class="row">
+          <input type="search" id="user-search" placeholder="Search email or name" style="max-width:320px;">
+          <button type="button" class="btn" id="user-search-btn">Search</button>
+          <span class="muted" id="users-total"></span>
+        </div>
+        <table style="margin-top:14px;">
+          <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Streak</th><th>Focus min</th><th>Status</th><th></th></tr></thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-video">
+      <div class="card">
+        <h3 style="margin:0 0 10px;">Video join kill-switch</h3>
+        <p class="muted">Runtime override only — a server restart falls back to the env default. Flipping this to ON blocks all new video tokens immediately.</p>
+        <div class="row" style="margin-top:12px;">
+          <span id="kill-switch-state"><span class="status-dot on"></span>video joins allowed</span>
+          <button type="button" class="btn danger" id="kill-switch-toggle">Disable video joins</button>
+        </div>
+        <p class="muted" id="video-counts" style="margin-top:12px;"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-announce">
+      <div class="card">
+        <h3 style="margin:0 0 10px;">Broadcast banner</h3>
+        <p class="muted">Shown on every page and pushed to every open room. Leave a field empty to skip that language.</p>
+        <label for="announce-ar">Arabic message</label>
+        <textarea id="announce-ar" rows="2" maxlength="200" dir="rtl"></textarea>
+        <label for="announce-en">English message</label>
+        <textarea id="announce-en" rows="2" maxlength="200"></textarea>
+        <label for="announce-duration">Duration</label>
+        <select id="announce-duration">
+          <option value="30">30 minutes</option>
+          <option value="60" selected>1 hour</option>
+          <option value="240">4 hours</option>
+          <option value="1440">24 hours</option>
+          <option value="0">Until cleared</option>
+        </select>
+        <div class="row" style="margin-top:14px;">
+          <button type="button" class="btn primary" id="announce-publish">Publish</button>
+          <button type="button" class="btn" id="announce-clear">Clear active</button>
+          <span class="muted" id="announce-active"></span>
+        </div>
+        <p class="feedback" id="announce-feedback"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-system">
+      <div class="card">
+        <h3 style="margin:0 0 10px;">Backups</h3>
+        <div class="row">
+          <button type="button" class="btn" id="backup-now">Run backup now</button>
+          <span class="muted" id="backup-status"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 10px;">Recent warnings &amp; errors</h3>
+        <div id="errors-list" class="muted">Loading…</div>
+      </div>
+    </section>
+  </div>
+
+  <dialog id="confirm-dialog">
+    <h3 id="confirm-title">Confirm</h3>
+    <p class="muted" id="confirm-body"></p>
+    <input type="text" id="confirm-input" autocomplete="off">
+    <div class="row">
+      <button type="button" class="btn danger" id="confirm-yes" disabled>Confirm</button>
+      <button type="button" class="btn" id="confirm-no">Cancel</button>
+    </div>
+  </dialog>
+
+  <script>
+    (function opsApp() {
+      const $ = (id) => document.getElementById(id);
+      // Admin API lives under the secret mount path this page is served from.
+      const BASE = window.location.pathname.replace(/\/$/, '');
+
+      async function api(method, apiPath, body) {
+        const options = { method, credentials: 'include', headers: {} };
+        if (body !== undefined) {
+          options.headers['Content-Type'] = 'application/json';
+          options.body = JSON.stringify(body);
+        }
+        const response = await fetch(`${BASE}/api${apiPath}`, options);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const error = new Error(payload.errorCode || `HTTP ${response.status}`);
+          error.code = payload.errorCode;
+          error.status = response.status;
+          throw error;
+        }
+        return payload;
+      }
+
+      function toastNote(el, message, ok) {
+        el.textContent = message;
+        el.className = ok ? 'feedback ok' : 'feedback';
+        setTimeout(() => { el.textContent = ''; }, 4000);
+      }
+
+      /* Typed confirmation for irreversible actions. */
+      function confirmTyped({ title, body, expected }) {
+        return new Promise((resolve) => {
+          const dialog = $('confirm-dialog');
+          $('confirm-title').textContent = title;
+          $('confirm-body').textContent = body;
+          const input = $('confirm-input');
+          const yes = $('confirm-yes');
+          input.value = '';
+          input.placeholder = expected ? `Type "${expected}"` : '';
+          input.hidden = !expected;
+          yes.disabled = !!expected;
+          input.oninput = () => { yes.disabled = input.value.trim() !== expected; };
+          function close(result) {
+            dialog.close();
+            resolve(result);
+          }
+          yes.onclick = () => close(true);
+          $('confirm-no').onclick = () => close(false);
+          dialog.oncancel = () => resolve(false);
+          dialog.showModal();
+          if (expected) input.focus();
+        });
+      }
+
+      /* ---------- auth ---------- */
+      $('login-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+          await api('POST', '/login', { password: $('admin-password').value });
+          enterShell();
+        } catch (error) {
+          $('login-feedback').textContent = error.code === 'RATE_LIMITED'
+            ? 'Locked out — wait a few minutes.'
+            : 'Wrong password.';
+        }
+      });
+
+      $('btn-admin-signout').addEventListener('click', async () => {
+        try { await api('POST', '/logout'); } catch (_e) {}
+        window.location.reload();
+      });
+
+      /* ---------- tabs ---------- */
+      document.querySelectorAll('#tabs button').forEach((button) => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('is-on', b === button));
+          document.querySelectorAll('.panel').forEach((panel) => {
+            panel.classList.toggle('is-on', panel.id === `panel-${button.dataset.panel}`);
+          });
+          refreshActive();
+        });
+      });
+
+      function activePanel() {
+        const active = document.querySelector('#tabs button.is-on');
+        return active ? active.dataset.panel : 'overview';
+      }
+
+      /* ---------- overview ---------- */
+      function tile(label, value) {
+        return `<div class="tile"><strong class="mono">${value}</strong><span>${label}</span></div>`;
+      }
+      function formatUptime(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+      }
+
+      let lastOverview = null;
+      async function loadOverview() {
+        const data = await api('GET', '/overview');
+        lastOverview = data;
+        $('uptime-chip').textContent = `up ${formatUptime(data.uptimeSeconds)}`;
+        $('memory-chip').textContent = `rss ${data.memory.rssMb}MB`;
+        $('overview-tiles').innerHTML = [
+          tile('Live rooms', data.roomCount),
+          tile('Participants', data.participantCount),
+          tile('Video now', `${data.activeGlobalVideoParticipants}/${data.maxGlobalVideoParticipants}`),
+          tile('Accounts', data.userCount),
+          tile('Banned', data.bannedCount),
+          tile('Video joins', data.videoJoinDisabled ? 'OFF' : 'ON')
+        ].join('');
+        $('overview-updated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        renderKillSwitch(data.videoJoinDisabled);
+        $('video-counts').textContent = `Active video participants: ${data.activeGlobalVideoParticipants} of ${data.maxGlobalVideoParticipants} global cap.`;
+        $('announce-active').textContent = data.announcement
+          ? `Active: "${data.announcement.messageEn || data.announcement.messageAr}"`
+          : 'No active announcement.';
+        $('backup-status').textContent = data.backup.lastRunAt
+          ? `Last backup ${new Date(data.backup.lastRunAt).toLocaleString()}${data.backup.lastError ? ` — last error: ${data.backup.lastError}` : ''}`
+          : (data.backup.intervalMinutes ? 'No backup yet this session.' : 'Automated backups are off (BACKUP_INTERVAL_MINUTES=0).');
+      }
+
+      /* ---------- rooms ---------- */
+      let inspectedRoomId = null;
+      async function loadRooms() {
+        const data = await api('GET', '/rooms');
+        const tbody = $('rooms-tbody');
+        tbody.innerHTML = '';
+        $('rooms-empty').hidden = data.rooms.length > 0;
+        data.rooms.forEach((room) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="mono">${room.roomId}</td>
+            <td></td>
+            <td class="mono">${room.participantCount}</td>
+            <td>${room.mediaMode}</td>
+            <td class="mono">${room.activeVideoParticipants}</td>
+            <td>${room.requirePassword ? 'yes' : ''}</td>
+            <td></td>`;
+          tr.children[1].textContent = room.name;
+          const inspectBtn = document.createElement('button');
+          inspectBtn.className = 'btn';
+          inspectBtn.textContent = 'Inspect';
+          inspectBtn.addEventListener('click', () => inspectRoom(room.roomId));
+          tr.lastElementChild.appendChild(inspectBtn);
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function inspectRoom(roomId) {
+        const data = await api('GET', `/rooms/${encodeURIComponent(roomId)}`);
+        inspectedRoomId = roomId;
+        $('inspect-title').textContent = `${data.room.name} — ${roomId}`;
+        $('inspect-meta').textContent = `Created ${new Date(data.room.createdAt).toLocaleString()} · ${data.room.messageCount} chat messages · board goal: ${data.room.board && data.room.board.goal ? data.room.board.goal : '—'}`;
+        const tbody = $('inspect-participants');
+        tbody.innerHTML = '';
+        data.room.participants.forEach((participant) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td></td>
+            <td class="mono">${participant.sessionIdPrefix}…</td>
+            <td>${participant.cameraOn ? 'on' : 'off'}</td>
+            <td class="mono">${new Date(participant.joinedAt).toLocaleTimeString()}</td>
+            <td></td>`;
+          tr.children[0].textContent = participant.name;
+          const kickBtn = document.createElement('button');
+          kickBtn.className = 'btn danger';
+          kickBtn.textContent = 'Kick';
+          kickBtn.addEventListener('click', async () => {
+            const yes = await confirmTyped({
+              title: `Kick ${participant.name}?`,
+              body: 'They are disconnected immediately but can rejoin with the room code.',
+              expected: ''
+            });
+            if (!yes) return;
+            await api('POST', `/rooms/${encodeURIComponent(roomId)}/kick`, { socketId: participant.socketId });
+            await inspectRoom(roomId);
+            await loadRooms();
+          });
+          tr.lastElementChild.appendChild(kickBtn);
+          tbody.appendChild(tr);
+        });
+        $('room-inspect').classList.remove('hidden');
+      }
+
+      $('inspect-close-view').addEventListener('click', () => {
+        $('room-inspect').classList.add('hidden');
+        inspectedRoomId = null;
+      });
+
+      $('inspect-force-close').addEventListener('click', async () => {
+        if (!inspectedRoomId) return;
+        const yes = await confirmTyped({
+          title: 'Force close this room?',
+          body: 'Everyone inside is disconnected and the room is deleted, including its board and chat history. This cannot be undone.',
+          expected: inspectedRoomId
+        });
+        if (!yes) return;
+        await api('POST', `/rooms/${encodeURIComponent(inspectedRoomId)}/close`);
+        $('room-inspect').classList.add('hidden');
+        inspectedRoomId = null;
+        await loadRooms();
+      });
+
+      /* ---------- users ---------- */
+      async function loadUsers() {
+        const query = $('user-search').value.trim();
+        const data = await api('GET', `/users?query=${encodeURIComponent(query)}`);
+        $('users-total').textContent = `${data.total} account${data.total === 1 ? '' : 's'}`;
+        const tbody = $('users-tbody');
+        tbody.innerHTML = '';
+        data.users.forEach((user) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td></td>
+            <td class="mono"></td>
+            <td class="mono">${new Date(user.createdAt).toLocaleDateString()}</td>
+            <td class="mono">${user.streakCurrent}</td>
+            <td class="mono">${user.totalFocusMinutes}</td>
+            <td>${user.banned ? 'banned' : 'active'}</td>
+            <td></td>`;
+          tr.children[0].textContent = user.displayName;
+          tr.children[1].textContent = user.email;
+          const actionBtn = document.createElement('button');
+          actionBtn.className = user.banned ? 'btn' : 'btn danger';
+          actionBtn.textContent = user.banned ? 'Unban' : 'Ban';
+          actionBtn.addEventListener('click', async () => {
+            if (!user.banned) {
+              const yes = await confirmTyped({
+                title: `Ban ${user.displayName}?`,
+                body: 'They are signed out everywhere immediately and cannot sign back in until unbanned.',
+                expected: user.displayName
+              });
+              if (!yes) return;
+              await api('POST', `/users/${encodeURIComponent(user.id)}/ban`);
+            } else {
+              await api('POST', `/users/${encodeURIComponent(user.id)}/unban`);
+            }
+            await loadUsers();
+          });
+          tr.lastElementChild.appendChild(actionBtn);
+          tbody.appendChild(tr);
+        });
+      }
+      $('user-search-btn').addEventListener('click', () => { void loadUsers(); });
+      $('user-search').addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') { event.preventDefault(); void loadUsers(); }
+      });
+
+      /* ---------- video kill-switch ---------- */
+      function renderKillSwitch(disabled) {
+        $('kill-switch-state').innerHTML = disabled
+          ? '<span class="status-dot off"></span>video joins DISABLED'
+          : '<span class="status-dot on"></span>video joins allowed';
+        const toggle = $('kill-switch-toggle');
+        toggle.textContent = disabled ? 'Re-enable video joins' : 'Disable video joins';
+        toggle.className = disabled ? 'btn' : 'btn danger';
+      }
+
+      $('kill-switch-toggle').addEventListener('click', async () => {
+        const currentlyDisabled = lastOverview ? lastOverview.videoJoinDisabled : false;
+        const yes = await confirmTyped({
+          title: currentlyDisabled ? 'Re-enable video joins?' : 'Disable ALL video joins?',
+          body: currentlyDisabled
+            ? 'New video tokens will be issued again immediately.'
+            : 'Every new video join is rejected until re-enabled (existing calls continue). Restart resets to the env default.',
+          expected: ''
+        });
+        if (!yes) return;
+        const result = await api('POST', '/video-kill-switch', { disabled: !currentlyDisabled });
+        renderKillSwitch(result.disabled);
+        await loadOverview();
+      });
+
+      /* ---------- announce ---------- */
+      $('announce-publish').addEventListener('click', async () => {
+        try {
+          await api('POST', '/broadcast', {
+            messageAr: $('announce-ar').value,
+            messageEn: $('announce-en').value,
+            durationMinutes: Number($('announce-duration').value)
+          });
+          toastNote($('announce-feedback'), 'Published.', true);
+          await loadOverview();
+        } catch (error) {
+          toastNote($('announce-feedback'), error.code === 'ANNOUNCEMENT_INVALID'
+            ? 'Add at least one message (max 200 chars).'
+            : 'Publish failed.');
+        }
+      });
+
+      $('announce-clear').addEventListener('click', async () => {
+        await api('DELETE', '/broadcast');
+        toastNote($('announce-feedback'), 'Cleared.', true);
+        await loadOverview();
+      });
+
+      /* ---------- system ---------- */
+      $('backup-now').addEventListener('click', async () => {
+        const button = $('backup-now');
+        button.disabled = true;
+        try {
+          const result = await api('POST', '/backup');
+          $('backup-status').textContent = `Backed up ${result.entries} entries → ${result.files.join(', ')}`;
+        } catch (_error) {
+          $('backup-status').textContent = 'Backup failed — check the errors panel.';
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      async function loadErrors() {
+        const data = await api('GET', '/errors');
+        const list = $('errors-list');
+        if (!data.errors.length) {
+          list.textContent = 'No warnings or errors since startup.';
+          return;
+        }
+        list.innerHTML = '';
+        data.errors.slice(0, 50).forEach((entry) => {
+          const pre = document.createElement('pre');
+          pre.textContent = JSON.stringify(entry);
+          list.appendChild(pre);
+        });
+      }
+
+      /* ---------- polling ---------- */
+      let pollTimer = null;
+      async function refreshActive() {
+        try {
+          const panel = activePanel();
+          if (panel === 'overview' || panel === 'video' || panel === 'announce') await loadOverview();
+          if (panel === 'rooms') { await loadRooms(); if (inspectedRoomId) await inspectRoom(inspectedRoomId); }
+          if (panel === 'users') await loadUsers();
+          if (panel === 'system') { await loadOverview(); await loadErrors(); }
+        } catch (error) {
+          if (error.status === 401) window.location.reload();
+        }
+      }
+
+      function enterShell() {
+        $('login-view').classList.add('hidden');
+        $('ops-shell').classList.remove('hidden');
+        void refreshActive();
+        pollTimer = setInterval(() => {
+          // Pause while hidden or while a confirm dialog is open (avoid
+          // yanking focus mid-decision).
+          if (document.hidden || $('confirm-dialog').open) return;
+          void refreshActive();
+        }, 5000);
+        void pollTimer;
+      }
+
+      /* Boot: if the cookie is still valid, skip the login form. */
+      api('GET', '/overview')
+        .then(() => enterShell())
+        .catch(() => { /* stay on login */ });
+    })();
+  </script>
+</body>
+</html>

@@ -14,6 +14,7 @@ const {
 const { createLogger } = require('./services/logging/logger');
 const { createErrorBuffer } = require('./services/ops/error-buffer');
 const { createBackupScheduler } = require('./services/ops/backup-scheduler');
+const { createAdminRouter } = require('./services/admin/admin-routes');
 const { hashPassword, verifyPassword } = require('./services/auth/password');
 const { createSessionToken, verifySessionToken } = require('./services/auth');
 const { createAuthRouter } = require('./services/auth/auth-routes');
@@ -708,6 +709,17 @@ function createCoStudyServer(options = {}) {
     // falls back to the env-configured defaults (fail-safe).
     const runtimeFlags = { videoJoinDisabled: null };
     const isVideoJoinDisabled = () => runtimeFlags.videoJoinDisabled ?? !!config.video.joinDisabled;
+    // Site-wide announcement banner (admin broadcast). Lazy-expired on read.
+    const announcementState = { current: null };
+    function getActiveAnnouncement(now = Date.now()) {
+        const current = announcementState.current;
+        if (!current) return null;
+        if (current.expiresAt && current.expiresAt <= now) {
+            announcementState.current = null;
+            return null;
+        }
+        return current;
+    }
     const sfuOrigin = config.sfuAvailable ? new URL(config.sfuBaseUrl).origin : '';
     const contentSecurityPolicy = buildContentSecurityPolicy({ sfuOrigin, videoConfig: config.video });
     const permissionsPolicy = buildPermissionsPolicy({ sfuOrigin, videoConfig: config.video });
@@ -1846,6 +1858,33 @@ function createCoStudyServer(options = {}) {
         res.sendFile(path.join(__dirname, 'index.html'));
     });
 
+    if (config.admin.enabled) {
+        app.use(config.admin.path, createAdminRouter({
+            config,
+            rooms,
+            users,
+            io,
+            rateLimiters,
+            applyHttpRateLimit,
+            getRequestIp,
+            runtimeFlags,
+            isVideoJoinDisabled,
+            errorBuffer,
+            backupScheduler,
+            videoSessionRegistry,
+            announcementState,
+            buildScheduleSummary,
+            deleteRoom,
+            persistUsersSoon,
+            logger
+        }));
+    }
+
+    // Announcement is also surfaced to pages that poll runtime config.
+    app.get('/api/announcement', (_req, res) => {
+        res.json({ ok: true, announcement: getActiveAnnouncement() });
+    });
+
     // ---- Terminal handlers: keep these registered after every route ----
     app.use((req, res) => {
         if (req.path.startsWith('/api')) {
@@ -1884,6 +1923,12 @@ function createCoStudyServer(options = {}) {
         const handshakeCookies = parseCookies(socket.handshake?.headers?.cookie || '');
         const authedUser = resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME]);
         socket.data.userId = authedUser ? authedUser.id : null;
+
+        // Late joiners still see an active admin broadcast.
+        const currentAnnouncement = getActiveAnnouncement();
+        if (currentAnnouncement) {
+            socket.emit('announcement', currentAnnouncement);
+        }
 
         function getSocketUser() {
             if (!socket.data.userId) return null;
