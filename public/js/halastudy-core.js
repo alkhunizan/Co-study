@@ -1,0 +1,223 @@
+/* Halastudy shared core — loaded synchronously by every page BEFORE the
+ * page's inline script, so storage migration and the persisted theme apply
+ * before first paint and before any page code reads halastudy* keys.
+ *
+ * Owns only page-agnostic boilerplate: storage migration, theme persistence,
+ * a lang engine for pages that opt in via HalaCore.initLang (account/404 —
+ * the three original pages keep their own engines), postJson, and the auth
+ * session cache (HalaAuth). No socket, form, or timer logic lives here. */
+(function attachHalastudyCore(global) {
+    'use strict';
+
+    var LANG_KEY = 'halastudyLang';
+    var THEME_KEY = 'halastudyTheme';
+
+    /* ---------- storage-key migration (was: coStudy*) ----------
+     * One-shot copy-forward, idempotent via sentinel. Old keys stay readable
+     * for one release. Drop after the next release ships clean. */
+    (function migrateCoStudyToHalastudy() {
+        try {
+            const SENTINEL = 'halastudy:migratedFromCoStudy:v1';
+            if (localStorage.getItem(SENTINEL)) return;
+            const localMap = {
+                coStudyLang: 'halastudyLang',
+                coStudyStatusState: 'halastudyStatusState',
+                coStudyAmbientState: 'halastudyAmbientState',
+                coStudyFocusStats: 'halastudyFocusStats',
+                coStudyClientId: 'halastudyClientId',
+                coStudyName: 'halastudyName'
+            };
+            const sessionMap = {
+                coStudyRoomPassword: 'halastudyRoomPassword',
+                coStudyRoomCode: 'halastudyRoomCode'
+            };
+            Object.keys(localMap).forEach(function (oldK) {
+                const v = localStorage.getItem(oldK);
+                if (v !== null && localStorage.getItem(localMap[oldK]) === null) {
+                    localStorage.setItem(localMap[oldK], v);
+                }
+            });
+            Object.keys(sessionMap).forEach(function (oldK) {
+                const v = sessionStorage.getItem(oldK);
+                if (v !== null && sessionStorage.getItem(sessionMap[oldK]) === null) {
+                    sessionStorage.setItem(sessionMap[oldK], v);
+                }
+            });
+            localStorage.setItem(SENTINEL, String(Date.now()));
+        } catch (e) { /* storage unavailable — skip */ }
+    })();
+
+    /* ---------- theme ---------- */
+    function getStoredTheme() {
+        try { return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light'; } catch (e) { return 'light'; }
+    }
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+    }
+    function setTheme(theme) {
+        try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+        applyTheme(theme);
+    }
+    function toggleTheme() {
+        var cur = document.documentElement.getAttribute('data-theme') || 'light';
+        setTheme(cur === 'dark' ? 'light' : 'dark');
+    }
+    // Apply persisted theme immediately (pre-paint — this file loads sync).
+    applyTheme(getStoredTheme());
+
+    /* ---------- language ---------- */
+    function getLang() {
+        try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ar'; } catch (e) { return 'ar'; }
+    }
+    function setStoredLang(lang) {
+        try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
+    }
+
+    /* Lang engine for pages without their own (account.html, 404.html).
+     * Supports both attribute conventions used across the app:
+     *   data-i18n / data-lang            -> textContent
+     *   data-lang-placeholder            -> placeholder
+     *   data-lang-title                  -> title
+     *   data-lang-aria                   -> aria-label
+     * dict shape: { en: {...}, ar: {...} } */
+    var langState = { dict: null, lang: getLang(), listeners: [] };
+
+    function activeCopy() {
+        if (!langState.dict) return {};
+        return langState.dict[langState.lang] || langState.dict.en || {};
+    }
+
+    function applyLangToDom() {
+        var copy = activeCopy();
+        document.documentElement.lang = langState.lang;
+        document.documentElement.dir = langState.lang === 'ar' ? 'rtl' : 'ltr';
+        if (copy.pageTitle) document.title = copy.pageTitle;
+        ['data-i18n', 'data-lang'].forEach(function (attr) {
+            document.querySelectorAll('[' + attr + ']').forEach(function (el) {
+                var key = el.getAttribute(attr);
+                if (copy[key] != null) el.textContent = copy[key];
+            });
+        });
+        document.querySelectorAll('[data-lang-placeholder]').forEach(function (el) {
+            var key = el.getAttribute('data-lang-placeholder');
+            if (copy[key] != null) el.setAttribute('placeholder', copy[key]);
+        });
+        document.querySelectorAll('[data-lang-title]').forEach(function (el) {
+            var key = el.getAttribute('data-lang-title');
+            if (copy[key] != null) el.setAttribute('title', copy[key]);
+        });
+        document.querySelectorAll('[data-lang-aria]').forEach(function (el) {
+            var key = el.getAttribute('data-lang-aria');
+            if (copy[key] != null) el.setAttribute('aria-label', copy[key]);
+        });
+        document.querySelectorAll('[data-lang-value]').forEach(function (b) {
+            b.classList.toggle('is-on', b.getAttribute('data-lang-value') === langState.lang);
+        });
+        langState.listeners.forEach(function (cb) {
+            try { cb(langState.lang, copy); } catch (e) {}
+        });
+    }
+
+    function initLang(dict) {
+        langState.dict = dict;
+        document.querySelectorAll('[data-lang-value]').forEach(function (b) {
+            b.addEventListener('click', function () {
+                langState.lang = b.getAttribute('data-lang-value') === 'en' ? 'en' : 'ar';
+                setStoredLang(langState.lang);
+                applyLangToDom();
+            });
+        });
+        applyLangToDom();
+    }
+
+    /* ---------- fetch helper (same contract as video-client postJson) ---------- */
+    function requestJson(method, url, body) {
+        /** @type {RequestInit & { headers: Record<string, string> }} */
+        const options = {
+            method: method,
+            headers: {},
+            credentials: 'include'
+        };
+        if (body !== undefined) {
+            options.headers['Content-Type'] = 'application/json';
+            options.body = JSON.stringify(body || {});
+        }
+        return fetch(url, options).then(function (response) {
+            return response.json().catch(function () { return {}; }).then(function (payload) {
+                if (!response.ok) {
+                    /** @type {Error & { status?: number, code?: string, payload?: any }} */
+                    const error = new Error(`Request failed: ${response.status}`);
+                    error.status = response.status;
+                    error.code = payload.errorCode || payload.error || 'REQUEST_FAILED';
+                    error.payload = payload;
+                    throw error;
+                }
+                return payload;
+            });
+        });
+    }
+
+    /* ---------- auth session cache ---------- */
+    var userPromise = null;
+
+    function getUser() {
+        if (!userPromise) {
+            userPromise = requestJson('GET', '/api/auth/me')
+                .then(function (payload) { return payload && payload.user ? payload.user : null; })
+                .catch(function () { return null; });
+        }
+        return userPromise;
+    }
+
+    function refreshUser() {
+        userPromise = null;
+        return getUser();
+    }
+
+    function signout() {
+        return requestJson('POST', '/api/auth/logout')
+            .catch(function () { /* already signed out */ })
+            .then(function () { userPromise = Promise.resolve(null); return null; });
+    }
+
+    /* Swap the quiet "Sign in" topbar link (#auth-entry) for the avatar chip
+     * when a session exists. Pages without #auth-entry are untouched. */
+    function initAuthEntry() {
+        var entry = document.getElementById('auth-entry');
+        if (!entry) return;
+        getUser().then(function (user) {
+            if (!user) return;
+            const ui = (/** @type {any} */ (global)).HalaUI;
+            if (ui && typeof ui.renderAuthChip === 'function') {
+                ui.renderAuthChip(entry, user);
+            } else {
+                entry.textContent = user.displayName;
+                entry.setAttribute('href', '/account.html');
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAuthEntry);
+    } else {
+        initAuthEntry();
+    }
+
+    (/** @type {any} */ (global)).HalaCore = {
+        getLang: getLang,
+        initLang: initLang,
+        t: function (key) { return activeCopy()[key]; },
+        onLangChange: function (cb) { langState.listeners.push(cb); },
+        applyTheme: applyTheme,
+        setTheme: setTheme,
+        toggleTheme: toggleTheme,
+        requestJson: requestJson,
+        postJson: function (url, body) { return requestJson('POST', url, body); }
+    };
+
+    (/** @type {any} */ (global)).HalaAuth = {
+        getUser: getUser,
+        refreshUser: refreshUser,
+        signout: signout
+    };
+})(window);

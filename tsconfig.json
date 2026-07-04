@@ -16,6 +16,7 @@
   "include": [
     "*.js",
     "public/**/*.js",
+    "services/**/*.js",
     "scripts/**/*.js",
     "tests/**/*.js"
   ],

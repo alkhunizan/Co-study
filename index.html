@@ -517,6 +517,8 @@
             .schedule-stats { grid-template-columns: 1fr; }
         }
     </style>
+    <script src="/js/halastudy-core.js"></script>
+    <script src="/js/ui.js" defer></script>
 </head>
 <body>
 <div class="join-overlay" id="join-overlay">
@@ -773,53 +775,17 @@
 <script src="/js/video/realtimekit-client.js"></script>
 <script src="/js/video/video-client.js"></script>
 <script>
-    /* -------------------------------------------------------------------
-     * Halastudy storage-key migration (was: coStudy*).
-     * One-shot copy-forward. Idempotent — sentinel prevents re-running.
-     * Old keys are preserved read-only for one release. Remove after next
-     * clean release.
-     * ----------------------------------------------------------------- */
-    (function migrateCoStudyToHalastudy() {
-        try {
-            const SENTINEL = 'halastudy:migratedFromCoStudy:v1';
-            if (localStorage.getItem(SENTINEL)) return;
-            const localMap = {
-                coStudyLang:          'halastudyLang',
-                coStudyStatusState:   'halastudyStatusState',
-                coStudyAmbientState:  'halastudyAmbientState',
-                coStudyFocusStats:    'halastudyFocusStats',
-                coStudyClientId:      'halastudyClientId',
-                coStudyName:          'halastudyName',
-            };
-            const sessionMap = {
-                coStudyRoomPassword:  'halastudyRoomPassword',
-                coStudyRoomCode:      'halastudyRoomCode',
-            };
-            Object.entries(localMap).forEach(([oldK, newK]) => {
-                const v = localStorage.getItem(oldK);
-                if (v !== null && localStorage.getItem(newK) === null) {
-                    localStorage.setItem(newK, v);
-                }
-            });
-            Object.entries(sessionMap).forEach(([oldK, newK]) => {
-                const v = sessionStorage.getItem(oldK);
-                if (v !== null && sessionStorage.getItem(newK) === null) {
-                    sessionStorage.setItem(newK, v);
-                }
-            });
-            localStorage.setItem(SENTINEL, String(Date.now()));
-        } catch (e) { /* storage unavailable — skip */ }
-    })();
+    /* Storage-key migration + pre-paint theme now live in /js/halastudy-core.js
+     * (loaded in <head> before this script runs). */
 
     /* setTheme() is dead code — the 5-dot color picker was removed (one
        accent only, per DESIGN.md §10). Kept as a noop to avoid breaking
        any external integrations that might still call it. */
     function setTheme() { /* noop: single-accent system */ }
 
-    let isDark = false;
     function toggleDark() {
-        isDark = !isDark;
-        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        // Delegates to core so the choice persists across pages/visits.
+        window.HalaCore.toggleTheme();
     }
 
     const LANG_STORAGE_KEY = 'halastudyLang';

@@ -10,6 +10,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/design-system/colors_and_type.css">
   <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <script src="/js/ui.js" defer></script>
 </head>
 <body class="is-open-page">
   <header class="topbar">
@@ -185,45 +187,8 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    /* -------------------------------------------------------------------
-     * Halastudy storage-key migration (was: coStudy*).
-     * One-shot copy-forward. Runs before any storage reads. Idempotent —
-     * a sentinel flag prevents re-running. Old keys are preserved (read-only)
-     * for one release so a user who briefly downgrades doesn't lose state.
-     * Drop the old keys + this block after the next release ships clean.
-     * ----------------------------------------------------------------- */
-    (function migrateCoStudyToHalastudy() {
-        try {
-            const SENTINEL = 'halastudy:migratedFromCoStudy:v1';
-            if (localStorage.getItem(SENTINEL)) return;
-            const localMap = {
-                coStudyLang:          'halastudyLang',
-                coStudyStatusState:   'halastudyStatusState',
-                coStudyAmbientState:  'halastudyAmbientState',
-                coStudyFocusStats:    'halastudyFocusStats',
-                coStudyClientId:      'halastudyClientId',
-                coStudyName:          'halastudyName',
-            };
-            const sessionMap = {
-                coStudyRoomPassword:  'halastudyRoomPassword',
-                coStudyRoomCode:      'halastudyRoomCode',
-            };
-            Object.entries(localMap).forEach(([oldK, newK]) => {
-                const v = localStorage.getItem(oldK);
-                if (v !== null && localStorage.getItem(newK) === null) {
-                    localStorage.setItem(newK, v);
-                }
-            });
-            Object.entries(sessionMap).forEach(([oldK, newK]) => {
-                const v = sessionStorage.getItem(oldK);
-                if (v !== null && sessionStorage.getItem(newK) === null) {
-                    sessionStorage.setItem(newK, v);
-                }
-            });
-            localStorage.setItem(SENTINEL, String(Date.now()));
-        } catch (e) { /* storage unavailable — skip */ }
-    })();
-
+    /* Storage-key migration + pre-paint theme now live in /js/halastudy-core.js
+     * (loaded in <head> before this script runs). */
     (function() {
         'use strict';
 
