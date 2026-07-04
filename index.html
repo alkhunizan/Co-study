@@ -229,6 +229,14 @@
             overflow-wrap: anywhere;
         }
         .status-goal-label { margin-block-start: 10px; }
+        .user-report-btn { border: none; background: transparent; color: var(--text-sec); cursor: pointer; font: inherit; font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; margin-inline-start: auto; opacity: 0.7; }
+        .user-report-btn:hover { color: var(--prio-high); background: rgba(0,0,0,0.05); opacity: 1; }
+        .user-hidden-tag { font-size: 0.72rem; color: var(--text-sec); background: rgba(0,0,0,0.06); padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+        .report-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-block-start: 4px; }
+        .report-reason-btn { border: 1px solid var(--border); background: var(--bg-input); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 0.75rem; cursor: pointer; color: var(--text-main); }
+        .report-reason-btn:hover { border-color: var(--prio-high); color: var(--prio-high); }
+        .report-cancel-btn:hover { border-color: var(--border); color: var(--text-sec); }
+        .remote-tile.is-hidden { display: none; }
         .user-empty {
             padding: 14px 16px;
             border-radius: 18px;
@@ -939,6 +947,15 @@
             preset25: '25 min focus / 5 min break',
             preset50: '50 min focus / 10 min break',
             preset90: '90 min focus / 15 min break',
+            reportUser: 'Report',
+            reportReasonSpam: 'Spam',
+            reportReasonHarassment: 'Harassment',
+            reportReasonInappropriate: 'Inappropriate content',
+            reportCancel: 'Cancel',
+            reportConfirmToast: 'Report sent — this user is now hidden for you',
+            reportRateLimited: 'Too many reports — try again later',
+            reportErrorGeneric: 'Could not send the report',
+            userHiddenTag: 'Hidden',
             ambientSound: 'Ambient sound',
             ambientTitle: 'Choose ambient sound',
             ambientShowStatus: 'Show in status',
@@ -1098,6 +1115,15 @@
             preset25: '٢٥ دقيقة تركيز / ٥ دقائق استراحة',
             preset50: '٥٠ دقيقة تركيز / ١٠ دقائق استراحة',
             preset90: '٩٠ دقيقة تركيز / ١٥ دقيقة استراحة',
+            reportUser: 'تبليغ',
+            reportReasonSpam: 'إزعاج متكرر',
+            reportReasonHarassment: 'إساءة',
+            reportReasonInappropriate: 'محتوى غير لائق',
+            reportCancel: 'إلغاء',
+            reportConfirmToast: 'تم إرسال البلاغ — تم إخفاء هذا المستخدم عنك',
+            reportRateLimited: 'بلاغات كثيرة — حاول لاحقًا',
+            reportErrorGeneric: 'تعذر إرسال البلاغ',
+            userHiddenTag: 'مخفي',
             ambientSound: 'الصوت المحيط',
             ambientTitle: 'اختر الصوت المحيط',
             ambientShowStatus: 'إظهاره في الحالة',
@@ -1269,6 +1295,11 @@
     const peerConnections = new Map();
     const remoteCameraStates = new Map();
     const remoteVideoSlots = new Map();
+    // Peers hidden locally after a report — session-only, clears on reload.
+    // Chat is name-keyed (server messages carry only the author name).
+    const hiddenPeers = { ids: new Set(), names: new Set() };
+    let pendingReportTargetId = null;
+    const REPORT_REASON_KEYS = { spam: 'reportReasonSpam', harassment: 'reportReasonHarassment', inappropriate: 'reportReasonInappropriate' };
     const pendingIceCandidates = new Map();
     const DEFAULT_ICE_SERVERS = [
         { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
@@ -2514,6 +2545,30 @@
         });
     }
 
+    function isHiddenPeer(record) {
+        if (!record) return false;
+        return hiddenPeers.ids.has(record.id) || (record.name && hiddenPeers.names.has(record.name));
+    }
+
+    function reportUser(targetId, targetName, reason) {
+        if (!socket || !roomId) return;
+        socket.emit('report-user', { targetId, reason }, (ack = {}) => {
+            pendingReportTargetId = null;
+            if (ack && ack.ok) {
+                hiddenPeers.ids.add(targetId);
+                if (targetName) hiddenPeers.names.add(targetName);
+                const slot = remoteVideoSlots.get(targetId);
+                if (slot) slot.tile.classList.add('is-hidden');
+                renderMessages(chatHistoryCache);
+                if (window.HalaUI) window.HalaUI.toast(currentCopy().reportConfirmToast, { duration: 6000 });
+            } else if (window.HalaUI) {
+                const key = ack && ack.errorCode === 'RATE_LIMITED' ? 'reportRateLimited' : 'reportErrorGeneric';
+                window.HalaUI.toast(currentCopy()[key], { kind: 'error', duration: 6000 });
+            }
+            renderUserList();
+        });
+    }
+
     function renderUserList() {
         if (!userListEl) return;
         const list = Array.isArray(presenceCache) ? presenceCache : [];
@@ -2547,8 +2602,45 @@
                 tag.className = 'user-self';
                 tag.textContent = getSelfLabel();
                 nameRow.appendChild(tag);
+            } else if (isHiddenPeer(record)) {
+                const tag = document.createElement('span');
+                tag.className = 'user-hidden-tag';
+                tag.textContent = langDict[curLang].userHiddenTag;
+                nameRow.appendChild(tag);
+            } else if (selfId) {
+                const reportBtn = document.createElement('button');
+                reportBtn.type = 'button';
+                reportBtn.className = 'user-report-btn';
+                reportBtn.textContent = langDict[curLang].reportUser;
+                reportBtn.addEventListener('click', () => {
+                    pendingReportTargetId = pendingReportTargetId === record.id ? null : record.id;
+                    renderUserList();
+                });
+                nameRow.appendChild(reportBtn);
             }
             body.appendChild(nameRow);
+            if (pendingReportTargetId === record.id && !isHiddenPeer(record)) {
+                const reasons = document.createElement('div');
+                reasons.className = 'report-reasons';
+                Object.keys(REPORT_REASON_KEYS).forEach(reason => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'report-reason-btn';
+                    btn.textContent = langDict[curLang][REPORT_REASON_KEYS[reason]];
+                    btn.addEventListener('click', () => reportUser(record.id, record.name, reason));
+                    reasons.appendChild(btn);
+                });
+                const cancelBtn = document.createElement('button');
+                cancelBtn.type = 'button';
+                cancelBtn.className = 'report-reason-btn report-cancel-btn';
+                cancelBtn.textContent = langDict[curLang].reportCancel;
+                cancelBtn.addEventListener('click', () => {
+                    pendingReportTargetId = null;
+                    renderUserList();
+                });
+                reasons.appendChild(cancelBtn);
+                body.appendChild(reasons);
+            }
             const statusLine = document.createElement('div');
             statusLine.className = 'user-status-text';
             if (record.status && record.status.visible === false) {
@@ -3385,20 +3477,31 @@
         return bubble;
     }
 
+    // Kept so the chat can be re-rendered when a peer is hidden mid-session.
+    let chatHistoryCache = [];
+
+    function isHiddenAuthor(message) {
+        return !!(message && message.type !== 'system' && message.author && hiddenPeers.names.has(message.author));
+    }
+
     function appendMessage(message) {
         if (!message) return;
+        chatHistoryCache.push(message);
+        if (isHiddenAuthor(message)) return;
         clearChatPlaceholder();
         chatMsgs.appendChild(buildMessageNode(message));
         chatMsgs.scrollTop = chatMsgs.scrollHeight;
     }
 
     function renderMessages(list = []) {
+        chatHistoryCache = Array.isArray(list) ? list.slice() : [];
+        const visible = chatHistoryCache.filter(msg => !isHiddenAuthor(msg));
         chatMsgs.innerHTML = '';
-        if (!list.length) {
+        if (!visible.length) {
             showChatPlaceholder();
             return;
         }
-        list.forEach(msg => chatMsgs.appendChild(buildMessageNode(msg)));
+        visible.forEach(msg => chatMsgs.appendChild(buildMessageNode(msg)));
         chatMsgs.scrollTop = chatMsgs.scrollHeight;
     }
 
@@ -4161,6 +4264,7 @@
         debugLog('VIDEO-SLOT', `Creating new video slot for ${userId}`);
         const tile = document.createElement('div');
         tile.className = 'remote-tile';
+        if (hiddenPeers.ids.has(userId)) tile.classList.add('is-hidden');
         tile.dataset.peerId = userId;
 
         const videoEl = document.createElement('video');

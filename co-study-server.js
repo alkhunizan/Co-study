@@ -73,6 +73,10 @@ const PROFILE_MUTATION_RATE = { limit: 20, windowMs: 5 * 60 * 1000 };
 const FOCUS_LOG_RATE = { limit: 30, windowMs: 60 * 60 * 1000 };
 const ADMIN_LOGIN_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
 const METRICS_RATE = { limit: 30, windowMs: 60 * 1000 };
+const REPORT_RATE = { limit: 3, windowMs: 60 * 1000 };
+const REPORT_REASONS = ['spam', 'harassment', 'inappropriate', 'other'];
+const REPORT_DETAIL_MAX_LENGTH = 200;
+const ROOM_REPORTS_LIMIT = 50;
 
 class SlidingWindowRateLimiter {
     constructor({ limit, windowMs }) {
@@ -767,7 +771,8 @@ function createCoStudyServer(options = {}) {
         profileMutation: new SlidingWindowRateLimiter(PROFILE_MUTATION_RATE),
         focusLog: new SlidingWindowRateLimiter(FOCUS_LOG_RATE),
         adminLogin: new SlidingWindowRateLimiter(ADMIN_LOGIN_RATE),
-        metrics: new SlidingWindowRateLimiter(METRICS_RATE)
+        metrics: new SlidingWindowRateLimiter(METRICS_RATE),
+        reports: new SlidingWindowRateLimiter(REPORT_RATE)
     };
     const videoProvider = createVideoProvider({ config: config.video, logger });
     const videoSessionRegistry = createVideoSessionRegistry({ logger });
@@ -1161,6 +1166,7 @@ function createCoStudyServer(options = {}) {
             users: new Map(),
             messages: Array.isArray(room.messages) ? room.messages.map((message) => ({ ...message })) : [],
             board: cloneBoard(room.board),
+            reports: Array.isArray(room.reports) ? room.reports.map((report) => ({ ...report })) : [],
             schedule,
             identities: new Map(),
             cleanupTimer: null
@@ -1968,6 +1974,7 @@ function createCoStudyServer(options = {}) {
             buildScheduleSummary,
             deleteRoom,
             persistUsersSoon,
+            persistRoomsSoon,
             dashboard: typeof userStore.readAdminOverview === 'function'
                 ? {
                     overview: () => userStore.readAdminOverview(),
@@ -2508,6 +2515,62 @@ function createCoStudyServer(options = {}) {
             user.status = safeStatus;
             io.to(roomId).emit('status-update', { userId: socket.id, status: safeStatus });
             ack({ ok: true });
+        });
+
+        // Reports are silent: stored on the room for admin review, never
+        // broadcast, never exposed through client-facing snapshots.
+        socket.on('report-user', (payload = {}, ack = () => {}) => {
+            const currentRoom = socket.data.roomId;
+            if (!currentRoom) {
+                return ackError(ack, 'ROOM_NOT_JOINED');
+            }
+            const room = rooms.get(currentRoom);
+            if (!room) {
+                return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+            const reporter = room.users.get(socket.id);
+            if (!reporter) {
+                return ackError(ack, 'ROOM_NOT_JOINED');
+            }
+            const targetId = typeof payload.targetId === 'string' ? payload.targetId : '';
+            const target = room.users.get(targetId);
+            if (!target) {
+                return ackError(ack, 'PARTICIPANT_NOT_FOUND');
+            }
+            if (targetId === socket.id || isSameIdentity(target, socket.data.sessionId, socket.data.clientId)) {
+                return ackError(ack, 'CANNOT_REPORT_SELF');
+            }
+            if (!checkSocketRateLimit(socket, rateLimiters.reports, getJoinSessionKey(socket), ack)) {
+                return;
+            }
+            const reason = REPORT_REASONS.includes(payload.reason) ? payload.reason : 'other';
+            const report = {
+                id: `rpt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                reporterName: reporter.name || '',
+                reporterSessionIdPrefix: (socket.data.sessionId || '').slice(0, 8),
+                targetSocketId: targetId,
+                targetSessionIdPrefix: (target.sessionId || '').slice(0, 8),
+                targetClientId: target.clientId || '',
+                targetName: target.name || '',
+                reason,
+                detail: sanitizeUserText(payload.detail, REPORT_DETAIL_MAX_LENGTH),
+                createdAt: Date.now(),
+                status: 'open'
+            };
+            if (!Array.isArray(room.reports)) room.reports = [];
+            room.reports.push(report);
+            if (room.reports.length > ROOM_REPORTS_LIMIT) {
+                room.reports.splice(0, room.reports.length - ROOM_REPORTS_LIMIT);
+            }
+            logger.warn({
+                event: 'user_reported',
+                roomId: currentRoom,
+                reportId: report.id,
+                reason,
+                targetName: report.targetName
+            });
+            persistRoomsSoon();
+            ack({ ok: true, reportId: report.id });
         });
 
         socket.on('disconnect', () => {

@@ -110,6 +110,43 @@ function createRoomStore(options = {}) {
         };
     }
 
+    const REPORT_REASONS = ['spam', 'harassment', 'inappropriate', 'other'];
+    const REPORT_STATUSES = ['open', 'resolved'];
+    const REPORT_DETAIL_MAX_LENGTH = 200;
+    const ROOM_REPORTS_LIMIT = 50;
+
+    /**
+     * @param {Record<string, any>} report
+     * @param {number} [index]
+     */
+    function sanitizeReport(report = {}, index = 0) {
+        if (!report || typeof report !== 'object' || Array.isArray(report)) {
+            return null;
+        }
+
+        const targetName = typeof report.targetName === 'string' ? report.targetName.trim() : '';
+        const targetSessionIdPrefix = typeof report.targetSessionIdPrefix === 'string'
+            ? report.targetSessionIdPrefix.slice(0, 8)
+            : '';
+        if (!targetName && !targetSessionIdPrefix) return null;
+
+        return {
+            id: typeof report.id === 'string' && report.id.trim() ? report.id.trim() : `rpt-${Date.now()}-${index}`,
+            reporterName: typeof report.reporterName === 'string' ? report.reporterName.trim() : '',
+            reporterSessionIdPrefix: typeof report.reporterSessionIdPrefix === 'string'
+                ? report.reporterSessionIdPrefix.slice(0, 8)
+                : '',
+            targetSocketId: typeof report.targetSocketId === 'string' ? report.targetSocketId : '',
+            targetSessionIdPrefix,
+            targetClientId: typeof report.targetClientId === 'string' ? report.targetClientId : '',
+            targetName,
+            reason: REPORT_REASONS.includes(report.reason) ? report.reason : 'other',
+            detail: typeof report.detail === 'string' ? report.detail.slice(0, REPORT_DETAIL_MAX_LENGTH) : '',
+            createdAt: typeof report.createdAt === 'number' ? report.createdAt : Date.now(),
+            status: REPORT_STATUSES.includes(report.status) ? report.status : 'open'
+        };
+    }
+
     function sanitizeVideoProvider(raw) {
         if (typeof raw !== 'string' || !raw.trim()) return null;
         try {
@@ -195,6 +232,9 @@ function createRoomStore(options = {}) {
                 goal: sanitizeBoardGoal(room.board?.goal),
                 tasks: safeTasks
             },
+            reports: Array.isArray(room.reports)
+                ? room.reports.map(sanitizeReport).filter(Boolean).slice(-ROOM_REPORTS_LIMIT)
+                : [],
             schedule: safeSchedule
         };
     }

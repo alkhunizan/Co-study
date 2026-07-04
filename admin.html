@@ -137,6 +137,7 @@
       <button data-panel="overview" class="is-on">Overview</button>
       <button data-panel="rooms">Rooms</button>
       <button data-panel="users">Users</button>
+      <button data-panel="reports">Reports</button>
       <button data-panel="video">Video</button>
       <button data-panel="announce">Announce</button>
       <button data-panel="system">System</button>
@@ -182,6 +183,20 @@
           <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Streak</th><th>Focus min</th><th>Status</th><th></th></tr></thead>
           <tbody id="users-tbody"></tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-reports">
+      <div class="card">
+        <div class="row">
+          <h3 style="margin:0;flex:1;">User reports</h3>
+          <span class="muted" id="reports-total"></span>
+        </div>
+        <table style="margin-top:14px;">
+          <thead><tr><th>Room</th><th>Target</th><th>Reporter</th><th>Reason</th><th>When</th><th>Status</th><th></th></tr></thead>
+          <tbody id="reports-tbody"></tbody>
+        </table>
+        <p class="muted" id="reports-empty" hidden>No reports.</p>
       </div>
     </section>
 
@@ -497,6 +512,55 @@
         if (event.key === 'Enter') { event.preventDefault(); void loadUsers(); }
       });
 
+      /* ---------- user reports ---------- */
+      async function loadReports() {
+        const data = await api('GET', '/reports');
+        const open = data.reports.filter((report) => report.status === 'open').length;
+        $('reports-total').textContent = `${data.reports.length} total · ${open} open`;
+        const tbody = $('reports-tbody');
+        tbody.innerHTML = '';
+        $('reports-empty').hidden = data.reports.length > 0;
+        data.reports.forEach((report) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="mono"></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td class="mono">${new Date(report.createdAt).toLocaleString()}</td>
+            <td></td>
+            <td></td>`;
+          tr.children[0].textContent = report.roomId;
+          tr.children[1].textContent = `${report.targetName} (${report.targetSessionIdPrefix || '—'})${report.targetStillConnected ? '' : ' · left'}`;
+          tr.children[2].textContent = report.reporterName;
+          tr.children[3].textContent = report.detail ? `${report.reason}: ${report.detail}` : report.reason;
+          tr.children[5].textContent = report.status;
+          const actions = tr.lastElementChild;
+          if (report.status === 'open') {
+            const resolveBtn = document.createElement('button');
+            resolveBtn.className = 'btn';
+            resolveBtn.textContent = 'Resolve';
+            resolveBtn.addEventListener('click', async () => {
+              await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/reports/${encodeURIComponent(report.id)}/resolve`);
+              await loadReports();
+            });
+            actions.appendChild(resolveBtn);
+          }
+          if (report.targetStillConnected) {
+            const kickBtn = document.createElement('button');
+            kickBtn.className = 'btn danger';
+            kickBtn.textContent = 'Kick';
+            kickBtn.style.marginInlineStart = '6px';
+            kickBtn.addEventListener('click', async () => {
+              await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/kick`, { socketId: report.targetSocketId });
+              await loadReports();
+            });
+            actions.appendChild(kickBtn);
+          }
+          tbody.appendChild(tr);
+        });
+      }
+
       /* ---------- video kill-switch ---------- */
       function renderKillSwitch(disabled) {
         $('kill-switch-state').innerHTML = disabled
@@ -582,6 +646,7 @@
           if (panel === 'overview' || panel === 'video' || panel === 'announce') await loadOverview();
           if (panel === 'rooms') { await loadRooms(); if (inspectedRoomId) await inspectRoom(inspectedRoomId); }
           if (panel === 'users') await loadUsers();
+          if (panel === 'reports') await loadReports();
           if (panel === 'system') { await loadOverview(); await loadErrors(); }
         } catch (error) {
           if (error.status === 401) window.location.reload();

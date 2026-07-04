@@ -330,6 +330,75 @@ test('manual backup writes rooms and users snapshots with retention-friendly nam
     }
 });
 
+test('reports surface in the admin console, resolve, and survive a restart', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-admin-reports');
+    let server = await startAdminServer({ roomStateFile });
+    t.after(async () => {
+        if (server) {
+            await server.stop();
+            resetStateFile(server.userStateFile);
+        }
+        resetStateFile(roomStateFile);
+    });
+    const cookie = await adminLogin(server);
+
+    const reporter = await connectSocket(server.baseUrl, { clientId: 'adm-reporter' });
+    const target = await connectSocket(server.baseUrl, { clientId: 'adm-target' });
+    t.after(async () => {
+        await closeSocket(reporter);
+        await closeSocket(target);
+    });
+
+    const created = await emitAck(reporter, 'create-room', { roomName: 'Admin Report Room' });
+    const roomId = created.room.roomId;
+    await emitAck(reporter, 'join-room', { roomId, username: 'Reporter', clientId: 'adm-reporter' });
+    await emitAck(target, 'join-room', { roomId, username: 'Target', clientId: 'adm-target' });
+
+    const report = await emitAck(reporter, 'report-user', {
+        targetId: target.id,
+        reason: 'harassment',
+        detail: 'kept spamming the chat'
+    });
+    assert.equal(report.ok, true);
+
+    // Unauthed access is rejected; authed listing shows the open report.
+    const unauthed = await server.request(`${ADMIN_PATH}/api/reports`);
+    assert.equal(unauthed.status, 401);
+
+    const listing = await adminRequest(server, '/reports', cookie);
+    assert.equal(listing.status, 200);
+    const entry = listing.body.reports.find((item) => item.id === report.reportId);
+    assert.ok(entry);
+    assert.equal(entry.roomId, roomId);
+    assert.equal(entry.targetName, 'Target');
+    assert.equal(entry.reporterName, 'Reporter');
+    assert.equal(entry.reason, 'harassment');
+    assert.equal(entry.detail, 'kept spamming the chat');
+    assert.equal(entry.status, 'open');
+    assert.equal(entry.targetStillConnected, true);
+
+    // Resolve flips status; unknown ids 404.
+    const missing = await adminRequest(server, `/rooms/${roomId}/reports/rpt-nope/resolve`, cookie, { method: 'POST' });
+    assert.equal(missing.status, 404);
+    const resolve = await adminRequest(server, `/rooms/${roomId}/reports/${report.reportId}/resolve`, cookie, { method: 'POST' });
+    assert.equal(resolve.status, 200);
+
+    // Restart against the same state file: the resolved report rehydrates.
+    await new Promise((waitDone) => setTimeout(waitDone, 400));
+    await closeSocket(reporter);
+    await closeSocket(target);
+    await server.stop();
+    server = await startAdminServer({ roomStateFile, resetStateFileOnStart: false });
+    const restartCookie = await adminLogin(server);
+
+    const afterRestart = await adminRequest(server, '/reports', restartCookie);
+    assert.equal(afterRestart.status, 200);
+    const survived = afterRestart.body.reports.find((item) => item.id === report.reportId);
+    assert.ok(survived);
+    assert.equal(survived.status, 'resolved');
+    assert.equal(survived.targetStillConnected, false);
+});
+
 test('errors endpoint returns recent redacted warnings; metrics and API 404 behave', async (t) => {
     const server = await startAdminServer();
     await cleanupServer(t, server);

@@ -36,6 +36,7 @@ function createAdminRouter(deps) {
         buildScheduleSummary,
         deleteRoom,
         persistUsersSoon,
+        persistRoomsSoon,
         dashboard,
         logger
     } = deps;
@@ -283,6 +284,45 @@ function createAdminRouter(deps) {
             room.users.delete(socketId);
         }
         logger.warn({ event: 'admin_participant_kicked', roomId, socketId });
+        res.json({ ok: true });
+    });
+
+    // ---- user reports ----
+
+    router.get('/api/reports', requireAdmin, (_req, res) => {
+        const reports = [];
+        for (const room of rooms.values()) {
+            if (!Array.isArray(room.reports)) continue;
+            for (const report of room.reports) {
+                reports.push({
+                    roomId: room.id,
+                    roomName: room.name,
+                    ...report,
+                    targetStillConnected: !!(room.users && room.users.has(report.targetSocketId))
+                });
+            }
+        }
+        reports.sort((a, b) => b.createdAt - a.createdAt);
+        res.json({ ok: true, reports: reports.slice(0, 200) });
+    });
+
+    router.post('/api/rooms/:roomId/reports/:reportId/resolve', requireAdmin, (req, res) => {
+        const roomId = (req.params.roomId || '').trim().toUpperCase();
+        const room = rooms.get(roomId);
+        if (!room) {
+            res.status(404).json({ errorCode: 'ROOM_NOT_FOUND' });
+            return;
+        }
+        const report = Array.isArray(room.reports)
+            ? room.reports.find((entry) => entry.id === req.params.reportId)
+            : null;
+        if (!report) {
+            res.status(404).json({ errorCode: 'REPORT_NOT_FOUND' });
+            return;
+        }
+        report.status = 'resolved';
+        if (typeof persistRoomsSoon === 'function') persistRoomsSoon();
+        logger.warn({ event: 'admin_report_resolved', roomId, reportId: report.id });
         res.json({ ok: true });
     });
 

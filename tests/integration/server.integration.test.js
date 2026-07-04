@@ -1494,6 +1494,77 @@ test('per-user session goal rides on user-status: sanitized, broadcast, and hidd
     assert.equal(hiddenAlice.status.visible, false);
 });
 
+test('report-user validates targets, rate limits, persists sanitized, and never leaks to clients', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-reports');
+    const server = await startServer({ roomStateFile });
+    await cleanupServer(t, server, [roomStateFile]);
+
+    const reporterSocket = await connectSocket(server.baseUrl, { clientId: 'rpt-reporter' });
+    const targetSocket = await connectSocket(server.baseUrl, { clientId: 'rpt-target' });
+    t.after(async () => {
+        await closeSocket(reporterSocket);
+        await closeSocket(targetSocket);
+    });
+
+    const createRoom = await emitAck(reporterSocket, 'create-room', { roomName: 'Report Room' });
+    assert.equal(createRoom.ok, true);
+    const roomId = createRoom.room.roomId;
+
+    // Reporting before joining a room is rejected.
+    const notJoined = await emitAck(reporterSocket, 'report-user', { targetId: 'whatever' });
+    assert.equal(notJoined.ok, false);
+    assert.equal(notJoined.errorCode, 'ROOM_NOT_JOINED');
+
+    assert.equal((await emitAck(reporterSocket, 'join-room', { roomId, username: 'Reporter', clientId: 'rpt-reporter' })).ok, true);
+    assert.equal((await emitAck(targetSocket, 'join-room', { roomId, username: 'Target', clientId: 'rpt-target' })).ok, true);
+
+    // Unknown target and self-report are rejected.
+    const unknownTarget = await emitAck(reporterSocket, 'report-user', { targetId: 'not-a-socket-id' });
+    assert.equal(unknownTarget.errorCode, 'PARTICIPANT_NOT_FOUND');
+    const selfReport = await emitAck(reporterSocket, 'report-user', { targetId: reporterSocket.id });
+    assert.equal(selfReport.errorCode, 'CANNOT_REPORT_SELF');
+
+    // Valid report: bad reason falls back to 'other', detail is truncated.
+    const firstReport = await emitAck(reporterSocket, 'report-user', {
+        targetId: targetSocket.id,
+        reason: 'not-a-real-reason',
+        detail: 'd'.repeat(300)
+    });
+    assert.equal(firstReport.ok, true);
+    assert.match(firstReport.reportId, /^rpt-/);
+
+    // Reports never appear in client-facing snapshots.
+    const witnessSocket = await connectSocket(server.baseUrl, { clientId: 'rpt-witness' });
+    t.after(async () => {
+        await closeSocket(witnessSocket);
+    });
+    const witnessJoin = await emitAck(witnessSocket, 'join-room', { roomId, username: 'Witness', clientId: 'rpt-witness' });
+    assert.equal(witnessJoin.ok, true);
+    assert.equal(witnessJoin.room.reports, undefined);
+    const publicGet = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(publicGet.status, 200);
+    assert.doesNotMatch(JSON.stringify(publicGet.body), /reports|rpt-/);
+
+    // Rate limit: 3 reports per window, the 4th is rejected.
+    assert.equal((await emitAck(reporterSocket, 'report-user', { targetId: targetSocket.id, reason: 'spam' })).ok, true);
+    assert.equal((await emitAck(reporterSocket, 'report-user', { targetId: targetSocket.id, reason: 'harassment' })).ok, true);
+    const rateLimited = await emitAck(reporterSocket, 'report-user', { targetId: targetSocket.id, reason: 'spam' });
+    assert.equal(rateLimited.ok, false);
+    assert.equal(rateLimited.errorCode, 'RATE_LIMITED');
+
+    // Persisted state carries the sanitized report (enum fallback + 200-char cap).
+    await delay(400);
+    const persisted = JSON.parse(fs.readFileSync(roomStateFile, 'utf8'));
+    const persistedRoom = persisted.find((room) => room.id === roomId);
+    assert.equal(persistedRoom.reports.length, 3);
+    const persistedReport = persistedRoom.reports.find((report) => report.id === firstReport.reportId);
+    assert.equal(persistedReport.reason, 'other');
+    assert.equal(persistedReport.detail.length, 200);
+    assert.equal(persistedReport.targetName, 'Target');
+    assert.equal(persistedReport.reporterName, 'Reporter');
+    assert.equal(persistedReport.status, 'open');
+});
+
 test('protected room GET exposes only a safe preview and leaks no private state', async (t) => {
     const server = await startServer({ withFakeRealtimeKit: true });
     await cleanupServer(t, server);
