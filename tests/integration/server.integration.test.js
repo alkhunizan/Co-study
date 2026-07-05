@@ -1186,7 +1186,7 @@ test('open alias and media mounts serve published assets only', async (t) => {
     assert.equal(openPage.status, 200);
     assert.match(`${openPage.body}`, /id="create-form"/);
 
-    const poster = await server.request('/videos/hero/01-saud-poster.jpg');
+    const poster = await server.request('/videos/hero/01-nouf-abdulaziz-poster.jpg');
     assert.equal(poster.status, 200);
     assert.match(`${poster.headers['content-type']}`, /image\/jpeg/);
     assert.match(`${poster.headers['cache-control']}`, /max-age=\d+/);

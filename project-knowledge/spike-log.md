@@ -491,3 +491,25 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 1. Blur default ON confirmed good after real-device QA? (perf on low-end laptops)
 2. قدرات/تحصيلي room presets (item #5) — schedule as next feature block?
 3. Deploy these 4 features to Lightsail before or after blog publish?
+
+## 2026-07-05 — Favicon Handout import from Claude Design
+
+**Goal for this session:** implement "Favicon Handout.html" from the Hala-Cam Design System project on claude.ai/design into the repo.
+
+**What worked:**
+- DesignSync MCP couldn't authorize (non-interactive session), and the design URL is login-gated — pulled the file via Kapture instead: navigated the user's logged-in Edge tab to the project, enabled network monitoring, and decoded the GetFile protobuf response body to recover the exact HTML.
+- Downloaded all 12 favicon assets from the tokened claudeusercontent.com serve URLs and hash-compared against images/icons/ — every PNG already identical in the repo; favicon.svg differs only in DOM re-serialization (XML-canonical identical). The icon set was already fully shipped.
+- Added the missing piece: design-system/Favicon Handout.html, with img paths rewritten to ../images/icons/ and the embed snippet updated to the repo's real production head links (/images/icons/* + /manifest.webmanifest).
+- Render-verified over a throwaway localhost server: tokens resolve from colors_and_type.css, all 11 referenced URLs return 200.
+
+**What broke:**
+- Kapture screenshots come back blank once the tab is backgrounded (visibilityState hidden — Edge stops painting). Verified the bottom sections via curl + grep instead.
+
+**What I changed:**
+- New file: design-system/Favicon Handout.html. Nothing else touched (assets were already in place). Not committed yet.
+
+**Next session starts with:**
+- Commit the handout (docs(design-system): add favicon handout card) and consider porting "Brand Page.html" from the same design project.
+
+**Open questions for Aziz:**
+1. Also want "Brand Page.html" (the full logo/wordmark brand sheet) ported into design-system/?

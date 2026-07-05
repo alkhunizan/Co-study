@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" viewport="1180x1640" name="Favicon — Handout" subtitle="The هلا glyph mark: night-sky tile, karak-amber calligraphy. Sizes, contexts, spec, and the embed snippet." -->
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Halastudy — Favicon Handout</title>
+<link rel="icon" type="image/svg+xml" href="../images/icons/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="colors_and_type.css" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--font-body);
+    padding: 64px clamp(24px, 6vw, 80px) 96px;
+  }
+  .wrap { max-width: 1020px; margin: 0 auto; }
+
+  /* ---- header ---- */
+  .head { display: flex; align-items: center; gap: 26px; margin-bottom: 14px; }
+  .head img { width: 84px; height: 84px; border-radius: 22px; box-shadow: var(--sh-4); }
+  .eyebrow { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent-3); font-weight: 700; margin: 0 0 8px; }
+  .head h1 {
+    font-family: var(--font-display); font-weight: 500; font-style: italic;
+    font-size: 44px; line-height: 1; letter-spacing: -0.02em; margin: 0;
+  }
+  .lead { font-size: 16px; line-height: 1.65; color: var(--ink-2); max-width: 62ch; margin: 22px 0 0; }
+
+  .rule { height: 1px; background: var(--line); margin: 44px 0; border: 0; }
+
+  .sec-label {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent-3); font-weight: 500; margin: 0 0 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sec-label::after { content: ""; flex: 1; height: 1px; background: var(--line-2); }
+
+  /* ---- hero pair ---- */
+  .heropair { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 20px; }
+  .showcase {
+    border-radius: 28px; padding: 40px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 20px; min-height: 300px;
+  }
+  .showcase.night { background: #0E1218; box-shadow: var(--sh-3); }
+  .showcase.paper { background: var(--paper-2); border: 1px solid var(--line); }
+  .showcase img { width: 156px; height: 156px; border-radius: 40px; }
+  .showcase.paper img { box-shadow: var(--sh-4); }
+  .showcase .cap { font-size: 12px; color: var(--ink-3); font-family: var(--font-mono); letter-spacing: 0.08em; }
+  .showcase.night .cap { color: rgba(240,231,218,0.5); }
+
+  /* ---- size ladder ---- */
+  .ladder {
+    display: flex; align-items: flex-end; gap: 34px; flex-wrap: wrap;
+    padding: 34px 32px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 24px; box-shadow: var(--sh-1);
+  }
+  .rung { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .rung img { border-radius: 22%; display: block; image-rendering: auto; }
+  .rung .n { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); font-weight: 500; }
+
+  /* ---- contexts ---- */
+  .ctx { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .ctx-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 24px;
+    box-shadow: var(--sh-2); padding: 26px; display: flex; flex-direction: column; gap: 18px;
+  }
+  .ctx-card .ct { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .ctx-card .cs { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; margin-top: -10px; }
+
+  /* browser tab mock */
+  .browser { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--paper-2); }
+  .btabs { display: flex; align-items: flex-end; gap: 4px; padding: 8px 8px 0; background: var(--inset); }
+  .btab {
+    display: flex; align-items: center; gap: 8px; padding: 9px 14px;
+    background: var(--card); border-radius: 10px 10px 0 0; font-size: 12.5px;
+    color: var(--ink); max-width: 200px; border: 1px solid var(--line); border-bottom: 0;
+  }
+  .btab.dim { background: transparent; color: var(--ink-3); border-color: transparent; }
+  .btab img { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
+  .btab span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .burl { padding: 10px 14px; display: flex; align-items: center; gap: 9px; }
+  .burl .bar { flex: 1; height: 28px; border-radius: 999px; background: var(--inset); border: 1px solid var(--line);
+    display: flex; align-items: center; padding: 0 14px; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); }
+
+  /* home screen tile */
+  .homescreen {
+    border-radius: 22px; padding: 30px 20px 24px;
+    background: radial-gradient(120% 90% at 50% 0%, #2a3550, #0E1218);
+    display: flex; flex-direction: column; align-items: center; gap: 11px;
+  }
+  .homescreen img { width: 82px; height: 82px; border-radius: 20px; box-shadow: 0 12px 26px rgba(0,0,0,0.45); }
+  .homescreen .hl { font-size: 12.5px; color: #ECE6D8; font-weight: 600; }
+
+  /* ---- spec grid ---- */
+  .spec { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .spec-card { background: var(--card); border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--sh-1); padding: 24px; }
+  .spec-card h3 { font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0 0 16px; }
+  .kv { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-top: 1px solid var(--line-2); font-size: 13.5px; }
+  .kv:first-of-type { border-top: 0; }
+  .kv .k { color: var(--ink-2); white-space: nowrap; }
+  .kv .v { color: var(--ink); font-family: var(--font-mono); font-size: 12.5px; text-align: end; }
+  .swatches { display: flex; flex-direction: column; gap: 10px; }
+  .sw { display: flex; align-items: center; gap: 12px; }
+  .sw .chip { width: 34px; height: 34px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.08); flex-shrink: 0; }
+  .sw .meta { display: flex; flex-direction: column; }
+  .sw .meta b { font-size: 13px; font-weight: 600; }
+  .sw .meta code { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); }
+
+  /* ---- embed + files ---- */
+  .embed {
+    background: #0E1218; border-radius: 20px; padding: 24px 26px; overflow-x: auto;
+    box-shadow: var(--sh-3);
+  }
+  .embed pre { margin: 0; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.85; color: #ECE6D8; white-space: pre; }
+  .embed .tag { color: #8DA8C0; }
+  .embed .attr { color: #E5B68C; }
+  .embed .str { color: #95B89C; }
+
+  .files { display: flex; flex-direction: column; gap: 2px; margin-top: 18px; }
+  .file {
+    display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 12px;
+    font-size: 13.5px; transition: background 120ms;
+  }
+  .file:nth-child(even) { background: var(--paper-2); }
+  .file .fn { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); flex: 1; }
+  .file .fd { color: var(--ink-2); font-size: 12.5px; }
+  .file img { width: 26px; height: 26px; border-radius: 7px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <img src="../images/icons/favicon-512.png" alt="هلا favicon" />
+    <div>
+      <p class="eyebrow">Halastudy · Brand asset</p>
+      <h1>The هلا mark</h1>
+    </div>
+  </header>
+  <p class="lead">The favicon is the Arabic word <b>هلا</b> — <i>hala</i>, Gulf hospitality: <i>welcome, come in, sit down.</i> Karak-amber calligraphy on the Gulf night-sky tile — the lamp on at 1am, small enough to live in a browser tab.</p>
+
+  <hr class="rule" />
+
+  <!-- HERO PAIR -->
+  <p class="sec-label">The mark</p>
+  <div class="heropair">
+    <div class="showcase night">
+      <img src="../images/icons/favicon-512.png" alt="favicon on night" />
+      <span class="cap">primary · night-sky tile</span>
+    </div>
+    <div class="showcase paper">
+      <img src="../images/icons/favicon-512.png" alt="favicon on paper" />
+      <span class="cap">on cream paper</span>
+    </div>
+  </div>
+
+  <hr class="rule" />
+
+  <!-- SIZE LADDER -->
+  <p class="sec-label">Sizes — legible down to 16px</p>
+  <div class="ladder">
+    <div class="rung"><img src="../images/icons/favicon-128.png" width="96" height="96" alt="128" /><span class="n">128</span></div>
+    <div class="rung"><img src="../images/icons/favicon-64.png" width="64" height="64" alt="64" /><span class="n">64</span></div>
+    <div class="rung"><img src="../images/icons/favicon-48.png" width="48" height="48" alt="48" /><span class="n">48</span></div>
+    <div class="rung"><img src="../images/icons/favicon-32.png" width="32" height="32" alt="32" /><span class="n">32</span></div>
+    <div class="rung"><img src="../images/icons/favicon-16.png" width="16" height="16" alt="16" /><span class="n">16</span></div>
+  </div>
+
+  <hr class="rule" />
+
+  <!-- CONTEXTS -->
+  <p class="sec-label">In context</p>
+  <div class="ctx">
+    <div class="ctx-card">
+      <div class="ct">Browser tab</div>
+      <div class="browser">
+        <div class="btabs">
+          <div class="btab"><img src="../images/icons/favicon-32.png" alt="" /><span>Halastudy — A quiet room</span></div>
+          <div class="btab dim"><span>New tab</span></div>
+        </div>
+        <div class="burl"><div class="bar">halastudy.com</div></div>
+      </div>
+    </div>
+    <div class="ctx-card">
+      <div class="ct">Home-screen icon</div>
+      <div class="homescreen">
+        <img src="../images/icons/apple-touch-icon.png" alt="app tile" />
+        <span class="hl">هلا study</span>
+      </div>
+    </div>
+  </div>
+
+  <hr class="rule" />
+
+  <!-- SPEC -->
+  <p class="sec-label">Construction</p>
+  <div class="spec">
+    <div class="spec-card">
+      <h3>Geometry</h3>
+      <div class="kv"><span class="k">Tile radius</span><span class="v">22% · squircle</span></div>
+      <div class="kv"><span class="k">Glyph width</span><span class="v">≈ 60% of tile</span></div>
+      <div class="kv"><span class="k">Glyph</span><span class="v">هلا · centered</span></div>
+      <div class="kv"><span class="k">Source</span><span class="v">SVG + PNG @ 512</span></div>
+      <div class="kv"><span class="k">Apple / maskable</span><span class="v">full-bleed square</span></div>
+    </div>
+    <div class="spec-card">
+      <h3>Colour</h3>
+      <div class="swatches">
+        <div class="sw"><span class="chip" style="background:#0E1218"></span><div class="meta"><b>Night sky</b><code>#0E1218 → #2A1A0E</code></div></div>
+        <div class="sw"><span class="chip" style="background:#E5B68C"></span><div class="meta"><b>Karak amber · glyph</b><code>#F4CBA0 → #D2925F</code></div></div>
+        <div class="sw"><span class="chip" style="background:radial-gradient(circle at 50% 45%, rgba(232,185,143,0.5), transparent 70%), #151019"></span><div class="meta"><b>Lamp glow</b><code>amber · 30% radial</code></div></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="rule" />
+
+  <!-- EMBED -->
+  <p class="sec-label">Embed</p>
+  <div class="embed"><pre><span class="tag">&lt;link</span> <span class="attr">rel</span>=<span class="str">"icon"</span> <span class="attr">type</span>=<span class="str">"image/svg+xml"</span> <span class="attr">href</span>=<span class="str">"/images/icons/favicon.svg"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;link</span> <span class="attr">rel</span>=<span class="str">"icon"</span> <span class="attr">type</span>=<span class="str">"image/png"</span> <span class="attr">sizes</span>=<span class="str">"32x32"</span> <span class="attr">href</span>=<span class="str">"/images/icons/favicon-32.png"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;link</span> <span class="attr">rel</span>=<span class="str">"icon"</span> <span class="attr">type</span>=<span class="str">"image/png"</span> <span class="attr">sizes</span>=<span class="str">"16x16"</span> <span class="attr">href</span>=<span class="str">"/images/icons/favicon-16.png"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;link</span> <span class="attr">rel</span>=<span class="str">"manifest"</span> <span class="attr">href</span>=<span class="str">"/manifest.webmanifest"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;link</span> <span class="attr">rel</span>=<span class="str">"apple-touch-icon"</span> <span class="attr">href</span>=<span class="str">"/images/icons/apple-touch-icon.png"</span> <span class="tag">/&gt;</span></pre></div>
+
+  <!-- FILES -->
+  <p class="sec-label" style="margin-top:44px">Files in this handout</p>
+  <div class="files">
+    <div class="file"><img src="../images/icons/favicon.svg" alt="" /><span class="fn">favicon.svg</span><span class="fd">scalable · embeds the mark</span></div>
+    <div class="file"><img src="../images/icons/favicon-16.png" alt="" /><span class="fn">favicon-16 · 32 · 48 · 64 · 128 · 192 · 256 · 512.png</span><span class="fd">rounded tile, all sizes</span></div>
+    <div class="file"><img src="../images/icons/apple-touch-icon.png" alt="" /><span class="fn">apple-touch-icon.png</span><span class="fd">180px, full-bleed for iOS</span></div>
+    <div class="file"><img src="../images/icons/maskable-512.png" alt="" /><span class="fn">maskable-512.png</span><span class="fd">full-bleed for PWA maskable</span></div>
+  </div>
+
+</div>
+</body>
+</html>
