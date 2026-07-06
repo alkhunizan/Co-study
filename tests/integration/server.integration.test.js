@@ -109,7 +109,7 @@ test('the Lobby is a reserved public room that exists on a fresh boot', async (t
     // /lobby serves its page.
     const page = await server.request('/lobby');
     assert.equal(page.status, 200);
-    assert.match(`${page.body}`, /lobby-shell/);
+    assert.match(`${page.body}`, /lobby-wrap|id="lobby-view"/);
 
     // The reserved room exists even though nobody created it, and it advertises
     // itself as the Lobby with the 30-person present cap.

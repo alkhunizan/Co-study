@@ -20,6 +20,8 @@ function buildRealtimeKitUrl(config, path) {
 function extractResult(payload) {
     if (!payload || typeof payload !== 'object') return {};
     if (payload.result && typeof payload.result === 'object') return payload.result;
+    // Cloudflare RealtimeKit wraps responses as { success, data, paging }.
+    if (payload.data && typeof payload.data === 'object') return payload.data;
     return payload;
 }
 
