@@ -1444,6 +1444,9 @@
                 return;
             }
 
+            const createSubmitBtn = createForm.querySelector('button[type="submit"]');
+            if (createSubmitBtn) createSubmitBtn.disabled = true;
+
             socket.timeout(8000).emit('create-room', {
                 roomName,
                 password,
@@ -1451,6 +1454,7 @@
                 mediaMode: selectedMediaMode,
                 schedule: schedulePayload.schedule
             }, (timeoutError, response = {}) => {
+                if (createSubmitBtn) createSubmitBtn.disabled = false;
                 if (timeoutError) {
                     feedback.textContent = copy().errorCreateTimeout;
                     feedback.className = 'form-feedback error';
@@ -1523,7 +1527,9 @@
             feedback.textContent = copy().errorCheckingRoom;
             feedback.className = 'form-feedback';
 
-            {
+            const joinSubmitBtn = joinForm.querySelector('button[type="submit"]');
+            if (joinSubmitBtn) joinSubmitBtn.disabled = true;
+            try {
                 const lookup = await fetchRoomDetails(code);
                 if (lookup.status === 'not_found') {
                     feedback.textContent = copy().errorRoomNotFound;
@@ -1542,6 +1548,9 @@
                     return;
                 }
                 room = lookup.room;
+            } finally {
+                // Re-enable once the async lookup settles; the remaining checks are synchronous.
+                if (joinSubmitBtn) joinSubmitBtn.disabled = false;
             }
 
             const roomProvider = normalizeVideoProvider(room?.videoProvider || runtimeConfig.videoProvider);
