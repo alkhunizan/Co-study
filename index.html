@@ -137,6 +137,9 @@
             border: 1px solid var(--border);
         }
         .room-pill strong { font-size: 0.95rem; }
+        #room-pill[role="button"] { cursor: pointer; }
+        #room-pill[role="button"]:hover { border-color: var(--accent); }
+        #room-pill[role="button"]:focus-visible { box-shadow: 0 0 0 3px var(--accent-glow); }
         .presence-names {
             font-size: 0.85rem;
             color: var(--text-sec);
@@ -613,7 +616,7 @@
     </div>
 </header>
 <div class="room-meta">
-    <div class="room-pill" id="room-pill">
+    <div class="room-pill" id="room-pill" role="button" tabindex="0" data-lang-title="roomPillCopyTitle" title="Copy room code">
         <span data-lang="roomLabel">Room</span>
         <strong id="room-code-val">---</strong>
     </div>
@@ -914,6 +917,8 @@
             chatEmpty: 'Messages will appear here',
             shareSuccess: 'Room link copied.',
             shareFallback: 'Copy this link and share it',
+            codeCopied: 'Room code copied.',
+            roomPillCopyTitle: 'Copy room code',
             disconnectMsg: 'Connection lost. Trying to reconnect...',
             joinNameError: 'Please enter a nickname.',
             roomCodeError: 'Please enter a room code.',
@@ -1084,6 +1089,8 @@
             chatEmpty: 'ستظهر الرسائل هنا',
             shareSuccess: 'تم نسخ رابط الغرفة.',
             shareFallback: 'انسخ هذا الرابط وشاركه',
+            codeCopied: 'تم نسخ رمز الغرفة.',
+            roomPillCopyTitle: 'انسخ رمز الغرفة',
             disconnectMsg: 'انقطع الاتصال. تتم محاولة إعادة الربط...',
             joinNameError: 'فضلاً أدخل الاسم.',
             roomCodeError: 'فضلاً أدخل رمز الغرفة.',
@@ -3833,6 +3840,23 @@
     }
 
     chatForm.addEventListener('submit', e => { e.preventDefault(); sendMessage(); });
+    (function initRoomPillCopy() {
+        const pill = document.getElementById('room-pill');
+        if (!pill) return;
+        function copyRoomCode() {
+            if (!roomId || !navigator.clipboard || !navigator.clipboard.writeText) return;
+            navigator.clipboard.writeText(roomId).then(() => {
+                if (window.HalaUI) window.HalaUI.toast(langDict[curLang].codeCopied, { kind: 'success' });
+            }).catch(() => {});
+        }
+        pill.addEventListener('click', copyRoomCode);
+        pill.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                copyRoomCode();
+            }
+        });
+    })();
     joinForm.addEventListener('submit', handleJoinSubmit);
     joinRoomInput.addEventListener('input', () => {
         joinRoomInput.value = joinRoomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
