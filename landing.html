@@ -55,8 +55,25 @@
         </svg>
       </button>
       <a class="btn btn-primary btn--compact" href="/open.html" data-i18n="ctaOpenShort">افتح غرفة</a>
+      <button class="icon-btn nav-burger" id="nav-burger" type="button" aria-expanded="false" aria-controls="mobile-menu" data-i18n-aria="menuLabel" aria-label="القائمة">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <g class="i-menu"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></g>
+          <g class="i-close"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></g>
+        </svg>
+      </button>
     </div>
   </header>
+
+  <nav class="mobile-menu" id="mobile-menu" aria-label="Primary" hidden>
+    <a class="menu-link" href="#why" data-i18n="navWhy">ليش هلا؟</a>
+    <a class="menu-link" href="#how" data-i18n="navHow">كيف تشتغل</a>
+    <a class="menu-link" href="#rooms" data-i18n="navRooms">الغرف</a>
+    <a class="menu-link" href="#community" data-i18n="navTonight">الطلاب</a>
+    <a class="menu-link" href="/blog" data-i18n="navBlog">المدونة</a>
+    <div class="mobile-menu-divider" aria-hidden="true"></div>
+    <div class="mobile-menu-controls" id="mobile-menu-controls"></div>
+    <a class="btn btn-primary mobile-menu-cta" href="/open.html"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
+  </nav>
 
   <section class="hero hero--mosaic">
     <div class="lamp-glow" aria-hidden="true"></div>
@@ -387,6 +404,7 @@
       en: {
         navWhy: 'Why Hala?', navHow: 'How it works', navRooms: 'Rooms', navTonight: 'Tonight', navBlog: 'Blog',
         navSignIn: 'Sign in',
+        menuLabel: 'Menu',
         whyEyebrow: 'Why Halastudy',
         whyTitle1: 'Presence beats', whyTitle2: 'willpower.',
         why1H: 'You’re not alone at the desk',
@@ -435,6 +453,7 @@
       ar: {
         navWhy: 'ليش هلا؟', navHow: 'كيف تشتغل', navRooms: 'الغرف', navTonight: 'الطلاب', navBlog: 'المدونة',
         navSignIn: 'تسجيل الدخول',
+        menuLabel: 'القائمة',
         whyEyebrow: 'ليش هلاستدي',
         whyTitle1: 'الوجود', whyTitle2: 'أقوى من العزيمة.',
         why1H: 'ما انت لحالك على المكتب',
@@ -492,6 +511,10 @@
       document.querySelectorAll('[data-i18n]').forEach(function (el) {
         var key = el.getAttribute('data-i18n');
         if (dict[key] != null) el.textContent = dict[key];
+      });
+      document.querySelectorAll('[data-i18n-aria]').forEach(function (el) {
+        var key = el.getAttribute('data-i18n-aria');
+        if (dict[key] != null) el.setAttribute('aria-label', dict[key]);
       });
       document.querySelectorAll('[data-tile-name]').forEach(function (el) {
         var i = parseInt(el.getAttribute('data-tile-name'), 10);
@@ -639,6 +662,58 @@
         document.querySelectorAll('video.tile-photo').forEach(function (v) {
           clipObserver.observe(v);
         });
+      }
+
+      // Mobile burger menu — toggles the dropdown sheet; on narrow viewports
+      // the real lang/theme controls move into the sheet (listeners survive
+      // the DOM move), and move back when the viewport widens.
+      var burger = document.getElementById('nav-burger');
+      var mobileMenu = document.getElementById('mobile-menu');
+      var menuControls = document.getElementById('mobile-menu-controls');
+      var topbarRight = document.querySelector('.topbar-right');
+      var langSwitch = document.querySelector('.topbar-right .lang-switch');
+      var ctaCompact = document.querySelector('.topbar-right .btn--compact');
+      function closeMenu() {
+        if (!mobileMenu || mobileMenu.hidden) return;
+        mobileMenu.hidden = true;
+        if (burger) burger.setAttribute('aria-expanded', 'false');
+      }
+      function openMenu() {
+        mobileMenu.hidden = false;
+        mobileMenu.setAttribute('data-entering', '');
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { mobileMenu.removeAttribute('data-entering'); });
+        });
+        burger.setAttribute('aria-expanded', 'true');
+      }
+      if (burger && mobileMenu) {
+        burger.addEventListener('click', function () {
+          if (mobileMenu.hidden) openMenu(); else closeMenu();
+        });
+        mobileMenu.addEventListener('click', function (e) {
+          if (e.target.closest('a')) closeMenu();
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') closeMenu();
+        });
+        document.addEventListener('click', function (e) {
+          if (!mobileMenu.hidden && !mobileMenu.contains(e.target) && !burger.contains(e.target)) closeMenu();
+        });
+        var menuMq = window.matchMedia('(max-width: 879px)');
+        var placeControls = function () {
+          if (!langSwitch || !themeBtn) return;
+          if (menuMq.matches) {
+            menuControls.appendChild(langSwitch);
+            menuControls.appendChild(themeBtn);
+          } else {
+            topbarRight.insertBefore(langSwitch, ctaCompact);
+            topbarRight.insertBefore(themeBtn, ctaCompact);
+            closeMenu();
+          }
+        };
+        placeControls();
+        if (menuMq.addEventListener) menuMq.addEventListener('change', placeControls);
+        else if (menuMq.addListener) menuMq.addListener(placeControls);
       }
 
       // Timers

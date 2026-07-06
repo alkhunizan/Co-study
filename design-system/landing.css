@@ -188,6 +188,74 @@ html[dir="rtl"] .back-arrow { display: inline-block; transform: scaleX(-1); }
 .lang-switch button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
 
 /* ============================================================
+   Mobile burger menu — topbar collapses under 880px.
+   A solid-paper dropdown sheet (DESIGN.md §10: no glass blur);
+   the real lang/theme controls are moved in by JS so their
+   listeners and state survive.
+   ============================================================ */
+.nav-burger { display: none; }
+.nav-burger .i-close { display: none; }
+.nav-burger[aria-expanded="true"] .i-menu { display: none; }
+.nav-burger[aria-expanded="true"] .i-close { display: block; }
+
+.mobile-menu {
+  position: fixed;
+  inset-block-start: 72px;
+  inset-inline: 0;
+  z-index: 49;
+  background: var(--paper);
+  border-block-end: 1px solid var(--line);
+  box-shadow: var(--sh-3);
+  padding: 8px clamp(20px, 4vw, 56px) 22px;
+  display: flex;
+  flex-direction: column;
+  max-block-size: calc(100dvh - 72px);
+  overflow-y: auto;
+  transition: opacity 220ms var(--ease-soft), transform 220ms var(--ease-soft);
+}
+.mobile-menu[hidden] { display: none; }
+.mobile-menu[data-entering] { opacity: 0; transform: translateY(-8px); }
+.mobile-menu .menu-link {
+  display: flex;
+  align-items: center;
+  min-block-size: 48px;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 10px;
+}
+.mobile-menu .menu-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.mobile-menu-divider {
+  block-size: 1px;
+  background: var(--line);
+  margin-block: 8px;
+}
+.mobile-menu-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-block: 10px;
+}
+.mobile-menu-controls .icon-btn { width: 44px; height: 44px; }
+.mobile-menu-cta {
+  margin-block-start: 12px;
+  justify-content: center;
+  inline-size: 100%;
+}
+@media (max-width: 879px) {
+  .nav-burger { display: inline-flex; width: 44px; height: 44px; }
+  .topbar-right { gap: 8px; }
+  .topbar-right .btn--compact { display: none; }
+}
+@media (min-width: 880px) {
+  .mobile-menu { display: none !important; }
+}
+
+/* ============================================================
    Hero
    ============================================================ */
 .hero {
@@ -1122,6 +1190,7 @@ html[lang="ar"] .community-major {
 .cta-strip {
   position: relative;
   isolation: isolate;
+  overflow: clip; /* lamp glow + marquee must not widen the page on mobile */
   padding: 120px clamp(20px, 5vw, 60px) 100px;
   text-align: center;
   display: grid;
@@ -1284,6 +1353,8 @@ html[lang="ar"] .marq-item { font-family: var(--font-display-ar); font-style: no
     animation-iteration-count: 1 !important;
   }
   .city-marquee-track { animation: none; }
+  .mobile-menu { transition: opacity 120ms ease; }
+  .mobile-menu[data-entering] { transform: none; }
 }
 
 /* ============================================================
