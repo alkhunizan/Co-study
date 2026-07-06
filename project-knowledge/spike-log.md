@@ -513,3 +513,25 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 
 **Open questions for Aziz:**
 1. Also want "Brand Page.html" (the full logo/wordmark brand sheet) ported into design-system/?
+
+## 2026-07-06 — UX micro-polish pass
+
+**Goal for this session:** Find and ship tiny high-impact UX tweaks across landing/open/index, keep the site fully functional.
+
+**What worked:**
+- 10 atomic fixes shipped: toast instead of alert() on share-copy, Pomodoro countdown in the tab title, click-to-copy on the room pill and on the created-room code, desktop autofocus on /open, live room preview at 6 typed chars (was blur-only), double-submit guard on create/join, OG/Twitter cards on all three pages (WhatsApp unfurls), mobile keyboard hints (autocapitalize/enterkeyhint), dead footer links removed + WhatsApp invite wired to wa.me.
+- Verified live in a real browser on :3210 — created room CKNER8 through the form, joined it, ran the timer (tab title "24:57 · Halastudy" → restores on pause), auto-preview showed the room at 6 chars. Zero console errors on all three pages.
+
+**What broke:**
+- Port 3000 is occupied by the local Firecrawl service — EADDRINUSE; ran the app on PORT=3210 instead.
+- navigator.clipboard.writeText rejects with NotAllowedError in headless browsers (no user activation) — expected, the catch path handles it; real-browser clicks are fine.
+
+**What I changed:**
+- index.html, open.html, landing.html, design-system/landing.css — 10 conventional commits (fix(ux)/feat(ux)/feat(seo)) on main.
+
+**Next session starts with:**
+- Deploy the UX batch to halastudy.com (Lightsail) after pushing to origin.
+
+**Open questions for Aziz:**
+1. OG image currently uses the hero poster (01-nouf-abdulaziz-poster.jpg) — want a dedicated 1200×630 social card instead?
+2. Footer "Manifesto"/"Status" links were dead (#) and removed — restore when those pages exist?
