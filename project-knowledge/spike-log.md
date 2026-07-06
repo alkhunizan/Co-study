@@ -535,3 +535,26 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 **Open questions for Aziz:**
 1. OG image currently uses the hero poster (01-nouf-abdulaziz-poster.jpg) — want a dedicated 1200×630 social card instead?
 2. Footer "Manifesto"/"Status" links were dead (#) and removed — restore when those pages exist?
+
+## 2026-07-06 — Mobile pass: burger menu + fit polish
+
+**Goal for this session:** Proper mobile nav (burger menu) and an elegant fit at phone width across all three pages.
+
+**What worked:**
+- Landing at 375px had real breakage: nav links were display:none under 880px with no replacement, and the topbar CTA overflowed the viewport (docW 420 vs 375). Shipped a burger (44px) that opens a solid-paper dropdown sheet with the nav links, the real lang/theme controls (nodes moved in, listeners survive), and a full-width CTA. Escape/outside-click/link-click all close it; dark theme + EN/AR + reduced-motion covered.
+- .cta-strip now clips its lamp glow + city marquee — horizontal scroll gone (docW 375 = winW).
+- ≤519px hides the decorative هلا brand glyph so the brand and auth link keep breathing room (Latin wordmark always stays, per DESIGN.md §6).
+- In-room: the whole .status-* block (presets, inputs, toggles, preview) had NO CSS anywhere and rendered as UA defaults — now token-styled pills/inputs. Header + room-meta padding aligned to the 20px mobile gutter.
+- Verified live at 375/768/1280, both languages, dark mode, full create→enter→join flow on the mobile viewport.
+
+**What broke:**
+- /design-system static route serves with maxAge 1d — the headless browser kept using stale CSS. Worked around by rewriting stylesheet href with a cache-buster at runtime. Worth remembering for future CSS iterations.
+
+**What I changed:**
+- landing.html, design-system/landing.css (burger menu, overflow clip, brand glyph rule), index.html (status block styles, mobile padding).
+
+**Next session starts with:**
+- Push + deploy the mobile batch; check real-device Safari (dvh support, notch insets).
+
+**Open questions for Aziz:**
+1. In-room page intentionally has no burger — its 4 header controls all fit on mobile and hiding mid-session controls behind a tap would hurt. OK, or do you want one there too?
