@@ -590,7 +590,7 @@
         <input type="text" id="join-name" class="join-input" maxlength="20" autocomplete="nickname" data-lang-placeholder="joinNamePlaceholder" placeholder="Name shown to others">
         <span class="join-name-reserved" id="join-name-reserved" data-lang="nicknameReservedNote" hidden>محجوز لك</span>
         <label class="join-label" for="join-room" data-lang="joinRoom">Room code</label>
-        <input type="text" id="join-room" class="join-input" maxlength="10" autocomplete="off" data-force-ltr data-lang-placeholder="joinRoomPlaceholder" placeholder="e.g. ABC123">
+        <input type="text" id="join-room" class="join-input" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" data-force-ltr data-lang-placeholder="joinRoomPlaceholder" placeholder="e.g. ABC123">
         <label class="join-label" for="join-password" data-lang="joinPassword">Room password (if required)</label>
         <input type="password" id="join-password" class="join-input" maxlength="64" autocomplete="current-password" data-lang-placeholder="joinPasswordPlaceholder" placeholder="Leave empty if no password">
         <div class="join-error" id="join-error"></div>
@@ -811,7 +811,7 @@
         <div class="chat-container">
             <div class="chat-msgs" id="chat-msgs"></div>
             <form class="chat-input-area" id="chat-form">
-                <input type="text" class="chat-input" id="chat-input" maxlength="500" data-lang-placeholder="chatPlaceholder" placeholder="Type a message..." disabled>
+                <input type="text" class="chat-input" id="chat-input" maxlength="500" autocomplete="off" enterkeyhint="send" data-lang-placeholder="chatPlaceholder" placeholder="Type a message..." disabled>
                 <button class="btn-send" id="chat-send" type="submit" disabled>➤</button>
             </form>
         </div>
