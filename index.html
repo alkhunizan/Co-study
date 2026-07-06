@@ -3403,6 +3403,8 @@
         const m = Math.floor(timeLeft/60).toString().padStart(2,'0');
         const s = (timeLeft%60).toString().padStart(2,'0');
         document.getElementById('timer-disp').textContent = `${m}:${s}`;
+        // Tab-title countdown while running (Western digits per DESIGN.md §5).
+        document.title = timerRunning ? `${m}:${s} · Halastudy` : currentCopy().pageTitle;
     }
 
     function toggleTimer() {
@@ -3415,12 +3417,14 @@
             btn.style.boxShadow = 'var(--shadow-btn)';
             timerRunning = false;
             refreshStatusState();
+            updateDisp();
         } else {
             if(timeLeft === 25*60 && mode === 'focus') timeLeft = focusDur * 60;
             btn.textContent = '⏸';
             btn.style.boxShadow = 'var(--shadow-btn-inset)';
             timerRunning = true;
             refreshStatusState();
+            updateDisp();
             timer = setInterval(() => {
                 if(timeLeft > 0) {
                     timeLeft--;
