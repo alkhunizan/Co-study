@@ -41,7 +41,22 @@ Two axes already exist in the codebase: global `videoProvider` (`realtimekit`) a
 - **P1 — Reserved room + route.** Seed `LOBBY`, cleanup-exempt; `/lobby` serves `lobby.html` (start as a placeholder page). Integration test: `LOBBY` room exists on boot, survives empty, `/lobby` 200.
 - **P2 — Viewer/publisher preset + account gate.** Thread `role`, add `viewerPresetName` config, auth-gate publisher. Integration tests (fake fixture `tests/helpers/fake-realtimekit-fixture.js`): guest→viewer token ok; guest→publisher = `AUTH_REQUIRED`; account→publisher ok; capacity counts publishers only.
 - **P3 — Lobby grid shell.** `lobby.html` join flow + custom grid + density control + pagination, rendering **presence tiles** (no live media yet). Verify in-browser (browse skill): density switches layout, pagination works, RTL/AR + EN.
-- **P4 — RealtimeKit media binding.** Bind `meeting.participants` video tracks into tiles; selective subscription per visible page; publish toggle with account gate. Verify against SDK docs; live end-to-end needs creds (see Ops).
+- **P4 — RealtimeKit media binding.** Bind `meeting.participants` video tracks into tiles; selective subscription per visible page; publish toggle with account gate. Verify against SDK docs; live end-to-end needs creds (see Ops). **BLOCKED — see below.**
+
+### P4 status: blocked on ops + one design decision (2026-07-05)
+
+RealtimeKit web core SDK API confirmed from docs (developers.cloudflare.com/realtime/realtimekit/core):
+- Remote media: `meeting.participants.joined` map; per-participant `meeting.participants.joined.on('videoUpdate', p => …)` with `p.videoEnabled` + `p.videoTrack` (a `MediaStreamTrack`) → attach to a tile `<video>` via `new MediaStream([p.videoTrack])`.
+- Local publish: `meeting.self.enableVideo()` / `disableVideo()`, `disableAudio()` (mic stays off).
+- Subscription set: `meeting.participants.active` = the currently-subscribed/displayed set. View modes via `meeting.participants.setViewMode('PAGINATED' | 'ACTIVE_GRID')`, page via `meeting.participants.setPage(n)`; events `pageChanged` / `viewModeChanged` `{viewMode, currentPage, pageCount}`.
+
+**Constraint found:** the web SDK does **not** expose a settable per-page subscription count — `maxActiveParticipantsCount` is SDK-managed. So the design's "viewer's tiles-per-page == number of subscribed streams" is not directly achievable through PAGINATED mode.
+
+**Decision needed before building P4:**
+- **(A) Density = layout only (recommended, simplest):** keep the SDK in PAGINATED mode for automatic, bandwidth-bounded subscription of its own page size; the user's density control governs only the CSS grid layout of whatever is in `active`. Simplest and safe; density no longer changes bandwidth, only how big tiles are.
+- **(B) Manual subscription of the visible set:** drive subscription myself (e.g. `pin()`/`unpin()` the visible page's participants, or a manual subscribe API if one exists) so tiles-per-page truly equals subscribed streams. More faithful to the original intent, more complex, and needs hands-on verification against a live meeting.
+
+**Hard blockers (cannot be done or verified without Aziz):** the Cloudflare `halastudy_viewer` preset must exist and live Cloudflare creds must be present to init a meeting; there is no way to verify the media binding end-to-end locally (the fake fixture only mocks token issuance, not the SFU media plane). Writing the binding blind and shipping it unverified is out of scope.
 
 ## Ops handoff (Aziz — external, I can't do these)
 
