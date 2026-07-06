@@ -625,7 +625,7 @@
 <div class="room-meta">
     <div class="room-pill" id="room-pill" role="button" tabindex="0" data-lang-title="roomPillCopyTitle" title="Copy room code">
         <span data-lang="roomLabel">Room</span>
-        <strong id="room-code-val">---</strong>
+        <strong id="room-code-val" dir="ltr">---</strong>
     </div>
     <div class="room-pill" id="media-mode-pill">
         <span data-lang="mediaModeLabel">Media</span>
@@ -2485,6 +2485,8 @@
         document.documentElement.dir = curLang === 'ar' ? 'rtl' : 'ltr';
         document.body.dataset.lang = curLang;
         document.title = text.pageTitle;
+        // Mid-Pomodoro language switch: keep the countdown in the tab title.
+        if (timerRunning) updateDisp();
 
         languageButtons.forEach((button) => {
             button.classList.toggle('active', button.dataset.langValue === curLang);
