@@ -1377,9 +1377,16 @@
             });
         }
 
+        let joinLookupTimer = null;
         joinCodeInput.addEventListener('input', () => {
             joinCodeInput.value = joinCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
             clearJoinPreview();
+            if (joinLookupTimer) clearTimeout(joinLookupTimer);
+            // Codes are 6 chars — preview the room as soon as one is typed/pasted.
+            const code = joinCodeInput.value;
+            if (code.length >= 6) {
+                joinLookupTimer = setTimeout(() => { void fetchRoomDetails(code); }, 350);
+            }
         });
 
         joinCodeInput.addEventListener('blur', () => {
