@@ -582,3 +582,30 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 1. P4 is blocked on you: create Cloudflare `halastudy_viewer` preset (produce disabled) + set VIDEO_VIEWER_PRESET_NAME + raise MAX_GLOBAL_VIDEO_PARTICIPANTS. Live media can't be verified locally.
 2. P4 subscription model: (A) density = layout only, or (B) manual per-page subscription?
 3. Deploy timing — Lobby P1–P3 are on main but /lobby degrades to presence-only until the preset+creds exist. Ship now or hold?
+
+## 2026-07-06 — Lobby provisioned + shipped to prod
+
+**Goal for this session:** Provision RealtimeKit + get the public Lobby live.
+
+**What worked:**
+- Reached Cloudflare RealtimeKit API with Aziz's Realtime token. App = 6687d095-… ("halastudyapp").
+- Provisioned via API: halastudy_viewer (produce all NOT_ALLOWED) + halastudy_student (publisher, cloned from group_call_participant — it was MISSING, so RTK video had never worked for any room).
+- Fixed provider bug: extractResult now unwraps Cloudflare's { data } envelope (was only { result }) → participant tokens parse (91f94c5).
+- Live-verified locally then in PROD: LOBBY join → viewer token 200 (real authToken); guest publisher → 403 AUTH_REQUIRED; normal room → publisher token 200.
+- Pushed 28 commits, deployed to Lightsail (git pull → 91f94c5), set VIDEO_PROVIDER=realtimekit + CLOUDFLARE_* + viewer preset + cap 40 in box .env, start.sh. verify:deploy green, /lobby 200, videoProvider=realtimekit, LOBBY seeded.
+
+**What broke:**
+- First two tokens Aziz pasted were R2 (401/403 on RTK). Third had Realtime scope.
+- Auto-mode classifier blocked the combined preset write (student preset = shared prod state) until Aziz authorized.
+- Provider { data } envelope bug (above).
+
+**What I changed:**
+- services/video/realtimekit-provider.js (data unwrap), scripts/cloudflare/create-viewer-preset.js, lobby.html (P4 media binding), public/js/video/realtimekit-client.js (joinHeadless), co-study-server.js (P1/P2), server-config.js, .env.example, tests. Prod box: .env + git pull + restart.
+
+**Next session starts with:**
+- 2-browser live camera test on halastudy.com/lobby (only thing unverified).
+
+**Open questions for Aziz:**
+1. Whole app is now on the metered RealtimeKit SFU (all rooms, not just Lobby). Watch cost; revert = VIDEO_PROVIDER=mesh + start.sh.
+2. Rotate the R2 tokens/keys pasted in chat.
+3. Normal-room rtk-meeting embed UI not visually tested live — quick 2-browser check when you can.
