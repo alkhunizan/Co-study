@@ -101,6 +101,34 @@ test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     });
 });
 
+test('the Lobby is a reserved public room that exists on a fresh boot', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    // /lobby serves its page.
+    const page = await server.request('/lobby');
+    assert.equal(page.status, 200);
+    assert.match(`${page.body}`, /lobby-shell/);
+
+    // The reserved room exists even though nobody created it, and it advertises
+    // itself as the Lobby with the 30-person present cap.
+    const lobby = await server.request('/api/rooms/LOBBY');
+    assert.equal(lobby.status, 200);
+    assert.equal(lobby.body.roomId, 'LOBBY');
+    assert.equal(lobby.body.isLobby, true);
+    assert.equal(lobby.body.participantLimit, 30);
+    assert.equal(lobby.body.requirePassword, false);
+
+    // Lower-case path normalizes to the same reserved room.
+    const lower = await server.request('/api/rooms/lobby');
+    assert.equal(lower.status, 200);
+    assert.equal(lower.body.isLobby, true);
+
+    // A normal generated room is NOT flagged as the Lobby.
+    const other = await server.request('/api/rooms/ZZZ999');
+    assert.equal(other.status, 404);
+});
+
 test('HTTP responses include baseline browser security headers', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);

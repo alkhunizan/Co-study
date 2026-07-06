@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halastudy | اللوبي · The Lobby</title>
+  <meta name="description" content="اللوبي — غرفة مذاكرة عامة مفتوحة طول اليوم. ادخل، شوف الناس تذاكر، وابدأ. The Halastudy Lobby: one public study room, open all day.">
+  <link rel="icon" type="image/svg+xml" href="/images/icons/favicon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#F5F2EB">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <style>
+    .lobby-shell { max-inline-size: 720px; margin-inline: auto; padding-block: 112px 72px; padding-inline: 20px; text-align: center; }
+    .lobby-shell h1 { font-family: var(--font-display-ar); font-size: clamp(28px, 5vw, 42px); line-height: 1.25; margin: 12px 0; }
+    .lobby-shell p { color: var(--ink-2); line-height: 1.8; }
+  </style>
+</head>
+<body class="is-landing-page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Halastudy home">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <div class="topbar-right">
+      <div class="lang-switch" role="tablist" aria-label="Language">
+        <button type="button" data-lang-value="en">EN</button>
+        <button type="button" data-lang-value="ar" class="is-on">ع</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="lobby-shell">
+    <div class="eyebrow" data-lang="lobbyEyebrow">اللوبي</div>
+    <h1 data-lang="lobbyTitle">غرفة المذاكرة العامة</h1>
+    <p data-lang="lobbyIntro">ادخل، شوف الناس تذاكر، وابدأ معهم. جاري التجهيز…</p>
+  </main>
+
+  <script>
+    window.HalaCore.initLang({
+      en: {
+        pageTitle: 'Halastudy | The Lobby',
+        lobbyEyebrow: 'The Lobby',
+        lobbyTitle: 'The public study room',
+        lobbyIntro: 'Drop in, watch others study, and start with them. Setting things up…'
+      },
+      ar: {
+        pageTitle: 'هلاستدي | اللوبي',
+        lobbyEyebrow: 'اللوبي',
+        lobbyTitle: 'غرفة المذاكرة العامة',
+        lobbyIntro: 'ادخل، شوف الناس تذاكر، وابدأ معهم. جاري التجهيز…'
+      }
+    });
+  </script>
+</body>
+</html>

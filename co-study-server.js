@@ -33,6 +33,14 @@ const {
 
 const ROOM_HISTORY_LIMIT = 80;
 const ROOM_TTL_MS = 1000 * 60 * 30;
+// The Lobby: one reserved, always-available public room. Fixed code so /lobby
+// always resolves to the same room; seeded at startup and exempt from the
+// empty-room TTL cleanup so it never disappears.
+const LOBBY_ROOM_CODE = 'LOBBY';
+const LOBBY_ROOM_NAME = 'The Lobby';
+// Max people present in the Lobby (watchers + publishers). Distinct from the
+// mesh 4-cap and from the RealtimeKit publisher cap.
+const LOBBY_PARTICIPANT_LIMIT = 30;
 const SESSION_COOKIE_NAME = 'coStudySessionId';
 const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 const AUTH_COOKIE_NAME = 'coStudyAuth';
@@ -1099,6 +1107,7 @@ function createCoStudyServer(options = {}) {
         return {
             roomId: normalized,
             name: room.name || normalized,
+            isLobby: isLobbyRoom(room),
             requirePassword: !!room.requirePassword,
             mediaMode: normalizeMediaMode(room.mediaMode),
             videoProvider: getRoomVideoProvider(room),
@@ -1107,7 +1116,9 @@ function createCoStudyServer(options = {}) {
             activeVideoParticipantCount: videoSessionRegistry.countActiveRoomVideoParticipants(normalized),
             maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
             participantCount: room.users.size,
-            participantLimit: normalizeMediaMode(room.mediaMode) === MEDIA_MODE_MESH ? config.meshParticipantLimit : null,
+            participantLimit: isLobbyRoom(room)
+                ? LOBBY_PARTICIPANT_LIMIT
+                : (normalizeMediaMode(room.mediaMode) === MEDIA_MODE_MESH ? config.meshParticipantLimit : null),
             participants: Array.from(room.users.values()).map((user) => ({
                 id: user.socketId,
                 name: user.name,
@@ -1181,6 +1192,10 @@ function createCoStudyServer(options = {}) {
         return !!(room?.schedule);
     }
 
+    function isLobbyRoom(room) {
+        return !!room && room.id === LOBBY_ROOM_CODE;
+    }
+
     function roomUsesMesh(room) {
         return getRoomMediaMode(room) === MEDIA_MODE_MESH;
     }
@@ -1210,6 +1225,10 @@ function createCoStudyServer(options = {}) {
         const normalizedRoom = normalizeRoom(roomId);
         const room = rooms.get(normalizedRoom);
         if (!room) return false;
+        // The Lobby is permanent — never auto-delete or admin-close it out of
+        // existence. It is re-seeded at startup regardless, but guarding here
+        // keeps it alive within a running process.
+        if (isLobbyRoom(room)) return false;
         clearRoomCleanupTimer(room);
         rooms.delete(normalizedRoom);
         persistRoomsSoon();
@@ -1267,7 +1286,7 @@ function createCoStudyServer(options = {}) {
 
     function scheduleRoomCleanup(roomId) {
         const room = rooms.get(roomId);
-        if (!room || room.users.size > 0 || room.cleanupTimer || roomHasSchedule(room)) return;
+        if (!room || room.users.size > 0 || room.cleanupTimer || roomHasSchedule(room) || isLobbyRoom(room)) return;
         room.cleanupTimer = setTimeout(() => deleteRoom(roomId), ROOM_TTL_MS);
     }
 
@@ -1546,7 +1565,21 @@ function createCoStudyServer(options = {}) {
         };
     }
 
+    function seedLobbyRoom() {
+        // Ensure the reserved public Lobby always exists (fresh boot or after a
+        // persisted snapshot that predates it). ensureRoom is idempotent and
+        // clears any cleanup timer; the RealtimeKit meeting is still created
+        // lazily on first video-token request.
+        const lobby = ensureRoom(LOBBY_ROOM_CODE, { name: LOBBY_ROOM_NAME });
+        if (lobby) {
+            lobby.name = LOBBY_ROOM_NAME;
+            clearRoomCleanupTimer(lobby);
+        }
+        return lobby;
+    }
+
     const loadedRoomCount = loadPersistedRooms();
+    seedLobbyRoom();
     const loadedUserCount = loadPersistedUsers();
     backupScheduler.start();
     const videoSweepTimer = setInterval(() => {
@@ -1963,6 +1996,10 @@ function createCoStudyServer(options = {}) {
 
     app.get(['/index.html', '/study', '/workspace', '/room'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'index.html'));
+    });
+
+    app.get(['/lobby', '/lobby.html'], (_req, res) => {
+        res.sendFile(path.join(__dirname, 'lobby.html'));
     });
 
     if (config.admin.enabled) {
