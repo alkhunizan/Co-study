@@ -132,8 +132,45 @@
         };
     }
 
+    // Headless join for a CUSTOM grid (the Lobby): inits the core SDK and joins
+    // the meeting WITHOUT mounting the prebuilt <rtk-meeting> UI component. The
+    // caller drives its own tiles from the returned `meeting` object
+    // (meeting.participants / meeting.self). Mic stays off; video is only
+    // produced when the caller explicitly calls meeting.self.enableVideo()
+    // (and only a publisher-preset token permits that).
+    async function joinHeadless(options = {}) {
+        const { authToken } = options;
+        if (!authToken) throw new Error('RealtimeKit auth token missing.');
+
+        const RealtimeKitClient = await loadSdk();
+        const meeting = await RealtimeKitClient.init({
+            authToken,
+            defaults: { audio: false, video: false }
+        });
+
+        async function leaveMeeting() {
+            const methods = ['leaveRoom', 'leave', 'disconnect'];
+            for (const method of methods) {
+                if (meeting && typeof meeting[method] === 'function') {
+                    try { await meeting[method](); } catch (_error) {}
+                    break;
+                }
+            }
+        }
+
+        if (typeof meeting.join === 'function') {
+            await meeting.join();
+        }
+        // Belt-and-braces: never emit audio from the Lobby.
+        if (meeting.self && typeof meeting.self.disableAudio === 'function') {
+            try { await meeting.self.disableAudio(); } catch (_error) {}
+        }
+        return { meeting, leave: leaveMeeting };
+    }
+
     (/** @type {any} */ (global)).HalastudyRealtimeKitClient = {
         join,
+        joinHeadless,
         loadSdk
     };
 })(window);

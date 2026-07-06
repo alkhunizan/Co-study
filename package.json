@@ -24,6 +24,7 @@
     "test:smoke": "playwright test --config=playwright.config.js",
     "test:ci": "npm run check && npm run typecheck && npm run lint && npm run deadcode && npm run audit:prod && npm run test:integration && npm run test:smoke",
     "cloudflare:setup": "node scripts/cloudflare/realtimekit-setup.js",
+    "cloudflare:viewer-preset": "node scripts/cloudflare/create-viewer-preset.js",
     "cloudflare:smoke": "node scripts/cloudflare/realtimekit-smoke.js",
     "cloudflare:doctor": "node scripts/cloudflare/realtimekit-doctor.js",
     "cloudflare:cleanup": "node scripts/cloudflare/realtimekit-cleanup.js",

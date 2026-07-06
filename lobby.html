@@ -162,6 +162,7 @@
   </main>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/video/realtimekit-client.js"></script>
   <script>
     const DICT = {
       en: {
@@ -214,7 +215,10 @@
     const LOBBY_CAP = 30;
 
     const el = (id) => document.getElementById(id);
-    const state = { participants: [], perPage: 12, page: 0, isMobile: window.innerWidth < 640 };
+    const state = { participants: [], perPage: 12, page: 0, isMobile: window.innerWidth < 640, myName: '' };
+    // RealtimeKit media layer (P4, option A). When connected, meeting participants
+    // are the grid source; on any failure the lobby degrades to socket presence.
+    const rtk = { meeting: null, leave: null, connected: false, role: 'viewer' };
 
     function clientId() {
       let id = null;
@@ -252,8 +256,33 @@
     function initial(name) { return (name || '؟').trim().charAt(0) || '؟'; }
     function colorFor(p) { return p.avatarColor || '#8a6d3b'; }
 
+    // Grid source: RealtimeKit participants when connected, else socket presence.
+    function getTiles() {
+      if (rtk.connected && rtk.meeting) {
+        try {
+          const out = [];
+          if (rtk.meeting.self) out.push(rtkTile(rtk.meeting.self, true));
+          const joined = rtk.meeting.participants && rtk.meeting.participants.joined;
+          const arr = joined && typeof joined.toArray === 'function' ? joined.toArray() : [];
+          arr.forEach((p) => out.push(rtkTile(p, false)));
+          return out;
+        } catch (_e) { /* fall through to presence */ }
+      }
+      return state.participants;
+    }
+    function rtkTile(p, isSelf) {
+      const on = !!p.videoEnabled;
+      return {
+        id: isSelf ? 'self' : (p.id || p.userId || p.customParticipantId),
+        name: (isSelf ? state.myName : (p.name || p.displayName)) || '—',
+        cameraOn: on,
+        videoTrack: on ? (p.videoTrack || null) : null,
+        avatarColor: null
+      };
+    }
+
     function render() {
-      const list = state.participants;
+      const list = getTiles();
       el('present-n').textContent = String(list.length);
       const pages = Math.max(1, Math.ceil(list.length / state.perPage));
       if (state.page > pages - 1) state.page = pages - 1;
@@ -278,12 +307,20 @@
       cell.className = 'lobby-tile' + (p.cameraOn ? ' is-live' : '');
       cell.dataset.id = p.id;
 
-      // P3: presence tile (avatar). P4 swaps in <video> for publishers.
-      const av = document.createElement('div');
-      av.className = 'lobby-avatar';
-      av.style.background = colorFor(p);
-      av.textContent = initial(p.name);
-      cell.appendChild(av);
+      if (p.videoTrack) {
+        // Live publisher: bind the RealtimeKit MediaStreamTrack. Muted — the
+        // Lobby is silent (no remote audio), quiet by default.
+        const v = document.createElement('video');
+        v.autoplay = true; v.playsInline = true; v.muted = true;
+        try { v.srcObject = new MediaStream([p.videoTrack]); } catch (_e) {}
+        cell.appendChild(v);
+      } else {
+        const av = document.createElement('div');
+        av.className = 'lobby-avatar';
+        av.style.background = colorFor(p);
+        av.textContent = initial(p.name);
+        cell.appendChild(av);
+      }
 
       const badge = document.createElement('div');
       badge.className = 'lobby-tile-badge';
@@ -325,11 +362,62 @@
             return;
           }
           setParticipants((res.room && res.room.participants) || []);
+          // Now that we are a verified room member, connect to the SFU as a
+          // watcher. Degrades silently to presence-only if video is unavailable.
+          connectRealtimeKit('viewer');
         });
       });
       socket.on('presence', (list) => setParticipants(list || []));
       socket.on('kicked', () => { location.href = '/'; });
       socket.on('room-closed', () => { location.href = '/'; });
+    }
+
+    async function requestVideoToken(role) {
+      const res = await fetch('/api/rooms/LOBBY/video-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ displayName: state.myName, clientSessionId: clientId(), role })
+      });
+      return res.json().catch(() => ({}));
+    }
+
+    async function connectRealtimeKit(role) {
+      if (!window.HalastudyRealtimeKitClient) return { ok: false };
+      let payload;
+      try { payload = await requestVideoToken(role); } catch (_e) { return { ok: false }; }
+      if (!payload || !payload.ok || !payload.authToken) return payload || { ok: false };
+      try {
+        const joined = await window.HalastudyRealtimeKitClient.joinHeadless({ authToken: payload.authToken });
+        rtk.meeting = joined.meeting; rtk.leave = joined.leave; rtk.connected = true;
+        rtk.role = payload.role || role;
+        wireRealtimeKitEvents(rtk.meeting);
+        // Option A: let the SDK manage subscription in PAGINATED mode; density is
+        // pure CSS layout. Page hint kept in sync in the pager handlers.
+        try {
+          const parts = rtk.meeting.participants;
+          if (parts && typeof parts.setViewMode === 'function') await parts.setViewMode('PAGINATED');
+        } catch (_e) {}
+        render();
+        return { ok: true };
+      } catch (_e) {
+        rtk.connected = false; rtk.meeting = null;
+        return { ok: false };
+      }
+    }
+
+    function wireRealtimeKitEvents(meeting) {
+      const rerender = () => render();
+      try {
+        const p = meeting.participants;
+        if (p && p.joined && typeof p.joined.on === 'function') {
+          p.joined.on('participantJoined', rerender);
+          p.joined.on('participantLeft', rerender);
+          p.joined.on('videoUpdate', rerender);
+        }
+        if (p && typeof p.on === 'function') p.on('pageChanged', rerender);
+        if (meeting.self && typeof meeting.self.on === 'function') meeting.self.on('videoUpdate', rerender);
+      } catch (_e) {}
     }
 
     // ---- Auth-gated camera button ----
@@ -343,10 +431,38 @@
         cta.onclick = () => { location.href = '/account.html?next=%2Flobby'; };
       }
     }
-    function startPublishing() { /* P4: request a publisher token + enableVideo */ }
+    async function startPublishing() {
+      // Account clicked "turn on camera". Publish permission is baked into the
+      // token preset, so a viewer must re-join with a publisher token before it
+      // can enable video. Toggling afterward just enables/disables the track.
+      const cta = el('camera-cta');
+      cta.disabled = true;
+      try {
+        if (rtk.connected && rtk.role === 'publisher' && rtk.meeting && rtk.meeting.self) {
+          const self = rtk.meeting.self;
+          if (self.videoEnabled && self.disableVideo) await self.disableVideo();
+          else if (self.enableVideo) await self.enableVideo();
+        } else {
+          if (rtk.leave) { try { await rtk.leave(); } catch (_e) {} }
+          rtk.connected = false; rtk.meeting = null;
+          const res = await connectRealtimeKit('publisher');
+          if (res && res.ok && rtk.meeting && rtk.meeting.self && rtk.meeting.self.enableVideo) {
+            await rtk.meeting.self.enableVideo();
+          } else if (res && res.errorCode === 'AUTH_REQUIRED') {
+            location.href = '/account.html?next=%2Flobby';
+          } else {
+            // No creds / provider unavailable — re-attach as a watcher.
+            await connectRealtimeKit('viewer');
+          }
+        }
+      } catch (_e) {}
+      cta.disabled = false;
+      render();
+    }
 
     // ---- Boot ----
     function enterLobby(name) {
+      state.myName = name;
       try { localStorage.setItem(NAME_KEY, name); } catch (_e) {}
       el('name-gate').hidden = true;
       el('lobby-view').hidden = false;
@@ -358,8 +474,13 @@
 
     (function boot() {
       state.perPage = state.isMobile ? 4 : 12;
-      el('pg-prev').addEventListener('click', () => { state.page--; render(); });
-      el('pg-next').addEventListener('click', () => { state.page++; render(); });
+      const syncRtkPage = () => {
+        if (rtk.connected && rtk.meeting && rtk.meeting.participants && typeof rtk.meeting.participants.setPage === 'function') {
+          try { rtk.meeting.participants.setPage(state.page + 1); } catch (_e) {}
+        }
+      };
+      el('pg-prev').addEventListener('click', () => { state.page--; render(); syncRtkPage(); });
+      el('pg-next').addEventListener('click', () => { state.page++; render(); syncRtkPage(); });
       window.addEventListener('resize', () => {
         const m = window.innerWidth < 640;
         if (m !== state.isMobile) { state.isMobile = m; render(); }
