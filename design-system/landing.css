@@ -251,6 +251,12 @@ html[dir="rtl"] .back-arrow { display: inline-block; transform: scaleX(-1); }
   .topbar-right { gap: 8px; }
   .topbar-right .btn--compact { display: none; }
 }
+/* Very narrow: drop the decorative هلا glyph so the brand and the
+   auth link keep breathing room. The Latin wordmark always stays. */
+@media (max-width: 519px) {
+  .brand .divider,
+  .brand .ar { display: none; }
+}
 @media (min-width: 880px) {
   .mobile-menu { display: none !important; }
 }
