@@ -4697,7 +4697,8 @@
         const link = `${window.location.origin}${window.location.pathname}?room=${target}`;
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(link).then(() => {
-                alert(langDict[curLang].shareSuccess);
+                if (window.HalaUI) window.HalaUI.toast(langDict[curLang].shareSuccess, { kind: 'success' });
+                else alert(langDict[curLang].shareSuccess);
             }).catch(() => {
                 window.prompt(langDict[curLang].shareFallback, link);
             });
