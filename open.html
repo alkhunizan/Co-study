@@ -1302,6 +1302,11 @@
                     void fetchRoomDetails(code);
                 }
             }
+            // Desktop only — focusing on touch devices pops the keyboard over the form.
+            if (window.matchMedia('(pointer: fine)').matches) {
+                const target = currentMode === 'create' ? document.getElementById('room-name') : joinCodeInput;
+                if (target && !target.value) target.focus();
+            }
         }
 
         function checkUrlParams() {
