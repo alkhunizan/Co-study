@@ -1587,6 +1587,9 @@ html[lang="ar"] .mode-option-title { font-family: var(--font-display-ar); font-w
   margin-bottom: 12px;
   text-align: center;
 }
+.result-code[role="button"] { cursor: pointer; border-radius: 12px; }
+.result-code[role="button"]:hover { color: var(--accent-2); }
+.result-code[role="button"]:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
 .result-box p { color: var(--ink-2); font-size: 14px; margin-bottom: 16px; }
 .result-schedule[hidden] { display: none; }
 .result-schedule-summary { color: var(--ink); font-weight: 600; margin-bottom: 12px; }

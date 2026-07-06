@@ -148,7 +148,7 @@
             </div>
             <p class="form-feedback" id="create-feedback"></p>
             <div class="result-box" id="create-result" hidden>
-              <div class="result-code" id="result-code" data-force-ltr></div>
+              <div class="result-code" id="result-code" data-force-ltr role="button" tabindex="0" data-lang-title="codeCopyTitle" title="Copy room code"></div>
               <p data-lang="resultDesc">شارك هذا الرمز مع شركائك ليدخلوا إلى الغرفة مباشرة.</p>
               <div class="result-schedule" id="result-schedule" hidden>
                 <div class="result-schedule-summary" id="result-schedule-summary"></div>
@@ -296,6 +296,8 @@
                 errorMediaModeInvalid: 'That room media mode is not supported.',
                 errorRealtimeUnavailable: 'Realtime service is not available right now.',
                 successCreated: 'Room created successfully.',
+                codeCopied: 'Room code copied.',
+                codeCopyTitle: 'Copy room code',
                 redirecting: 'Redirecting...',
                 errorRoomCodeGeneration: 'Could not generate a room code. Please try again.',
                 rateLimited: 'Too many attempts. Slow down and try again in a moment.',
@@ -386,6 +388,8 @@
                 errorMediaModeInvalid: 'وضع وسائط الغرفة هذا غير مدعوم.',
                 errorRealtimeUnavailable: 'خدمة الاتصال الفوري غير متاحة حالياً.',
                 successCreated: 'تم إنشاء الغرفة بنجاح.',
+                codeCopied: 'تم نسخ رمز الغرفة.',
+                codeCopyTitle: 'انسخ رمز الغرفة',
                 redirecting: 'جارٍ التحويل...',
                 errorRoomCodeGeneration: 'تعذر إنشاء رمز الغرفة. حاول مرة أخرى.',
                 rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.',
@@ -1459,6 +1463,24 @@
                 result.hidden = false;
             });
         });
+
+        (function initResultCodeCopy() {
+            const codeEl = document.getElementById('result-code');
+            if (!codeEl) return;
+            function copyCreatedCode() {
+                if (!createdRoomCode || !navigator.clipboard || !navigator.clipboard.writeText) return;
+                navigator.clipboard.writeText(createdRoomCode).then(() => {
+                    if (window.HalaUI) window.HalaUI.toast(copy().codeCopied, { kind: 'success' });
+                }).catch(() => {});
+            }
+            codeEl.addEventListener('click', copyCreatedCode);
+            codeEl.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    copyCreatedCode();
+                }
+            });
+        })();
 
         document.getElementById('btn-enter-room').addEventListener('click', () => {
             if (!createdRoomCode) return;
