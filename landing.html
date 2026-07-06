@@ -427,7 +427,8 @@
         closerTitle1: 'One lamp on at 1am.', closerTitle2: 'You are not the only one.',
         closerSub: 'Halastudy is a quiet room, open all night, where the cameras stay on and the conversation stays off.',
         footerTag: 'Halastudy · Online focus rooms for studying and working — study or work live, with serious people.',
-        footerManifesto: 'Manifesto', footerBlog: 'Blog', footerPrivacy: 'Privacy', footerTerms: 'Terms', footerStatus: 'Status', footerWhatsapp: 'WhatsApp invite',
+        footerBlog: 'Blog', footerPrivacy: 'Privacy', footerTerms: 'Terms', footerWhatsapp: 'WhatsApp invite',
+        whatsappShareText: 'Try Halastudy — quiet focus rooms for studying and working',
         tileNames: ['Nouf Abdulaziz', 'Reem Sultan', 'Lama Faisal', 'Jawaher Khalid', 'Danah Saad', 'Saud Abdullah'],
         previewNames: ['Haya Turki', 'Majed Faisal', 'Razan Fahad']
       },
@@ -474,7 +475,8 @@
         closerTitle1: 'مصباح واحد شغّال الساعة ١.', closerTitle2: 'انت مو لحالك.',
         closerSub: 'هلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.',
         footerTag: 'هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.',
-        footerManifesto: 'البيان', footerBlog: 'المدونة', footerPrivacy: 'الخصوصية', footerTerms: 'الشروط', footerStatus: 'الحالة', footerWhatsapp: 'دعوة واتساب',
+        footerBlog: 'المدونة', footerPrivacy: 'الخصوصية', footerTerms: 'الشروط', footerWhatsapp: 'دعوة واتساب',
+        whatsappShareText: 'جرّب هلاستدي — غرف تركيز هادية للمذاكرة والعمل',
         tileNames: ['نوف عبدالعزيز', 'ريم سلطان', 'لمى فيصل', 'جواهر خالد', 'دانة سعد', 'سعود عبدالله'],
         previewNames: ['هيا تركي', 'ماجد فيصل', 'رزان فهد']
       }
@@ -507,10 +509,7 @@
       // footer WhatsApp invite — share the site in the active language
       var wa = document.getElementById('footer-whatsapp');
       if (wa) {
-        var waText = lang === 'ar'
-          ? 'جرّب هلاستدي — غرف تركيز هادية للمذاكرة والعمل'
-          : 'Try Halastudy — quiet focus rooms for studying and working';
-        wa.href = 'https://wa.me/?text=' + encodeURIComponent(waText + '\nhttps://halastudy.com');
+        wa.href = 'https://wa.me/?text=' + encodeURIComponent(dict.whatsappShareText + '\nhttps://halastudy.com');
       }
     }
 
