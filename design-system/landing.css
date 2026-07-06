@@ -211,7 +211,8 @@ html[dir="rtl"] .back-arrow { display: inline-block; transform: scaleX(-1); }
   flex-direction: column;
   max-block-size: calc(100dvh - 72px);
   overflow-y: auto;
-  transition: opacity 220ms var(--ease-soft), transform 220ms var(--ease-soft);
+  /* 380ms — entering panel per DESIGN.md §7 (220ms is for state flips). */
+  transition: opacity 380ms var(--ease-soft), transform 380ms var(--ease-soft);
 }
 .mobile-menu[hidden] { display: none; }
 .mobile-menu[data-entering] { opacity: 0; transform: translateY(-8px); }
@@ -241,6 +242,7 @@ html[dir="rtl"] .back-arrow { display: inline-block; transform: scaleX(-1); }
   padding-block: 10px;
 }
 .mobile-menu-controls .icon-btn { width: 44px; height: 44px; }
+.mobile-menu-controls .lang-switch button { min-height: 44px; }
 .mobile-menu-cta {
   margin-block-start: 12px;
   justify-content: center;

@@ -194,7 +194,7 @@
         }
         .status-input:focus { background: var(--bg-card); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
         .status-options { display: flex; flex-wrap: wrap; gap: 14px; }
-        .status-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-sec); cursor: pointer; min-height: 24px; }
+        .status-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-sec); cursor: pointer; min-height: 36px; }
         .status-preview { font-size: 0.8rem; color: var(--text-sec); background: var(--bg-input); border-radius: 12px; padding: 8px 12px; }
         .user-list {
             display: flex;
@@ -580,6 +580,7 @@
         @media (max-width: 640px) {
             header { flex-direction: column; gap: 12px; padding: 12px 20px; }
             .room-meta { padding: 0 20px 10px; }
+            .status-btn, .status-toggle { min-height: 44px; }
             main { padding: 10px 20px 20px; }
             .status-options { flex-direction: column; align-items: flex-start; gap: 6px; }
             .ambient-control { justify-content: center; }
