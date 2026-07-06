@@ -362,12 +362,10 @@
   <footer class="footer">
     <div data-i18n="footerTag">هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.</div>
     <div class="links">
-      <a href="#" data-i18n="footerManifesto">البيان</a>
       <a href="/blog" data-i18n="footerBlog">المدونة</a>
       <a href="/privacy" data-i18n="footerPrivacy">الخصوصية</a>
       <a href="/terms" data-i18n="footerTerms">الشروط</a>
-      <a href="#" data-i18n="footerStatus">الحالة</a>
-      <a href="#" data-i18n="footerWhatsapp">دعوة واتساب</a>
+      <a href="#" id="footer-whatsapp" target="_blank" rel="noopener" data-i18n="footerWhatsapp">دعوة واتساب</a>
     </div>
     <div class="footer-contact">
       <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
@@ -506,6 +504,14 @@
       });
       // build city-marquee text in the active language
       buildMarquee(lang);
+      // footer WhatsApp invite — share the site in the active language
+      var wa = document.getElementById('footer-whatsapp');
+      if (wa) {
+        var waText = lang === 'ar'
+          ? 'جرّب هلاستدي — غرف تركيز هادية للمذاكرة والعمل'
+          : 'Try Halastudy — quiet focus rooms for studying and working';
+        wa.href = 'https://wa.me/?text=' + encodeURIComponent(waText + '\nhttps://halastudy.com');
+      }
     }
 
     function setLang(lang) {
