@@ -170,6 +170,32 @@
             color: var(--text-sec);
             font-weight: 600;
         }
+        /* "My status" block — pill presets + token-styled inputs.
+           These classes previously had no CSS and fell back to UA defaults. */
+        .status-label { font-size: 0.8rem; font-weight: 700; color: var(--text-sec); }
+        .status-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+        .status-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main);
+            border-radius: 999px; padding: 8px 14px;
+            font-family: inherit; font-size: 0.82rem; font-weight: 600;
+            cursor: pointer; min-height: 36px;
+            transition: border-color 120ms var(--ease-soft, ease), background 120ms var(--ease-soft, ease);
+        }
+        .status-btn:hover { border-color: var(--accent); }
+        .status-btn:focus-visible { box-shadow: 0 0 0 3px var(--accent-glow); }
+        .status-btn:active { transform: scale(0.98); }
+        .status-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-3); }
+        .status-input {
+            width: 100%;
+            border: 1px solid var(--border); background: var(--bg-input); color: var(--text-main);
+            border-radius: 16px; padding: 10px 14px;
+            font-family: inherit; font-size: 0.85rem;
+        }
+        .status-input:focus { background: var(--bg-card); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .status-options { display: flex; flex-wrap: wrap; gap: 14px; }
+        .status-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-sec); cursor: pointer; min-height: 24px; }
+        .status-preview { font-size: 0.8rem; color: var(--text-sec); background: var(--bg-input); border-radius: 12px; padding: 8px 12px; }
         .user-list {
             display: flex;
             flex-direction: column;
@@ -552,9 +578,9 @@
             .user-panel, .status-control { margin-bottom: 16px; }
         }
         @media (max-width: 640px) {
-            header { flex-direction: column; gap: 12px; }
+            header { flex-direction: column; gap: 12px; padding: 12px 20px; }
+            .room-meta { padding: 0 20px 10px; }
             main { padding: 10px 20px 20px; }
-            .status-presets { flex-direction: column; align-items: stretch; }
             .status-options { flex-direction: column; align-items: flex-start; gap: 6px; }
             .ambient-control { justify-content: center; }
             .ambient-popover { position: fixed; bottom: 10px; inset-inline-end: 10px; width: calc(100% - 20px); max-width: 360px; }
