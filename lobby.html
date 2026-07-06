@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Halastudy | اللوبي · The Lobby</title>
-  <meta name="description" content="اللوبي — غرفة مذاكرة عامة مفتوحة طول اليوم. ادخل، شوف الناس تذاكر، وابدأ. The Halastudy Lobby: one public study room, open all day.">
+  <meta name="description" content="اللوبي — غرفة مذاكرة عامة مفتوحة. ادخل، شوف الناس تذاكر، وابدأ. The Halastudy Lobby: one public study room.">
   <link rel="icon" type="image/svg+xml" href="/images/icons/favicon.svg">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#F5F2EB">
@@ -15,9 +15,94 @@
   <link rel="stylesheet" href="/design-system/landing.css">
   <script src="/js/halastudy-core.js"></script>
   <style>
-    .lobby-shell { max-inline-size: 720px; margin-inline: auto; padding-block: 112px 72px; padding-inline: 20px; text-align: center; }
-    .lobby-shell h1 { font-family: var(--font-display-ar); font-size: clamp(28px, 5vw, 42px); line-height: 1.25; margin: 12px 0; }
-    .lobby-shell p { color: var(--ink-2); line-height: 1.8; }
+    .lobby-wrap { max-inline-size: 1180px; margin-inline: auto; padding-block: 92px 40px; padding-inline: 16px; }
+
+    /* Control bar: title + present count + density + pagination */
+    .lobby-bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
+      margin-block-end: 18px;
+    }
+    .lobby-heading { display: flex; align-items: baseline; gap: 10px; margin-inline-end: auto; }
+    .lobby-heading h1 { font-family: var(--font-display-ar); font-size: clamp(22px, 3.4vw, 30px); line-height: 1.2; margin: 0; }
+    html[lang="en"] .lobby-heading h1 { font-family: var(--font-display); }
+    .lobby-count {
+      font-family: var(--font-mono); font-size: 13px; letter-spacing: .04em;
+      color: var(--ink-2); white-space: nowrap;
+    }
+    .lobby-count .live-dot { display: inline-block; inline-size: 7px; block-size: 7px; border-radius: 50%; background: #35c26b; margin-inline-end: 6px; vertical-align: middle; }
+
+    .density {
+      display: inline-flex; align-items: center; gap: 2px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px;
+    }
+    .density-label { font-size: 12px; color: var(--ink-2); margin-inline: 8px 4px; white-space: nowrap; }
+    .density button {
+      border: 0; background: transparent; color: var(--ink-2);
+      font: inherit; font-size: 13px; font-variant-numeric: tabular-nums;
+      min-inline-size: 34px; block-size: 30px; border-radius: 999px; cursor: pointer;
+      transition: background .15s ease, color .15s ease;
+    }
+    .density button[aria-pressed="true"] { background: var(--accent, var(--ink)); color: var(--card, #fff); font-weight: 600; }
+
+    .pager { display: inline-flex; align-items: center; gap: 6px; }
+    .pager button {
+      border: 1px solid var(--line); background: var(--card); color: var(--ink);
+      inline-size: 34px; block-size: 34px; border-radius: 10px; cursor: pointer; font-size: 16px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .pager button:disabled { opacity: .4; cursor: default; }
+    .pager-status { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); min-inline-size: 66px; text-align: center; }
+
+    /* The grid */
+    .lobby-grid { display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); }
+    .lobby-tile {
+      position: relative; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden;
+      background: #14110d; border: 1px solid rgba(255,255,255,.06);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .lobby-tile video { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; object-fit: cover; }
+    .lobby-avatar {
+      inline-size: clamp(38px, 22%, 64px); aspect-ratio: 1; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-weight: 600; font-size: clamp(15px, 5cqi, 22px);
+      color: #fff; text-transform: uppercase;
+    }
+    .lobby-tile-name {
+      position: absolute; inset-block-end: 8px; inset-inline-start: 8px; inset-inline-end: 8px;
+      display: flex; align-items: center; gap: 6px;
+      font-family: var(--font-display-ar); font-size: 13px; color: #F3EBDE;
+      text-shadow: 0 1px 5px rgba(0,0,0,.7); pointer-events: none;
+    }
+    html[lang="en"] .lobby-tile-name { font-family: var(--font-display); font-style: italic; }
+    .lobby-tile-name .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lobby-tile-badge {
+      position: absolute; inset-block-start: 8px; inset-inline-end: 8px;
+      font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+      background: rgba(0,0,0,.5); color: rgba(243,235,222,.85); padding: 3px 7px; border-radius: 999px;
+      font-family: var(--font-mono);
+    }
+    .lobby-tile.is-live .lobby-tile-badge { background: rgba(53,194,107,.85); color: #05230f; }
+
+    .lobby-empty { text-align: center; color: var(--ink-2); padding: 48px 16px; line-height: 1.8; }
+
+    /* Footer action strip */
+    .lobby-foot {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px;
+      margin-block-start: 22px; color: var(--ink-2); font-size: 14px;
+    }
+    .lobby-foot .mic-note { display: inline-flex; align-items: center; gap: 6px; }
+
+    /* Name gate */
+    .name-gate { max-inline-size: 380px; margin: 40px auto; text-align: center; }
+    .name-gate input {
+      inline-size: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
+      background: var(--card); color: var(--ink); font: inherit; font-size: 15px; margin-block: 12px;
+    }
+
+    @media (max-width: 640px) {
+      .lobby-heading { margin-inline-end: 0; inline-size: 100%; }
+      .lobby-bar { gap: 10px; }
+    }
   </style>
 </head>
 <body class="is-landing-page">
@@ -28,6 +113,7 @@
       <span class="ar" aria-hidden="true">هلا</span>
     </a>
     <div class="topbar-right">
+      <a class="topbar-link" id="auth-entry" href="/account.html" data-lang="signIn">تسجيل الدخول</a>
       <div class="lang-switch" role="tablist" aria-label="Language">
         <button type="button" data-lang-value="en">EN</button>
         <button type="button" data-lang-value="ar" class="is-on">ع</button>
@@ -35,27 +121,262 @@
     </div>
   </header>
 
-  <main class="lobby-shell">
-    <div class="eyebrow" data-lang="lobbyEyebrow">اللوبي</div>
-    <h1 data-lang="lobbyTitle">غرفة المذاكرة العامة</h1>
-    <p data-lang="lobbyIntro">ادخل، شوف الناس تذاكر، وابدأ معهم. جاري التجهيز…</p>
+  <main class="lobby-wrap">
+    <!-- Name gate (shown until a display name is set) -->
+    <section class="name-gate" id="name-gate" hidden>
+      <div class="eyebrow" data-lang="lobbyEyebrow">اللوبي</div>
+      <h1 style="font-family:var(--font-display-ar);margin:6px 0 2px" data-lang="gateTitle">وش اسمك في الغرفة؟</h1>
+      <p style="color:var(--ink-2)" data-lang="gateSub">اسم يشوفه غيرك. تقدر تتفرج بدون كاميرا.</p>
+      <input type="text" id="name-input" maxlength="20" data-lang-placeholder="gatePlaceholder" placeholder="اسمك">
+      <button class="btn btn-primary" id="name-go" style="inline-size:100%" data-lang="gateGo">ادخل اللوبي</button>
+    </section>
+
+    <!-- Lobby view -->
+    <section id="lobby-view" hidden>
+      <div class="lobby-bar">
+        <div class="lobby-heading">
+          <h1 data-lang="lobbyTitle">اللوبي</h1>
+          <span class="lobby-count" id="present-count"><span class="live-dot"></span><span id="present-n">0</span> / 30</span>
+        </div>
+
+        <div class="density" role="group" aria-label="Grid density">
+          <span class="density-label" data-lang="densityLabel">في الصفحة</span>
+          <!-- buttons injected -->
+        </div>
+
+        <div class="pager">
+          <button type="button" id="pg-prev" aria-label="Previous page">‹</button>
+          <span class="pager-status" id="pg-status">1 / 1</span>
+          <button type="button" id="pg-next" aria-label="Next page">›</button>
+        </div>
+      </div>
+
+      <div class="lobby-grid" id="grid" aria-live="polite"></div>
+      <div class="lobby-empty" id="empty" hidden data-lang="empty">لسه ما فيه أحد. كن أول واحد يبدأ.</div>
+
+      <div class="lobby-foot">
+        <span class="mic-note"><span aria-hidden="true">🔇</span> <span data-lang="micOff">المايك مقفول للجميع</span></span>
+        <button class="btn btn-secondary btn--compact" id="camera-cta" data-lang="camGuest">سجّل دخول عشان تفتح الكاميرا</button>
+      </div>
+    </section>
   </main>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script>
-    window.HalaCore.initLang({
+    const DICT = {
       en: {
         pageTitle: 'Halastudy | The Lobby',
+        signIn: 'Sign in',
         lobbyEyebrow: 'The Lobby',
-        lobbyTitle: 'The public study room',
-        lobbyIntro: 'Drop in, watch others study, and start with them. Setting things up…'
+        lobbyTitle: 'The Lobby',
+        gateTitle: 'What should we call you?',
+        gateSub: 'A name others see. You can watch without a camera.',
+        gatePlaceholder: 'Your name',
+        gateGo: 'Enter the Lobby',
+        densityLabel: 'Per page',
+        empty: "Nobody here yet. Be the first to start.",
+        micOff: 'Mic is off for everyone',
+        camGuest: 'Sign in to turn on your camera',
+        camReady: 'Turn on my camera',
+        watching: 'watching',
+        live: 'live',
+        full: 'The Lobby is full right now — try again in a bit, or open your own room.'
       },
       ar: {
         pageTitle: 'هلاستدي | اللوبي',
+        signIn: 'تسجيل الدخول',
         lobbyEyebrow: 'اللوبي',
-        lobbyTitle: 'غرفة المذاكرة العامة',
-        lobbyIntro: 'ادخل، شوف الناس تذاكر، وابدأ معهم. جاري التجهيز…'
+        lobbyTitle: 'اللوبي',
+        gateTitle: 'وش اسمك في الغرفة؟',
+        gateSub: 'اسم يشوفه غيرك. تقدر تتفرج بدون كاميرا.',
+        gatePlaceholder: 'اسمك',
+        gateGo: 'ادخل اللوبي',
+        densityLabel: 'في الصفحة',
+        empty: 'لسه ما فيه أحد. كن أول واحد يبدأ.',
+        micOff: 'المايك مقفول للجميع',
+        camGuest: 'سجّل دخول عشان تفتح الكاميرا',
+        camReady: 'افتح كاميرتي',
+        watching: 'يتفرج',
+        live: 'مباشر',
+        full: 'اللوبي ممتلئ حالياً — جرّب بعد شوي، أو افتح غرفتك الخاصة.'
       }
-    });
+    };
+    window.HalaCore.initLang(DICT);
+    const t = (k) => (DICT[document.documentElement.lang] || DICT.ar)[k] || k;
+
+    // ---- Grid density presets: tiles-per-page -> desktop columns ----
+    const DENSITY = [
+      { n: 4, cols: 2 }, { n: 6, cols: 3 }, { n: 9, cols: 3 },
+      { n: 12, cols: 4 }, { n: 16, cols: 4 }, { n: 20, cols: 5 }, { n: 30, cols: 6 }
+    ];
+    const NAME_KEY = 'halastudyDisplayName';
+    const CLIENT_ID_KEY = 'halastudyClientId';
+    const LOBBY_CAP = 30;
+
+    const el = (id) => document.getElementById(id);
+    const state = { participants: [], perPage: 12, page: 0, isMobile: window.innerWidth < 640 };
+
+    function clientId() {
+      let id = null;
+      try { id = localStorage.getItem(CLIENT_ID_KEY); } catch (_e) {}
+      if (!id) {
+        id = (crypto.randomUUID && crypto.randomUUID()) || ('c-' + Math.random().toString(36).slice(2));
+        try { localStorage.setItem(CLIENT_ID_KEY, id); } catch (_e) {}
+      }
+      return id;
+    }
+
+    // ---- Density control ----
+    function buildDensity() {
+      const box = document.querySelector('.density');
+      DENSITY.forEach((d) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = String(d.n);
+        b.setAttribute('aria-pressed', String(d.n === state.perPage));
+        b.addEventListener('click', () => { state.perPage = d.n; state.page = 0; syncDensity(); render(); });
+        box.appendChild(b);
+      });
+    }
+    function syncDensity() {
+      document.querySelectorAll('.density button').forEach((b) => {
+        b.setAttribute('aria-pressed', String(Number(b.textContent) === state.perPage));
+      });
+    }
+    function effectiveCols() {
+      const preset = DENSITY.find((d) => d.n === state.perPage) || DENSITY[3];
+      return state.isMobile ? Math.min(2, preset.cols) : preset.cols;
+    }
+
+    // ---- Render ----
+    function initial(name) { return (name || '؟').trim().charAt(0) || '؟'; }
+    function colorFor(p) { return p.avatarColor || '#8a6d3b'; }
+
+    function render() {
+      const list = state.participants;
+      el('present-n').textContent = String(list.length);
+      const pages = Math.max(1, Math.ceil(list.length / state.perPage));
+      if (state.page > pages - 1) state.page = pages - 1;
+      if (state.page < 0) state.page = 0;
+
+      el('pg-status').textContent = `${state.page + 1} / ${pages}`;
+      el('pg-prev').disabled = state.page <= 0;
+      el('pg-next').disabled = state.page >= pages - 1;
+
+      const grid = el('grid');
+      grid.style.gridTemplateColumns = `repeat(${effectiveCols()}, 1fr)`;
+
+      const start = state.page * state.perPage;
+      const slice = list.slice(start, start + state.perPage);
+      el('empty').hidden = list.length !== 0;
+
+      grid.replaceChildren(...slice.map((p) => tile(p)));
+    }
+
+    function tile(p) {
+      const cell = document.createElement('div');
+      cell.className = 'lobby-tile' + (p.cameraOn ? ' is-live' : '');
+      cell.dataset.id = p.id;
+
+      // P3: presence tile (avatar). P4 swaps in <video> for publishers.
+      const av = document.createElement('div');
+      av.className = 'lobby-avatar';
+      av.style.background = colorFor(p);
+      av.textContent = initial(p.name);
+      cell.appendChild(av);
+
+      const badge = document.createElement('div');
+      badge.className = 'lobby-tile-badge';
+      badge.textContent = p.cameraOn ? t('live') : t('watching');
+      cell.appendChild(badge);
+
+      const name = document.createElement('div');
+      name.className = 'lobby-tile-name';
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = p.name || '—';
+      name.appendChild(who);
+      cell.appendChild(name);
+      return cell;
+    }
+
+    // ---- Presence / socket ----
+    let socket = null;
+    function setParticipants(list) {
+      state.participants = Array.isArray(list) ? list.slice() : [];
+      // QA aid: ?demo=N appends N filler tiles so density/pagination are visible
+      // without a live meeting. No effect unless the param is present.
+      const demo = Number(new URLSearchParams(location.search).get('demo'));
+      if (demo > 0) {
+        const palette = ['#8a6d3b', '#6d7a8a', '#8a5a5a', '#5a8a6d', '#7a6d8a', '#8a7a5a'];
+        for (let i = state.participants.length; i < Math.min(demo, LOBBY_CAP); i++) {
+          state.participants.push({ id: 'demo-' + i, name: 'طالب ' + (i + 1), cameraOn: i % 4 === 0, avatarColor: palette[i % palette.length] });
+        }
+      }
+      render();
+    }
+
+    function joinLobby(name) {
+      socket = io({ auth: { clientId: clientId() } });
+      socket.on('connect', () => {
+        socket.emit('join-room', { roomId: 'LOBBY', username: name, clientId: clientId() }, (res = {}) => {
+          if (!res.ok) {
+            if (res.errorCode === 'ROOM_FULL' && window.HalaUI) window.HalaUI.toast(t('full'), { kind: 'error' });
+            return;
+          }
+          setParticipants((res.room && res.room.participants) || []);
+        });
+      });
+      socket.on('presence', (list) => setParticipants(list || []));
+      socket.on('kicked', () => { location.href = '/'; });
+      socket.on('room-closed', () => { location.href = '/'; });
+    }
+
+    // ---- Auth-gated camera button ----
+    function refreshCameraCta(user) {
+      const cta = el('camera-cta');
+      if (user) {
+        cta.textContent = t('camReady');
+        cta.onclick = () => startPublishing();   // wired in P4
+      } else {
+        cta.textContent = t('camGuest');
+        cta.onclick = () => { location.href = '/account.html?next=%2Flobby'; };
+      }
+    }
+    function startPublishing() { /* P4: request a publisher token + enableVideo */ }
+
+    // ---- Boot ----
+    function enterLobby(name) {
+      try { localStorage.setItem(NAME_KEY, name); } catch (_e) {}
+      el('name-gate').hidden = true;
+      el('lobby-view').hidden = false;
+      buildDensity();
+      joinLobby(name);
+      if (window.HalaAuth) window.HalaAuth.getUser().then(refreshCameraCta).catch(() => refreshCameraCta(null));
+      else refreshCameraCta(null);
+    }
+
+    (function boot() {
+      state.perPage = state.isMobile ? 4 : 12;
+      el('pg-prev').addEventListener('click', () => { state.page--; render(); });
+      el('pg-next').addEventListener('click', () => { state.page++; render(); });
+      window.addEventListener('resize', () => {
+        const m = window.innerWidth < 640;
+        if (m !== state.isMobile) { state.isMobile = m; render(); }
+      });
+
+      let saved = '';
+      try { saved = localStorage.getItem(NAME_KEY) || ''; } catch (_e) {}
+      if (saved) {
+        enterLobby(saved);
+      } else {
+        const gate = el('name-gate');
+        gate.hidden = false;
+        const go = () => { const v = el('name-input').value.trim(); if (v) enterLobby(v); };
+        el('name-go').addEventListener('click', go);
+        el('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+      }
+    })();
   </script>
 </body>
 </html>
