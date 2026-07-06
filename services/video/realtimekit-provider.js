@@ -145,12 +145,14 @@ function createRealtimeKitProvider({ config, logger, fetchImpl = fetch } = {}) {
                 reused: false
             };
         },
-        async createParticipantToken({ roomId, meetingId, userId, displayName }) {
+        async createParticipantToken({ roomId, meetingId, userId, displayName, presetName }) {
             const payload = await request(`/meetings/${encodeURIComponent(meetingId)}/participants`, {
                 method: 'POST',
                 body: {
                     name: displayName,
-                    preset_name: config.defaultPresetName,
+                    // Caller picks the preset (viewer vs publisher); fall back to
+                    // the default student preset when unspecified.
+                    preset_name: presetName || config.defaultPresetName,
                     custom_participant_id: userId
                 }
             });

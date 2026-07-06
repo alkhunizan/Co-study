@@ -1017,7 +1017,7 @@ function createCoStudyServer(options = {}) {
             recordingEnabled: false,
             screenshareEnabled: !!roomPolicy.screenshareEnabled,
             chatEnabled: !!roomPolicy.chatEnabled,
-            maxRoomParticipants: roomPolicy.maxParticipants,
+            maxRoomParticipants: isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT : roomPolicy.maxParticipants,
             maxGlobalParticipants: config.video.maxGlobalParticipants,
             maxRoomDurationMinutes: config.video.maxRoomDurationMinutes
         };
@@ -1748,11 +1748,19 @@ function createCoStudyServer(options = {}) {
 
         const displayName = sanitizeNickname(req.body?.displayName);
         const clientSessionId = normalizeClientId(req.body?.clientSessionId);
-        const role = typeof req.body?.role === 'string' && req.body.role.trim()
-            ? req.body.role.trim().toLowerCase()
-            : 'student';
+        const rawRole = typeof req.body?.role === 'string' ? req.body.role.trim().toLowerCase() : '';
+        // 'student' is the legacy publisher role sent by normal mesh/private rooms
+        // and stays a publisher. The Lobby sends explicit 'viewer' | 'publisher'.
+        let role;
+        if (rawRole === 'viewer') {
+            role = 'viewer';
+        } else if (rawRole === 'publisher' || rawRole === 'student' || rawRole === '') {
+            role = 'publisher';
+        } else {
+            role = null;
+        }
 
-        if (!displayName || !clientSessionId || role !== 'student') {
+        if (!displayName || !clientSessionId || !role) {
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
             return;
         }
@@ -1780,6 +1788,14 @@ function createCoStudyServer(options = {}) {
             return;
         }
 
+        // The Lobby is public: anyone may watch (viewer preset), but going on
+        // camera (publisher preset) requires a signed-in, ban-able account.
+        const authedUser = resolveUserFromToken(parseCookies(req.headers.cookie || '')[AUTH_COOKIE_NAME]);
+        if (isLobbyRoom(room) && role === 'publisher' && !authedUser) {
+            sendVideoError(res, 403, 'AUTH_REQUIRED');
+            return;
+        }
+
         const userId = member.clientId || member.sessionId || clientSessionId;
         const existingActive = findActiveVideoSession(normalizedRoom, userId, clientSessionId);
         const activeGlobal = videoSessionRegistry.countActiveGlobalVideoParticipants();
@@ -1787,6 +1803,7 @@ function createCoStudyServer(options = {}) {
         const effectiveGlobal = activeGlobal - (existingActive ? 1 : 0);
         const effectiveRoom = activeRoom - (existingActive ? 1 : 0);
         const roomPolicy = getDefaultRoomVideoPolicy(room.videoPolicy);
+        const roomParticipantCap = isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT : roomPolicy.maxParticipants;
 
         if (effectiveGlobal >= config.video.maxGlobalParticipants) {
             logger.warn({
@@ -1798,7 +1815,7 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 409, 'GLOBAL_VIDEO_LIMIT_REACHED');
             return;
         }
-        if (effectiveRoom >= roomPolicy.maxParticipants) {
+        if (effectiveRoom >= roomParticipantCap) {
             logger.warn({
                 event: 'video_token_rejected',
                 reason: 'ROOM_FULL',
@@ -1821,17 +1838,22 @@ function createCoStudyServer(options = {}) {
             provider: roomVideoProvider,
             providerMeetingId: room.videoProviderMeetingId,
             displayName,
+            role,
             joinedAt: existingActive?.joinedAt || Date.now(),
             lastSeenAt: Date.now()
         });
 
         try {
             const meeting = await ensureRealtimeKitMeeting(normalizedRoom, room);
+            const presetName = role === 'viewer'
+                ? config.video.viewerPresetName
+                : config.video.defaultPresetName;
             const tokenPayload = await videoProvider.createParticipantToken({
                 roomId: normalizedRoom,
                 meetingId: meeting.meetingId,
                 userId,
-                displayName
+                displayName,
+                presetName
             });
 
             videoSessionRegistry.updateVideoSession({ roomId: normalizedRoom, userId, clientSessionId }, {
@@ -1854,6 +1876,7 @@ function createCoStudyServer(options = {}) {
                 ok: true,
                 provider: roomVideoProvider,
                 roomId: normalizedRoom,
+                role,
                 meetingId: tokenPayload.meetingId,
                 participantId: tokenPayload.participantId,
                 authToken: tokenPayload.authToken,
@@ -2271,6 +2294,12 @@ function createCoStudyServer(options = {}) {
                 && roomUsesMesh(room)
                 && !isRejoin
                 && room.users.size >= config.meshParticipantLimit) {
+                return ackError(ack, 'ROOM_FULL');
+            }
+
+            // The Lobby is a big SFU room, not mesh — cap present people (watchers
+            // + publishers) at its own limit rather than the mesh 4-cap.
+            if (isLobbyRoom(room) && !isRejoin && room.users.size >= LOBBY_PARTICIPANT_LIMIT) {
                 return ackError(ack, 'ROOM_FULL');
             }
 

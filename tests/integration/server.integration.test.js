@@ -72,10 +72,11 @@ async function expectStartFailure(startOptions, pattern) {
     );
 }
 
-async function issueVideoToken(server, roomId, body) {
+async function issueVideoToken(server, roomId, body, headers = {}) {
     return server.request(`/api/rooms/${roomId}/video-token`, {
         method: 'POST',
-        body
+        body,
+        headers
     });
 }
 
@@ -535,6 +536,69 @@ test('RealtimeKit video token endpoint issues safe participant tokens after room
     assert.equal(fakeState.participants.length, 1);
     assert.equal(fakeState.participants[0].body.preset_name, 'halastudy_student');
     assert.equal(fakeState.participants[0].body.custom_participant_id, 'rtk-owner');
+});
+
+test('the Lobby issues viewer tokens to guests but gates camera (publisher) behind an account', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+
+    // A guest (no account) socket-joins the reserved Lobby.
+    const guestSocket = await connectSocket(server.baseUrl, { clientId: 'lobby-guest' });
+    t.after(async () => { await closeSocket(guestSocket); });
+    const guestJoin = await emitAck(guestSocket, 'join-room', {
+        roomId: 'LOBBY', username: 'Guest', clientId: 'lobby-guest'
+    });
+    assert.equal(guestJoin.ok, true);
+    assert.equal(guestJoin.room.isLobby, true);
+    assert.equal(guestJoin.room.videoPolicy.maxRoomParticipants, 30);
+
+    // Guest -> viewer token: allowed, uses the viewer preset, no account needed.
+    const viewerToken = await issueVideoToken(server, 'LOBBY', {
+        displayName: 'Guest', clientSessionId: 'lobby-guest', role: 'viewer'
+    });
+    assert.equal(viewerToken.status, 200);
+    assert.equal(viewerToken.body.ok, true);
+    assert.equal(viewerToken.body.role, 'viewer');
+
+    // Guest -> publisher: rejected. Turning on camera in the Lobby needs an account.
+    const guestPublish = await issueVideoToken(server, 'LOBBY', {
+        displayName: 'Guest', clientSessionId: 'lobby-guest', role: 'publisher'
+    });
+    assert.equal(guestPublish.status, 403);
+    assert.equal(guestPublish.body.errorCode, 'AUTH_REQUIRED');
+
+    // The viewer preset (not the publisher preset) was sent to the provider.
+    const state = await server.realtimeKitState();
+    const presets = state.participants.map((p) => p.body.preset_name);
+    assert.ok(presets.includes('halastudy_viewer'), 'expected a viewer-preset participant');
+    assert.ok(!presets.includes('halastudy_student'), 'guest must not get the publisher preset');
+});
+
+test('the Lobby issues a publisher token to a signed-in account', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+
+    const account = await signupUser(server, { displayName: 'Member' });
+    const memberSocket = await connectSocket(server.baseUrl, {
+        clientId: 'lobby-member',
+        extraHeaders: { Cookie: account.cookie }
+    });
+    t.after(async () => { await closeSocket(memberSocket); });
+    const join = await emitAck(memberSocket, 'join-room', {
+        roomId: 'LOBBY', username: 'Member', clientId: 'lobby-member'
+    });
+    assert.equal(join.ok, true);
+
+    // Same request, now with the auth cookie -> publisher token with the student preset.
+    const publish = await issueVideoToken(server, 'LOBBY', {
+        displayName: 'Member', clientSessionId: 'lobby-member', role: 'publisher'
+    }, { Cookie: account.cookie });
+    assert.equal(publish.status, 200);
+    assert.equal(publish.body.ok, true);
+    assert.equal(publish.body.role, 'publisher');
+
+    const state = await server.realtimeKitState();
+    assert.equal(state.participants[0].body.preset_name, 'halastudy_student');
 });
 
 test('RealtimeKit video token endpoint rejects invalid or unauthorized requests cleanly', async (t) => {

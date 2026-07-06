@@ -2,6 +2,9 @@ const VIDEO_PROVIDER_MESH = 'mesh';
 const VIDEO_PROVIDER_REALTIMEKIT = 'realtimekit';
 const VIDEO_PROVIDER_RAW_SFU_LATER = 'raw-sfu-later';
 const DEFAULT_VIDEO_PRESET_NAME = 'halastudy_student';
+// Watch-only preset (produce/publish disabled) used for Lobby guests. Falls back
+// to the student preset if a viewer preset was never provisioned in Cloudflare.
+const DEFAULT_VIEWER_PRESET_NAME = 'halastudy_viewer';
 const DEFAULT_CLOUDFLARE_API_BASE_URL = 'https://api.cloudflare.com/client/v4';
 
 function parseBoolean(value, fallback = false) {
@@ -86,6 +89,7 @@ function resolveVideoConfig(env = process.env) {
         screenshareEnabled: parseBoolean(env.VIDEO_SCREENSHARE_ENABLED, false),
         chatEnabled: parseBoolean(env.VIDEO_CHAT_ENABLED, false),
         defaultPresetName: String(env.VIDEO_DEFAULT_PRESET_NAME || DEFAULT_VIDEO_PRESET_NAME).trim() || DEFAULT_VIDEO_PRESET_NAME,
+        viewerPresetName: String(env.VIDEO_VIEWER_PRESET_NAME || DEFAULT_VIEWER_PRESET_NAME).trim() || DEFAULT_VIEWER_PRESET_NAME,
         publicApiBaseUrl: String(env.PUBLIC_API_BASE_URL || '').trim(),
         cloudflare,
         warnings: []
