@@ -558,3 +558,27 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 
 **Open questions for Aziz:**
 1. In-room page intentionally has no burger — its 4 header controls all fit on mobile and hiding mid-session controls behind a tap would hurt. OK, or do you want one there too?
+
+## 2026-07-05 — Lobby build + landing name fixes
+
+**Goal for this session:** Fix front-page names (Saudi, gender-matched to faces), then build the public "Lobby" room (30 users, RealtimeKit, adjustable paginated grid).
+
+**What worked:**
+- Landing names: viewed all 14 hero/preview/team media files, found male names on women (Saud/Tariq/Majed) and a female name on a man (Mariam) + non-Saudi community names. Renamed all to Saudi first+father, gender-matched; verified in-browser; renamed the media files to match. Landing smoke green.
+- Lobby P1: reserved `LOBBY` room seeded at startup, cleanup-exempt; `/lobby` route + lobby.html; integration test green.
+- Lobby P2: viewer/publisher preset split + account-to-publish gate on /video-token; 30-present cap at join-room; 3 new integration tests green (guest→viewer, guest→publisher=AUTH_REQUIRED, account→publisher).
+- Lobby P3: lobby.html grid shell — density (4/6/9/12/16/20/30), pagination, presence tiles, AR/EN+RTL. Verified in-browser (18 present → 12 tiles/4 cols → density 6 = 6 tiles/3 cols/3 pages).
+
+**What broke:**
+- Local integration suite fails on readiness until `SUPABASE_*` env vars are scrubbed (userStore hydrate → PGRST205 profiles table). Ambient dev-box issue, not code. Saved to memory.
+
+**What I changed:**
+- landing.html + AR/EN dicts; git mv of hero/preview/team media; co-study-server.js (LOBBY seed/route/caps/gate), server-config.js (viewerPresetName), realtimekit-provider.js (presetName param), lobby.html, .env.example, tests. Commits 2698f76, 484e3f6, d14c1f5, 1029d5c, b78a269, d491bca (+ spec).
+
+**Next session starts with:**
+- Decide P4 subscription model (A: density=layout only, SDK-paginated subscription; B: manual pin-based). SDK has no settable per-page count.
+
+**Open questions for Aziz:**
+1. P4 is blocked on you: create Cloudflare `halastudy_viewer` preset (produce disabled) + set VIDEO_VIEWER_PRESET_NAME + raise MAX_GLOBAL_VIDEO_PARTICIPANTS. Live media can't be verified locally.
+2. P4 subscription model: (A) density = layout only, or (B) manual per-page subscription?
+3. Deploy timing — Lobby P1–P3 are on main but /lobby degrades to presence-only until the preset+creds exist. Ship now or hold?
