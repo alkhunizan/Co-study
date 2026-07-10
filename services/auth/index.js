@@ -8,6 +8,10 @@
 const crypto = require('node:crypto');
 
 const TOKEN_VERSION = 'v1';
+// Anonymous (guest) session tokens: a signed wrapper around a random session
+// id so an unauthenticated `coStudySessionId` cookie cannot be forged or
+// picked by the client. No epoch/expiry — the cookie Max-Age bounds lifetime.
+const ANON_TOKEN_VERSION = 'as1';
 const EMAIL_MAX_LENGTH = 254;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MIN_LENGTH = 8;
@@ -79,8 +83,42 @@ function verifySessionToken(token, { secret, maxAgeMs, now = Date.now() } = /** 
     return { userId, tokenEpoch, issuedAt };
 }
 
+/**
+ * Wraps a server-generated session id in an HMAC signature.
+ * @param {{ sessionId: string, secret: string }} options
+ */
+function createAnonSessionToken({ sessionId, secret }) {
+    if (!sessionId || typeof sessionId !== 'string' || !secret) {
+        throw new Error('createAnonSessionToken requires sessionId and secret.');
+    }
+    const payload = `${ANON_TOKEN_VERSION}.${sessionId}`;
+    return `${payload}.${signPayload(payload, secret)}`;
+}
+
+/**
+ * Returns the embedded session id if the token's signature verifies, else null.
+ * A bare/forged/tampered value returns null so the caller can issue a fresh id.
+ * @param {string} token
+ * @param {{ secret: string }} options
+ */
+function verifyAnonSessionToken(token, { secret } = /** @type {any} */ ({})) {
+    if (typeof token !== 'string' || !secret) return null;
+    const parts = token.split('.');
+    if (parts.length !== 3 || parts[0] !== ANON_TOKEN_VERSION) return null;
+    const [version, sessionId, signature] = parts;
+    if (!sessionId) return null;
+    const expected = signPayload(`${version}.${sessionId}`, secret);
+    const expectedBuffer = Buffer.from(expected);
+    const actualBuffer = Buffer.from(signature);
+    if (expectedBuffer.length !== actualBuffer.length) return null;
+    if (!crypto.timingSafeEqual(expectedBuffer, actualBuffer)) return null;
+    return sessionId;
+}
+
 module.exports = {
     sanitizeUserText,
+    createAnonSessionToken,
+    verifyAnonSessionToken,
     normalizeEmail,
     validatePassword,
     normalizeAvatarColor,

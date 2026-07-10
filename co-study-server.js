@@ -16,7 +16,12 @@ const { createErrorBuffer } = require('./services/ops/error-buffer');
 const { createBackupScheduler } = require('./services/ops/backup-scheduler');
 const { createAdminRouter } = require('./services/admin/admin-routes');
 const { hashPassword, verifyPassword } = require('./services/auth/password');
-const { createSessionToken, verifySessionToken } = require('./services/auth');
+const {
+    createSessionToken,
+    verifySessionToken,
+    createAnonSessionToken,
+    verifyAnonSessionToken
+} = require('./services/auth');
 const { createAuthRouter } = require('./services/auth/auth-routes');
 const { createGoogleAuthRouter } = require('./services/auth/google-routes');
 const { createUserStore, recordMyRoom } = require('./user-store');
@@ -1349,7 +1354,7 @@ function createCoStudyServer(options = {}) {
     function getSessionIdFromSocket(socket) {
         const header = (socket.handshake?.headers?.cookie) || '';
         const cookies = parseCookies(header);
-        return cookies[SESSION_COOKIE_NAME] || null;
+        return verifyAnonSessionToken(cookies[SESSION_COOKIE_NAME], { secret: config.sessionSecret });
     }
 
     function getJoinSessionKey(socket) {
@@ -1385,7 +1390,7 @@ function createCoStudyServer(options = {}) {
 
     function findRoomVideoMember(req, room, displayName, clientSessionId) {
         const cookies = parseCookies(req.headers.cookie || '');
-        const sessionId = cookies[SESSION_COOKIE_NAME] || '';
+        const sessionId = verifyAnonSessionToken(cookies[SESSION_COOKIE_NAME], { secret: config.sessionSecret }) || '';
         const users = Array.from(room.users.values());
         return users.find((user) => {
             if (!user || user.name !== displayName) return false;
@@ -1522,11 +1527,14 @@ function createCoStudyServer(options = {}) {
 
     function sessionMiddleware(req, res, next) {
         const cookies = parseCookies(req.headers.cookie || '');
-        let sessionId = cookies[SESSION_COOKIE_NAME];
+        // Only trust a session id the server itself signed; a forged/bare value
+        // verifies to null and we mint a fresh signed one.
+        let sessionId = verifyAnonSessionToken(cookies[SESSION_COOKIE_NAME], { secret: config.sessionSecret });
         if (!sessionId) {
             sessionId = crypto.randomUUID();
+            const token = createAnonSessionToken({ sessionId, secret: config.sessionSecret });
             const cookieParts = [
-                `${SESSION_COOKIE_NAME}=${sessionId}`,
+                `${SESSION_COOKIE_NAME}=${token}`,
                 'Path=/',
                 'HttpOnly',
                 'SameSite=Lax',
@@ -2241,6 +2249,17 @@ function createCoStudyServer(options = {}) {
                 } catch (err) {
                     console.error('Password verification failed:', err);
                     return ackError(ack, 'ROOM_PASSWORD_VERIFICATION_FAILED');
+                }
+            }
+
+            // Switching rooms on a live socket: leave the previous room first so
+            // we don't leak a phantom participant (and mesh capacity) in it. A
+            // plain refresh/rejoin of the same room falls through untouched.
+            const previousRoomId = socket.data.roomId;
+            if (previousRoomId && previousRoomId !== normalizedRoom) {
+                const previousRoom = rooms.get(previousRoomId);
+                if (previousRoom && removeUserFromRoom(previousRoom, socket.id, previousRoomId)) {
+                    io.to(previousRoomId).emit('presence', roomSnapshot(previousRoomId).participants);
                 }
             }
 
