@@ -312,6 +312,44 @@ test('timer preset chips apply durations and session goal syncs to peers', async
     }
 });
 
+test('Pomodoro reconciles elapsed time after background timer throttling', async ({ browser }) => {
+    const visitor = await createSmokePage(browser);
+
+    try {
+        await visitor.page.addInitScript(() => {
+            let timerNow = 0;
+            Object.defineProperty(performance, 'now', {
+                configurable: true,
+                value: () => timerNow
+            });
+            (/** @type {any} */ (window)).__advanceTimerClock = (elapsedMs) => {
+                timerNow += elapsedMs;
+            };
+        });
+        await visitor.page.goto('/study');
+        await visitor.page.fill('#cfg-f', '1');
+        await visitor.page.fill('#cfg-b', '1');
+        await visitor.page.evaluate(() => (/** @type {any} */ (window)).resetTimer());
+        await expect(visitor.page.locator('#timer-disp')).toHaveText('01:00');
+
+        await visitor.page.evaluate(() => (/** @type {any} */ (window)).toggleTimer());
+        await visitor.page.evaluate(() => {
+            (/** @type {any} */ (window)).__advanceTimerClock(55_000);
+            document.dispatchEvent(new Event('visibilitychange'));
+        });
+        await expect(visitor.page.locator('#timer-disp')).toHaveText('00:05');
+
+        await visitor.page.evaluate(() => {
+            (/** @type {any} */ (window)).__advanceTimerClock(7_000);
+            document.dispatchEvent(new Event('visibilitychange'));
+        });
+        await expect(visitor.page.locator('#tab-break')).toHaveClass(/active/);
+        await expect(visitor.page.locator('#timer-disp')).toHaveText('00:58');
+    } finally {
+        await visitor.context.close();
+    }
+});
+
 test('privacy blur sends a canvas track by default and tears the camera down cleanly', async ({ playwright }) => {
     // Boots its own server: the shared smoke app defaults to the RealtimeKit
     // video provider, and the blur pipeline is mesh-only. Also launches a

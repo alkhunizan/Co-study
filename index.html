@@ -2196,6 +2196,7 @@
 
     document.addEventListener('visibilitychange', () => {
         if (blurPipeline.running) startBlurLoop();
+        if (timerRunning) reconcileTimer();
     });
 
     async function startBlurPipeline(stream) {
@@ -3447,8 +3448,15 @@
     }
 
     let timer = null;
+    let timerDeadline = null;
+    let timerDurations = { focus: 25, break: 5 };
     let mode = 'focus';
     let timeLeft = 25 * 60;
+
+    function readTimerMinutes(inputId, fallback) {
+        const value = parseInt(document.getElementById(inputId).value, 10);
+        return Number.isFinite(value) && value > 0 ? value : fallback;
+    }
 
     function updateDisp() {
         const m = Math.floor(timeLeft/60).toString().padStart(2,'0');
@@ -3458,61 +3466,72 @@
         document.title = timerRunning ? `${m}:${s} · Halastudy` : currentCopy().pageTitle;
     }
 
+    function advanceTimerPhase() {
+        const completedMode = mode;
+        const notificationType = completedMode === 'focus' ? 'focusEnd' : 'breakEnd';
+        playTimerNotification(notificationType);
+
+        if (completedMode === 'focus') {
+            addFocusSeconds(timerDurations.focus * 60);
+            // Signed in: sync to the account (streaks). Guest:
+            // quiet one-time nudge that these minutes are local-only.
+            onFocusSessionComplete(timerDurations.focus);
+            if (statusState.goal && window.HalaUI) {
+                // FSI/PDI isolate the user-entered goal so mixed
+                // AR/EN text doesn't reorder around the AR copy.
+                window.HalaUI.toast(`${currentCopy().goalRecapToast} ⁨${statusState.goal}⁩`, { duration: 8000 });
+            }
+        }
+
+        mode = completedMode === 'focus' ? 'break' : 'focus';
+        timeLeft = timerDurations[mode] * 60;
+        timerDeadline += timeLeft * 1000;
+        document.getElementById('tab-focus').className = mode === 'focus' ? 'timer-tab active' : 'timer-tab';
+        document.getElementById('tab-break').className = mode === 'break' ? 'timer-tab active' : 'timer-tab';
+        if (statusState.autoSync) refreshStatusState();
+    }
+
+    function reconcileTimer(now = performance.now()) {
+        if (!timerRunning || timerDeadline === null) return;
+
+        while (now >= timerDeadline) advanceTimerPhase();
+        timeLeft = Math.max(0, Math.ceil((timerDeadline - now) / 1000));
+        updateDisp();
+    }
+
     function toggleTimer() {
         const btn = document.getElementById('btn-toggle');
-        const focusDur = parseInt(document.getElementById('cfg-f').value, 10) || 25;
-        const breakDur = parseInt(document.getElementById('cfg-b').value, 10) || 5;
         if(timer) {
+            reconcileTimer();
             clearInterval(timer); timer = null;
+            timerDeadline = null;
             btn.textContent = '▶';
             btn.style.boxShadow = 'var(--shadow-btn)';
             timerRunning = false;
             refreshStatusState();
             updateDisp();
         } else {
-            if(timeLeft === 25*60 && mode === 'focus') timeLeft = focusDur * 60;
+            timerDurations = {
+                focus: readTimerMinutes('cfg-f', 25),
+                break: readTimerMinutes('cfg-b', 5)
+            };
+            if(timeLeft === 25*60 && mode === 'focus') timeLeft = timerDurations.focus * 60;
             btn.textContent = '⏸';
             btn.style.boxShadow = 'var(--shadow-btn-inset)';
             timerRunning = true;
+            timerDeadline = performance.now() + timeLeft * 1000;
             refreshStatusState();
             updateDisp();
-            timer = setInterval(() => {
-                if(timeLeft > 0) {
-                    timeLeft--;
-                    updateDisp();
-                } else {
-                    const notificationType = mode === 'focus' ? 'focusEnd' : 'breakEnd';
-                    playTimerNotification(notificationType);
-
-                    // Add focus time to daily total when focus session ends
-                    if (mode === 'focus') {
-                        addFocusSeconds(focusDur * 60);
-                        // Signed in: sync to the account (streaks). Guest:
-                        // quiet one-time nudge that these minutes are local-only.
-                        onFocusSessionComplete(focusDur);
-                        if (statusState.goal && window.HalaUI) {
-                            // FSI/PDI isolate the user-entered goal so mixed
-                            // AR/EN text doesn't reorder around the AR copy.
-                            window.HalaUI.toast(`${currentCopy().goalRecapToast} ⁨${statusState.goal}⁩`, { duration: 8000 });
-                        }
-                    }
-
-                    mode = mode==='focus' ? 'break' : 'focus';
-                    timeLeft = (mode==='focus' ? focusDur : breakDur) * 60;
-                    document.getElementById('tab-focus').className = mode==='focus'?'timer-tab active':'timer-tab';
-                    document.getElementById('tab-break').className = mode==='break'?'timer-tab active':'timer-tab';
-                    updateDisp();
-                    if (statusState.autoSync) refreshStatusState();
-                }
-            }, 1000);
+            timer = setInterval(reconcileTimer, 1000);
         }
     }
 
     function resetTimer() {
         clearInterval(timer); timer = null;
+        timerDeadline = null;
         document.getElementById('btn-toggle').textContent = '▶';
         mode = 'focus';
-        timeLeft = (parseInt(document.getElementById('cfg-f').value, 10) || 25) * 60;
+        timeLeft = readTimerMinutes('cfg-f', 25) * 60;
         timerRunning = false;
         updateDisp();
         refreshStatusState();
