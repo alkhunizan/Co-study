@@ -152,7 +152,7 @@ Composite green target: full pipeline ≤ 60s on a warm cache.
 - `npm run https` — self-signed HTTPS on `:3443` — needed locally for secure-context browser APIs (camera/mic, FaceDetector)
 - Single integration test: `node --test --test-name-pattern "<name>" tests/integration/server.integration.test.js`
 - Single smoke test: `npx playwright test --config=playwright.config.js -g "<title>"` — chromium only, 1 worker; global setup boots the app on port 3460 with a temp state file (`tests/helpers/test-env.js`)
-- Operator scripts: `npm run backup:rooms`, `npm run restore:rooms -- <path>` (app must be stopped), `npm run verify:deploy -- <url>`
+- Operator scripts: `npm run backup:state`, `npm run restore:state -- <artifact>` (dry-run), `npm run restore:state -- <artifact> --apply --writer-stopped` (single writer must be stopped), `npm run verify:deploy -- <url>`
 - Gotcha: `.github/workflows/ci.yml` runs only check + audit + integration + smoke. The typecheck/lint/deadcode gates are in `test:ci` but not yet in the workflow — run `npm run test:ci` locally before pushing.
 
 ---

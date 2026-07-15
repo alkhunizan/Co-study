@@ -56,12 +56,13 @@ npm run check
 npm run audit:prod
 npm run test:integration
 npm run test:smoke
-npm run backup:rooms
-npm run restore:rooms -- /absolute/path/to/backup.json
+npm run backup:state
+npm run restore:state -- /absolute/path/to/artifact.hsbackup
+npm run restore:state -- /absolute/path/to/artifact.hsbackup --apply --writer-stopped
 npm run verify:deploy -- https://your-domain.com
 ```
 
-الاستعادة عملية تشغيلية يدوية. أوقف التطبيق أولاً ثم استعد النسخة ثم أعد التشغيل وبعدها شغّل `verify:deploy`.
+الاستعادة تكون فحصاً جافاً افتراضياً للتحقق من التشفير والمخطط والبصمات وسجلات الحذف. عند التطبيق، أوقف كاتب التطبيق الوحيد أولاً، واستخدم رايتي التطبيق الصريحتين، ثم أعد التشغيل وشغّل `verify:deploy`. راجع [دليل النسخ الاحتياطي والاستعادة المشفّر](./docs/BACKUP-RESTORE.md).
 
 ## النشر
 

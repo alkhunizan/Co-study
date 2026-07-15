@@ -135,8 +135,9 @@ two-carrier camera test (`LAUNCH.md §5`).
 
 ## 3. R2 — off-site state backups
 
-Local backups (`data/backups/`) die with the VM. R2 is object storage that keeps
-a durable off-box copy of the room + user state.
+Local backups die with the VM. R2 can keep a durable off-box copy of the newest
+client-side encrypted `.hsbackup` artifact. The uploader refuses to select raw
+room or user JSON files.
 
 1. In the dashboard → **R2 → Manage API Tokens**, create an S3-compatible token.
    It gives an **Access Key ID**, **Secret Access Key**, and an account endpoint
@@ -150,16 +151,18 @@ a durable off-box copy of the room + user state.
    ```
 3. Verify the credentials (creates the bucket if missing, PUT/GET/DELETE round-trip):
    ```bash
-   npm run backup:r2 -- --check
+   sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --check-r2
    ```
-4. Upload the current state on demand:
+4. Create and validate the encrypted local artifact, then upload it on demand:
    ```bash
-   npm run backup:r2      # → rooms/rooms.<ts>.json + users/users.<ts>.json
+   sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --with-r2
+   # → encrypted/halastudy-<UTC timestamp>-<id>.hsbackup
    ```
-5. Cron it on the VM alongside the app, e.g. hourly:
-   ```cron
-   0 * * * * cd /opt/halastudy && /usr/bin/npm run backup:r2 >> /var/log/halastudy-r2.log 2>&1
-   ```
+
+The canonical nightly scheduler is `halastudy-backup.timer`; see
+[`BACKUP-RESTORE.md`](BACKUP-RESTORE.md). Do not put secrets directly in a cron
+line, and do not upload raw state files. The current R2 command never deletes
+existing objects.
 
 The uploader signs requests with AWS SigV4 using only `node:crypto`
 (`scripts/cloudflare/r2-client.js`) — no aws-sdk, consistent with the app's

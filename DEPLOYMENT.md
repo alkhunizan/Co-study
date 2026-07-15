@@ -52,9 +52,10 @@ production-shaped values and inline notes. The critical production settings:
   corresponding cookies.
 - **`USER_STATE_FILE`** — point it outside the repo like the room state
   (e.g. `/var/lib/halastudy/users.json`).
-- **`BACKUP_INTERVAL_MINUTES` / `BACKUP_RETENTION_COUNT`** — automated
-  rooms+users backups into `ROOM_STATE_BACKUP_DIR` (e.g. `60` / `48` keeps two
-  days of hourly snapshots).
+- **`BACKUP_ENCRYPTION_KEY`** — exactly 32 random bytes encoded as canonical
+  base64. The external service-user timer writes one AES-256-GCM artifact per
+  UTC day and retains seven days. Keep `BACKUP_INTERVAL_MINUTES=0` in
+  production so the legacy plaintext diagnostic scheduler stays disabled.
 
 ### Hidden admin portal
 
@@ -89,6 +90,8 @@ export HOST=127.0.0.1
 export TRUST_PROXY=1
 export ROOM_STATE_FILE='/var/lib/halastudy/rooms.json'
 export ROOM_STATE_BACKUP_DIR='/var/lib/halastudy/backups'
+export BACKUP_INTERVAL_MINUTES=0
+export BACKUP_ENCRYPTION_KEY='<32 random bytes as base64>'
 export ALLOWED_ORIGINS='https://your-domain.com'
 export MESH_PARTICIPANT_LIMIT=4
 export VIDEO_PROVIDER=realtimekit
@@ -279,23 +282,42 @@ Manual media spot-check before launch:
 
 ## Backup and Restore
 
-Manual backup:
+The canonical production backup is the service-owned nightly timer, not the
+in-process diagnostic snapshotter. Configure and enable it after the protected
+environment file exists:
 
 ```bash
-cd /var/www/Co-study
-npm run backup:rooms
+sudo chown halastudy:halastudy /var/lib/halastudy/.env
+sudo chmod 600 /var/lib/halastudy/.env
+sudo systemctl enable --now halastudy-backup.timer
+sudo systemctl start halastudy-backup.service
+sudo systemctl status halastudy-backup.service
 ```
 
-Manual restore:
+Each `.hsbackup` artifact is AES-256-GCM authenticated before restore, contains
+one encrypted schema/checksum manifest, and covers readable room plus Supabase
+profile/focus/event sources. Seven UTC-daily snapshots are retained. Zero
+readable sources is an error and creates no artifact.
+
+Restore defaults to validation and dry-run. Applying requires the app's single
+writer to be stopped plus both explicit flags:
 
 ```bash
-pm2 stop co-study
-npm run restore:rooms -- /absolute/path/to/backup.json
-pm2 start co-study
-npm run verify:deploy -- https://your-domain.com
+sudo -u halastudy -H env PM2_HOME=/var/lib/halastudy/.pm2 pm2 stop co-study
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/restore.sh \
+  /var/lib/halastudy/backups/halastudy-YYYY-MM-DDTHHMMSSZ-id.hsbackup
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/restore.sh \
+  /var/lib/halastudy/backups/halastudy-YYYY-MM-DDTHHMMSSZ-id.hsbackup \
+  --apply --writer-stopped
+sudo -u halastudy -H env HOME=/var/lib/halastudy \
+  PM2_HOME=/var/lib/halastudy/.pm2 bash /opt/halastudy/scripts/deploy/start.sh
+npm --prefix /opt/halastudy run verify:deploy -- https://your-domain.com
 ```
 
-Restore is an offline operator action. Do not overwrite the room-state file while the app is running.
+Current deletion tombstones filter the restore plan. Apply order is profiles,
+focus/room events, then the atomic room file replacement. See
+[Encrypted Backup and Restore](docs/BACKUP-RESTORE.md) for artifact details,
+cron alternative, key recovery, R2 behavior, and failure handling.
 
 ## Maintenance
 
@@ -353,7 +375,8 @@ npm run verify:deploy -- https://your-domain.com
 - `TRUST_PROXY=1` is required behind Nginx so secure cookies and client IP handling work correctly.
 - If `ALLOWED_ORIGINS` is set, include the exact public origin such as `https://your-domain.com`.
 - TURN credentials are delivered to the browser at runtime because WebRTC requires the client to receive them.
-- If room history matters, keep backups of `ROOM_STATE_FILE`.
+- Treat `BACKUP_ENCRYPTION_KEY` as a recovery-critical secret and regularly
+  prove a dry-run restore from the newest artifact.
 - The hardened rate limits are intentionally lightweight and in-memory. They protect a single app instance, not a distributed deployment.
 
 ## Troubleshooting
