@@ -12,6 +12,7 @@ data/users.json.tmp
 halastudy-privacy-policy.md
 halastudy-terms-of-service.md
 data/backups/
+data/evidence/
 playwright-report/
 test-results/
 output/

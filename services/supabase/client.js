@@ -130,4 +130,9 @@ function createSupabaseClient(options = {}) {
     return { select, insert, upsert, remove, rpc };
 }
 
-module.exports = { createSupabaseClient };
+function createSupabaseReadOnlyClient(options = {}) {
+    const client = createSupabaseClient(options);
+    return Object.freeze({ select: client.select });
+}
+
+module.exports = { createSupabaseClient, createSupabaseReadOnlyClient };
