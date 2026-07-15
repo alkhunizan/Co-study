@@ -32,7 +32,7 @@ function createGoogleAuthRouter(deps = {}) {
         setAuthCookie,
         appendSetCookie,
         parseCookies,
-        persistUsersSoon,
+        persistUser,
         logger = console,
         fetchImpl = globalThis.fetch
     } = deps;
@@ -179,7 +179,14 @@ function createGoogleAuthRouter(deps = {}) {
         });
         users.set(user.id, user);
         usersByEmail.set(email, user.id);
-        persistUsersSoon();
+        try {
+            await persistUser(user);
+        } catch (error) {
+            users.delete(user.id);
+            usersByEmail.delete(email);
+            logger.error({ event: 'google_signup_persist_failed', error: error?.message });
+            return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+        }
         logger.info({ event: 'google_signup', userId: user.id });
         setAuthCookie(req, res, user);
         return res.redirect('/account?auth=google');

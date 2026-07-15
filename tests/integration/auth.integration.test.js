@@ -24,6 +24,10 @@ function authedRequest(server, pathname, cookie, options = {}) {
     });
 }
 
+function currentRiyadhDayKey(now = Date.now()) {
+    return new Date(now + (3 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+}
+
 test('signup issues an auth cookie and /api/auth/me returns the profile', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
@@ -220,16 +224,18 @@ test('focus sessions accumulate stats and validate minutes', async (t) => {
 
     const first = await authedRequest(server, '/api/me/focus-session', cookie, {
         method: 'POST',
-        body: { minutes: 25 }
+        body: { minutes: 25, completionId: 'focus-completion-0001' }
     });
     assert.equal(first.status, 200);
+    assert.equal(first.body.acceptedMinutes, 25);
+    assert.equal(first.body.duplicate, false);
     assert.equal(first.body.focusStats.totalFocusMinutes, 25);
     assert.equal(first.body.focusStats.totalSessions, 1);
     assert.equal(first.body.streak.current, 1);
 
     const second = await authedRequest(server, '/api/me/focus-session', cookie, {
         method: 'POST',
-        body: { minutes: 50 }
+        body: { minutes: 50, completionId: 'focus-completion-0002' }
     });
     assert.equal(second.body.focusStats.totalFocusMinutes, 75);
     assert.equal(second.body.focusStats.totalSessions, 2);
@@ -238,7 +244,7 @@ test('focus sessions accumulate stats and validate minutes', async (t) => {
 
     const invalid = await authedRequest(server, '/api/me/focus-session', cookie, {
         method: 'POST',
-        body: { minutes: 0 }
+        body: { minutes: 0, completionId: 'focus-completion-invalid-minutes' }
     });
     assert.equal(invalid.status, 400);
     assert.equal(invalid.body.errorCode, 'FOCUS_MINUTES_INVALID');
@@ -246,6 +252,49 @@ test('focus sessions accumulate stats and validate minutes', async (t) => {
     const stats = await authedRequest(server, '/api/me/stats', cookie);
     assert.equal(stats.status, 200);
     assert.equal(stats.body.focusStats.totalFocusMinutes, 75);
+});
+
+test('focus completion ids deduplicate and daily caps use only the accepted delta', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const { cookie } = await signupUser(server, { email: 'focus-cap@example.com' });
+    const dayKey = currentRiyadhDayKey();
+    const imported = await authedRequest(server, '/api/me/stats/import', cookie, {
+        method: 'POST',
+        body: { days: { [dayKey]: { focusMinutes: 1435, sessions: 10 } } }
+    });
+    assert.equal(imported.status, 200);
+
+    const first = await authedRequest(server, '/api/me/focus-session', cookie, {
+        method: 'POST',
+        body: { minutes: 25, completionId: 'daily-cap-completion-0001' }
+    });
+    assert.equal(first.status, 200);
+    assert.equal(first.body.acceptedMinutes, 5);
+    assert.equal(first.body.duplicate, false);
+    assert.equal(first.body.focusStats.days[dayKey].focusMinutes, 1440);
+    assert.equal(first.body.focusStats.totalFocusMinutes, 1440);
+    assert.equal(first.body.focusStats.totalSessions, 11);
+
+    const duplicate = await authedRequest(server, '/api/me/focus-session', cookie, {
+        method: 'POST',
+        body: { minutes: 25, completionId: 'daily-cap-completion-0001' }
+    });
+    assert.equal(duplicate.status, 200);
+    assert.equal(duplicate.body.acceptedMinutes, 5);
+    assert.equal(duplicate.body.duplicate, true);
+    assert.equal(duplicate.body.focusStats.totalFocusMinutes, 1440);
+    assert.equal(duplicate.body.focusStats.totalSessions, 11);
+
+    const capped = await authedRequest(server, '/api/me/focus-session', cookie, {
+        method: 'POST',
+        body: { minutes: 25, completionId: 'daily-cap-completion-0002' }
+    });
+    assert.equal(capped.status, 200);
+    assert.equal(capped.body.acceptedMinutes, 0);
+    assert.equal(capped.body.focusStats.totalFocusMinutes, 1440);
+    assert.equal(capped.body.focusStats.totalSessions, 11);
 });
 
 test('stats import merges by max per day and is idempotent', async (t) => {
@@ -288,7 +337,7 @@ test('accounts persist across server restart with the same state file', async (t
     const { cookie, credentials } = await signupUser(server, { email: 'persist@example.com' });
     await authedRequest(server, '/api/me/focus-session', cookie, {
         method: 'POST',
-        body: { minutes: 40 }
+        body: { minutes: 40, completionId: 'persisted-focus-completion' }
     });
 
     // Let the debounced user-store write land before stopping (SIGTERM flush
@@ -345,6 +394,39 @@ test('account deletion re-authenticates, removes the record from disk, and kills
     });
     assert.equal(login.status, 401);
     assert.equal(login.body.errorCode, 'INVALID_CREDENTIALS');
+});
+
+test('failed durable account deletion returns 503 and leaves the account live', async (t) => {
+    const server = await startServer();
+    let blockingDirectoryPresent = false;
+    t.after(async () => {
+        if (blockingDirectoryPresent) {
+            fs.rmSync(server.userStateFile, { recursive: true, force: true });
+        }
+        await server.stop();
+        resetStateFile(server.roomStateFile);
+        resetStateFile(server.userStateFile);
+    });
+
+    const { cookie, credentials } = await signupUser(server, { email: 'durable-delete@example.com' });
+    await delay(300);
+    fs.rmSync(server.userStateFile, { force: true });
+    fs.mkdirSync(server.userStateFile);
+    blockingDirectoryPresent = true;
+
+    const failed = await authedRequest(server, '/api/me', cookie, {
+        method: 'DELETE',
+        body: { password: credentials.password }
+    });
+    assert.equal(failed.status, 503);
+    assert.equal(failed.body.errorCode, 'PERSISTENCE_UNAVAILABLE');
+
+    const me = await authedRequest(server, '/api/auth/me', cookie);
+    assert.equal(me.status, 200);
+    assert.equal(me.body.user.email, credentials.email);
+
+    fs.rmSync(server.userStateFile, { recursive: true, force: true });
+    blockingDirectoryPresent = false;
 });
 
 test('scheduled room creation is gated on auth over sockets; instant rooms stay guest-open', async (t) => {

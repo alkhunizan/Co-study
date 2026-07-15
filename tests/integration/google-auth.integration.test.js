@@ -79,6 +79,9 @@ async function startHarness(t, { users: initialUsers = [], profile }) {
         persistUsersSoon: () => {
             persistCount += 1;
         },
+        persistUser: async () => {
+            persistCount += 1;
+        },
         logger: { info() {}, warn() {}, error() {} },
         fetchImpl: async (url) => {
             if (url === 'https://oauth2.googleapis.com/token') {

@@ -1,7 +1,7 @@
 const fs = require('node:fs');
-const fsPromises = require('node:fs/promises');
 const path = require('node:path');
 const { normalizeSchedule } = require('./schedule-utils');
+const { createDebouncedAtomicJsonStore } = require('./services/persistence/debounced-atomic-json-store');
 
 const SAVE_DEBOUNCE_MS = 250;
 
@@ -46,10 +46,11 @@ function createRoomStore(options = {}) {
     }
 
     const resolvedFilePath = path.resolve(filePath);
-    let lastWrittenJson = null;
-    let queuedJson = null;
-    let saveTimer = null;
-    let writePromise = Promise.resolve();
+    const atomicStore = createDebouncedAtomicJsonStore({
+        filePath: resolvedFilePath,
+        debounceMs: SAVE_DEBOUNCE_MS,
+        logger
+    });
 
     function warn(message, error) {
         if (logger && typeof logger.warn === 'function') {
@@ -249,25 +250,6 @@ function createRoomStore(options = {}) {
         return source.map(sanitizeRoom).filter(Boolean);
     }
 
-    async function writeSnapshot(json) {
-        if (json === lastWrittenJson) return;
-
-        await fsPromises.mkdir(path.dirname(resolvedFilePath), { recursive: true });
-        const tempFilePath = `${resolvedFilePath}.tmp`;
-        await fsPromises.writeFile(tempFilePath, json, 'utf8');
-        await fsPromises.rename(tempFilePath, resolvedFilePath);
-        lastWrittenJson = json;
-    }
-
-    function enqueueWrite(json) {
-        writePromise = writePromise
-            .then(() => writeSnapshot(json))
-            .catch((error) => {
-                warn(`Failed to persist room state to ${resolvedFilePath}.`, error);
-            });
-        return writePromise;
-    }
-
     function toJson(rooms) {
         return `${JSON.stringify(buildSnapshot(rooms), null, 2)}\n`;
     }
@@ -293,7 +275,7 @@ function createRoomStore(options = {}) {
             }
 
             const sanitizedRooms = parsed.map(sanitizeRoom).filter(Boolean);
-            lastWrittenJson = `${JSON.stringify(sanitizedRooms, null, 2)}\n`;
+            atomicStore.setBaseline(`${JSON.stringify(sanitizedRooms, null, 2)}\n`);
             return sanitizedRooms;
         } catch (error) {
             if (strict) {
@@ -305,36 +287,11 @@ function createRoomStore(options = {}) {
     }
 
     function scheduleSave(rooms) {
-        queuedJson = toJson(rooms);
-        if (saveTimer) {
-            clearTimeout(saveTimer);
-        }
-        saveTimer = setTimeout(() => {
-            const json = queuedJson;
-            queuedJson = null;
-            saveTimer = null;
-            if (json !== null) {
-                void enqueueWrite(json);
-            }
-        }, SAVE_DEBOUNCE_MS);
-        return writePromise;
+        return atomicStore.schedule(rooms, toJson);
     }
 
     function flush(rooms) {
-        if (rooms) {
-            queuedJson = toJson(rooms);
-        }
-        if (saveTimer) {
-            clearTimeout(saveTimer);
-            saveTimer = null;
-        }
-        if (queuedJson === null) {
-            return writePromise;
-        }
-
-        const json = queuedJson;
-        queuedJson = null;
-        return enqueueWrite(json);
+        return rooms ? atomicStore.flush(rooms, toJson) : atomicStore.flush();
     }
 
     return {

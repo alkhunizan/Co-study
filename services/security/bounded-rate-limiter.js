@@ -86,6 +86,5 @@ class SlidingWindowRateLimiter {
 }
 
 module.exports = {
-    DEFAULT_MAX_ENTRIES,
     SlidingWindowRateLimiter
 };

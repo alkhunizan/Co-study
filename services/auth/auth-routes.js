@@ -12,7 +12,12 @@ const {
     normalizeAvatarColor,
     sanitizeUserText
 } = require('./index');
-const { createUser, applyFocusSession, sanitizeFocusStats } = require('../../user-store');
+const {
+    createUser,
+    applyFocusSession,
+    normalizeCompletionId,
+    sanitizeFocusStats
+} = require('../../user-store');
 
 const DISPLAY_NAME_MAX_LENGTH = 20;
 const BIO_MAX_LENGTH = 160;
@@ -35,10 +40,10 @@ function createAuthRouter(deps) {
         publicUser,
         setAuthCookie,
         clearAuthCookie,
-        persistUsersSoon,
-        flushUsers,
+        persistUser,
+        deleteUser,
+        persistFocusCompletion,
         requireUser,
-        logFocusSession,
         logger
     } = deps;
 
@@ -79,7 +84,15 @@ function createAuthRouter(deps) {
         const user = createUser({ email, passwordHash, displayName });
         users.set(user.id, user);
         usersByEmail.set(email, user.id);
-        persistUsersSoon();
+        try {
+            await persistUser(user);
+        } catch (error) {
+            users.delete(user.id);
+            usersByEmail.delete(email);
+            logger.warn({ event: 'user_signup_persist_failed', error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
         setAuthCookie(req, res, user);
         logger.info({ event: 'user_signup', userId: user.id });
         res.json({ ok: true, user: publicUser(user) });
@@ -129,37 +142,55 @@ function createAuthRouter(deps) {
         res.json({ ok: true, user: req.user ? publicUser(req.user) : null });
     });
 
-    router.patch('/me/profile', requireUser, (req, res) => {
+    router.patch('/me/profile', requireUser, async (req, res) => {
         if (!applyHttpRateLimit(req, res, rateLimiters.profileMutation, req.user.id)) return;
 
         const body = req.body || {};
+        const nextProfile = {
+            displayName: req.user.displayName,
+            avatarColor: req.user.avatarColor,
+            bio: req.user.bio
+        };
         if (body.displayName !== undefined) {
             const displayName = sanitizeUserText(body.displayName, DISPLAY_NAME_MAX_LENGTH);
             if (!displayName) {
                 res.status(400).json({ errorCode: 'DISPLAY_NAME_REQUIRED' });
                 return;
             }
-            req.user.displayName = displayName;
+            nextProfile.displayName = displayName;
         }
         if (body.avatarColor !== undefined) {
             if (normalizeAvatarColor(body.avatarColor) !== body.avatarColor) {
                 res.status(400).json({ errorCode: 'AVATAR_COLOR_INVALID' });
                 return;
             }
-            req.user.avatarColor = body.avatarColor;
+            nextProfile.avatarColor = body.avatarColor;
         }
         if (body.bio !== undefined) {
             if (typeof body.bio !== 'string' || Array.from(body.bio).length > BIO_MAX_LENGTH) {
                 res.status(400).json({ errorCode: 'BIO_TOO_LONG' });
                 return;
             }
-            req.user.bio = sanitizeUserText(body.bio, BIO_MAX_LENGTH);
+            nextProfile.bio = sanitizeUserText(body.bio, BIO_MAX_LENGTH);
         }
-        persistUsersSoon();
+        const previousProfile = {
+            displayName: req.user.displayName,
+            avatarColor: req.user.avatarColor,
+            bio: req.user.bio
+        };
+        Object.assign(req.user, nextProfile);
+        try {
+            await persistUser(req.user);
+        } catch (error) {
+            Object.assign(req.user, previousProfile);
+            logger.warn({ event: 'profile_persist_failed', userId: req.user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
         res.json({ ok: true, user: publicUser(req.user) });
     });
 
-    router.post('/me/focus-session', requireUser, (req, res) => {
+    router.post('/me/focus-session', requireUser, async (req, res) => {
         if (!applyHttpRateLimit(req, res, rateLimiters.focusLog, req.user.id)) return;
 
         const minutes = Number(req.body?.minutes);
@@ -167,22 +198,41 @@ function createAuthRouter(deps) {
             res.status(400).json({ errorCode: 'FOCUS_MINUTES_INVALID' });
             return;
         }
-        const result = applyFocusSession(req.user, { minutes });
-        persistUsersSoon();
-        // Append an analytics event (Supabase only) — the aggregate lives on the
-        // profile, but the per-session log powers the dashboards. Fire-and-forget.
-        if (typeof logFocusSession === 'function') {
-            logFocusSession({ userId: req.user.id, minutes: result.minutes, dayKey: result.dayKey });
+        const completionId = normalizeCompletionId(req.body?.completionId);
+        if (!completionId) {
+            res.status(400).json({ errorCode: 'FOCUS_COMPLETION_ID_INVALID' });
+            return;
         }
-        res.json({ ok: true, focusStats: result.focusStats, streak: result.streak });
+        const previousFocusStats = structuredClone(req.user.focusStats);
+        const previousStreak = structuredClone(req.user.streak);
+        const result = applyFocusSession(req.user, { minutes, completionId });
+        if (!result.duplicate) {
+            try {
+                await persistFocusCompletion(req.user, result);
+            } catch (error) {
+                req.user.focusStats = previousFocusStats;
+                req.user.streak = previousStreak;
+                logger.warn({ event: 'focus_persist_failed', userId: req.user.id, error: error?.message });
+                res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+                return;
+            }
+        }
+        res.json({
+            ok: true,
+            acceptedMinutes: result.acceptedMinutes,
+            duplicate: result.duplicate,
+            focusStats: result.focusStats,
+            streak: result.streak
+        });
     });
 
     // One-time import of the pre-signup localStorage focus history. Merge is
     // max-per-day, so re-imports never inflate totals.
-    router.post('/me/stats/import', requireUser, (req, res) => {
+    router.post('/me/stats/import', requireUser, async (req, res) => {
         if (!applyHttpRateLimit(req, res, rateLimiters.profileMutation, req.user.id)) return;
 
         const imported = sanitizeFocusStats({ days: req.body?.days });
+        const previousFocusStats = structuredClone(req.user.focusStats);
         const stats = req.user.focusStats;
         for (const [dayKey, day] of Object.entries(imported.days)) {
             const existing = stats.days[dayKey];
@@ -199,9 +249,16 @@ function createAuthRouter(deps) {
             totalFocusMinutes += day.focusMinutes;
             totalSessions += day.sessions;
         }
-        stats.totalFocusMinutes = totalFocusMinutes;
-        stats.totalSessions = totalSessions;
-        persistUsersSoon();
+        stats.totalFocusMinutes = Math.max(stats.totalFocusMinutes, totalFocusMinutes);
+        stats.totalSessions = Math.max(stats.totalSessions, totalSessions);
+        try {
+            await persistUser(req.user);
+        } catch (error) {
+            req.user.focusStats = previousFocusStats;
+            logger.warn({ event: 'stats_import_persist_failed', userId: req.user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
         res.json({ ok: true, focusStats: stats, streak: req.user.streak });
     });
 
@@ -229,12 +286,16 @@ function createAuthRouter(deps) {
         }
 
         const userId = req.user.id;
+        try {
+            await deleteUser(req.user);
+        } catch (error) {
+            logger.warn({ event: 'user_delete_persist_failed', userId, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
         usersByEmail.delete(req.user.email);
         users.delete(userId);
         clearAuthCookie(req, res);
-        // PDPL delete-my-data: flush immediately rather than debounced, so the
-        // record is gone from disk before we acknowledge.
-        await flushUsers();
         logger.info({ event: 'user_deleted', userId });
         res.json({ ok: true });
     });

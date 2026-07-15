@@ -687,6 +687,12 @@ function getSocketRequestIp(request, trustProxy) {
 
 function createCoStudyServer(options = {}) {
     const { env = process.env, mode = 'http', createServer } = options;
+    const startupBackoffMs = Array.isArray(options.startupBackoffMs)
+        ? options.startupBackoffMs
+        : [1000, 2000, 4000];
+    const sleep = typeof options.sleep === 'function'
+        ? options.sleep
+        : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const config = resolveServerConfig({ env, mode });
     const errorBuffer = createErrorBuffer({ capacity: 200 });
     const logger = createLogger({ service: 'halastudy' }, { onEntry: errorBuffer.push });
@@ -791,7 +797,7 @@ function createCoStudyServer(options = {}) {
     });
     readinessState.socket = true;
 
-    const roomStore = createRoomStore({
+    const roomStore = options.roomStore || createRoomStore({
         filePath: config.roomStateFile,
         roomHistoryLimit: ROOM_HISTORY_LIMIT,
         normalizeRoom,
@@ -807,8 +813,10 @@ function createCoStudyServer(options = {}) {
     // Persistence backend: Supabase profiles table when configured (accounts +
     // dashboards), otherwise the local users.json file store (dev default).
     let supabaseClient = null;
-    let userStore;
-    if (config.supabase.enabled) {
+    let userStore = options.userStore || null;
+    if (userStore) {
+        logger.info({ event: 'user_store_backend', backend: userStore.isSupabase ? 'supabase' : 'injected' });
+    } else if (config.supabase.enabled) {
         supabaseClient = createSupabaseClient({
             url: config.supabase.url,
             serviceKey: config.supabase.serviceKey
@@ -841,32 +849,74 @@ function createCoStudyServer(options = {}) {
         return userStore.scheduleSave(users);
     }
 
-    function loadPersistedUsers() {
-        // Supabase load is async (network); the file store is sync (disk). For
-        // Supabase we hydrate in the background and flip readiness when done —
-        // /api/ready stays not-ready until then, so the boot path never blocks.
-        if (typeof userStore.hydrate === 'function') {
-            userStore.hydrate()
-                .then((persistedUsers) => {
-                    for (const user of persistedUsers) {
-                        if (users.has(user.id)) continue; // don't clobber a signup that raced boot
-                        users.set(user.id, user);
-                        usersByEmail.set(user.email, user.id);
-                    }
-                    readinessState.userStore = true;
-                    logger.info({ event: 'user_store_hydrated', backend: 'supabase', count: persistedUsers.length });
-                })
-                .catch((error) => {
-                    logger.error({ event: 'user_store_hydrate_failed', error: error && error.message });
-                });
-            return 0;
+    function persistUserImmediate(user) {
+        if (typeof userStore.saveUser === 'function') {
+            return userStore.saveUser(user);
         }
-        const persistedUsers = userStore.loadUsers({ strict: true });
+        return userStore.flush(users);
+    }
+
+    function deleteUserImmediate(user) {
+        if (typeof userStore.deleteUser === 'function') {
+            return userStore.deleteUser(user);
+        }
+        const remainingUsers = new Map(users);
+        remainingUsers.delete(user.id);
+        return userStore.flush(remainingUsers);
+    }
+
+    async function persistFocusCompletionImmediate(user, payload) {
+        if (typeof userStore.persistFocusCompletion === 'function') {
+            await userStore.persistFocusCompletion(user, payload);
+            return;
+        }
+        await persistUserImmediate(user);
+        if (typeof userStore.logFocusSession === 'function' && payload.acceptedMinutes > 0) {
+            await userStore.logFocusSession({
+                userId: user.id,
+                minutes: payload.acceptedMinutes,
+                dayKey: payload.dayKey,
+                completionId: payload.completionId
+            });
+        }
+    }
+
+    async function loadPersistedUsers() {
+        const hydrator = typeof userStore.initialize === 'function'
+            ? () => userStore.initialize()
+            : typeof userStore.hydrate === 'function'
+                ? () => userStore.hydrate()
+                : () => userStore.loadUsers({ strict: true });
+        let persistedUsers;
+        for (let attempt = 0; ; attempt += 1) {
+            try {
+                persistedUsers = await hydrator();
+                break;
+            } catch (error) {
+                if (attempt >= startupBackoffMs.length) throw error;
+                logger.warn({
+                    event: 'user_store_hydrate_retry',
+                    attempt: attempt + 1,
+                    retryAfterMs: startupBackoffMs[attempt],
+                    error: error?.message
+                });
+                await sleep(startupBackoffMs[attempt]);
+            }
+        }
+        if (!Array.isArray(persistedUsers)) throw new Error('User persistence initialization returned invalid data.');
         persistedUsers.forEach((user) => {
+            if (users.has(user.id) || usersByEmail.has(user.email)) {
+                throw new Error('User persistence initialization returned duplicate identities.');
+            }
             users.set(user.id, user);
             usersByEmail.set(user.email, user.id);
         });
         readinessState.userStore = true;
+        logger.info({
+            event: 'user_store_hydrated',
+            backend: userStore.isSupabase ? 'supabase' : 'file',
+            count: persistedUsers.length
+        });
         return persistedUsers.length;
     }
 
@@ -1245,6 +1295,7 @@ function createCoStudyServer(options = {}) {
         const room = rooms.get(roomId);
         if (!room || room.users.size > 0 || room.cleanupTimer || roomHasSchedule(room) || isLobbyRoom(room)) return;
         room.cleanupTimer = setTimeout(() => deleteRoom(roomId), ROOM_TTL_MS);
+        room.cleanupTimer.unref?.();
     }
 
     function invalidateMembershipToken(token) {
@@ -1565,51 +1616,132 @@ function createCoStudyServer(options = {}) {
         return lobby;
     }
 
-    const loadedRoomCount = loadPersistedRooms();
-    seedLobbyRoom();
-    const loadedUserCount = loadPersistedUsers();
-    backupScheduler.start();
-    const videoSweepTimer = setInterval(() => {
-        const ended = videoSessionRegistry.sweepStaleVideoSessions();
-        emitEndedVideoSessions(ended);
-    }, VIDEO_SESSION_SWEEP_MS);
-    videoSweepTimer.unref();
+    let loadedRoomCount = 0;
+    let loadedUserCount = 0;
+    let initialized = false;
+    let initializationPromise = null;
+    let videoSweepTimer = null;
+    let runtimeWorkersStarted = false;
+
+    function initialize() {
+        if (!initializationPromise) {
+            initializationPromise = (async () => {
+                loadedRoomCount = loadPersistedRooms();
+                seedLobbyRoom();
+                loadedUserCount = await loadPersistedUsers();
+                initialized = true;
+                return { loadedRoomCount, loadedUserCount };
+            })();
+        }
+        return initializationPromise;
+    }
+
+    function startRuntimeWorkers() {
+        if (runtimeWorkersStarted) return;
+        runtimeWorkersStarted = true;
+        backupScheduler.start();
+        videoSweepTimer = setInterval(() => {
+            const ended = videoSessionRegistry.sweepStaleVideoSessions();
+            emitEndedVideoSessions(ended);
+        }, VIDEO_SESSION_SWEEP_MS);
+        videoSweepTimer.unref();
+    }
 
     let isShuttingDown = false;
+    let inFlightMutations = 0;
+    const drainWaiters = new Set();
+
+    function finishMutation() {
+        inFlightMutations = Math.max(0, inFlightMutations - 1);
+        if (inFlightMutations !== 0) return;
+        for (const resolve of drainWaiters) resolve();
+        drainWaiters.clear();
+    }
+
+    function waitForMutationDrain() {
+        if (inFlightMutations === 0) return Promise.resolve();
+        return new Promise((resolve) => drainWaiters.add(resolve));
+    }
+
+    function mutationDrainMiddleware(req, res, next) {
+        if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+            next();
+            return;
+        }
+        if (isShuttingDown) {
+            res.status(503).json({ errorCode: 'SERVER_SHUTTING_DOWN' });
+            return;
+        }
+        inFlightMutations += 1;
+        let finished = false;
+        const finish = () => {
+            if (finished) return;
+            finished = true;
+            finishMutation();
+        };
+        res.once('finish', finish);
+        res.once('close', finish);
+        next();
+    }
+
     async function flushRoomStateAndExit(signal) {
         if (isShuttingDown) return;
         isShuttingDown = true;
-        clearInterval(videoSweepTimer);
+        const hardExitTimer = setTimeout(() => {
+            console.error('Graceful shutdown exceeded 15 seconds.');
+            process.exit(1);
+        }, 15_000);
+        if (videoSweepTimer) clearInterval(videoSweepTimer);
         backupScheduler.stop();
-        console.log(`Received ${signal}. Persisting room state to ${roomStore.filePath}...`);
+        console.log(`Received ${signal}. Draining mutations and persisting state...`);
+        const serverClosed = new Promise((resolve) => {
+            if (!server.listening) {
+                resolve();
+                return;
+            }
+            server.close(() => resolve());
+        });
+        await waitForMutationDrain();
+        if (typeof videoProvider.close === 'function') {
+            try {
+                await videoProvider.close();
+            } catch (error) {
+                logger.warn({ event: 'video_provider_shutdown_failed', error: error?.message });
+            }
+        }
+        await new Promise((resolve) => io.close(() => resolve()));
         const flushResults = await Promise.allSettled([
             roomStore.flush(rooms),
             userStore.flush(users)
         ]);
+        let exitCode = 0;
         flushResults.forEach((result) => {
             if (result.status === 'rejected') {
+                exitCode = 1;
                 console.error('Final state flush failed:', result.reason);
             }
         });
-        server.close(() => {
-            process.exit(0);
-        });
-        setTimeout(() => process.exit(0), 5000).unref();
+        await serverClosed;
+        clearTimeout(hardExitTimer);
+        process.exit(exitCode);
     }
 
-    process.once('SIGINT', () => {
-        void flushRoomStateAndExit('SIGINT');
-    });
+    if (options.registerSignalHandlers !== false) {
+        process.once('SIGINT', () => {
+            void flushRoomStateAndExit('SIGINT');
+        });
 
-    process.once('SIGTERM', () => {
-        void flushRoomStateAndExit('SIGTERM');
-    });
+        process.once('SIGTERM', () => {
+            void flushRoomStateAndExit('SIGTERM');
+        });
+    }
 
     app.use(securityHeaders);
     app.use(originGuard);
     app.use(express.json());
     app.use(sessionMiddleware);
     app.use(attachUser);
+    app.use(mutationDrainMiddleware);
     app.use('/audio', express.static(path.join(__dirname, 'audio'), { maxAge: '7d' }));
     app.use('/images', express.static(path.join(__dirname, 'images'), { maxAge: '1d' }));
     // Raw source footage lives beside the published clips (gitignored, but
@@ -1635,6 +1767,9 @@ function createCoStudyServer(options = {}) {
         setAuthCookie,
         clearAuthCookie,
         persistUsersSoon,
+        persistUser: persistUserImmediate,
+        deleteUser: deleteUserImmediate,
+        persistFocusCompletion: persistFocusCompletionImmediate,
         flushUsers: () => userStore.flush(users),
         requireUser,
         // Analytics event log (Supabase only) — powers user + admin dashboards.
@@ -1657,6 +1792,7 @@ function createCoStudyServer(options = {}) {
         appendSetCookie,
         parseCookies,
         persistUsersSoon,
+        persistUser: persistUserImmediate,
         sessionSecret: config.sessionSecret,
         logger
     }));
@@ -2136,6 +2272,12 @@ function createCoStudyServer(options = {}) {
                     return;
                 }
 
+                if (isShuttingDown) {
+                    fail('SERVER_SHUTTING_DOWN');
+                    return;
+                }
+
+                inFlightMutations += 1;
                 Promise.resolve()
                     .then(() => handler(payload, safeAck))
                     .catch((error) => {
@@ -2145,7 +2287,8 @@ function createCoStudyServer(options = {}) {
                             message: error?.message
                         });
                         if (!acknowledged) fail('INTERNAL_ERROR');
-                    });
+                    })
+                    .finally(finishMutation);
             });
         }
 
@@ -2767,6 +2910,10 @@ function createCoStudyServer(options = {}) {
     });
 
     function listen(callback) {
+        if (!initialized) {
+            throw new Error('Server persistence must initialize before listen().');
+        }
+        startRuntimeWorkers();
         server.listen(config.port, () => {
             const startupSummary = {
                 event: 'startup',
@@ -2808,6 +2955,7 @@ function createCoStudyServer(options = {}) {
         videoSessionRegistry,
         rooms,
         users,
+        initialize,
         listen,
         evaluateReadiness,
         getLoadedRoomCount() {

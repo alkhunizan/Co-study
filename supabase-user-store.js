@@ -12,6 +12,7 @@
 const { sanitizeUser } = require('./user-store');
 
 const SAVE_DEBOUNCE_MS = 250;
+const HYDRATION_PAGE_SIZE = 1000;
 const AUTH_PROVIDERS = new Set(['password', 'google']);
 
 /** DB row (snake_case) -> in-memory user (camelCase), sanitized. */
@@ -78,20 +79,51 @@ function createSupabaseUserStore(options = {}) {
     if (!client) throw new Error('createSupabaseUserStore requires a Supabase client.');
 
     let knownIds = new Set();
+    const knownFingerprints = new Map();
     let hydrated = false;
     let saveTimer = null;
     let queuedMap = null;
-    let writePromise = Promise.resolve();
+    let mutationTail = Promise.resolve();
+    let lastAttempt = Promise.resolve();
 
     function warn(event, error) {
-        const payload = { event, error: error && error.message ? error.message : String(error || '') };
+        const payload = { event, error: error?.message ? error.message : String(error || '') };
         (logger && typeof logger.warn === 'function' ? logger.warn : console.warn).call(logger || console, payload);
+    }
+
+    function rowFingerprint(row) {
+        return JSON.stringify(row);
     }
 
     /** Load all profiles into memory. Called once at boot; the factory awaits it. */
     async function hydrate() {
-        const rows = await client.select('profiles', 'select=*');
-        const users = (Array.isArray(rows) ? rows : []).map(rowToUser).filter(Boolean);
+        const rows = [];
+        for (let offset = 0; ; offset += HYDRATION_PAGE_SIZE) {
+            const page = await client.select(
+                'profiles',
+                `select=*&order=id.asc&limit=${HYDRATION_PAGE_SIZE}&offset=${offset}`
+            );
+            if (!Array.isArray(page)) throw new Error('Invalid profiles response: expected an array.');
+            rows.push(...page);
+            if (page.length < HYDRATION_PAGE_SIZE) break;
+        }
+        const users = rows.map(rowToUser);
+        if (users.some((user) => !user)) throw new Error('Invalid profiles response: one or more rows failed validation.');
+        const ids = new Set();
+        const emails = new Set();
+        const googleSubjects = new Set();
+        for (const [index, user] of users.entries()) {
+            if (ids.has(user.id) || emails.has(user.email) || (user.googleSub && googleSubjects.has(user.googleSub))) {
+                throw new Error('Invalid profiles response: duplicate identity fields.');
+            }
+            ids.add(user.id);
+            emails.add(user.email);
+            if (user.googleSub) googleSubjects.add(user.googleSub);
+            // Preserve the provider row fingerprint so the first mutation can
+            // normalize legacy/defaulted columns instead of assuming the
+            // sanitized in-memory projection was already stored.
+            knownFingerprints.set(user.id, rowFingerprint(rows[index]));
+        }
         knownIds = new Set(users.map((u) => u.id));
         hydrated = true;
         return users;
@@ -103,16 +135,25 @@ function createSupabaseUserStore(options = {}) {
         // Deletions only propagate once hydrated (before that, knownIds is empty
         // and an upsert-only pass can never wrongly delete a not-yet-loaded row).
         const toDelete = hydrated ? [...knownIds].filter((id) => !currentIds.has(id)) : [];
-        if (rows.length) await client.upsert('profiles', rows);
-        if (toDelete.length) await client.remove('profiles', 'id', toDelete);
+        for (const row of rows) {
+            const fingerprint = rowFingerprint(row);
+            if (knownFingerprints.get(row.id) === fingerprint) continue;
+            await client.upsert('profiles', [row]);
+            knownFingerprints.set(row.id, fingerprint);
+        }
+        for (const id of toDelete) {
+            await client.remove('profiles', 'id', [id]);
+            knownFingerprints.delete(id);
+        }
         knownIds = currentIds;
     }
 
-    function enqueue(map) {
-        writePromise = writePromise
-            .then(() => persistDiff(map))
-            .catch((error) => warn('user_persist_failed', error));
-        return writePromise;
+    function enqueue(operation, event = 'user_persist_failed') {
+        const attempt = mutationTail.then(operation);
+        mutationTail = attempt.catch(() => {});
+        lastAttempt = attempt;
+        void attempt.catch((error) => warn(event, error));
+        return attempt;
     }
 
     function scheduleSave(map) {
@@ -122,9 +163,10 @@ function createSupabaseUserStore(options = {}) {
             const m = queuedMap;
             queuedMap = null;
             saveTimer = null;
-            if (m) void enqueue(m);
+            if (m) void enqueue(() => persistDiff(m));
         }, SAVE_DEBOUNCE_MS);
-        return writePromise;
+        saveTimer.unref?.();
+        return lastAttempt;
     }
 
     function flush(map) {
@@ -135,8 +177,55 @@ function createSupabaseUserStore(options = {}) {
         }
         const m = queuedMap;
         queuedMap = null;
-        if (!m) return writePromise;
-        return enqueue(m);
+        if (!m) return lastAttempt;
+        return enqueue(() => persistDiff(m));
+    }
+
+    function saveUser(user) {
+        const row = userToRow(user);
+        return enqueue(async () => {
+            await client.upsert('profiles', [row]);
+            knownIds.add(user.id);
+            knownFingerprints.set(user.id, rowFingerprint(row));
+        });
+    }
+
+    function deleteUser(user) {
+        return enqueue(async () => {
+            await client.remove('profiles', 'id', [user.id]);
+            knownIds.delete(user.id);
+            knownFingerprints.delete(user.id);
+        }, 'user_delete_failed');
+    }
+
+    function persistFocusCompletion(user, payload) {
+        const row = userToRow(user);
+        return enqueue(async () => {
+            if (typeof client.rpc === 'function') {
+                await client.rpc('record_focus_completion', {
+                    p_user_id: user.id,
+                    p_focus_stats: row.focus_stats,
+                    p_current_streak: row.current_streak,
+                    p_best_streak: row.best_streak,
+                    p_last_active_day: row.last_active_day,
+                    p_completion_id: payload.completionId,
+                    p_minutes: payload.acceptedMinutes,
+                    p_day_key: payload.dayKey
+                }, { idempotent: true });
+            } else {
+                await client.upsert('profiles', [row]);
+                if (payload.acceptedMinutes > 0) {
+                    await client.insert('focus_sessions', [{
+                        user_id: user.id,
+                        minutes: payload.acceptedMinutes,
+                        day_key: payload.dayKey,
+                        completion_id: payload.completionId
+                    }]);
+                }
+            }
+            knownIds.add(user.id);
+            knownFingerprints.set(user.id, rowFingerprint(row));
+        }, 'focus_session_persist_failed');
     }
 
     // Synchronous no-op: the file store loads from disk here, but Supabase
@@ -150,13 +239,14 @@ function createSupabaseUserStore(options = {}) {
      *  Drains the user-write queue first so the profile row (FK target) is
      *  guaranteed present — otherwise a brand-new user's first session can beat
      *  the debounced profile upsert and hit a foreign-key violation. */
-    async function logFocusSession({ userId, minutes, dayKey }) {
-        try {
-            await flush();
-            await client.insert('focus_sessions', [{ user_id: userId, minutes, day_key: dayKey }]);
-        } catch (error) {
-            warn('focus_session_log_failed', error);
-        }
+    async function logFocusSession({ userId, minutes, dayKey, completionId }) {
+        await flush();
+        await client.insert('focus_sessions', [{
+            user_id: userId,
+            minutes,
+            day_key: dayKey,
+            completion_id: completionId
+        }]);
     }
 
     /** Fire-and-forget analytics event: room create/join/leave/close. user_id
@@ -177,10 +267,15 @@ function createSupabaseUserStore(options = {}) {
 
     return {
         isSupabase: true,
+        durability: 'immediate',
         loadUsers,
+        initialize: hydrate,
         hydrate,
         scheduleSave,
         flush,
+        saveUser,
+        deleteUser,
+        persistFocusCompletion,
         logFocusSession,
         logRoomEvent,
         // Dashboard reads (service_role bypasses RLS on the views).

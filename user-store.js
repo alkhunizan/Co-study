@@ -1,14 +1,15 @@
 const fs = require('node:fs');
-const fsPromises = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { sanitizeUserText, normalizeEmail, normalizeAvatarColor } = require('./services/auth');
+const { createDebouncedAtomicJsonStore } = require('./services/persistence/debounced-atomic-json-store');
 
 const SAVE_DEBOUNCE_MS = 250;
 const DISPLAY_NAME_MAX_LENGTH = 20;
 const BIO_MAX_LENGTH = 160;
 const FOCUS_DAY_KEY_LIMIT = 370;
 const FOCUS_MINUTES_DAY_CAP = 1440;
+const FOCUS_COMPLETION_LIMIT = 1000;
 const MY_ROOMS_LIMIT = 12;
 const GOOGLE_SUB_MAX_LENGTH = 255;
 const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000; // fixed UTC+3, no DST (same convention as schedule-utils)
@@ -39,6 +40,30 @@ function sanitizeFocusDay(raw = {}) {
     return { focusMinutes, sessions };
 }
 
+function normalizeCompletionId(raw) {
+    if (typeof raw !== 'string') return null;
+    const value = raw.trim();
+    return /^[A-Za-z0-9_-]{8,128}$/.test(value) ? value : null;
+}
+
+/** @param {Record<string, any>} raw */
+function sanitizeFocusCompletion(raw = {}) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const completionId = normalizeCompletionId(raw.completionId);
+    const dayKey = typeof raw.dayKey === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.dayKey)
+        ? raw.dayKey
+        : null;
+    if (!completionId || !dayKey) return null;
+    return {
+        completionId,
+        acceptedMinutes: Number.isFinite(raw.acceptedMinutes)
+            ? Math.min(Math.max(Math.round(raw.acceptedMinutes), 0), 240)
+            : 0,
+        dayKey,
+        completedAt: Number.isFinite(raw.completedAt) ? raw.completedAt : Date.now()
+    };
+}
+
 /** @param {Record<string, any>} raw */
 function sanitizeFocusStats(raw = {}) {
     const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
@@ -53,13 +78,29 @@ function sanitizeFocusStats(raw = {}) {
             if (day) days[key] = day;
         }
     }
-    let totalFocusMinutes = 0;
-    let totalSessions = 0;
+    let retainedFocusMinutes = 0;
+    let retainedSessions = 0;
     for (const day of Object.values(days)) {
-        totalFocusMinutes += day.focusMinutes;
-        totalSessions += day.sessions;
+        retainedFocusMinutes += day.focusMinutes;
+        retainedSessions += day.sessions;
     }
-    return { days, totalFocusMinutes, totalSessions };
+    const totalFocusMinutes = Number.isFinite(source.totalFocusMinutes)
+        ? Math.max(Math.round(source.totalFocusMinutes), retainedFocusMinutes)
+        : retainedFocusMinutes;
+    const totalSessions = Number.isFinite(source.totalSessions)
+        ? Math.max(Math.round(source.totalSessions), retainedSessions)
+        : retainedSessions;
+    const seenCompletionIds = new Set();
+    const completions = (Array.isArray(source.completions) ? source.completions : [])
+        .map(sanitizeFocusCompletion)
+        .filter((completion) => {
+            if (!completion || seenCompletionIds.has(completion.completionId)) return false;
+            seenCompletionIds.add(completion.completionId);
+            return true;
+        })
+        .sort((a, b) => a.completedAt - b.completedAt)
+        .slice(-FOCUS_COMPLETION_LIMIT);
+    return { days, totalFocusMinutes, totalSessions, completions };
 }
 
 /**
@@ -95,18 +136,47 @@ function sanitizeMyRoom(raw = {}) {
 /**
  * Applies one completed focus session to a user record in place.
  * @param {Record<string, any>} user
- * @param {{ minutes: number, now?: number }} options
+ * @param {{ minutes: number, completionId: string, now?: number }} options
  */
-function applyFocusSession(user, { minutes, now = Date.now() } = /** @type {any} */ ({})) {
+function applyFocusSession(user, { minutes, completionId, now = Date.now() } = /** @type {any} */ ({})) {
     const safeMinutes = Math.min(Math.max(Math.round(minutes), 1), 240);
+    const safeCompletionId = normalizeCompletionId(completionId);
+    if (!safeCompletionId) throw new TypeError('completionId is invalid.');
     const dayKey = riyadhDayKey(now);
     const stats = user.focusStats;
+    if (!Array.isArray(stats.completions)) stats.completions = [];
+    const priorCompletion = stats.completions.find((completion) => completion.completionId === safeCompletionId);
+    if (priorCompletion) {
+        return {
+            focusStats: stats,
+            streak: user.streak,
+            dayKey: priorCompletion.dayKey,
+            requestedMinutes: safeMinutes,
+            acceptedMinutes: priorCompletion.acceptedMinutes,
+            minutes: priorCompletion.acceptedMinutes,
+            duplicate: true,
+            completionId: safeCompletionId
+        };
+    }
     const day = stats.days[dayKey] || { focusMinutes: 0, sessions: 0 };
-    day.focusMinutes = Math.min(day.focusMinutes + safeMinutes, FOCUS_MINUTES_DAY_CAP);
-    day.sessions += 1;
-    stats.days[dayKey] = day;
-    stats.totalFocusMinutes += safeMinutes;
-    stats.totalSessions += 1;
+    const acceptedMinutes = Math.min(safeMinutes, Math.max(0, FOCUS_MINUTES_DAY_CAP - day.focusMinutes));
+    if (acceptedMinutes > 0) {
+        day.focusMinutes += acceptedMinutes;
+        day.sessions += 1;
+        stats.days[dayKey] = day;
+        stats.totalFocusMinutes += acceptedMinutes;
+        stats.totalSessions += 1;
+    }
+
+    stats.completions.push({
+        completionId: safeCompletionId,
+        acceptedMinutes,
+        dayKey,
+        completedAt: now
+    });
+    if (stats.completions.length > FOCUS_COMPLETION_LIMIT) {
+        stats.completions.splice(0, stats.completions.length - FOCUS_COMPLETION_LIMIT);
+    }
 
     const dayKeys = Object.keys(stats.days).sort();
     if (dayKeys.length > FOCUS_DAY_KEY_LIMIT) {
@@ -116,7 +186,10 @@ function applyFocusSession(user, { minutes, now = Date.now() } = /** @type {any}
     }
 
     const streak = user.streak;
-    if (streak.lastActiveDay === dayKey) {
+    if (acceptedMinutes === 0) {
+        // The completion is still remembered for idempotency, but a fully
+        // capped request is not a focus session and cannot advance a streak.
+    } else if (streak.lastActiveDay === dayKey) {
         // Already counted today.
     } else if (streak.lastActiveDay === previousRiyadhDayKey(dayKey)) {
         streak.current += 1;
@@ -125,7 +198,16 @@ function applyFocusSession(user, { minutes, now = Date.now() } = /** @type {any}
     }
     streak.lastActiveDay = dayKey;
     streak.best = Math.max(streak.best, streak.current);
-    return { focusStats: stats, streak, dayKey, minutes: safeMinutes };
+    return {
+        focusStats: stats,
+        streak,
+        dayKey,
+        requestedMinutes: safeMinutes,
+        acceptedMinutes,
+        minutes: acceptedMinutes,
+        duplicate: false,
+        completionId: safeCompletionId
+    };
 }
 
 /**
@@ -212,10 +294,11 @@ function createUserStore(options = {}) {
     } = options;
 
     const resolvedFilePath = path.resolve(filePath);
-    let lastWrittenJson = null;
-    let queuedJson = null;
-    let saveTimer = null;
-    let writePromise = Promise.resolve();
+    const atomicStore = createDebouncedAtomicJsonStore({
+        filePath: resolvedFilePath,
+        debounceMs: SAVE_DEBOUNCE_MS,
+        logger
+    });
 
     function warn(message, error) {
         if (logger && typeof logger.warn === 'function') {
@@ -232,24 +315,6 @@ function createUserStore(options = {}) {
                 ? users
                 : Array.from(users || []);
         return source.map(sanitizeUser).filter(Boolean);
-    }
-
-    async function writeSnapshot(json) {
-        if (json === lastWrittenJson) return;
-        await fsPromises.mkdir(path.dirname(resolvedFilePath), { recursive: true });
-        const tempFilePath = `${resolvedFilePath}.tmp`;
-        await fsPromises.writeFile(tempFilePath, json, 'utf8');
-        await fsPromises.rename(tempFilePath, resolvedFilePath);
-        lastWrittenJson = json;
-    }
-
-    function enqueueWrite(json) {
-        writePromise = writePromise
-            .then(() => writeSnapshot(json))
-            .catch((error) => {
-                warn(`Failed to persist user state to ${resolvedFilePath}.`, error);
-            });
-        return writePromise;
     }
 
     function toJson(users) {
@@ -277,7 +342,7 @@ function createUserStore(options = {}) {
             }
 
             const sanitizedUsers = parsed.map(sanitizeUser).filter(Boolean);
-            lastWrittenJson = `${JSON.stringify(sanitizedUsers, null, 2)}\n`;
+            atomicStore.setBaseline(`${JSON.stringify(sanitizedUsers, null, 2)}\n`);
             return sanitizedUsers;
         } catch (error) {
             if (strict) {
@@ -289,36 +354,11 @@ function createUserStore(options = {}) {
     }
 
     function scheduleSave(users) {
-        queuedJson = toJson(users);
-        if (saveTimer) {
-            clearTimeout(saveTimer);
-        }
-        saveTimer = setTimeout(() => {
-            const json = queuedJson;
-            queuedJson = null;
-            saveTimer = null;
-            if (json !== null) {
-                void enqueueWrite(json);
-            }
-        }, SAVE_DEBOUNCE_MS);
-        return writePromise;
+        return atomicStore.schedule(users, toJson);
     }
 
     function flush(users) {
-        if (users) {
-            queuedJson = toJson(users);
-        }
-        if (saveTimer) {
-            clearTimeout(saveTimer);
-            saveTimer = null;
-        }
-        if (queuedJson === null) {
-            return writePromise;
-        }
-
-        const json = queuedJson;
-        queuedJson = null;
-        return enqueueWrite(json);
+        return users ? atomicStore.flush(users, toJson) : atomicStore.flush();
     }
 
     return {
@@ -351,7 +391,7 @@ function createUser({
         createdAt: now,
         banned: false,
         tokenEpoch: 1,
-        focusStats: { days: {}, totalFocusMinutes: 0, totalSessions: 0 },
+        focusStats: { days: {}, totalFocusMinutes: 0, totalSessions: 0, completions: [] },
         streak: { current: 0, best: 0, lastActiveDay: null },
         myRooms: []
     };
@@ -361,6 +401,7 @@ module.exports = {
     createUserStore,
     createUser,
     applyFocusSession,
+    normalizeCompletionId,
     recordMyRoom,
     sanitizeFocusStats,
     sanitizeUser
