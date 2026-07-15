@@ -66,8 +66,8 @@ SESSION_SECRET=<from npm run secret:gen>        # REQUIRED — startup fails wit
 ADMIN_SESSION_SECRET=<second generated value>  # REQUIRED and distinct
 ADMIN_PATH=<your secret slug>                   # both admin vars or neither
 ADMIN_PASSWORD_HASH=<from npm run admin:hash>
-# TURN — see step 3
-ICE_SERVERS_JSON=<your TURN JSON>
+SUPABASE_URL=https://<project>.supabase.co      # REQUIRED in production
+SUPABASE_SERVICE_ROLE_KEY=<server-only key>     # REQUIRED in production
 # RealtimeKit video — server-only secrets
 VIDEO_PROVIDER=realtimekit
 CLOUDFLARE_ACCOUNT_ID=<...>
@@ -81,15 +81,15 @@ VIDEO_DEFAULT_PRESET_NAME=halastudy_student
 
 </details>
 
-## 3. Wire managed TURN (~15 min) — do NOT skip
+## 3. Provision managed RealtimeKit (~15 min) — do NOT skip
 
-STUN-only fails across the CGNAT'd mobile networks common in the Gulf, so camera
-connections would silently fail for real users. Cloudflare Realtime TURN is the
-recommended relay — see **`docs/CLOUDFLARE.md §2`** for the full setup, then:
+Production video is provider-authoritative and never downgrades to mesh. Run
+the setup and doctor commands described in the **RealtimeKit launch notes in
+`README.md`**, then:
 
-- [ ] TURN key created, `CLOUDFLARE_TURN_*` in `.env`.
-- [ ] `npm run cloudflare:turn` → paste the printed `ICE_SERVERS_JSON=…` into `.env`.
-- [ ] Restart the app so `/api/runtime-config` serves the new ICE servers.
+- [ ] Student and viewer presets exist with the locked effective permissions.
+- [ ] The signed webhook endpoint is configured and rejects forged signatures.
+- [ ] `npm run cloudflare:doctor` passes before video joins are enabled.
 
 ## 4. Verify the live box (~5 min)
 
@@ -126,5 +126,5 @@ problem — don't gate the beta on it.
 
 ---
 
-_Blocked items are yours (VM, domain, TURN account, physical devices). Once a box
+_Blocked items are yours (VM, domain, provider projects, physical devices). Once a box
 exists and `.env` is set, `verify:deploy` + the QA checklist are the whole gate._

@@ -177,7 +177,6 @@ module.exports = {
     applyRestorePlan,
     buildRestorePlan,
     createSupabaseRestoreTarget,
-    hasDatabaseDatasets,
     requiresDeletionTombstoneFilter,
     writeRoomsAtomically
 };

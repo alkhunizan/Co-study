@@ -44,13 +44,21 @@ test('privacy policy distinguishes scheduled-room retention, live deletion, and 
     const english = languageSection(privacy, 'en');
     const arabic = languageSection(privacy, 'ar');
 
-    assert.match(english, /Scheduled rooms[\s\S]*verified deletion request/i);
+    assert.match(english, /one-time scheduled room[\s\S]*30 minutes/i);
+    assert.match(english, /recurring room[\s\S]*90 days[\s\S]*365 days/i);
     assert.match(english, /live production systems[\s\S]*immediately/i);
     assert.match(english, /encrypted backups[\s\S]*seven days/i);
 
-    assert.match(arabic, /الغرف المجدولة[\s\S]*طلب حذف موثّق/);
+    assert.match(arabic, /الغرفة المجدولة لمرة واحدة[\s\S]*30 دقيقة/);
+    assert.match(arabic, /الغرفة المتكررة[\s\S]*90 يوماً[\s\S]*365 يوماً/);
     assert.match(arabic, /أنظمة الإنتاج الحية[\s\S]*فوراً/);
     assert.match(arabic, /النسخ الاحتياطية المشفّرة[\s\S]*سبعة أيام/);
+});
+
+test('privacy policy describes anonymous identity as browser-session scoped', () => {
+    const privacy = readRepoFile('privacy.html');
+    assert.match(languageSection(privacy, 'en'), /session cookie[\s\S]*ends with the browser session/i);
+    assert.match(languageSection(privacy, 'ar'), /ملف تعريف جلسة[\s\S]*تنتهي بانتهاء جلسة المتصفح/);
 });
 
 test('terms disclose Cloudflare-managed media and the third-party service boundary', () => {
@@ -74,6 +82,12 @@ test('selfsigned remains available for local HTTPS without entering the producti
     assert.equal(lockfile.packages[''].dependencies.selfsigned, undefined);
     assert.equal(lockfile.packages[''].devDependencies.selfsigned, '^5.5.0');
     assert.equal(lockfile.packages['node_modules/selfsigned'].dev, true);
+});
+
+test('dead-code analysis includes extracted browser runtimes', () => {
+    const config = JSON.parse(readRepoFile('knip.json'));
+    assert.ok(config.entry.includes('public/js/**/*.js'));
+    assert.ok(config.project.includes('public/js/**/*.js'));
 });
 
 test('git and container contexts exclude runtime, diagnostic, backup, and credential state', () => {

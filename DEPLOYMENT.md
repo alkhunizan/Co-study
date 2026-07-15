@@ -39,8 +39,9 @@ production-shaped values and inline notes. The critical production settings:
   future `git clean` or re-clone during a deploy would destroy live room state.
 - **`ALLOWED_ORIGINS`** — set the exact public origin explicitly; do not rely on
   the empty-list fallback.
-- **`ICE_SERVERS_JSON`** — set a TURN relay. STUN-only (the default) fails across
-  the CGNAT'd mobile networks common in the Gulf.
+- **Supabase env** — set both `SUPABASE_URL` and
+  `SUPABASE_SERVICE_ROLE_KEY`. Production startup rejects missing or partial
+  configuration; the local users file is development/test-only.
 - **RealtimeKit env** — set `VIDEO_PROVIDER=realtimekit`,
   `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_REALTIMEKIT_APP_ID`, and
   `CLOUDFLARE_REALTIMEKIT_API_TOKEN`. These are server-only secrets.
@@ -50,8 +51,8 @@ production-shaped values and inline notes. The critical production settings:
   without it. `ADMIN_SESSION_SECRET` is also required and must be different.
   Generate both with `npm run secret:gen`; rotating either invalidates its
   corresponding cookies.
-- **`USER_STATE_FILE`** — point it outside the repo like the room state
-  (e.g. `/var/lib/halastudy/users.json`).
+- **`USER_STATE_FILE`** — development/test fallback only; production accounts
+  are Supabase-backed.
 - **`BACKUP_ENCRYPTION_KEY`** — exactly 32 random bytes encoded as canonical
   base64. The external service-user timer writes one AES-256-GCM artifact per
   UTC day and retains seven days. Keep `BACKUP_INTERVAL_MINUTES=0` in
@@ -93,7 +94,8 @@ export ROOM_STATE_BACKUP_DIR='/var/lib/halastudy/backups'
 export BACKUP_INTERVAL_MINUTES=0
 export BACKUP_ENCRYPTION_KEY='<32 random bytes as base64>'
 export ALLOWED_ORIGINS='https://your-domain.com'
-export MESH_PARTICIPANT_LIMIT=4
+export SUPABASE_URL='https://your-project.supabase.co'
+export SUPABASE_SERVICE_ROLE_KEY='<server-only service role key>'
 export VIDEO_PROVIDER=realtimekit
 export VIDEO_JOIN_DISABLED=false
 export MAX_GLOBAL_VIDEO_PARTICIPANTS=20
@@ -108,16 +110,9 @@ export CLOUDFLARE_REALTIMEKIT_APP_ID='replace_me'
 export CLOUDFLARE_REALTIMEKIT_API_TOKEN='replace_me'
 ```
 
-Optional TURN config:
-
-```bash
-export ICE_SERVERS_JSON='[
-  { "urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
-  { "urls": "turn:turn.example.com:3478", "username": "turn-user", "credential": "turn-password" }
-]'
-```
-
-If you set `SFU_BASE_URL`, it must be an absolute `http(s)` URL.
+Do not configure `ICE_SERVERS_JSON`, TURN credentials, or `VIDEO_PROVIDER=mesh`
+in production. Mesh is an explicit local-development mode only. If a local
+mesh test needs TURN, use short-lived credentials and rotate them before expiry.
 
 RealtimeKit behavior in production:
 - The backend creates/reuses one RealtimeKit meeting per Halastudy room.
@@ -126,7 +121,8 @@ RealtimeKit behavior in production:
 - Expired idle provider meetings are recycled after `MAX_ROOM_DURATION_MINUTES`; active expired meetings reject new video tokens.
 - Set `VIDEO_JOIN_DISABLED=true` as a kill switch if provider errors or costs spike.
 - Recording, screenshare, and provider chat stay disabled for launch.
-- `VIDEO_PROVIDER=mesh` is an emergency fallback to the legacy P2P path; `sfu` rooms remain available only when `SFU_BASE_URL` is configured.
+- Production rejects `VIDEO_PROVIDER=mesh`; provider outages fail closed for
+  new video joins and use the admin kill switch instead of downgrading media.
 
 Launch budget math:
 
@@ -276,7 +272,6 @@ Manual media spot-check before launch:
 - create a RealtimeKit room and confirm video works with 2 participants
 - confirm participants 1-20 can join and the 21st participant is rejected
 - verify camera defaults on, microphone defaults off, recording is unavailable, and screenshare is disabled unless explicitly enabled
-- if `VIDEO_PROVIDER=mesh` is used as a fallback, confirm the legacy 4-person mesh cap still blocks the 5th participant
 - verify a password-protected room before requesting a RealtimeKit token
 - verify reconnect behavior after a participant drops and rejoins
 
@@ -374,7 +369,8 @@ npm run verify:deploy -- https://your-domain.com
 
 - `TRUST_PROXY=1` is required behind Nginx so secure cookies and client IP handling work correctly.
 - If `ALLOWED_ORIGINS` is set, include the exact public origin such as `https://your-domain.com`.
-- TURN credentials are delivered to the browser at runtime because WebRTC requires the client to receive them.
+- Production media is RealtimeKit-managed; never place static TURN credentials
+  in the production environment.
 - Treat `BACKUP_ENCRYPTION_KEY` as a recovery-critical secret and regularly
   prove a dry-run restore from the newest artifact.
 - The hardened rate limits are intentionally lightweight and in-memory. They protect a single app instance, not a distributed deployment.
@@ -386,5 +382,5 @@ npm run verify:deploy -- https://your-domain.com
 | `verify:deploy` fails on readiness | Check PM2 logs and `curl http://127.0.0.1:3000/api/ready` for the failing check. |
 | `502 Bad Gateway` | Confirm PM2 is running `server.js` and Nginx proxies to `http://127.0.0.1:3000`. |
 | Users get blocked too quickly | Review app logs for `RATE_LIMITED` responses and confirm normal traffic is not bursty. |
-| Some users cannot connect video | Add a TURN server through `ICE_SERVERS_JSON`. |
+| Some users cannot connect video | Check RealtimeKit preset/webhook health, provider reconciliation, and the video kill switch; do not downgrade production to mesh. |
 | Secure cookies are missing | Confirm `TRUST_PROXY=1` and `X-Forwarded-Proto` are reaching the app through Nginx. |

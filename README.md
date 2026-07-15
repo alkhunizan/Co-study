@@ -18,7 +18,7 @@ This release ships with:
 - Optional accounts (email + password, no verification wall): synced focus minutes and day streaks, My Rooms with one-click rejoin, reserved nickname, avatar accent + bio. Instant rooms stay guest-open; scheduled rooms require an account
 - Self-serve, immediate delete-my-data flow on the account page (PDPL)
 - Hidden admin ops console at an env-secret path: live overview, room inspect/force-close/kick, runtime video kill-switch, user ban/unban, site-wide broadcast banner, backup-now, recent errors
-- Cloudflare RealtimeKit video rooms with server-issued participant tokens, plus legacy mesh fallback
+- Cloudflare RealtimeKit video rooms with server-issued participant tokens; mesh is local-development-only
 - Live Socket.IO chat and room presence
 - Pomodoro timer with daily focus tracking
 - Shared room board, room status sharing, and ambient sounds
@@ -84,7 +84,7 @@ start the app and run `verify:deploy`. See
 
 - Frontend: Vanilla JavaScript, HTML, CSS
 - Backend: Node.js, Express, Socket.IO
-- Realtime media: Cloudflare RealtimeKit by default, legacy WebRTC mesh fallback
+- Realtime media: Cloudflare RealtimeKit in production, with explicit local-only WebRTC mesh testing
 - Security: PBKDF2 password hashing with timing-safe verification
 - Local secure-context dev: Self-signed HTTPS via `selfsigned`
 - Production transport: Nginx public HTTPS -> local HTTP app
@@ -119,7 +119,7 @@ Co-study/
 - `HTTPS_PORT`: Local HTTPS port for `server-https.js`. Defaults to `3443`.
 - `TRUST_PROXY`: Set to `1` behind Nginx so Express trusts `X-Forwarded-*`. Defaults to `0`.
 - `ALLOWED_ORIGINS`: Optional comma-separated allowlist of exact `http(s)://origin` values. If unset, the app allows same-origin browser traffic only.
-- `ICE_SERVERS_JSON`: Optional JSON array of WebRTC ICE servers. If omitted or invalid, the app falls back to the built-in Google STUN servers.
+- `ICE_SERVERS_JSON`: Development-only JSON array for explicit mesh tests. Never configure static TURN credentials in production.
 - `MESH_PARTICIPANT_LIMIT`: Optional hard cap for mesh rooms. Defaults to `4`.
 - `ROOM_STATE_FILE`: Optional JSON file path for persisted room state. Defaults to `./data/rooms.json`.
 - `ROOM_STATE_BACKUP_DIR`: Optional directory for manual room-state backups. Defaults to `./data/backups`.

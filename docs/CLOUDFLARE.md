@@ -1,13 +1,12 @@
 # Cloudflare in front of Halastudy
 
-Two roles, both keeping the Node app on the Gulf VM behind Nginx:
+Three roles, all keeping the Node app on the Gulf VM behind Nginx:
 
 1. **DNS + proxy/CDN** — Cloudflare fronts `halastudy.com`: edge TLS, static-asset
    caching, DDoS protection.
-2. **TURN** — Cloudflare Realtime TURN fills `ICE_SERVERS_JSON` so camera calls
-   survive Saudi cellular CGNAT.
-
-RealtimeKit (video rooms) is already wired separately via `scripts/cloudflare/`.
+2. **RealtimeKit** — provider-authoritative production video, configured through
+   `scripts/cloudflare/` and verified by the signed webhook flow.
+3. **R2** — optional storage for already-encrypted backup artifacts.
 
 ---
 
@@ -99,36 +98,17 @@ IP ranges. That stops anyone from bypassing Cloudflare by hitting the VM's raw I
 
 ---
 
-## 2. Cloudflare TURN (for `ICE_SERVERS_JSON`)
+## 2. TURN is local-development-only
 
-STUN-only fails across CGNAT'd Saudi mobile networks, so a TURN relay is
-mandatory (`LAUNCH.md §3`). Cloudflare Realtime includes a TURN service.
+Production uses Cloudflare RealtimeKit and rejects `VIDEO_PROVIDER=mesh`; do not
+put `ICE_SERVERS_JSON` or static TURN credentials in the production environment.
+If an explicit local mesh test needs relay coverage, request short-lived TURN
+credentials, keep them in a developer-only env file, and rotate them before
+expiry. Never copy those credentials into PM2, systemd, a container image, or a
+committed file.
 
-1. In the dashboard → **Realtime → TURN**, create a TURN key. Note the **key ID**
-   and create an **API token** with the Realtime TURN edit permission.
-2. Add to the VM's `.env`:
-   ```bash
-   CLOUDFLARE_TURN_KEY_ID=<key id>
-   CLOUDFLARE_TURN_API_TOKEN=<api token>
-   # optional, default 24h:
-   CLOUDFLARE_TURN_TTL_SECONDS=86400
-   ```
-3. Generate credentials and copy the printed line into `.env`:
-   ```bash
-   npm run cloudflare:turn
-   # → ICE_SERVERS_JSON=[{"urls":["stun:stun.cloudflare.com:3478"]},{"urls":[…],"username":"…","credential":"…"}]
-   ```
-4. Restart the app so `/api/runtime-config` serves the new ICE servers to browsers.
-
-**TTL note for the beta:** Cloudflare TURN credentials are time-limited. `ICE_SERVERS_JSON`
-is read once at boot, so a room that outlives the TTL could lose relay on a
-reconnect. For the private beta a long TTL (24h+) plus a nightly regenerate +
-restart is fine. If TURN reconnect issues show up at scale, the follow-up is to
-make the app mint short-lived TURN credentials per session server-side (the
-`turn-credentials.js` helper already speaks the API) rather than serving a static
-blob — a small, well-scoped change, not needed for launch.
-
-Verify with `npm run verify:deploy -- https://halastudy.com` and a real two-device,
+Verify production with `npm run cloudflare:doctor`, signed webhook checks,
+`npm run verify:deploy -- https://halastudy.com`, and a real two-device,
 two-carrier camera test (`LAUNCH.md §5`).
 
 ---
@@ -179,5 +159,5 @@ The inventory has no deletion/apply mode; see
 There is currently no Cloudflare MCP connector attached to this session, so the
 steps above are manual (dashboard + one `.env` paste). If you add the **Cloudflare**
 connector in claude.ai → Settings → Connectors, a future session can create the DNS
-records, set the cache rules, and rotate the TURN credentials programmatically
+records, set the cache rules, and manage RealtimeKit/R2 configuration
 instead of by hand.

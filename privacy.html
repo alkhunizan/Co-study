@@ -117,7 +117,7 @@
       <ul>
         <li><strong>المسار الافتراضي:</strong> يرسل متصفحك مسارات الصوت والفيديو المباشرة إلى <strong>Cloudflare RealtimeKit</strong>، الذي يوجّهها إلى المشاركين عبر بنية <strong>SFU مُدارة</strong> على شبكة Cloudflare. لذلك قد تعالج Cloudflare عنوان IP، وبيانات الجلسة التقنية، ومسارات الوسائط المباشرة أثناء الجلسة.</li>
         <li>خادم تطبيق هلاستدي لا يستقبل محتوى الصوت أو الفيديو ولا يسجله. لا نفعّل التسجيل أو النسخ النصي في Cloudflare RealtimeKit، ولا نحتفظ بصور أو تسجيلات صوتية من جلساتك.</li>
-        <li><strong>المسار الاحتياطي القديم:</strong> قد تستخدم غرف mesh اتصالاً مباشراً بين المتصفحات، وقد تمر الحزم المشفّرة عبر خادم TURN عند تعذّر الاتصال المباشر.</li>
+        <li><strong>التطوير المحلي فقط:</strong> يمكن للمطورين تشغيل وضع mesh صراحةً للاختبار المحلي؛ وهو معطّل في الإنتاج ولا يُستخدم لمعالجة جلسات المستخدمين الحية.</li>
       </ul>
 
       <h2>التحليلات والقياس</h2>
@@ -126,7 +126,7 @@
       <h2>كم تبقى البيانات؟</h2>
       <ul>
         <li>الغرف غير المجدولة تُحذف تلقائياً بعد نحو 30 دقيقة من مغادرة آخر مشارك، ومعها الدردشة واللوحة.</li>
-        <li>الغرف المجدولة مستثناة من حذف الـ30 دقيقة لأنها مصممة للتكرار؛ تبقى مع الدردشة واللوحة وسجل الحضور حتى يحذفها المشرف أو ننفّذ طلب حذف موثّق من منشئها.</li>
+        <li>الغرفة المجدولة لمرة واحدة تُحذف بعد نحو 30 دقيقة من إغلاق موعدها. الغرفة المتكررة مدتها الافتراضية 90 يوماً، ويمكن لمنشئها تحديد تاريخ انتهاء لا يتجاوز 365 يوماً؛ وقد يحذفها المالك أو المشرف قبل ذلك.</li>
         <li>يستخدم تطبيق هلاستدي عناوين IP في الذاكرة للحماية من الإساءة وحدود المعدل؛ وقد يحتفظ مزودو الحافة والوسائط وCDN بسجلات طلب تقنية وفق مددهم النظامية والأمنية.</li>
         <li>النسخ الاحتياطية المشفّرة معزولة عن أنظمة التشغيل الحية، وتُحذف تلقائياً خلال مدة لا تتجاوز <strong>سبعة أيام</strong>.</li>
       </ul>
@@ -141,7 +141,7 @@
 
       <h2>ملفات تعريف الارتباط والتخزين المحلي</h2>
       <ul>
-        <li>ملف تعريف جلسة وظيفي واحد (معرّف عشوائي، صلاحيته 30 يوماً) — لا ملفات تتبّع.</li>
+        <li>ملف تعريف جلسة وظيفي واحد (هوية عشوائية موقّعة تنتهي بانتهاء جلسة المتصفح) — لا ملفات تتبّع.</li>
         <li>ملف تعريف ثانٍ موقّع لتسجيل الدخول، فقط إذا أنشأت حساباً.</li>
         <li>تفضيلاتك (اللغة، السمة، الاسم المستعار) تبقى في متصفحك أنت، ولا تُرسل إلينا.</li>
       </ul>
@@ -151,7 +151,7 @@
       <ul>
         <li><strong>Google:</strong> تسجيل الدخول الاختياري عبر OAuth وتقديم خطوط الويب؛ قد تتلقى Google بيانات الهوية التي تختار مشاركتها وبيانات طلب الخطوط.</li>
         <li><strong>Supabase:</strong> استضافة ملفات الحسابات وإحصاءات التركيز وسجلات التشغيل المرتبطة بالحساب.</li>
-        <li><strong>Cloudflare:</strong> حماية وتسليم الحافة، وCloudflare RealtimeKit وTURN لتوجيه الوسائط المباشرة، وR2 للنسخ الاحتياطية المشفّرة.</li>
+        <li><strong>Cloudflare:</strong> حماية وتسليم الحافة، وCloudflare RealtimeKit لتوجيه الوسائط المباشرة، وR2 للنسخ الاحتياطية المشفّرة.</li>
         <li><strong>jsDelivr:</strong> تقديم ملفات JavaScript الخاصة بـCloudflare RealtimeKit إلى متصفحك؛ وقد يتلقى عنوان IP وبيانات الطلب التقنية.</li>
         <li><strong>AWS:</strong> استضافة خادم التطبيق وبيانات الغرف الحية.</li>
       </ul>
@@ -205,7 +205,7 @@
       <ul>
         <li><strong>Default path:</strong> your browser sends live audio and video tracks to <strong>Cloudflare RealtimeKit</strong>, which routes them to participants through a <strong>managed SFU</strong> on Cloudflare's network. Cloudflare may therefore process IP addresses, technical session metadata, and live media tracks while the session is active.</li>
         <li>The Halastudy application server does not receive or record the content of those audio or video tracks. We do not enable RealtimeKit recording or transcription and do not keep images or audio recordings from your sessions.</li>
-        <li><strong>Legacy fallback:</strong> mesh rooms may connect browsers peer-to-peer, with encrypted packets relayed through TURN when a direct connection is unavailable.</li>
+        <li><strong>Local development only:</strong> developers may explicitly enable mesh mode for local testing. It is disabled in production and does not process live user sessions.</li>
       </ul>
 
       <h2>Analytics and measurement</h2>
@@ -214,7 +214,7 @@
       <h2>How long data is kept</h2>
       <ul>
         <li>Unscheduled rooms are deleted automatically about 30 minutes after the last participant leaves, along with their chat and board.</li>
-        <li>Scheduled rooms are exempt from the 30-minute cleanup because they are reusable; their chat, board, and attendance history persist until an administrator removes the room or we act on a verified deletion request from its creator.</li>
+        <li>A one-time scheduled room is deleted about 30 minutes after its occurrence closes. A recurring room lasts 90 days by default and its creator may choose an end date up to 365 days; its owner or an administrator may delete it sooner.</li>
         <li>The Halastudy application uses IP addresses in memory for abuse protection and rate limiting; edge, media, and CDN providers may retain technical request logs under their security and legal retention periods.</li>
         <li>Encrypted backups are isolated from live production systems and automatically age out within no more than <strong>seven days</strong>.</li>
       </ul>
@@ -229,7 +229,7 @@
 
       <h2>Cookies and local storage</h2>
       <ul>
-        <li>One functional session cookie (a random identifier, 30-day lifetime) — no tracking cookies.</li>
+        <li>One functional session cookie (a signed random identity that ends with the browser session) — no tracking cookies.</li>
         <li>A second signed cookie for sign-in, only if you create an account.</li>
         <li>Your preferences (language, theme, nickname) stay in your own browser and are not sent to us.</li>
       </ul>
@@ -239,7 +239,7 @@
       <ul>
         <li><strong>Google:</strong> optional OAuth sign-in and web-font delivery; Google may receive the identity data you choose to share and font-request metadata.</li>
         <li><strong>Supabase:</strong> hosted account profiles, focus statistics, and account-linked operational records.</li>
-        <li><strong>Cloudflare:</strong> edge delivery and protection, Cloudflare RealtimeKit and TURN for live-media routing, and R2 for encrypted backups.</li>
+        <li><strong>Cloudflare:</strong> edge delivery and protection, Cloudflare RealtimeKit for live-media routing, and R2 for encrypted backups.</li>
         <li><strong>jsDelivr:</strong> delivery of Cloudflare RealtimeKit JavaScript to your browser; it may receive IP address and technical request metadata.</li>
         <li><strong>AWS:</strong> hosting for the application server and live room data.</li>
       </ul>
