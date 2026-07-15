@@ -307,6 +307,62 @@
         });
     }
 
+    function createJoinCancelledError() {
+        /** @type {Error & { code?: string }} */
+        const error = new Error('RealtimeKit join was cancelled.');
+        error.name = 'AbortError';
+        error.code = 'VIDEO_JOIN_CANCELLED';
+        return error;
+    }
+
+    function throwIfJoinCancelled(signal) {
+        if (signal?.aborted) throw createJoinCancelledError();
+    }
+
+    async function waitForOperationOrCancellation(operation, signal, onCancel) {
+        if (!signal) return operation;
+        let abortHandler = null;
+        let cleanupPromise = null;
+
+        const startCancellation = () => {
+            if (!cleanupPromise) {
+                cleanupPromise = Promise.resolve()
+                    .then(() => onCancel?.())
+                    .catch(() => {});
+            }
+            return cleanupPromise;
+        };
+
+        if (signal.aborted) {
+            await startCancellation();
+            throw createJoinCancelledError();
+        }
+
+        const cancelled = new Promise((_, reject) => {
+            abortHandler = () => {
+                void startCancellation().then(() => reject(createJoinCancelledError()));
+            };
+            signal.addEventListener('abort', abortHandler, { once: true });
+        });
+
+        try {
+            const result = await Promise.race([Promise.resolve(operation), cancelled]);
+            if (signal.aborted) {
+                await startCancellation();
+                throw createJoinCancelledError();
+            }
+            return result;
+        } finally {
+            if (abortHandler) signal.removeEventListener('abort', abortHandler);
+        }
+    }
+
+    function cleanupMeetingMount(meetingElement) {
+        const fullscreenCleanup = clearMeetingFullscreen(meetingElement);
+        unmountMeetingElement(meetingElement);
+        return withTeardownDeadline(fullscreenCleanup).catch(() => {});
+    }
+
     function createIdempotentLeave(meeting, meetingElement = null) {
         let leavePromise = null;
         return function leaveMeeting() {
@@ -327,8 +383,9 @@
     }
 
     async function join(options = {}) {
-        const { authToken, meetingElement, policy = {} } = options;
+        const { authToken, meetingElement, policy = {}, signal = null } = options;
         if (!meetingElement) throw new Error('RealtimeKit meeting element missing.');
+        throwIfJoinCancelled(signal);
         rememberMeetingMount(meetingElement);
         ensureMeetingElementMounted(meetingElement);
 
@@ -336,30 +393,48 @@
         let leaveMeeting = null;
         try {
             if (!authToken) throw new Error('RealtimeKit auth token missing.');
-            const RealtimeKitClient = await loadSdk();
-            meeting = await RealtimeKitClient.init({
+            const RealtimeKitClient = await waitForOperationOrCancellation(
+                loadSdk(),
+                signal,
+                () => cleanupMeetingMount(meetingElement)
+            );
+            const initialization = Promise.resolve(RealtimeKitClient.init({
                 authToken,
                 defaults: {
                     audio: !!policy.micDefaultEnabled,
                     video: true
                 }
-            });
+            }));
+            let initializationAccepted = false;
+            void initialization.then((lateMeeting) => {
+                if (initializationAccepted || !signal?.aborted) return;
+                void createIdempotentLeave(lateMeeting, meetingElement)().catch(() => {});
+            }, () => {});
+            meeting = await waitForOperationOrCancellation(
+                initialization,
+                signal,
+                () => cleanupMeetingMount(meetingElement)
+            );
+            initializationAccepted = true;
             leaveMeeting = createIdempotentLeave(meeting, meetingElement);
 
             meetingElement.meeting = meeting;
             if (typeof meeting.join === 'function') {
-                await meeting.join();
+                await waitForOperationOrCancellation(meeting.join(), signal, leaveMeeting);
             }
+            throwIfJoinCancelled(signal);
             if (!policy.micDefaultEnabled && meeting.self && typeof meeting.self.disableAudio === 'function') {
                 try {
-                    await meeting.self.disableAudio();
-                } catch (_error) {}
+                    await waitForOperationOrCancellation(meeting.self.disableAudio(), signal, leaveMeeting);
+                } catch (error) {
+                    if ((/** @type {any} */ (error))?.code === 'VIDEO_JOIN_CANCELLED') throw error;
+                }
             }
         } catch (error) {
             if (leaveMeeting) {
                 await leaveMeeting().catch(() => {});
             } else {
-                unmountMeetingElement(meetingElement);
+                await cleanupMeetingMount(meetingElement);
             }
             throw error;
         }
@@ -377,23 +452,36 @@
     // produced when the caller explicitly calls meeting.self.enableVideo()
     // (and only a publisher-preset token permits that).
     async function joinHeadless(options = {}) {
-        const { authToken } = options;
+        const { authToken, signal = null } = options;
         if (!authToken) throw new Error('RealtimeKit auth token missing.');
+        throwIfJoinCancelled(signal);
 
-        const RealtimeKitClient = await loadSdk();
-        const meeting = await RealtimeKitClient.init({
+        const RealtimeKitClient = await waitForOperationOrCancellation(loadSdk(), signal);
+        const initialization = Promise.resolve(RealtimeKitClient.init({
             authToken,
             defaults: { audio: false, video: false }
-        });
+        }));
+        let initializationAccepted = false;
+        void initialization.then((lateMeeting) => {
+            if (initializationAccepted || !signal?.aborted) return;
+            void createIdempotentLeave(lateMeeting)().catch(() => {});
+        }, () => {});
+        const meeting = await waitForOperationOrCancellation(initialization, signal);
+        initializationAccepted = true;
         const leaveMeeting = createIdempotentLeave(meeting);
 
         try {
             if (typeof meeting.join === 'function') {
-                await meeting.join();
+                await waitForOperationOrCancellation(meeting.join(), signal, leaveMeeting);
             }
+            throwIfJoinCancelled(signal);
             // Belt-and-braces: never emit audio from the Lobby.
             if (meeting.self && typeof meeting.self.disableAudio === 'function') {
-                try { await meeting.self.disableAudio(); } catch (_error) {}
+                try {
+                    await waitForOperationOrCancellation(meeting.self.disableAudio(), signal, leaveMeeting);
+                } catch (error) {
+                    if ((/** @type {any} */ (error))?.code === 'VIDEO_JOIN_CANCELLED') throw error;
+                }
             }
         } catch (error) {
             await leaveMeeting().catch(() => {});

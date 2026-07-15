@@ -56,6 +56,39 @@
         );
     }
 
+    function createLifecycleCancellationController() {
+        const NativeAbortController = (/** @type {any} */ (global)).AbortController;
+        if (typeof NativeAbortController === 'function') return new NativeAbortController();
+
+        let aborted = false;
+        const listeners = new Set();
+        const signal = {
+            get aborted() {
+                return aborted;
+            },
+            addEventListener(type, listener) {
+                if (type !== 'abort' || typeof listener !== 'function') return;
+                listeners.add(listener);
+            },
+            removeEventListener(type, listener) {
+                if (type === 'abort') listeners.delete(listener);
+            }
+        };
+        return {
+            signal,
+            abort() {
+                if (aborted) return;
+                aborted = true;
+                for (const listener of listeners) {
+                    try {
+                        listener.call(signal, { type: 'abort', target: signal });
+                    } catch (_error) {}
+                }
+                listeners.clear();
+            }
+        };
+    }
+
     function normalizeOpaqueValue(value, maxLength) {
         if (typeof value !== 'string') return '';
         const normalized = value.trim();
@@ -196,6 +229,7 @@
         let operationQueue = Promise.resolve();
         const trackedGenerations = new Set();
         const teardownOptionsByGeneration = new Map();
+        const cancellationByGeneration = new Map();
         const state = {
             joined: null,
             heartbeatTimer: null,
@@ -223,6 +257,7 @@
             if (!Number.isInteger(generation)) return;
             trackedGenerations.delete(generation);
             teardownOptionsByGeneration.delete(generation);
+            cancellationByGeneration.delete(generation);
         }
 
         function requestTeardownForTrackedGenerations(throughGeneration, options) {
@@ -232,6 +267,15 @@
                     generation,
                     mergeTeardownOptions(teardownOptionsByGeneration.get(generation), options)
                 );
+            }
+        }
+
+        function cancelTrackedGenerations(throughGeneration) {
+            for (const generation of trackedGenerations) {
+                if (generation > throughGeneration) continue;
+                try {
+                    cancellationByGeneration.get(generation)?.abort();
+                } catch (_error) {}
             }
         }
 
@@ -320,6 +364,7 @@
             const supersededThroughGeneration = lifecycleGeneration;
             lifecycleGeneration += 1;
             requestTeardownForTrackedGenerations(supersededThroughGeneration, teardownOptions);
+            cancelTrackedGenerations(supersededThroughGeneration);
             if (state.session || state.joined) {
                 const immediateDisposal = disposeActiveSession(teardownOptions);
                 return enqueue(() => immediateDisposal);
@@ -328,8 +373,12 @@
         }
 
         function joinRealtimeKitRoom(options = {}) {
+            const supersededThroughGeneration = lifecycleGeneration;
             const joinGeneration = ++lifecycleGeneration;
+            cancelTrackedGenerations(supersededThroughGeneration);
+            const cancellationController = createLifecycleCancellationController();
             trackedGenerations.add(joinGeneration);
+            cancellationByGeneration.set(joinGeneration, cancellationController);
             return enqueue(async () => {
                 if (joinGeneration !== lifecycleGeneration) {
                     releaseGeneration(joinGeneration);
@@ -395,7 +444,8 @@
                     joined = await joinMethod.call(realtimeKitClient, {
                         authToken: tokenPayload.authToken,
                         meetingElement: options.meetingElement,
-                        policy: tokenPayload.policy || {}
+                        policy: tokenPayload.policy || {},
+                        signal: cancellationController.signal
                     });
                     if (joinGeneration !== lifecycleGeneration) throw supersededJoinError();
 
@@ -407,12 +457,17 @@
                         meeting: joined?.meeting || null
                     };
                 } catch (error) {
+                    const wasSuperseded = joinGeneration !== lifecycleGeneration;
                     if (state.session?.generation === joinGeneration) {
                         stopHeartbeat();
                         state.session = null;
                         state.joined = null;
                     }
                     await disposeSession(session, joined);
+                    if (wasSuperseded
+                        && (/** @type {any} */ (error))?.code !== 'VIDEO_JOIN_SUPERSEDED') {
+                        throw supersededJoinError();
+                    }
                     throw error;
                 }
             });

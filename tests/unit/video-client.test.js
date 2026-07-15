@@ -21,6 +21,20 @@ function deferred() {
     return { promise, resolve, reject };
 }
 
+async function settleWithin(promise, timeoutMs, message) {
+    let timeout = null;
+    try {
+        return await Promise.race([
+            promise,
+            new Promise((_, reject) => {
+                timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+            })
+        ]);
+    } finally {
+        if (timeout !== null) clearTimeout(timeout);
+    }
+}
+
 function jsonResponse(payload, status = 200) {
     return {
         ok: status >= 200 && status < 300,
@@ -294,6 +308,71 @@ test('rapid join, leave, and rejoin disposes the stale join and leaves the lates
     assert.deepEqual(requestBody(roomTwoHeartbeat), { videoSessionId: 'video-session-ROOM2' });
     assert.equal(membershipHeader(roomTwoLeave), 'membership-room-2');
     assert.deepEqual(requestBody(roomTwoLeave), { videoSessionId: 'video-session-ROOM2' });
+});
+
+test('leave aborts a pending provider join so a later join is not trapped behind the operation queue', async () => {
+    const firstJoinStarted = deferred();
+    let firstJoinAborted = false;
+    const harness = createHarness({
+        fetchImpl(request) {
+            const pathname = requestPath(request);
+            if (pathname.endsWith('/video-token')) {
+                const roomId = pathname.split('/')[3];
+                return jsonResponse({
+                    ok: true,
+                    authToken: `token-${roomId}`,
+                    videoSessionId: `video-session-${roomId}`,
+                    policy: {}
+                });
+            }
+            return jsonResponse({ ok: true });
+        },
+        join: async ({ authToken, signal }) => {
+            if (authToken !== 'token-STUCK') {
+                return { leave: async () => {} };
+            }
+            firstJoinStarted.resolve();
+            return new Promise((_, reject) => {
+                const missingCancellationGuard = setTimeout(() => {
+                    reject(new Error('provider join did not receive a usable cancellation signal'));
+                }, 25);
+                signal?.addEventListener('abort', () => {
+                    clearTimeout(missingCancellationGuard);
+                    firstJoinAborted = true;
+                    const error = /** @type {Error & { code?: string }} */ (new Error('join cancelled'));
+                    error.code = 'VIDEO_JOIN_CANCELLED';
+                    reject(error);
+                }, { once: true });
+            });
+        }
+    });
+
+    const firstJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'STUCK',
+        displayName: 'First',
+        membershipToken: 'membership-stuck',
+        meetingElement: {}
+    });
+    await firstJoinStarted.promise;
+
+    const leave = harness.client.leave();
+    const secondJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'NEXT',
+        displayName: 'Second',
+        membershipToken: 'membership-next',
+        meetingElement: {}
+    });
+
+    await assert.rejects(
+        firstJoin,
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_SUPERSEDED'
+    );
+    await leave;
+    const next = await settleWithin(secondJoin, 500, 'later join remained queued');
+
+    assert.equal(firstJoinAborted, true);
+    assert.equal(next.authToken, 'token-NEXT');
+    await harness.client.leave();
 });
 
 test('pagehide leave keeps its keepalive option while an in-flight provider join is superseded', async () => {

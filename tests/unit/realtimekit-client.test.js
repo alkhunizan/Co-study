@@ -9,6 +9,32 @@ const REALTIMEKIT_CLIENT_SOURCE = fs.readFileSync(
     'utf8'
 );
 
+function deferred() {
+    /** @type {(value?: any) => void} */
+    let resolve = () => {};
+    /** @type {(reason?: any) => void} */
+    let reject = () => {};
+    const promise = new Promise((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+    });
+    return { promise, resolve, reject };
+}
+
+async function settleWithin(promise, timeoutMs, message) {
+    let timeout = null;
+    try {
+        return await Promise.race([
+            promise,
+            new Promise((_, reject) => {
+                timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+            })
+        ]);
+    } finally {
+        if (timeout !== null) clearTimeout(timeout);
+    }
+}
+
 /**
  * @param {{ init: (options: any) => Promise<any> }} RealtimeKitClient
  * @param {(document: any) => void} [configureDocument]
@@ -172,6 +198,81 @@ test('leave is idempotent, removes the custom element, and permits reusing the s
     assert.equal(leaves, 2);
     assert.equal(element.removeCount, 2);
     assert.equal(parent.children.includes(element), false);
+});
+
+test('cancelling a never-settling join releases local media and UI before a later join proceeds', async () => {
+    const firstJoinStarted = deferred();
+    const neverSettles = new Promise(() => {});
+    const stoppedTracks = [];
+    let initCalls = 0;
+    let fullscreenExits = 0;
+    /** @type {any} */
+    let testDocument;
+    const client = loadClient({
+        async init() {
+            initCalls += 1;
+            if (initCalls === 1) {
+                return {
+                    self: {
+                        audioTrack: { kind: 'audio', stop() { stoppedTracks.push('audio'); } },
+                        videoTrack: { kind: 'video', stop() { stoppedTracks.push('video'); } },
+                        screenShareTrack: { kind: 'video', stop() { stoppedTracks.push('screen'); } },
+                        async disableAudio() {},
+                        async disableVideo() {},
+                        async disableScreenShare() {}
+                    },
+                    join() {
+                        firstJoinStarted.resolve();
+                        return neverSettles;
+                    },
+                    async leaveRoom() {}
+                };
+            }
+            return {
+                self: {
+                    async disableAudio() {},
+                    async disableVideo() {},
+                    async disableScreenShare() {}
+                },
+                async join() {},
+                async leaveRoom() {}
+            };
+        }
+    }, (document) => {
+        testDocument = document;
+        document.exitFullscreen = async () => {
+            fullscreenExits += 1;
+            document.fullscreenElement = null;
+        };
+    });
+    const { element, parent } = createMeetingElement();
+    const controller = new AbortController();
+    const firstJoin = client.join({
+        authToken: 'first-token',
+        meetingElement: element,
+        signal: controller.signal
+    });
+    await firstJoinStarted.promise;
+    // Model the provider UI entering fullscreen while meeting.join() is still pending.
+    // Cancellation must remove that interception without waiting for join().
+    testDocument.fullscreenElement = element;
+
+    controller.abort();
+
+    await assert.rejects(
+        settleWithin(firstJoin, 500, 'cancelled join did not settle'),
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_CANCELLED'
+    );
+    assert.deepEqual(new Set(stoppedTracks), new Set(['audio', 'video', 'screen']));
+    assert.equal(element.meeting, null);
+    assert.equal(parent.children.length, 0);
+    assert.equal(testDocument.fullscreenElement, null);
+
+    const second = await client.join({ authToken: 'second-token', meetingElement: element });
+    assert.equal(parent.children.includes(element), true);
+    await second.leave();
+    assert.equal(initCalls, 2);
+    assert.equal(fullscreenExits, 1);
 });
 
 test('headless join failure disconnects the initialized meeting', async () => {
