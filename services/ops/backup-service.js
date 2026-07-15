@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const SUPABASE_DATASETS = {
     profiles: 'id.asc',
+    deletion_tombstones: 'user_id.asc',
     focus_completion_claims: 'user_id.asc,completion_id.asc',
     focus_sessions: 'created_at.asc,id.asc',
     room_events: 'created_at.asc,id.asc'
@@ -69,6 +70,9 @@ async function collectBackupDatasets({ readRooms, supabaseSource } = /** @type {
     }
     if (Object.keys(datasets).length === 0) {
         throw new Error('No readable backup sources; no artifact was created.');
+    }
+    if (supabaseSource && !Object.hasOwn(datasets, 'deletion_tombstones')) {
+        throw new Error('Deletion tombstones are required for a restorable database backup.');
     }
     failedSources.sort();
     return { datasets, failedSources };

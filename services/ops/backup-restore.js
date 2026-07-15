@@ -14,8 +14,9 @@ const ROOM_USER_REFERENCE_FIELDS = [
     'created_by_user_id',
     'createdByUserId'
 ];
+const LEGACY_BACKUP_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
-function currentTombstoneUserId(row, now) {
+function tombstoneIdentity(row) {
     if (!row || typeof row !== 'object') throw new Error('Deletion tombstone row is invalid.');
     const value = row.user_id ?? row.userId;
     const rawExpiresAt = row.expires_at ?? row.expiresAt;
@@ -23,7 +24,12 @@ function currentTombstoneUserId(row, now) {
     if (typeof value !== 'string' || !value.trim() || !Number.isFinite(expiresAt)) {
         throw new Error('Deletion tombstone row is invalid.');
     }
-    return expiresAt > now ? value : '';
+    return { userId: value.trim(), expiresAt };
+}
+
+function currentTombstoneUserId(row, now) {
+    const tombstone = tombstoneIdentity(row);
+    return tombstone.expiresAt > now ? tombstone.userId : '';
 }
 
 function rowReferencesDeletedUser(row, deletedIds, fields) {
@@ -38,15 +44,51 @@ function buildRestorePlan({ bundle, deletionTombstones = [], now = Date.now() } 
     }
     if (!Array.isArray(deletionTombstones)) throw new Error('Deletion tombstones must be an array.');
     if (!Number.isFinite(now)) throw new Error('Restore timestamp is invalid.');
-    const deletedIds = new Set(deletionTombstones
-        .map((row) => currentTombstoneUserId(row, now))
-        .filter(Boolean));
+    const artifactTombstones = Object.hasOwn(bundle.datasets, 'deletion_tombstones')
+        ? bundle.datasets.deletion_tombstones
+        : [];
+    if (!Array.isArray(artifactTombstones)) throw new Error('Artifact deletion tombstones must be an array.');
+    const schemaVersion = bundle.manifest?.schemaVersion;
+    if (schemaVersion >= 2
+        && DATABASE_DATASETS.some((name) => Object.hasOwn(bundle.datasets, name))
+        && !Object.hasOwn(bundle.datasets, 'deletion_tombstones')) {
+        throw new Error('Backup source deletion_tombstones is required beside database datasets.');
+    }
+    if (schemaVersion === 1 && requiresDeletionTombstoneFilter(bundle)) {
+        const createdAt = Date.parse(bundle.manifest?.createdAt);
+        const artifactAge = now - createdAt;
+        if (!Number.isFinite(createdAt)
+            || artifactAge < 0
+            || artifactAge >= LEGACY_BACKUP_MAX_AGE_MS) {
+            throw new Error('Legacy backup schema is too old to restore without embedded deletion tombstones.');
+        }
+    }
+
+    const protectedTombstones = new Map();
+    const activeTombstones = new Map();
+    for (const row of artifactTombstones) {
+        const tombstone = tombstoneIdentity(row);
+        protectedTombstones.set(tombstone.userId, row);
+        if (tombstone.expiresAt > now) activeTombstones.set(tombstone.userId, row);
+    }
+    const currentIds = new Set();
+    for (const row of deletionTombstones) {
+        const userId = currentTombstoneUserId(row, now);
+        if (!userId) continue;
+        currentIds.add(userId);
+        // Current database state is authoritative when both sources carry the same user.
+        protectedTombstones.set(userId, row);
+        activeTombstones.set(userId, row);
+    }
+    const deletedIds = new Set(protectedTombstones.keys());
     const datasets = {};
     const filtered = {};
 
     for (const [name, rows] of Object.entries(bundle.datasets)) {
         let restored = rows;
-        if (name === 'profiles') {
+        if (name === 'deletion_tombstones') {
+            restored = [...activeTombstones.values()];
+        } else if (name === 'profiles') {
             restored = rows.filter((row) => !rowReferencesDeletedUser(row, deletedIds, ['id']));
         } else if (name === 'focus_sessions' || name === 'focus_completion_claims') {
             restored = rows.filter((row) => !rowReferencesDeletedUser(row, deletedIds, ['user_id', 'userId']));
@@ -64,12 +106,20 @@ function buildRestorePlan({ bundle, deletionTombstones = [], now = Date.now() } 
             ));
         }
         datasets[name] = restored;
-        filtered[name] = rows.length - restored.length;
+        filtered[name] = name === 'deletion_tombstones'
+            ? Math.max(0, rows.length - [...new Set(rows.map((row) => tombstoneIdentity(row).userId))]
+                .filter((userId) => activeTombstones.has(userId)).length)
+            : rows.length - restored.length;
     }
     return {
         manifest: bundle.manifest,
         datasets,
-        filtered
+        filtered,
+        tombstoneProtection: {
+            artifactCount: new Set(artifactTombstones.map((row) => tombstoneIdentity(row).userId)).size,
+            currentCount: currentIds.size,
+            protectedUserCount: protectedTombstones.size
+        }
     };
 }
 
@@ -96,6 +146,7 @@ async function applyRestorePlan({
     if (!target || typeof target !== 'object') throw new Error('Restore target is required.');
 
     const operations = [
+        ['deletion_tombstones', 'restoreDeletionTombstones'],
         ['profiles', 'restoreProfiles'],
         ['focus_completion_claims', 'restoreFocusCompletionClaims'],
         ['focus_sessions', 'restoreFocusSessions'],
@@ -137,7 +188,7 @@ function createSupabaseRestoreTarget({
         for (let offset = 0; ; offset += pageSize) {
             const page = await client.select(
                 'deletion_tombstones',
-                `select=user_id,deleted_at,expires_at&expires_at=gt.${encodeURIComponent(currentIso)}`
+                `select=user_id,deleted_at,expires_at,reason&expires_at=gt.${encodeURIComponent(currentIso)}`
                     + `&order=user_id.asc&limit=${pageSize}&offset=${offset}`
             );
             if (!Array.isArray(page)) throw new Error('Supabase deletion tombstones response must be an array.');
@@ -157,6 +208,7 @@ function createSupabaseRestoreTarget({
 
     return {
         readDeletionTombstones,
+        restoreDeletionTombstones: (rows) => upsertBatches('deletion_tombstones', rows, 'user_id'),
         restoreProfiles: (rows) => upsertBatches('profiles', rows),
         restoreFocusCompletionClaims: (rows) =>
             upsertBatches('focus_completion_claims', rows, 'user_id,completion_id'),

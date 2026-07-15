@@ -65,5 +65,5 @@ if [[ "${check_r2}" == "true" ]]; then
 fi
 /usr/bin/node scripts/backup-state.js
 if [[ "${with_r2}" == "true" ]]; then
-    exec /usr/bin/node scripts/backup-r2.js
+    exec /usr/bin/node scripts/backup-r2.js --apply-retention
 fi

@@ -2,14 +2,22 @@ const crypto = require('node:crypto');
 
 const BACKUP_FORMAT = 'halastudy-encrypted-backup';
 const BACKUP_ARTIFACT_VERSION = 1;
-const BACKUP_SCHEMA_VERSION = 1;
+const BACKUP_SCHEMA_VERSION = 2;
+const SUPPORTED_BACKUP_SCHEMA_VERSIONS = new Set([1, BACKUP_SCHEMA_VERSION]);
 const BACKUP_ALGORITHM = 'AES-256-GCM';
 const BACKUP_DATASETS = [
     'profiles',
+    'deletion_tombstones',
     'focus_completion_claims',
     'focus_sessions',
     'room_events',
     'rooms'
+];
+const DATABASE_BACKUP_DATASETS = [
+    'profiles',
+    'focus_completion_claims',
+    'focus_sessions',
+    'room_events'
 ];
 const AUTH_TAG_BYTES = 16;
 const IV_BYTES = 12;
@@ -52,6 +60,26 @@ function assertDataset(name, rows) {
     if (!Array.isArray(rows) || rows.some((row) => !isPlainObject(row))) {
         throw new Error(`Backup source ${name} must be an array of plain objects.`);
     }
+    if (name === 'deletion_tombstones') {
+        for (const row of rows) {
+            const userId = row.user_id;
+            const deletedAt = typeof row.deleted_at === 'string' ? Date.parse(row.deleted_at) : Number.NaN;
+            const expiresAt = typeof row.expires_at === 'string' ? Date.parse(row.expires_at) : Number.NaN;
+            const reason = row.reason;
+            if (typeof userId !== 'string'
+                || !userId.trim()
+                || userId.length > 128
+                || !Number.isFinite(deletedAt)
+                || !Number.isFinite(expiresAt)
+                || expiresAt <= deletedAt
+                || typeof reason !== 'string'
+                || reason !== reason.trim()
+                || reason.length < 1
+                || reason.length > 40) {
+                throw new Error('Backup source deletion_tombstones contains an invalid row.');
+            }
+        }
+    }
 }
 
 function datasetChecksum(rows) {
@@ -74,6 +102,10 @@ function createBackupBundle({ datasets, failedSources = [], createdAt = new Date
         };
     }
     if (Object.keys(sources).length === 0) throw new Error('A backup requires at least one readable source.');
+    if (DATABASE_BACKUP_DATASETS.some((name) => Object.hasOwn(sources, name))
+        && !Object.hasOwn(sources, 'deletion_tombstones')) {
+        throw new Error('Backup source deletion_tombstones is required beside database datasets.');
+    }
 
     const normalizedFailures = [...new Set(failedSources)]
         .filter((name) => BACKUP_DATASETS.includes(name) && !Object.hasOwn(sources, name))
@@ -103,7 +135,7 @@ function validateBackupBundle(bundle) {
     if (!isPlainObject(bundle) || !isPlainObject(bundle.manifest) || !isPlainObject(bundle.datasets)) {
         throw new Error('Backup payload has an invalid structure.');
     }
-    if (bundle.manifest.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+    if (!SUPPORTED_BACKUP_SCHEMA_VERSIONS.has(bundle.manifest.schemaVersion)) {
         throw new Error(`Unsupported backup schema version: ${bundle.manifest.schemaVersion}.`);
     }
     if (!Number.isFinite(Date.parse(bundle.manifest.createdAt))) {
@@ -123,6 +155,11 @@ function validateBackupBundle(bundle) {
         || sourceNames.length !== datasetNames.length
         || sourceNames.some((name) => !Object.hasOwn(bundle.datasets, name))) {
         throw new Error('Backup manifest and datasets do not describe the same sources.');
+    }
+    if (bundle.manifest.schemaVersion >= 2
+        && DATABASE_BACKUP_DATASETS.some((name) => sourceNames.includes(name))
+        && !sourceNames.includes('deletion_tombstones')) {
+        throw new Error('Backup source deletion_tombstones is required beside database datasets.');
     }
 
     for (const name of sourceNames) {

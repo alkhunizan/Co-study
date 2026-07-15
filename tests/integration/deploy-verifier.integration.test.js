@@ -148,6 +148,8 @@ function createBackupFixture(timestamp = '2026-07-15T033000Z', artifactOverride 
     const artifact = artifactOverride || createEncryptedBackupArtifact({
         datasets: {
             profiles: [],
+            deletion_tombstones: [],
+            focus_completion_claims: [],
             focus_sessions: [],
             room_events: [],
             rooms: [{ id: 'BACKUP-FIXTURE' }]
@@ -371,7 +373,13 @@ test('deployment verification rejects an authenticated but partial production ba
     const realtimeKit = await startRealtimeKitFixture();
     const partialArtifact = createEncryptedBackupArtifact({
         datasets: { rooms: [] },
-        failedSources: ['profiles', 'focus_sessions', 'room_events'],
+        failedSources: [
+            'profiles',
+            'deletion_tombstones',
+            'focus_completion_claims',
+            'focus_sessions',
+            'room_events'
+        ],
         encryptionKey: BACKUP_KEY,
         createdAt: new Date(FIXED_NOW - 30 * 60 * 1000),
         randomBytes: () => Buffer.alloc(12, 7)

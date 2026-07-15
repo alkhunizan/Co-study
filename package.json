@@ -10,7 +10,7 @@
         "https": "node server-https.js",
         "backup:rooms": "node scripts/backup-rooms.js",
         "backup:state": "node scripts/backup-state.js",
-        "backup:r2": "node scripts/backup-r2.js",
+        "backup:r2": "node scripts/backup-r2.js --apply-retention",
         "restore:rooms": "node scripts/restore-rooms.js",
         "restore:state": "node scripts/restore-state.js",
         "verify:deploy": "node scripts/verify-deploy.js",

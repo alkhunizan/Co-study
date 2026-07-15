@@ -18,7 +18,14 @@ const DEFAULT_MAX_BACKUP_AGE_HOURS = 36;
 const MAX_HTTP_RESPONSE_BYTES = 1024 * 1024;
 const MAX_BACKUP_ARTIFACT_BYTES = 128 * 1024 * 1024;
 const BACKUP_ARTIFACT_PATTERN = /^halastudy-(\d{4}-\d{2}-\d{2})T(\d{2})(\d{2})(\d{2})Z-[A-Za-z0-9-]+\.hsbackup$/;
-const REQUIRED_BACKUP_SOURCES = ['profiles', 'focus_sessions', 'room_events', 'rooms'];
+const REQUIRED_BACKUP_SOURCES = [
+    'profiles',
+    'deletion_tombstones',
+    'focus_completion_claims',
+    'focus_sessions',
+    'room_events',
+    'rooms'
+];
 
 function isLoopbackHost(hostname) {
     return ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(String(hostname).toLowerCase());
