@@ -365,6 +365,7 @@ test('hidden status broadcasts only visibility and update time', async (t) => {
     const result = await emitAck(owner, 'user-status', {
         status: {
             visible: false,
+            updatedAt: 1,
             text: 'private text',
             goal: 'private goal',
             manual: 'studying',
@@ -379,11 +380,14 @@ test('hidden status broadcasts only visibility and update time', async (t) => {
     const update = await updatePromise;
     assert.deepEqual(Object.keys(update.status).sort(), ['updatedAt', 'visible']);
     assert.equal(update.status.visible, false);
+    assert.equal(update.status.updatedAt % 60_000, 0);
+    assert.notEqual(update.status.updatedAt, 1);
 
     const lateSnapshot = await emitAck(latePeer, 'join-room', { roomId, username: 'Late peer' });
     const hiddenOwner = lateSnapshot.room.participants.find((participant) => participant.name === 'Owner');
     assert.deepEqual(Object.keys(hiddenOwner.status).sort(), ['updatedAt', 'visible']);
     assert.equal(hiddenOwner.status.visible, false);
+    assert.equal(hiddenOwner.status.updatedAt, update.status.updatedAt);
 });
 
 test('video endpoints require the server-issued room membership and video session ids', async (t) => {

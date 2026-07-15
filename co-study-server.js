@@ -624,10 +624,19 @@ function isSameIdentity(record = {}, identityId) {
 /** @param {Record<string, any>} input */
 function sanitizeStatus(input = {}) {
     if (!input || typeof input !== 'object') {
-        return { text: '', goal: '', visible: false, updatedAt: Date.now() };
+        return {
+            text: '',
+            goal: '',
+            visible: false,
+            updatedAt: Math.floor(Date.now() / 60_000) * 60_000
+        };
     }
     const visible = input.visible !== false;
-    const updatedAt = typeof input.updatedAt === 'number' ? input.updatedAt : Date.now();
+    // Status timestamps are server-authored. Hidden users expose only a
+    // minute bucket so a caller cannot smuggle activity precision or arbitrary
+    // metadata through the otherwise-redacted snapshot.
+    const now = Date.now();
+    const updatedAt = visible ? now : Math.floor(now / 60_000) * 60_000;
     if (!visible) {
         return { visible: false, updatedAt };
     }
