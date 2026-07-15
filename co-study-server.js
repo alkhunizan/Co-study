@@ -1045,6 +1045,7 @@ function createCoStudyServer(options = {}) {
         const token = createSessionToken({
             userId: user.id,
             tokenEpoch: user.tokenEpoch,
+            sessionId: req.sessionId,
             secret: config.sessionSecret
         });
         const cookieParts = [
@@ -1093,9 +1094,10 @@ function createCoStudyServer(options = {}) {
 
     /** Resolves a verified, live (not banned, epoch-current) user from an
      *  auth token string, or null. Shared by HTTP middleware and sockets. */
-    function resolveUserFromToken(token) {
+    function resolveUserFromToken(token, sessionId) {
         const verified = verifySessionToken(token, {
             secret: config.sessionSecret,
+            sessionId,
             maxAgeMs: AUTH_COOKIE_MAX_AGE_MS
         });
         if (!verified || verified.userId === ADMIN_USER_ID) return null;
@@ -1106,7 +1108,7 @@ function createCoStudyServer(options = {}) {
 
     function attachUser(req, _res, next) {
         const cookies = parseCookies(req.headers.cookie || '');
-        const user = resolveUserFromToken(cookies[AUTH_COOKIE_NAME]);
+        const user = resolveUserFromToken(cookies[AUTH_COOKIE_NAME], req.sessionId);
         if (user) {
             req.user = user;
             req.userId = user.id;
@@ -3392,7 +3394,10 @@ function createCoStudyServer(options = {}) {
 
         // The Lobby is public: anyone may watch (viewer preset), but going on
         // camera (publisher preset) requires a signed-in, ban-able account.
-        const authedUser = resolveUserFromToken(parseCookies(req.headers.cookie || '')[AUTH_COOKIE_NAME]);
+        const authedUser = resolveUserFromToken(
+            parseCookies(req.headers.cookie || '')[AUTH_COOKIE_NAME],
+            req.sessionId
+        );
         if (isLobbyRoom(room) && role === 'publisher' && !authedUser) {
             sendVideoError(res, 403, 'AUTH_REQUIRED');
             return;
@@ -3704,12 +3709,11 @@ function createCoStudyServer(options = {}) {
         // Same-origin pages send cookies on the Socket.IO handshake, so a
         // signed-in browser gets its account attached to the socket.
         const handshakeCookies = parseCookies(socket.handshake?.headers?.cookie || '');
-        // Account-authorized sockets must be bound to a server-signed browser
-        // session. An auth cookie copied without that companion cookie remains
-        // usable for HTTP reauthentication but cannot create an unrevokable
-        // long-lived socket.
+        // Account authorization is valid only alongside the same server-signed
+        // browser session that received the auth cookie. A copied auth cookie
+        // is therefore unusable over both HTTP and long-lived sockets.
         const authedUser = signedSessionId
-            ? resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME])
+            ? resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME], signedSessionId)
             : null;
 
         socket.data.sessionId = sessionId;
