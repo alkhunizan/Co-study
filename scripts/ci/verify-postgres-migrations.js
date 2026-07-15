@@ -113,6 +113,38 @@ begin
     if not has_table_privilege('service_role', 'public.profiles', 'select,insert,update,delete') then
         raise exception 'service_role profile access is missing';
     end if;
+    insert into public.room_events (
+        event_id, room_code, event_type, room_schema_version,
+        occurrence_id, lifecycle_epoch, occurred_at
+    ) values (
+        '00000000-0000-4000-8000-000000000010',
+        'ABC123',
+        'join',
+        2,
+        '2026-07-15T07:00:00.000Z',
+        4,
+        '2026-07-15T06:55:00.000Z'
+    ) on conflict (event_id) do update
+    set event_type = excluded.event_type;
+    insert into public.room_events (
+        event_id, room_code, event_type, room_schema_version,
+        occurrence_id, lifecycle_epoch, occurred_at
+    ) values (
+        '00000000-0000-4000-8000-000000000010',
+        'ABC123',
+        'join',
+        2,
+        '2026-07-15T07:00:00.000Z',
+        4,
+        '2026-07-15T06:55:00.000Z'
+    ) on conflict (event_id) do update
+    set event_type = excluded.event_type;
+    select count(*) into protected_table_count
+    from public.room_events
+    where event_id = '00000000-0000-4000-8000-000000000010';
+    if protected_table_count <> 1 then
+        raise exception 'room event idempotency contract failed';
+    end if;
     if to_regprocedure(
         'public.record_focus_completion_v2(uuid,jsonb,integer,integer,date,text,integer,date)'
     ) is null or to_regprocedure(

@@ -341,20 +341,47 @@ function createSupabaseUserStore(options = {}) {
         }]);
     }
 
-    /** Fire-and-forget analytics event: room create/join/leave/close. user_id
-     *  may reference a profile, so drain the write queue first (same FK reason). */
-    async function logRoomEvent({ roomCode, userId = null, nickname = null, eventType }) {
-        try {
-            if (userId) await flush();
-            await client.insert('room_events', [{
+    /** Idempotent room-lifecycle sink. The room service owns a durable local
+     *  outbox, so provider failures must reject and leave that entry queued for
+     *  replay. Resolve profile FKs at execution time: an account deletion that
+     *  was ordered before this write removes the FK without poisoning the
+     *  outbox, while the event's non-identifying lifecycle metadata survives. */
+    function logRoomEvent({
+        eventId,
+        roomCode,
+        userId = null,
+        nickname = null,
+        eventType,
+        roomSchemaVersion,
+        ownerUserId = null,
+        roomExpiresAt = null,
+        occurrenceId = null,
+        lifecycleEpoch,
+        occurredAt
+    }) {
+        return enqueue(async () => {
+            const liveUserId = userId && knownIds.has(userId) && !isCurrentTombstone(userId)
+                ? userId
+                : null;
+            const liveOwnerUserId = ownerUserId
+                && knownIds.has(ownerUserId)
+                && !isCurrentTombstone(ownerUserId)
+                ? ownerUserId
+                : null;
+            await client.upsert('room_events', [{
+                event_id: eventId,
                 room_code: roomCode,
-                user_id: userId,
+                user_id: liveUserId,
                 nickname,
-                event_type: eventType
-            }]);
-        } catch (error) {
-            warn('room_event_log_failed', error);
-        }
+                event_type: eventType,
+                room_schema_version: roomSchemaVersion,
+                owner_user_id: liveOwnerUserId,
+                room_expires_at: roomExpiresAt,
+                occurrence_id: occurrenceId,
+                lifecycle_epoch: lifecycleEpoch,
+                occurred_at: occurredAt
+            }], { onConflict: 'event_id' });
+        }, 'room_event_log_failed');
     }
 
     return {
@@ -370,6 +397,7 @@ function createSupabaseUserStore(options = {}) {
         persistFocusCompletion,
         logFocusSession,
         logRoomEvent,
+        roomEventDurability: 'immediate',
         // Dashboard reads (service_role bypasses RLS on the views).
         readAdminOverview: () => client.select('admin_overview', 'select=*'),
         readUserStats: (query = 'select=*&order=total_focus_minutes.desc') => client.select('user_stats', query),

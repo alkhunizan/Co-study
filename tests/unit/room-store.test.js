@@ -48,3 +48,36 @@ test('legacy board overflow is detected and trimmed in memory without startup wr
     assert.equal(store.needsMigration(), true);
     assert.ok(Buffer.byteLength(JSON.stringify(room.board), 'utf8') <= 64 * 1024);
 });
+
+test('room snapshots preserve a bounded private lifecycle-event outbox', async (t) => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-room-outbox-'));
+    const filePath = path.join(directory, 'rooms.json');
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const store = makeStore(filePath);
+    const room = {
+        id: 'LOBBY',
+        name: 'Lobby',
+        roomEventOutbox: [{
+            eventId: '11111111-1111-4111-8111-111111111111',
+            roomCode: 'ABC123',
+            userId: null,
+            nickname: 'Student',
+            eventType: 'join',
+            roomSchemaVersion: 2,
+            ownerUserId: null,
+            roomExpiresAt: '2026-10-13T08:00:00.000Z',
+            occurrenceId: '2026-07-15T07:00:00.000Z',
+            lifecycleEpoch: 4,
+            occurredAt: '2026-07-15T06:55:00.000Z'
+        }, {
+            eventId: 'not-a-uuid',
+            roomCode: 'LEAK',
+            eventType: 'join'
+        }]
+    };
+
+    await store.flush(new Map([['LOBBY', room]]));
+    const [reloaded] = makeStore(filePath).loadRooms({ strict: true });
+
+    assert.deepEqual(reloaded.roomEventOutbox, [room.roomEventOutbox[0]]);
+});

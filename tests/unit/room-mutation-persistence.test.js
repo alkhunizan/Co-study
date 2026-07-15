@@ -37,7 +37,8 @@ function snapshotRooms(rooms) {
         name: room.name,
         ownerUserId: room.ownerUserId || null,
         schedule: structuredClone(room.schedule),
-        createdAt: room.createdAt
+        createdAt: room.createdAt,
+        roomEventOutbox: structuredClone(room.roomEventOutbox || [])
     }));
 }
 
@@ -62,11 +63,18 @@ function createMemoryRoomStore() {
 
 function createMemoryUserStore() {
     const persisted = new Map();
+    const deliveredRoomEvents = new Map();
+    const roomEventAttempts = [];
     let failNextRequested = false;
+    let roomEventFailure = false;
     return {
         filePath: 'memory-users.json',
         persisted,
+        deliveredRoomEvents,
+        roomEventAttempts,
         failNext() { failNextRequested = true; },
+        failRoomEvents() { roomEventFailure = true; },
+        allowRoomEvents() { roomEventFailure = false; },
         hydrate() { return Promise.resolve([]); },
         scheduleSave() { return Promise.resolve(); },
         async saveUser(user) {
@@ -81,6 +89,11 @@ function createMemoryUserStore() {
             for (const [userId, user] of users.entries()) {
                 persisted.set(userId, structuredClone(user));
             }
+        },
+        async logRoomEvent(event) {
+            roomEventAttempts.push(structuredClone(event));
+            if (roomEventFailure) throw new Error('injected room event sink failure');
+            deliveredRoomEvents.set(event.eventId, structuredClone(event));
         }
     };
 }
@@ -242,4 +255,103 @@ test('failed authenticated switch preserves source membership, target schedule, 
     });
     assert.equal(membershipProbe.status, 403);
     assert.equal((await membershipProbe.json()).errorCode, 'VIDEO_SESSION_FORBIDDEN');
+});
+
+test('room lifecycle events are durable before ack, private, and replay idempotently', async (t) => {
+    const server = await startMutationTestServer();
+    server.userStore.failRoomEvents();
+    const account = await signup(server.baseUrl, 'EventOwner');
+    const socket = await connectSocket(server.baseUrl, {
+        clientId: 'event-owner',
+        extraHeaders: { Cookie: account.cookie }
+    });
+    t.after(() => stopMutationTestServer(server, [socket]));
+
+    const source = await emitAck(socket, 'create-room', { roomName: 'Event Source' });
+    const target = await emitAck(socket, 'create-room', {
+        roomName: 'Event Target',
+        schedule: buildOpenSchedule()
+    });
+    assert.equal(source.ok, true);
+    assert.equal(target.ok, true);
+    assert.equal(source.room.roomEventOutbox, undefined);
+    assert.equal(target.room.roomEventOutbox, undefined);
+
+    const sourceJoin = await emitAck(socket, 'join-room', {
+        roomId: source.room.roomId,
+        username: 'EventOwner'
+    });
+    const targetJoin = await emitAck(socket, 'join-room', {
+        roomId: target.room.roomId,
+        username: 'EventOwner'
+    });
+    assert.equal(sourceJoin.ok, true);
+    assert.equal(targetJoin.ok, true);
+    assert.equal(targetJoin.room.roomEventOutbox, undefined);
+
+    const deleted = await fetch(`${server.baseUrl}/api/rooms/${target.room.roomId}`, {
+        method: 'DELETE',
+        headers: { Cookie: account.cookie }
+    });
+    assert.equal(deleted.status, 200);
+
+    const lobby = server.appServer.rooms.get('LOBBY');
+    assert.deepEqual(lobby.roomEventOutbox.map((event) => event.eventType), [
+        'create',
+        'create',
+        'join',
+        'leave',
+        'join',
+        'close'
+    ]);
+    assert.equal(new Set(lobby.roomEventOutbox.map((event) => event.eventId)).size, 6);
+    assert.equal(lobby.roomEventOutbox.every((event) => event.roomSchemaVersion === 2), true);
+    assert.equal(lobby.roomEventOutbox.at(-1).lifecycleEpoch, 1);
+    assert.match(
+        lobby.roomEventOutbox.find((event) => event.roomCode === target.room.roomId && event.eventType === 'join').occurrenceId,
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+    );
+
+    await assert.rejects(server.appServer.drainRoomEvents(), /injected room event sink failure/);
+    assert.equal(lobby.roomEventOutbox.length, 6);
+
+    server.userStore.allowRoomEvents();
+    server.roomStore.failNext();
+    await assert.rejects(server.appServer.drainRoomEvents(), /injected room write failure/);
+    assert.equal(lobby.roomEventOutbox.length, 6);
+    const replayedEventId = lobby.roomEventOutbox[0].eventId;
+
+    const drained = await server.appServer.drainRoomEvents();
+    assert.deepEqual(drained, { delivered: 6, pending: 0 });
+    assert.equal(lobby.roomEventOutbox.length, 0);
+    assert.equal(server.userStore.deliveredRoomEvents.size, 6);
+    assert.equal(
+        server.userStore.roomEventAttempts.filter((event) => event.eventId === replayedEventId).length,
+        3
+    );
+});
+
+test('a final disconnect durably queues one leave event after the reconnect grace window', async (t) => {
+    const server = await startMutationTestServer();
+    server.userStore.failRoomEvents();
+    const account = await signup(server.baseUrl, 'LeavingOwner');
+    const socket = await connectSocket(server.baseUrl, {
+        clientId: 'leaving-owner',
+        extraHeaders: { Cookie: account.cookie }
+    });
+    t.after(() => stopMutationTestServer(server));
+
+    const created = await emitAck(socket, 'create-room', { roomName: 'Leave Event Room' });
+    assert.equal(created.ok, true);
+    assert.equal((await emitAck(socket, 'join-room', {
+        roomId: created.room.roomId,
+        username: 'LeavingOwner'
+    })).ok, true);
+    await closeSocket(socket);
+    await new Promise((resolve) => setTimeout(resolve, 3200));
+
+    const events = server.appServer.rooms.get('LOBBY').roomEventOutbox;
+    assert.deepEqual(events.map((event) => event.eventType), ['create', 'join', 'leave']);
+    assert.equal(events[2].userId, account.user.id);
+    assert.equal(events[2].nickname, 'LeavingOwner');
 });
