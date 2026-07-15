@@ -140,3 +140,130 @@ test('joining a second room removes the socket from the first room', async (t) =
     assert.ok(!names.includes('Mover'),
         `Mover must be removed from room A after switching to B; saw ${JSON.stringify(names)}`);
 });
+
+test('malformed socket payloads return REQUEST_INVALID without terminating the server', async (t) => {
+    const server = await startServer();
+    t.after(() => server.stop());
+
+    const socket = await connectSocket(server.baseUrl);
+    t.after(() => closeSocket(socket));
+
+    for (const eventName of [
+        'create-room',
+        'join-room',
+        'send-message',
+        'board-set-goal',
+        'board-add-task',
+        'board-toggle-task',
+        'board-delete-task',
+        'board-reorder-tasks',
+        'user-status',
+        'report-user'
+    ]) {
+        const result = await emitAck(socket, eventName, null, 1000);
+        assert.deepEqual(result, { ok: false, errorCode: 'REQUEST_INVALID' }, eventName);
+    }
+
+    const requestError = new Promise((resolve) => socket.once('request-error', resolve));
+    socket.emit('rtc-offer', null);
+    assert.deepEqual(await requestError, { ok: false, errorCode: 'REQUEST_INVALID' });
+
+    const health = await server.request('/api/health');
+    assert.equal(health.status, 200);
+});
+
+test('caller-selected clientId cannot take over another anonymous room identity', async (t) => {
+    const server = await startServer();
+    t.after(() => server.stop());
+
+    const owner = await connectSocket(server.baseUrl, { clientId: 'shared-attacker-value' });
+    const attacker = await connectSocket(server.baseUrl, { clientId: 'shared-attacker-value' });
+    t.after(async () => {
+        await closeSocket(owner);
+        await closeSocket(attacker);
+    });
+
+    const created = await emitAck(owner, 'create-room', { roomName: 'Identity room' });
+    const roomId = created.room.code;
+    assert.equal((await emitAck(owner, 'join-room', { roomId, username: 'Owner' })).ok, true);
+
+    const takeover = await emitAck(attacker, 'join-room', { roomId, username: 'Owner' });
+    assert.equal(takeover.ok, false);
+    assert.equal(takeover.errorCode, 'USERNAME_TAKEN');
+});
+
+test('a failed room switch preserves membership in the source room', async (t) => {
+    const server = await startServer();
+    t.after(() => server.stop());
+
+    const mover = await connectSocket(server.baseUrl);
+    const occupant = await connectSocket(server.baseUrl);
+    const checker = await connectSocket(server.baseUrl);
+    t.after(async () => {
+        await closeSocket(mover);
+        await closeSocket(occupant);
+        await closeSocket(checker);
+    });
+
+    const roomA = (await emitAck(mover, 'create-room', { roomName: 'Source' })).room.code;
+    const roomB = (await emitAck(occupant, 'create-room', { roomName: 'Target' })).room.code;
+    assert.equal((await emitAck(mover, 'join-room', { roomId: roomA, username: 'Mover' })).ok, true);
+    assert.equal((await emitAck(occupant, 'join-room', { roomId: roomB, username: 'Taken' })).ok, true);
+
+    const failedSwitch = await emitAck(mover, 'join-room', { roomId: roomB, username: 'Taken' });
+    assert.equal(failedSwitch.ok, false);
+    assert.equal(failedSwitch.errorCode, 'USERNAME_TAKEN');
+
+    const checkerJoin = await emitAck(checker, 'join-room', { roomId: roomA, username: 'Checker' });
+    assert.ok(checkerJoin.room.participants.some((participant) => participant.name === 'Mover'));
+});
+
+test('successful joins return an opaque membership token', async (t) => {
+    const server = await startServer();
+    t.after(() => server.stop());
+
+    const socket = await connectSocket(server.baseUrl);
+    t.after(() => closeSocket(socket));
+
+    const roomId = (await emitAck(socket, 'create-room', { roomName: 'Membership' })).room.code;
+    const joined = await emitAck(socket, 'join-room', { roomId, username: 'Member' });
+
+    assert.equal(joined.ok, true);
+    assert.match(joined.membershipToken, /^[A-Za-z0-9_-]{32,}$/);
+    assert.equal(JSON.stringify(joined.room).includes(joined.membershipToken), false);
+});
+
+test('hidden status broadcasts only visibility and update time', async (t) => {
+    const server = await startServer();
+    t.after(() => server.stop());
+
+    const owner = await connectSocket(server.baseUrl);
+    const peer = await connectSocket(server.baseUrl);
+    t.after(async () => {
+        await closeSocket(owner);
+        await closeSocket(peer);
+    });
+
+    const roomId = (await emitAck(owner, 'create-room', { roomName: 'Private status' })).room.code;
+    await emitAck(owner, 'join-room', { roomId, username: 'Owner' });
+    await emitAck(peer, 'join-room', { roomId, username: 'Peer' });
+
+    const updatePromise = new Promise((resolve) => peer.once('status-update', resolve));
+    const result = await emitAck(owner, 'user-status', {
+        status: {
+            visible: false,
+            text: 'private text',
+            goal: 'private goal',
+            manual: 'studying',
+            manualPreset: 'deep-work',
+            autoSync: true,
+            ambientType: 'rain',
+            timerMode: 'focus'
+        }
+    });
+    assert.equal(result.ok, true);
+
+    const update = await updatePromise;
+    assert.deepEqual(Object.keys(update.status).sort(), ['updatedAt', 'visible']);
+    assert.equal(update.status.visible, false);
+});

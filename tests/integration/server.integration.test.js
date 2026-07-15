@@ -992,12 +992,27 @@ test('mesh rooms enforce participant caps while allowing same-identity reconnect
     const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
     await cleanupServer(t, server);
 
-    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-owner' });
+    const sessionBootstrap = await server.request('/');
+    const sessionSetCookie = Array.isArray(sessionBootstrap.headers['set-cookie'])
+        ? sessionBootstrap.headers['set-cookie']
+        : [sessionBootstrap.headers['set-cookie']].filter(Boolean);
+    const sessionCookie = sessionSetCookie
+        .map((value) => String(value).split(';')[0])
+        .find((value) => value.startsWith('coStudySessionId='));
+    assert.ok(sessionCookie);
+
+    const ownerSocket = await connectSocket(server.baseUrl, {
+        clientId: 'mesh-owner',
+        extraHeaders: { Cookie: sessionCookie }
+    });
     const peerOneSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-peer-1' });
     const peerTwoSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-peer-2' });
     const peerThreeSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-peer-3' });
     const blockedSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-peer-4' });
-    const reconnectSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-owner' });
+    const reconnectSocket = await connectSocket(server.baseUrl, {
+        clientId: 'attacker-controlled-and-ignored',
+        extraHeaders: { Cookie: sessionCookie }
+    });
 
     t.after(async () => {
         await closeSocket(ownerSocket);
@@ -1569,7 +1584,7 @@ test('per-user session goal rides on user-status: sanitized, broadcast, and hidd
     })).ok, true);
     assert.equal((await pending).status.goal, 'reversed goal');
 
-    // Hidden status blanks the goal server-side (privacy contract).
+    // Hidden status omits all private activity fields server-side.
     assert.equal((await emitAck(aliceSocket, 'user-status', {
         status: { text: 'secret', visible: false, goal: 'secret goal' }
     })).ok, true);
@@ -1581,9 +1596,8 @@ test('per-user session goal rides on user-status: sanitized, broadcast, and hidd
     const daveJoin = await emitAck(daveSocket, 'join-room', { roomId, username: 'Dave', clientId: 'goal-dave' });
     assert.equal(daveJoin.ok, true);
     const hiddenAlice = daveJoin.room.participants.find((p) => p.name === 'Alice');
-    assert.equal(hiddenAlice.status.goal, '');
-    assert.equal(hiddenAlice.status.text, '');
     assert.equal(hiddenAlice.status.visible, false);
+    assert.deepEqual(Object.keys(hiddenAlice.status).sort(), ['updatedAt', 'visible']);
 });
 
 test('report-user validates targets, rate limits, persists sanitized, and never leaks to clients', async (t) => {

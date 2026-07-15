@@ -573,9 +573,9 @@ function generateRoomCode(rooms, length = ROOM_CODE_LENGTH) {
     return crypto.randomUUID().replace(/[^A-Z0-9]/gi, '').slice(0, length).toUpperCase();
 }
 
-function buildIdentityKey(roomId, sessionId, clientId) {
-    if (!roomId) return null;
-    return `${roomId}:${sessionId || ''}:${clientId || ''}`;
+function buildIdentityKey(roomId, identityId) {
+    if (!roomId || !identityId) return null;
+    return `${roomId}:${identityId}`;
 }
 
 function appendSetCookie(res, cookie) {
@@ -613,11 +613,14 @@ function normalizeClientId(raw = '') {
     return trimmed.slice(0, CLIENT_ID_MAX_LENGTH);
 }
 
-function isSameIdentity(record = {}, sessionId, clientId) {
-    if (!record) return false;
-    if (sessionId && record.sessionId && record.sessionId === sessionId) return true;
-    if (clientId && record.clientId && record.clientId === clientId) return true;
-    return false;
+function isPlainObject(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
+}
+
+function isSameIdentity(record = {}, identityId) {
+    return !!(record && identityId && record.identityId === identityId);
 }
 
 /** @param {Record<string, any>} input */
@@ -626,19 +629,23 @@ function sanitizeStatus(input = {}) {
         return { text: '', goal: '', visible: false, updatedAt: Date.now() };
     }
     const visible = input.visible !== false;
+    const updatedAt = typeof input.updatedAt === 'number' ? input.updatedAt : Date.now();
+    if (!visible) {
+        return { visible: false, updatedAt };
+    }
     const safeText = typeof input.text === 'string' ? input.text.slice(0, 80) : '';
     return {
-        text: visible ? safeText : '',
+        text: safeText,
         // Session goal rides on status: same 80-char cap as the board goal,
         // stripped at the trust boundary, hidden when status is hidden.
-        goal: visible ? sanitizeUserText(input.goal, 80) : '',
+        goal: sanitizeUserText(input.goal, 80),
         visible,
         manual: typeof input.manual === 'string' ? input.manual.slice(0, 40) : '',
         manualPreset: typeof input.manualPreset === 'string' ? input.manualPreset : null,
         autoSync: !!input.autoSync,
         ambientType: typeof input.ambientType === 'string' ? input.ambientType.slice(0, 20) : null,
         timerMode: input.timerMode === 'break' ? 'break' : (input.timerMode === 'focus' ? 'focus' : null),
-        updatedAt: typeof input.updatedAt === 'number' ? input.updatedAt : Date.now()
+        updatedAt
     };
 }
 
@@ -769,6 +776,7 @@ function createCoStudyServer(options = {}) {
     const skippedDisconnects = new Set();
     const rooms = new Map();
     const meetingCreationLocks = new Map();
+    const membershipTokens = new Map();
     const rateLimiters = {
         createRoom: new SlidingWindowRateLimiter(CREATE_ROOM_RATE),
         joinRoom: new SlidingWindowRateLimiter(JOIN_ATTEMPT_RATE),
@@ -825,6 +833,7 @@ function createCoStudyServer(options = {}) {
         })();
 
     const io = new Server(server, {
+        maxHttpBufferSize: 128 * 1024,
         cors: {
             origin(origin, callback) {
                 const normalizedOrigin = normalizeOrigin(origin);
@@ -1235,6 +1244,11 @@ function createCoStudyServer(options = {}) {
         // keeps it alive within a running process.
         if (isLobbyRoom(room)) return false;
         clearRoomCleanupTimer(room);
+        for (const [socketId, record] of room.users.entries()) {
+            invalidateMembershipToken(record.membershipToken);
+            const socketRef = io.sockets.sockets.get(socketId);
+            if (socketRef) invalidateSocketMembership(socketRef);
+        }
         rooms.delete(normalizedRoom);
         persistRoomsSoon();
         return true;
@@ -1295,6 +1309,30 @@ function createCoStudyServer(options = {}) {
         room.cleanupTimer = setTimeout(() => deleteRoom(roomId), ROOM_TTL_MS);
     }
 
+    function invalidateMembershipToken(token) {
+        if (!token) return;
+        membershipTokens.delete(token);
+    }
+
+    function invalidateSocketMembership(socketRef) {
+        if (!socketRef) return;
+        invalidateMembershipToken(socketRef.data.membershipToken);
+        socketRef.data.membershipToken = null;
+    }
+
+    function issueMembershipToken(socketRef, roomId) {
+        invalidateSocketMembership(socketRef);
+        const token = crypto.randomBytes(32).toString('base64url');
+        membershipTokens.set(token, {
+            socketId: socketRef.id,
+            roomId,
+            identityId: socketRef.data.identityId,
+            issuedAt: Date.now()
+        });
+        socketRef.data.membershipToken = token;
+        return token;
+    }
+
     function removeUserFromRoom(room, socketId, normalizedRoom, existingRecord = null) {
         if (!room || !socketId) return false;
         const record = existingRecord || room.users.get(socketId);
@@ -1302,13 +1340,16 @@ function createCoStudyServer(options = {}) {
 
         room.users.delete(socketId);
 
-        const identityKey = record.identityKey || buildIdentityKey(normalizedRoom, record.sessionId, record.clientId);
+        const identityKey = record.identityKey || buildIdentityKey(normalizedRoom, record.identityId);
         if (identityKey && room.identities && room.identities.get(identityKey) === socketId) {
             room.identities.delete(identityKey);
         }
 
+        invalidateMembershipToken(record.membershipToken);
+
         const socketRef = io.sockets.sockets.get(socketId);
         if (socketRef) {
+            invalidateSocketMembership(socketRef);
             socketRef.leave(normalizedRoom);
             socketRef.data.roomId = null;
         } else {
@@ -2094,18 +2135,20 @@ function createCoStudyServer(options = {}) {
     io.on('connection', (socket) => {
         const auth = socket.handshake?.auth;
         const handshakeClientId = normalizeClientId(auth?.clientId);
-        const sessionId = getSessionIdFromSocket(socket) || handshakeClientId || crypto.randomUUID();
+        const sessionId = getSessionIdFromSocket(socket) || crypto.randomUUID();
         const ip = getSocketRequestIp(socket.request, config.trustProxy);
-
-        socket.data.sessionId = sessionId;
-        socket.data.clientId = handshakeClientId || sessionId;
-        socket.data.ip = ip;
 
         // Same-origin pages send cookies on the Socket.IO handshake, so a
         // signed-in browser gets its account attached to the socket.
         const handshakeCookies = parseCookies(socket.handshake?.headers?.cookie || '');
         const authedUser = resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME]);
+
+        socket.data.sessionId = sessionId;
+        socket.data.clientId = handshakeClientId || sessionId;
+        socket.data.ip = ip;
         socket.data.userId = authedUser ? authedUser.id : null;
+        socket.data.identityId = authedUser ? `user:${authedUser.id}` : `anon:${sessionId}`;
+        socket.data.membershipToken = null;
 
         // Late joiners still see an active admin broadcast.
         const currentAnnouncement = getActiveAnnouncement();
@@ -2119,7 +2162,40 @@ function createCoStudyServer(options = {}) {
             return user && !user.banned ? user : null;
         }
 
-        socket.on('create-room', async (payload = {}, ack = () => {}) => {
+        function onRequest(eventName, handler) {
+            socket.on(eventName, (payload, ack) => {
+                const hasAck = typeof ack === 'function';
+                let acknowledged = false;
+                const safeAck = (response) => {
+                    if (!hasAck || acknowledged) return;
+                    acknowledged = true;
+                    ack(response);
+                };
+                const fail = (errorCode) => {
+                    const response = { ok: false, errorCode };
+                    if (hasAck) safeAck(response);
+                    else socket.emit('request-error', response);
+                };
+
+                if (!isPlainObject(payload)) {
+                    fail('REQUEST_INVALID');
+                    return;
+                }
+
+                Promise.resolve()
+                    .then(() => handler(payload, safeAck))
+                    .catch((error) => {
+                        logger.error({
+                            event: 'socket_request_failed',
+                            socketEvent: eventName,
+                            message: error?.message
+                        });
+                        if (!acknowledged) fail('INTERNAL_ERROR');
+                    });
+            });
+        }
+
+        onRequest('create-room', async (payload, ack) => {
             const { roomName, password, requirePassword } = payload;
             const cleanName = sanitizeRoomName(roomName);
             const mediaMode = normalizeMediaMode(payload.mediaMode);
@@ -2200,7 +2276,7 @@ function createCoStudyServer(options = {}) {
             });
         });
 
-        socket.on('join-room', async (payload = {}, ack = () => {}) => {
+        onRequest('join-room', async (payload, ack) => {
             const { roomId, username, clientId: payloadClientId, password } = payload;
             const cleanName = sanitizeNickname(username);
             const normalizedRoom = normalizeRoom(roomId);
@@ -2220,7 +2296,6 @@ function createCoStudyServer(options = {}) {
             if (!room) {
                 return ackError(ack, 'ROOM_NOT_FOUND');
             }
-            clearRoomCleanupTimer(room);
             if (roomUsesSfu(room) && !config.sfuAvailable) {
                 return ackError(ack, 'ROOM_MEDIA_UNAVAILABLE');
             }
@@ -2252,48 +2327,35 @@ function createCoStudyServer(options = {}) {
                 }
             }
 
-            // Switching rooms on a live socket: leave the previous room first so
-            // we don't leak a phantom participant (and mesh capacity) in it. A
-            // plain refresh/rejoin of the same room falls through untouched.
+            // Preflight the complete target-room transition before mutating the
+            // source room. This keeps a failed switch from ejecting the caller.
             const previousRoomId = socket.data.roomId;
-            if (previousRoomId && previousRoomId !== normalizedRoom) {
-                const previousRoom = rooms.get(previousRoomId);
-                if (previousRoom && removeUserFromRoom(previousRoom, socket.id, previousRoomId)) {
-                    io.to(previousRoomId).emit('presence', roomSnapshot(previousRoomId).participants);
-                }
-            }
-
-            let isRejoin = false;
-            const identityKey = buildIdentityKey(normalizedRoom, sessionId, clientId);
+            const identityId = socket.data.identityId;
+            const identityKey = buildIdentityKey(normalizedRoom, identityId);
+            const releasableUsers = new Map();
 
             if (identityKey) {
                 const previousSocketId = room.identities.get(identityKey);
-                if (previousSocketId && previousSocketId !== socket.id) {
-                    if (removeUserFromRoom(room, previousSocketId, normalizedRoom)) {
-                        isRejoin = true;
-                    }
+                const previousRecord = previousSocketId ? room.users.get(previousSocketId) : null;
+                if (previousSocketId && previousRecord) {
+                    releasableUsers.set(previousSocketId, previousRecord);
                 }
             }
 
             const userKey = `${normalizedRoom}:${cleanName}`;
             const pendingTimer = pendingLeaveTimers.get(userKey);
             if (pendingTimer) {
-                if (isSameIdentity(pendingTimer, sessionId, clientId)) {
-                    clearTimeout(pendingTimer.timeoutId);
-                    pendingLeaveTimers.delete(userKey);
-                    isRejoin = true;
-                } else {
+                if (!isSameIdentity(pendingTimer, identityId)) {
                     return ackError(ack, 'USERNAME_TAKEN');
                 }
             }
 
             const matchingUsers = Array.from(room.users.entries()).filter(([, user]) => user.name === cleanName);
-            const releasableUsers = [];
             let hasConflict = false;
 
             matchingUsers.forEach(([existingSocketId, user]) => {
-                if (isSameIdentity(user, sessionId, clientId)) {
-                    releasableUsers.push([existingSocketId, user]);
+                if (isSameIdentity(user, identityId)) {
+                    releasableUsers.set(existingSocketId, user);
                 } else {
                     hasConflict = true;
                 }
@@ -2303,24 +2365,40 @@ function createCoStudyServer(options = {}) {
                 return ackError(ack, 'USERNAME_TAKEN');
             }
 
-            releasableUsers.forEach(([oldSocketId, userRecord]) => {
-                if (removeUserFromRoom(room, oldSocketId, normalizedRoom, userRecord)) {
-                    isRejoin = true;
-                }
-            });
+            const isRejoin = releasableUsers.size > 0 || !!pendingTimer;
+            const projectedTargetSize = room.users.size - releasableUsers.size;
 
             if (getRoomVideoProvider(room) === VIDEO_PROVIDER_MESH
                 && roomUsesMesh(room)
                 && !isRejoin
-                && room.users.size >= config.meshParticipantLimit) {
+                && projectedTargetSize >= config.meshParticipantLimit) {
                 return ackError(ack, 'ROOM_FULL');
             }
 
             // The Lobby is a big SFU room, not mesh — cap present people (watchers
             // + publishers) at its own limit rather than the mesh 4-cap.
-            if (isLobbyRoom(room) && !isRejoin && room.users.size >= LOBBY_PARTICIPANT_LIMIT) {
+            if (isLobbyRoom(room) && !isRejoin && projectedTargetSize >= LOBBY_PARTICIPANT_LIMIT) {
                 return ackError(ack, 'ROOM_FULL');
             }
+
+            clearRoomCleanupTimer(room);
+
+            if (previousRoomId && previousRoomId !== normalizedRoom) {
+                const previousRoom = rooms.get(previousRoomId);
+                if (previousRoom && removeUserFromRoom(previousRoom, socket.id, previousRoomId)) {
+                    io.to(previousRoomId).emit('presence', roomSnapshot(previousRoomId).participants);
+                    scheduleRoomCleanup(previousRoomId);
+                }
+            }
+
+            if (pendingTimer) {
+                clearTimeout(pendingTimer.timeoutId);
+                pendingLeaveTimers.delete(userKey);
+            }
+
+            releasableUsers.forEach((userRecord, oldSocketId) => {
+                removeUserFromRoom(room, oldSocketId, normalizedRoom, userRecord);
+            });
 
             const scheduleChanged = recordScheduleJoin(room.schedule, Date.now());
             const joiningUser = getSocketUser();
@@ -2329,6 +2407,7 @@ function createCoStudyServer(options = {}) {
                 name: cleanName,
                 sessionId,
                 clientId,
+                identityId,
                 identityKey,
                 joinedAt: Date.now(),
                 cameraOn: false,
@@ -2353,8 +2432,11 @@ function createCoStudyServer(options = {}) {
             socket.data.roomId = normalizedRoom;
             socket.join(normalizedRoom);
 
+            const membershipToken = issueMembershipToken(socket, normalizedRoom);
+            userRecord.membershipToken = membershipToken;
+
             const snapshot = roomSnapshot(normalizedRoom);
-            ack({ ok: true, room: snapshot });
+            ack({ ok: true, room: snapshot, membershipToken });
             if (scheduleChanged) {
                 persistRoomsSoon();
             }
@@ -2370,7 +2452,7 @@ function createCoStudyServer(options = {}) {
             }
         });
 
-        socket.on('send-message', (payload = {}, ack = () => {}) => {
+        onRequest('send-message', (payload, ack) => {
             const { text } = payload;
             const currentRoom = socket.data.roomId;
             const cleanText = sanitizeChatMessage(text);
@@ -2404,7 +2486,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true });
         });
 
-        socket.on('board-set-goal', (payload = {}, ack = () => {}) => {
+        onRequest('board-set-goal', (payload, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2425,7 +2507,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        socket.on('board-add-task', (payload = {}, ack = () => {}) => {
+        onRequest('board-add-task', (payload, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2456,7 +2538,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        socket.on('board-toggle-task', (payload = {}, ack = () => {}) => {
+        onRequest('board-toggle-task', (payload, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2483,7 +2565,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        socket.on('board-delete-task', (payload = {}, ack = () => {}) => {
+        onRequest('board-delete-task', (payload, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2510,7 +2592,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        socket.on('board-reorder-tasks', (payload = {}, ack = () => {}) => {
+        onRequest('board-reorder-tasks', (payload, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2558,7 +2640,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        socket.on('camera-status', (payload = {}) => {
+        onRequest('camera-status', (payload) => {
             const { roomId } = socket.data;
             if (!roomId) return;
             const room = rooms.get(roomId);
@@ -2570,7 +2652,7 @@ function createCoStudyServer(options = {}) {
             io.to(roomId).emit('camera-status', { userId: socket.id, camera: user.cameraOn });
         });
 
-        socket.on('rtc-offer', (payload = {}) => {
+        onRequest('rtc-offer', (payload) => {
             const { roomId } = socket.data;
             const { targetId, sdp } = payload;
             if (!roomId || !targetId || !sdp) return;
@@ -2579,7 +2661,7 @@ function createCoStudyServer(options = {}) {
             io.to(targetId).emit('rtc-offer', { from: socket.id, sdp });
         });
 
-        socket.on('rtc-answer', (payload = {}) => {
+        onRequest('rtc-answer', (payload) => {
             const { roomId } = socket.data;
             const { targetId, sdp } = payload;
             if (!roomId || !targetId || !sdp) return;
@@ -2588,7 +2670,7 @@ function createCoStudyServer(options = {}) {
             io.to(targetId).emit('rtc-answer', { from: socket.id, sdp });
         });
 
-        socket.on('rtc-ice', (payload = {}) => {
+        onRequest('rtc-ice', (payload) => {
             const { roomId } = socket.data;
             const { targetId, candidate } = payload;
             if (!roomId || !targetId || !candidate) return;
@@ -2597,7 +2679,7 @@ function createCoStudyServer(options = {}) {
             io.to(targetId).emit('rtc-ice', { from: socket.id, candidate });
         });
 
-        socket.on('user-status', (payload = {}, ack = () => {}) => {
+        onRequest('user-status', (payload, ack) => {
             const { status } = payload || {};
             const { roomId } = socket.data;
             if (!roomId) return ack({ ok: false });
@@ -2613,7 +2695,7 @@ function createCoStudyServer(options = {}) {
 
         // Reports are silent: stored on the room for admin review, never
         // broadcast, never exposed through client-facing snapshots.
-        socket.on('report-user', (payload = {}, ack = () => {}) => {
+        onRequest('report-user', (payload, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2631,7 +2713,7 @@ function createCoStudyServer(options = {}) {
             if (!target) {
                 return ackError(ack, 'PARTICIPANT_NOT_FOUND');
             }
-            if (targetId === socket.id || isSameIdentity(target, socket.data.sessionId, socket.data.clientId)) {
+            if (targetId === socket.id || isSameIdentity(target, socket.data.identityId)) {
                 return ackError(ack, 'CANNOT_REPORT_SELF');
             }
             if (!checkSocketRateLimit(socket, rateLimiters.reports, getJoinSessionKey(socket), ack)) {
@@ -2668,6 +2750,7 @@ function createCoStudyServer(options = {}) {
         });
 
         socket.on('disconnect', () => {
+            invalidateSocketMembership(socket);
             if (skippedDisconnects.has(socket.id)) {
                 skippedDisconnects.delete(socket.id);
                 return;
@@ -2683,7 +2766,7 @@ function createCoStudyServer(options = {}) {
             room.users.delete(socket.id);
 
             if (user) {
-                const identityKey = user.identityKey || buildIdentityKey(roomId, user.sessionId, user.clientId || userClientId);
+                const identityKey = user.identityKey || buildIdentityKey(roomId, user.identityId);
                 if (identityKey && room.identities && room.identities.get(identityKey) === socket.id) {
                     room.identities.delete(identityKey);
                 }
@@ -2701,6 +2784,7 @@ function createCoStudyServer(options = {}) {
                 }
 
                 const timerRecord = {
+                    identityId: user.identityId || socket.data.identityId,
                     sessionId: user.sessionId || userSessionId,
                     clientId: user.clientId || userClientId || socket.data.clientId || null,
                     timeoutId: null
