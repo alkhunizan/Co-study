@@ -3136,7 +3136,11 @@
 
     function onFocusSessionComplete(minutes) {
         if (accountUser && window.HalaCore) {
-            window.HalaCore.postJson('/api/me/focus-session', { minutes })
+            // One immutable idempotency key belongs to this timer completion.
+            // If this request is retried, reuse this payload rather than minting
+            // another key; a later completed timer calls this function anew.
+            const completion = { minutes, completionId: crypto.randomUUID() };
+            window.HalaCore.postJson('/api/me/focus-session', completion)
                 .then((payload) => {
                     accountUser.streak = payload.streak;
                     updateStreakBadge();
