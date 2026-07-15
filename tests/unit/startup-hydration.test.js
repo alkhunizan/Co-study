@@ -140,3 +140,82 @@ test('startup dual-reads legacy rooms without assigning owners or flushing a mig
     assert.equal(appServer.rooms.get('LEGACY').ownerUserId, null);
     assert.deepEqual(compatibilitySignals, ['room_schema_v1_read']);
 });
+
+test('startup retries every persistence hydration stage as one clean unit', async (t) => {
+    const sleeps = [];
+    let roomLoads = 0;
+    let userHydrations = 0;
+    let videoHydrations = 0;
+    let webhookHydrations = 0;
+    const retryingRoomStore = {
+        ...roomStore(),
+        loadRooms() {
+            roomLoads += 1;
+            return [{
+                id: roomLoads === 1 ? 'STALE1' : 'FRESH1',
+                name: roomLoads === 1 ? 'Stale room' : 'Fresh room',
+                schemaVersion: 2
+            }];
+        }
+    };
+    const retryingUserStore = {
+        filePath: 'startup-test-users.json',
+        async hydrate() {
+            userHydrations += 1;
+            return [{
+                id: userHydrations === 1 ? 'stale-user' : 'fresh-user',
+                email: userHydrations === 1 ? 'stale@example.com' : 'fresh@example.com'
+            }];
+        },
+        scheduleSave() { return Promise.resolve(); },
+        flush() { return Promise.resolve(); }
+    };
+    const videoSessionStore = {
+        filePath: 'startup-test-video-sessions.json',
+        async initialize() {
+            videoHydrations += 1;
+            if (videoHydrations === 1) throw new Error('transient video hydration failure');
+            return { schemaVersion: 1, sessions: [] };
+        },
+        flush() { return Promise.resolve(); }
+    };
+    const realtimeKitWebhookDeduplicator = {
+        entries: new Map(),
+        async initialize() {
+            webhookHydrations += 1;
+            return 0;
+        },
+        runOnce() { throw new Error('not used'); },
+        flush() { return Promise.resolve(); }
+    };
+    const appServer = createCoStudyServer({
+        env: testEnv(),
+        mode: 'http',
+        createServer: (app) => http.createServer(app),
+        roomStore: retryingRoomStore,
+        userStore: retryingUserStore,
+        videoSessionStore,
+        realtimeKitWebhookDeduplicator,
+        registerSignalHandlers: false,
+        startupBackoffMs: [1, 2, 4],
+        sleep(ms) {
+            sleeps.push(ms);
+            return Promise.resolve();
+        }
+    });
+    t.after(() => appServer.io.close());
+
+    await appServer.initialize();
+
+    assert.equal(roomLoads, 2);
+    assert.equal(userHydrations, 2);
+    assert.equal(videoHydrations, 2);
+    assert.equal(webhookHydrations, 2);
+    assert.deepEqual(sleeps, [1]);
+    assert.equal(appServer.rooms.has('STALE1'), false);
+    assert.equal(appServer.rooms.has('FRESH1'), true);
+    assert.equal(appServer.users.has('stale-user'), false);
+    assert.equal(appServer.users.has('fresh-user'), true);
+    assert.equal(appServer.getLoadedRoomCount(), 1);
+    assert.equal(appServer.getLoadedUserCount(), 1);
+});

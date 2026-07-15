@@ -670,6 +670,7 @@ function createVideoSessionRegistry(options = {}) {
         if (state?.schemaVersion !== PERSISTENCE_SCHEMA_VERSION || !Array.isArray(state.sessions)) {
             throw createRegistryError('VIDEO_SESSION_STATE_INVALID');
         }
+        const hydratedSessions = [];
         for (const record of state.sessions) {
             if (
                 !record
@@ -697,8 +698,15 @@ function createVideoSessionRegistry(options = {}) {
                 leaveReason: 'process_restart_membership_invalidated',
                 hydrated: true
             };
-            sessions.set(key, session);
-            if (!needsCleanup) retainEndedDiagnostic(session);
+            hydratedSessions.push(session);
+        }
+        sessions.clear();
+        endedSessionKeys.length = 0;
+        meetingGenerations.clear();
+        providerGeneration = 0;
+        for (const session of hydratedSessions) {
+            sessions.set(session.key, session);
+            if (!session.cleanupPending) retainEndedDiagnostic(session);
         }
         return state.sessions.length;
     }

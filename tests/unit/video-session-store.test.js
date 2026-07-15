@@ -28,6 +28,7 @@ test('video session store atomically persists acknowledged provider identities',
 
     const restarted = createVideoSessionStore({ filePath });
     assert.deepEqual(await restarted.initialize(), state);
+    assert.deepEqual(await restarted.initialize(), state);
 });
 
 test('a failed video session write does not poison a later immediate write', async (t) => {

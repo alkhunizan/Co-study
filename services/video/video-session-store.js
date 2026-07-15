@@ -31,7 +31,6 @@ function createVideoSessionStore(options = {}) {
     let initialized = false;
 
     async function initialize() {
-        if (initialized) throw new Error('Video session store is already initialized.');
         let raw = '';
         try {
             raw = await fsImpl.readFile(atomicStore.filePath, 'utf8');

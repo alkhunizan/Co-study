@@ -296,6 +296,36 @@ test('durable video sessions hydrate as revoked cleanup tombstones', () => {
     assert.equal(restarted.countActiveGlobalVideoParticipants(), 1);
 });
 
+test('video hydration atomically replaces prior state and preserves it on invalid input', () => {
+    const registry = createVideoSessionRegistry();
+    registry.registerVideoSession({
+        roomId: 'OLD001',
+        userId: 'old-user',
+        videoSessionId: 'old-session-id-0000000000000000',
+        providerMeetingId: 'old-meeting'
+    });
+    const replacement = {
+        schemaVersion: 1,
+        sessions: [{
+            roomId: 'NEW001',
+            userId: 'new-user',
+            videoSessionId: 'new-session-id-0000000000000000',
+            providerMeetingId: 'new-meeting',
+            providerParticipantId: 'new-participant'
+        }]
+    };
+
+    assert.equal(registry.hydratePersistentState(replacement), 1);
+    assert.equal(registry.findStoredSession({ videoSessionId: 'old-session-id-0000000000000000' }), null);
+    assert.ok(registry.findStoredSession({ videoSessionId: 'new-session-id-0000000000000000' }));
+
+    assert.throws(() => registry.hydratePersistentState({
+        schemaVersion: 1,
+        sessions: [replacement.sessions[0], { roomId: 'BROKEN' }]
+    }), (error) => /** @type {any} */ (error).code === 'VIDEO_SESSION_STATE_INVALID');
+    assert.ok(registry.findStoredSession({ videoSessionId: 'new-session-id-0000000000000000' }));
+});
+
 test('reconciliation rejects provider live-count mismatches without releasing capacity', () => {
     const registry = createVideoSessionRegistry();
     registry.registerVideoSession({

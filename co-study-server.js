@@ -889,10 +889,11 @@ function createCoStudyServer(options = {}) {
         sanitizeBoardTaskText,
         normalizeBoardPriority
     });
-    const realtimeKitWebhookDeduplicator = createWebhookDeduplicator({
-        filePath: config.realtimeKitWebhookStateFile,
-        logger
-    });
+    const realtimeKitWebhookDeduplicator = options.realtimeKitWebhookDeduplicator
+        || createWebhookDeduplicator({
+            filePath: config.realtimeKitWebhookStateFile,
+            logger
+        });
     const videoSessionStore = options.videoSessionStore || createVideoSessionStore({
         filePath: config.videoSessionStateFile,
         logger
@@ -991,29 +992,24 @@ function createCoStudyServer(options = {}) {
             : typeof userStore.hydrate === 'function'
                 ? () => userStore.hydrate()
                 : () => userStore.loadUsers({ strict: true });
-        let persistedUsers;
-        for (let attempt = 0; ; attempt += 1) {
-            try {
-                persistedUsers = await hydrator();
-                break;
-            } catch (error) {
-                if (attempt >= startupBackoffMs.length) throw error;
-                logger.warn({
-                    event: 'user_store_hydrate_retry',
-                    attempt: attempt + 1,
-                    retryAfterMs: startupBackoffMs[attempt],
-                    error: error?.message
-                });
-                await sleep(startupBackoffMs[attempt]);
-            }
-        }
+        const persistedUsers = await hydrator();
         if (!Array.isArray(persistedUsers)) throw new Error('User persistence initialization returned invalid data.');
+        const hydratedUsers = new Map();
+        const hydratedUsersByEmail = new Map();
         persistedUsers.forEach((user) => {
-            if (users.has(user.id) || usersByEmail.has(user.email)) {
+            if (hydratedUsers.has(user.id) || hydratedUsersByEmail.has(user.email)) {
                 throw new Error('User persistence initialization returned duplicate identities.');
             }
-            users.set(user.id, user);
-            usersByEmail.set(user.email, user.id);
+            hydratedUsers.set(user.id, user);
+            hydratedUsersByEmail.set(user.email, user.id);
+        });
+        users.clear();
+        usersByEmail.clear();
+        hydratedUsers.forEach((user, userId) => {
+            users.set(userId, user);
+        });
+        hydratedUsersByEmail.forEach((userId, email) => {
+            usersByEmail.set(email, userId);
         });
         readinessState.userStore = true;
         logger.info({
@@ -2697,24 +2693,66 @@ function createCoStudyServer(options = {}) {
     let roomCleanupRetryTimer = null;
     let runtimeWorkersStarted = false;
 
+    function resetHydratedRuntimeState() {
+        readinessState.roomStore = false;
+        readinessState.userStore = false;
+        readinessState.videoSessionStore = false;
+        for (const room of rooms.values()) clearRoomCleanupTimer(room);
+        rooms.clear();
+        users.clear();
+        usersByEmail.clear();
+        videoSessionRegistry.hydratePersistentState({ schemaVersion: 1, sessions: [] });
+        loadedRoomCount = 0;
+        loadedUserCount = 0;
+    }
+
+    async function hydratePersistenceState() {
+        const results = await Promise.allSettled([
+            Promise.resolve().then(() => realtimeKitWebhookDeduplicator.initialize()),
+            Promise.resolve().then(async () => {
+                const state = await videoSessionStore.initialize();
+                const count = videoSessionRegistry.hydratePersistentState(state);
+                readinessState.videoSessionStore = true;
+                return count;
+            }),
+            Promise.resolve().then(() => {
+                const count = loadPersistedRooms();
+                seedLobbyRoom();
+                return count;
+            }),
+            Promise.resolve().then(() => loadPersistedUsers())
+        ]);
+        const rejected = results.find((result) => result.status === 'rejected');
+        if (rejected) throw rejected.reason;
+        const roomResult = results[2];
+        const userResult = results[3];
+        if (roomResult.status !== 'fulfilled' || userResult.status !== 'fulfilled') {
+            throw new Error('Persistence hydration did not complete.');
+        }
+        loadedRoomCount = roomResult.value;
+        loadedUserCount = userResult.value;
+    }
+
     function initialize() {
         if (!initializationPromise) {
             initializationPromise = (async () => {
-                const webhookInitialization = realtimeKitWebhookDeduplicator.initialize();
-                const videoSessionHydration = videoSessionStore.initialize().then((state) => {
-                    const count = videoSessionRegistry.hydratePersistentState(state);
-                    readinessState.videoSessionStore = true;
-                    return count;
-                });
-                loadedRoomCount = loadPersistedRooms();
-                seedLobbyRoom();
-                const userHydration = loadPersistedUsers();
-                const [, hydratedUserCount] = await Promise.all([
-                    webhookInitialization,
-                    userHydration,
-                    videoSessionHydration
-                ]);
-                loadedUserCount = hydratedUserCount;
+                for (let attempt = 0; ; attempt += 1) {
+                    resetHydratedRuntimeState();
+                    try {
+                        await hydratePersistenceState();
+                        break;
+                    } catch (error) {
+                        resetHydratedRuntimeState();
+                        if (attempt >= startupBackoffMs.length) throw error;
+                        logger.warn({
+                            event: 'startup_hydration_retry',
+                            attempt: attempt + 1,
+                            retryAfterMs: startupBackoffMs[attempt],
+                            error: error?.message
+                        });
+                        await sleep(startupBackoffMs[attempt]);
+                    }
+                }
                 await reconcileRealtimeKitMeetings();
                 initialized = true;
                 return { loadedRoomCount, loadedUserCount };
