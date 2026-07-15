@@ -4,6 +4,7 @@ const net = require('node:net');
 const test = require('node:test');
 
 const { createCoStudyServer } = require('../../co-study-server');
+const { extractCookies } = require('../helpers/auth-helpers');
 const {
     closeSocket,
     connectSocket,
@@ -181,7 +182,7 @@ async function createJoinedRoom(server) {
     return { socket, roomId: created.room.roomId, membershipToken: joined.membershipToken };
 }
 
-async function requestVideoToken(server, joined) {
+async function requestVideoToken(server, joined, displayName = 'Persistence user') {
     return fetch(`${server.baseUrl}/api/rooms/${joined.roomId}/video-token`, {
         method: 'POST',
         headers: {
@@ -189,7 +190,7 @@ async function requestVideoToken(server, joined) {
             Cookie: cookieForMembershipToken(joined.membershipToken),
             'X-Halastudy-Membership': joined.membershipToken
         },
-        body: JSON.stringify({ displayName: 'Persistence user', role: 'student' })
+        body: JSON.stringify({ displayName, role: 'student' })
     });
 }
 
@@ -248,4 +249,81 @@ test('a switch is not acknowledged after its revocation tombstone write fails', 
     assert.equal(server.appServer.rooms.get(joined.roomId).users.size, 1);
     assert.equal(server.appServer.rooms.get(target.room.roomId).users.size, 0);
     assert.equal(server.videoProvider.calls.deleted.length, 1);
+});
+
+test('account deletion revokes live membership when video revocation persistence fails', async (t) => {
+    const server = await startPersistenceTestServer();
+    const guest = await createJoinedRoom(server);
+
+    const signupResponse = await fetch(`${server.baseUrl}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            email: 'video-delete@example.com',
+            password: 'delete-password-123',
+            displayName: 'Deleted video user'
+        })
+    });
+    assert.equal(signupResponse.status, 200);
+    const setCookie = typeof signupResponse.headers.getSetCookie === 'function'
+        ? signupResponse.headers.getSetCookie()
+        : signupResponse.headers.get('set-cookie');
+    const authCookie = extractCookies(setCookie);
+    const authenticatedSocket = await connectSocket(server.baseUrl, {
+        extraHeaders: { Cookie: authCookie }
+    });
+    t.after(async () => {
+        await closeSocket(authenticatedSocket);
+        await closePersistenceTestServer(server, guest.socket);
+    });
+
+    const joined = await emitAck(authenticatedSocket, 'join-room', {
+        roomId: guest.roomId,
+        username: 'Deleted video user'
+    });
+    assert.equal(joined.ok, true);
+    const tokenResponse = await requestVideoToken(server, {
+        roomId: guest.roomId,
+        membershipToken: joined.membershipToken
+    }, 'Deleted video user');
+    const tokenBody = await tokenResponse.json();
+    assert.equal(tokenResponse.status, 200, JSON.stringify(tokenBody));
+
+    const disconnected = new Promise((resolve) => authenticatedSocket.once('disconnect', resolve));
+    server.videoSessionStore.failNext();
+    const deleteResponse = await fetch(`${server.baseUrl}/api/me`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            Cookie: authCookie
+        },
+        body: JSON.stringify({ password: 'delete-password-123' })
+    });
+    assert.equal(deleteResponse.status, 200);
+    assert.equal((await deleteResponse.json()).cleanupPending, true);
+    await Promise.race([
+        disconnected,
+        new Promise((_, reject) => setTimeout(
+            () => reject(new Error('deleted account socket stayed connected')),
+            1000
+        ))
+    ]);
+
+    const staleMembership = await fetch(`${server.baseUrl}/api/rooms/${guest.roomId}/video-token`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Cookie: authCookie,
+            'X-Halastudy-Membership': joined.membershipToken
+        },
+        body: JSON.stringify({ displayName: 'Deleted video user', role: 'student' })
+    });
+    assert.equal(staleMembership.status, 403);
+    assert.equal((await staleMembership.json()).errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+
+    const meResponse = await fetch(`${server.baseUrl}/api/auth/me`, {
+        headers: { Cookie: authCookie }
+    });
+    assert.equal(meResponse.status, 200);
+    assert.equal((await meResponse.json()).user, null);
 });

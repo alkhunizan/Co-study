@@ -2160,8 +2160,21 @@ function createCoStudyServer(options = {}) {
             );
         }
         if (activeUserVideoSessions.length > 0) {
-            await persistVideoSessionsImmediate();
             cleanupPending = true;
+            try {
+                await persistVideoSessionsImmediate();
+            } catch (error) {
+                // The account deletion is already durable at this point. Never
+                // leave its live socket or membership credentials usable just
+                // because the provider-revocation tombstone could not be
+                // written. Deferred provider cleanup below will retry the
+                // transition and keep cleanupPending visible to the caller.
+                logger.error({
+                    event: 'deleted_user_video_revocation_persist_failed',
+                    userId,
+                    error: error?.message
+                });
+            }
         }
 
         for (const [token, membership] of membershipTokens.entries()) {
