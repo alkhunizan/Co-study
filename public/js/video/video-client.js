@@ -90,7 +90,9 @@
                 );
             }
             if (joined && typeof joined.leave === 'function') {
-                cleanup.push(joined.leave());
+                try {
+                    cleanup.push(joined.leave());
+                } catch (_error) {}
             }
             await Promise.allSettled(cleanup);
         }
