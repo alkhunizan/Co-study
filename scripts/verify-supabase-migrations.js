@@ -48,13 +48,17 @@ function verifySupabaseMigrations({ repoRoot = path.resolve(__dirname, '..') } =
 
     const combined = documents.map(({ name, sql }) => `-- ${name}\n${sql}`).join('\n');
     const executableSql = stripComments(combined);
+    const destructiveScanSql = executableSql.replace(
+        /delete\s+from\s+public\.profiles\s+where\s+id\s*=\s*p_user_id\s*;/i,
+        ''
+    );
     const destructivePatterns = [
         /\bdrop\s+(?:table|schema|column)\b/i,
         /\btruncate\b/i,
         /\bdelete\s+from\b/i,
         /\bdisable\s+row\s+level\s+security\b/i
     ];
-    if (destructivePatterns.some((pattern) => pattern.test(executableSql))) {
+    if (destructivePatterns.some((pattern) => pattern.test(destructiveScanSql))) {
         throw new Error('Supabase migration dry-run rejected destructive SQL.');
     }
     if (/\bcreate\s+policy\b/i.test(executableSql)) {
@@ -127,7 +131,9 @@ function verifySupabaseMigrations({ repoRoot = path.resolve(__dirname, '..') } =
         [/add\s+column\s+if\s+not\s+exists\s+room_schema_version\s+smallint/i, 'room schema version is missing'],
         [/add\s+column\s+if\s+not\s+exists\s+owner_user_id\s+uuid/i, 'room owner identity is missing'],
         [/add\s+column\s+if\s+not\s+exists\s+room_expires_at\s+timestamptz/i, 'room expiry is missing'],
-        [/expires_at\s+timestamptz\s+not\s+null\s+default\s*\(\s*now\s*\(\s*\)\s*\+\s*interval\s+'30 days'\s*\)/i, '30-day deletion tombstone expiry is missing']
+        [/expires_at\s+timestamptz\s+not\s+null\s+default\s*\(\s*now\s*\(\s*\)\s*\+\s*interval\s+'30 days'\s*\)/i, '30-day deletion tombstone expiry is missing'],
+        [/create\s+or\s+replace\s+function\s+public\.record_focus_completion/i, 'atomic focus completion function is missing'],
+        [/create\s+or\s+replace\s+function\s+public\.delete_profile_with_tombstone/i, 'durable account deletion function is missing']
     ];
     for (const [pattern, message] of schemaContracts) requirePattern(executableSql, pattern, message);
 

@@ -192,7 +192,14 @@ function createSupabaseUserStore(options = {}) {
 
     function deleteUser(user) {
         return enqueue(async () => {
-            await client.remove('profiles', 'id', [user.id]);
+            if (typeof client.rpc === 'function') {
+                await client.rpc('delete_profile_with_tombstone', {
+                    p_user_id: user.id,
+                    p_deleted_at: new Date().toISOString()
+                }, { idempotent: true });
+            } else {
+                await client.remove('profiles', 'id', [user.id]);
+            }
             knownIds.delete(user.id);
             knownFingerprints.delete(user.id);
         }, 'user_delete_failed');

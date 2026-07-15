@@ -206,6 +206,86 @@ create table if not exists public.deletion_tombstones (
 create index if not exists deletion_tombstones_expiry_idx
     on public.deletion_tombstones (expires_at);
 
+-- Immediate focus acknowledgement must update the aggregate and append its
+-- idempotency event in one transaction. Replaying the same RPC is safe: the
+-- profile projection is assigned the same values and the event conflicts on
+-- (user_id, completion_id).
+create or replace function public.record_focus_completion(
+    p_user_id uuid,
+    p_focus_stats jsonb,
+    p_current_streak integer,
+    p_best_streak integer,
+    p_last_active_day date,
+    p_completion_id text,
+    p_minutes integer,
+    p_day_key date
+) returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $function$
+declare
+    updated_rows integer;
+begin
+    if p_completion_id is null
+       or p_completion_id <> btrim(p_completion_id)
+       or char_length(p_completion_id) not between 8 and 128
+       or p_minutes not between 0 and 240 then
+        raise exception 'invalid focus completion';
+    end if;
+
+    update public.profiles
+    set focus_stats = p_focus_stats,
+        current_streak = p_current_streak,
+        best_streak = p_best_streak,
+        last_active_day = p_last_active_day
+    where id = p_user_id;
+    get diagnostics updated_rows = row_count;
+    if updated_rows <> 1 then
+        raise exception 'profile not found';
+    end if;
+
+    if p_minutes > 0 then
+        insert into public.focus_sessions (user_id, minutes, day_key, completion_id)
+        values (p_user_id, p_minutes, p_day_key, p_completion_id)
+        on conflict (user_id, completion_id) where completion_id is not null do nothing;
+    end if;
+end
+$function$;
+
+revoke all on function public.record_focus_completion(
+    uuid, jsonb, integer, integer, date, text, integer, date
+) from public, anon, authenticated;
+grant execute on function public.record_focus_completion(
+    uuid, jsonb, integer, integer, date, text, integer, date
+) to service_role;
+
+-- Tombstone and profile deletion are committed together, so no successful
+-- response can be followed by account resurrection during restore.
+create or replace function public.delete_profile_with_tombstone(
+    p_user_id uuid,
+    p_deleted_at timestamptz default now()
+) returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $function$
+begin
+    insert into public.deletion_tombstones (user_id, deleted_at, expires_at, reason)
+    values (p_user_id, p_deleted_at, p_deleted_at + interval '30 days', 'user_request')
+    on conflict (user_id) do update
+    set deleted_at = least(public.deletion_tombstones.deleted_at, excluded.deleted_at),
+        expires_at = greatest(public.deletion_tombstones.expires_at, excluded.expires_at);
+
+    delete from public.profiles where id = p_user_id;
+end
+$function$;
+
+revoke all on function public.delete_profile_with_tombstone(uuid, timestamptz)
+    from public, anon, authenticated;
+grant execute on function public.delete_profile_with_tombstone(uuid, timestamptz)
+    to service_role;
+
 -- The Node server authenticates with the server-only service-role key. Public
 -- API roles receive neither table grants nor RLS policies; FORCE RLS also keeps
 -- accidental table-owner access from bypassing the intended boundary.
