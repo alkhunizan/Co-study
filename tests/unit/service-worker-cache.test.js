@@ -346,6 +346,9 @@ test('ambient WAV request map points at browser-compatible compressed MP3 assets
     assert.equal(api.AMBIENT_SOURCE_MAP['/audio/chimney-fire.wav'], '/audio/chimney-fire.mp3');
     assert.equal(api.AMBIENT_SOURCE_MAP['/audio/cafe.wav'], '/audio/cafe.mp3');
     assert.equal(api.AMBIENT_SOURCE_MAP['/audio/waves.wav'], '/audio/waves.mp3');
+    assert.equal(api.AMBIENT_SOURCE_MAP['/audio/chimney-fire.mp3'], '/audio/chimney-fire.mp3');
+    assert.equal(api.AMBIENT_SOURCE_MAP['/audio/cafe.mp3'], '/audio/cafe.mp3');
+    assert.equal(api.AMBIENT_SOURCE_MAP['/audio/waves.mp3'], '/audio/waves.mp3');
 });
 
 test('compressed ambient targets are valid bounded MP3 payloads and WAV sources are not shipped', () => {

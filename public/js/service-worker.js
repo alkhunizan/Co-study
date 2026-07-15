@@ -5,7 +5,7 @@
  * fallback. Ambient loops are cache-first and byte-accounted separately. */
 
 const CACHE_PREFIX = 'halastudy-';
-const CACHE_VERSION = '2026-07-15-01';
+const CACHE_VERSION = '2026-07-15-02';
 const STATIC_CACHE_NAME = `${CACHE_PREFIX}static-${CACHE_VERSION}`;
 const AMBIENT_CACHE_NAME = `${CACHE_PREFIX}ambient-v1`;
 const AMBIENT_METADATA_CACHE_NAME = `${CACHE_PREFIX}ambient-metadata-v1`;
@@ -32,6 +32,9 @@ const MANAGED_STATIC_PATHS = new Set(PRECACHE_PATHS);
 const AMBIENT_SOURCE_MAP = Object.freeze({
     '/audio/rain.mp3': '/audio/rain.mp3',
     '/audio/forest.mp3': '/audio/forest.mp3',
+    '/audio/chimney-fire.mp3': '/audio/chimney-fire.mp3',
+    '/audio/cafe.mp3': '/audio/cafe.mp3',
+    '/audio/waves.mp3': '/audio/waves.mp3',
     '/audio/chimney-fire.wav': '/audio/chimney-fire.mp3',
     '/audio/cafe.wav': '/audio/cafe.mp3',
     '/audio/waves.wav': '/audio/waves.mp3'
