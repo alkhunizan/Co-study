@@ -48,5 +48,9 @@ test('bootstrap creates and consistently uses the halastudy service account', ()
     assert.match(bootstrap, /install -d -m 0700 -o "\$\{SERVICE_USER\}"/);
     assert.match(bootstrap, /sudo -u "\$\{SERVICE_USER\}"/);
     assert.match(bootstrap, /pm2 startup systemd -u "\$\{SERVICE_USER\}"/);
+    assert.match(bootstrap, /nginx -t && systemctl reload nginx/);
+    assert.match(bootstrap, /ufw --force enable/);
+    assert.match(bootstrap, /ufw status verbose/);
+    assert.doesNotMatch(bootstrap, /ufw[^\n]*\|\| true/);
     assert.doesNotMatch(bootstrap, /RUN_USER=/);
 });

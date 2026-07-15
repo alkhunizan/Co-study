@@ -63,9 +63,10 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 
 # --- firewall ---
-ufw allow OpenSSH >/dev/null 2>&1 || true
-ufw allow 'Nginx Full' >/dev/null 2>&1 || true
-yes | ufw enable >/dev/null 2>&1 || true
+ufw allow OpenSSH
+ufw allow 'Nginx Full'
+ufw --force enable
+ufw status verbose
 
 # --- PM2 ---
 if ! command -v pm2 >/dev/null 2>&1; then
