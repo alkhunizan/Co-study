@@ -83,11 +83,17 @@ test('every browser smoke context installs the loopback-only network guard', () 
     }
 });
 
-test('CI infrastructure validators are syntax-checked and tracked by the test contract', () => {
+test('CI syntax checking automatically covers every JavaScript source', () => {
     const pkg = JSON.parse(readRepoFile('package.json'));
-    const check = pkg.scripts.check;
+    const syntaxRunner = readRepoFile('scripts/ci/check-syntax.js');
+
+    assert.equal(pkg.scripts.check, 'node scripts/ci/check-syntax.js');
+    assert.match(syntaxRunner, /sourceExtensions = new Set\(\['\.js', '\.mjs'\]\)/);
+    assert.match(syntaxRunner, /spawnSync\(process\.execPath, \['--check', source\]/);
+    assert.match(syntaxRunner, /entry\.isSymbolicLink\(\)/);
 
     for (const relativePath of [
+        'scripts/ci/check-syntax.js',
         'scripts/ci/run-shellcheck.js',
         'scripts/ci/verify-docker-image.js',
         'scripts/ci/verify-nginx.js',
@@ -97,7 +103,6 @@ test('CI infrastructure validators are syntax-checked and tracked by the test co
         'tests/unit/postgres-migration-runner.test.js'
     ]) {
         assert.ok(fs.existsSync(path.join(repoRoot, relativePath)), `${relativePath} must exist`);
-        assert.match(check, new RegExp(relativePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
 });
 
