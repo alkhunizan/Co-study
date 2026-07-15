@@ -2050,28 +2050,6 @@ function createCoStudyServer(options = {}) {
         return persistedRooms.length;
     }
 
-    async function migrateLegacyRoomOwnership() {
-        let changed = false;
-        for (const room of rooms.values()) {
-            if (room.schemaVersion === ROOM_SCHEMA_VERSION) continue;
-            const creators = Array.from(users.values()).filter((user) => {
-                return Array.isArray(user.myRooms) && user.myRooms.some((entry) => (
-                    entry.roomId === room.id && entry.role === 'created'
-                ));
-            });
-            // Ambiguous or absent legacy ownership stays deliberately null and
-            // therefore admin-managed. Never guess between accounts.
-            room.ownerUserId = creators.length === 1 ? creators[0].id : null;
-            room.schemaVersion = ROOM_SCHEMA_VERSION;
-            if (roomHasSchedule(room) && !Number.isFinite(room.expiresAt)) {
-                room.expiresAt = getScheduleExpiryAt(room.schedule);
-            }
-            changed = true;
-        }
-        if (changed) await roomStore.flush(rooms);
-        return changed;
-    }
-
     function resolveClientId(socket, candidate) {
         const normalized = normalizeClientId(candidate);
         if (normalized) {
@@ -2615,10 +2593,6 @@ function createCoStudyServer(options = {}) {
                     videoSessionHydration
                 ]);
                 loadedUserCount = hydratedUserCount;
-                const migratedRooms = await migrateLegacyRoomOwnership();
-                if (!migratedRooms && roomStore.needsMigration?.()) {
-                    await roomStore.flush(rooms);
-                }
                 await reconcileRealtimeKitMeetings();
                 initialized = true;
                 return { loadedRoomCount, loadedUserCount };

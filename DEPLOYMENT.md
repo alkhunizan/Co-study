@@ -270,6 +270,33 @@ npm run verify:deploy -- https://your-domain.com
 
 `/api/ready` should return `200` with all checks set to `true`.
 
+## Room v2 Migration
+
+Legacy room state remains readable at startup and is never rewritten merely by
+booting the service. Before the v2 rollout, inspect the metadata-only plan while
+the service is running:
+
+```bash
+npm run migration:rooms
+```
+
+In production, the planner reads only `id,my_rooms` from paginated Supabase
+profiles and fails closed if either Supabase credential is missing. Review any
+ambiguous ownership (it remains unassigned and admin-managed), resolve every
+blocking schedule issue, then stop the single writer and apply with both guards:
+
+```bash
+sudo -u halastudy -H env PM2_HOME=/var/lib/halastudy/.pm2 pm2 stop co-study
+npm run migration:rooms -- --apply --writer-stopped
+sudo -u halastudy -H env HOME=/var/lib/halastudy \
+  PM2_HOME=/var/lib/halastudy/.pm2 bash /opt/halastudy/scripts/deploy/start.sh
+curl -fsS http://127.0.0.1:3000/api/ready
+```
+
+Apply first writes a new mode-`0600`, checksummed pre-migration backup without
+overwriting an existing backup, then atomically replaces the same room file.
+Keep the reported backup path through the rollout observation window.
+
 Manual media spot-check before launch:
 - create a RealtimeKit room and confirm video works with 2 participants
 - confirm participants 1-20 can join and the 21st participant is rejected
