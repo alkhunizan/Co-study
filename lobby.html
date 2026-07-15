@@ -163,6 +163,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/js/video/realtimekit-client.js"></script>
+  <script src="/js/video/video-client.js"></script>
   <script>
     const DICT = {
       en: {
@@ -218,7 +219,10 @@
     const state = { participants: [], perPage: 12, page: 0, isMobile: window.innerWidth < 640, myName: '' };
     // RealtimeKit media layer (P4, option A). When connected, meeting participants
     // are the grid source; on any failure the lobby degrades to socket presence.
-    const rtk = { meeting: null, leave: null, connected: false, role: 'viewer' };
+    const rtk = { meeting: null, connected: false, role: 'viewer', generation: 0 };
+    const videoClient = window.HalastudyVideoClient
+      ? window.HalastudyVideoClient.createVideoClient()
+      : null;
 
     function clientId() {
       let id = null;
@@ -368,28 +372,37 @@
         });
       });
       socket.on('presence', (list) => setParticipants(list || []));
+      socket.on('disconnect', () => { void leaveRealtimeKit(); });
       socket.on('kicked', () => { location.href = '/'; });
       socket.on('room-closed', () => { location.href = '/'; });
     }
 
-    async function requestVideoToken(role) {
-      const res = await fetch('/api/rooms/LOBBY/video-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ displayName: state.myName, clientSessionId: clientId(), role })
-      });
-      return res.json().catch(() => ({}));
+    function leaveRealtimeKit(options = {}) {
+      rtk.generation += 1;
+      rtk.connected = false;
+      rtk.meeting = null;
+      return videoClient ? videoClient.leave(options) : Promise.resolve();
     }
 
     async function connectRealtimeKit(role) {
-      if (!window.HalastudyRealtimeKitClient) return { ok: false };
-      let payload;
-      try { payload = await requestVideoToken(role); } catch (_e) { return { ok: false }; }
-      if (!payload || !payload.ok || !payload.authToken) return payload || { ok: false };
+      if (!videoClient) return { ok: false };
+      const generation = ++rtk.generation;
+      rtk.connected = false;
+      rtk.meeting = null;
       try {
-        const joined = await window.HalastudyRealtimeKitClient.joinHeadless({ authToken: payload.authToken });
-        rtk.meeting = joined.meeting; rtk.leave = joined.leave; rtk.connected = true;
+        const payload = await videoClient.joinRealtimeKitRoom({
+          roomId: 'LOBBY',
+          displayName: state.myName,
+          clientSessionId: clientId(),
+          role,
+          headless: true
+        });
+        if (generation !== rtk.generation) return { ok: false, errorCode: 'VIDEO_JOIN_SUPERSEDED' };
+        if (!payload.meeting) {
+          await videoClient.leave();
+          return { ok: false, errorCode: 'VIDEO_PROVIDER_UNAVAILABLE' };
+        }
+        rtk.meeting = payload.meeting; rtk.connected = true;
         rtk.role = payload.role || role;
         wireRealtimeKitEvents(rtk.meeting);
         // Option A: let the SDK manage subscription in PAGINATED mode; density is
@@ -400,14 +413,18 @@
         } catch (_e) {}
         render();
         return { ok: true };
-      } catch (_e) {
-        rtk.connected = false; rtk.meeting = null;
-        return { ok: false };
+      } catch (error) {
+        if (generation === rtk.generation) {
+          rtk.connected = false; rtk.meeting = null;
+        }
+        return error && error.payload
+          ? error.payload
+          : { ok: false, errorCode: error && error.code ? error.code : 'VIDEO_PROVIDER_UNAVAILABLE' };
       }
     }
 
     function wireRealtimeKitEvents(meeting) {
-      const rerender = () => render();
+      const rerender = () => { if (rtk.connected && rtk.meeting === meeting) render(); };
       try {
         const p = meeting.participants;
         if (p && p.joined && typeof p.joined.on === 'function') {
@@ -443,8 +460,6 @@
           if (self.videoEnabled && self.disableVideo) await self.disableVideo();
           else if (self.enableVideo) await self.enableVideo();
         } else {
-          if (rtk.leave) { try { await rtk.leave(); } catch (_e) {} }
-          rtk.connected = false; rtk.meeting = null;
           const res = await connectRealtimeKit('publisher');
           if (res && res.ok && rtk.meeting && rtk.meeting.self && rtk.meeting.self.enableVideo) {
             await rtk.meeting.self.enableVideo();
@@ -484,6 +499,9 @@
       window.addEventListener('resize', () => {
         const m = window.innerWidth < 640;
         if (m !== state.isMobile) { state.isMobile = m; render(); }
+      });
+      window.addEventListener('pagehide', () => {
+        void leaveRealtimeKit({ keepalive: true });
       });
 
       let saved = '';
