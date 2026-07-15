@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -8,6 +9,7 @@ const { resolveBackupConfig } = require('../../co-study-server');
 const {
     collectBackupDatasets,
     createSupabaseBackupSource,
+    writePinnedBackupArtifact,
     writeDailyBackupArtifact
 } = require('../../services/ops/backup-service');
 const { createBackupScheduler } = require('../../services/ops/backup-scheduler');
@@ -147,5 +149,40 @@ test('daily artifact writer retains one successful snapshot for each of the late
             const mode = fs.statSync(path.join(backupDir, file)).mode & 0o777;
             assert.equal(mode, 0o600);
         }
+    }
+});
+
+test('pre-cutover artifact writer pins an exclusive checksummed copy outside daily retention', (t) => {
+    const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-backup-pinned-'));
+    t.after(() => fs.rmSync(backupDir, { recursive: true, force: true }));
+    const artifact = { encrypted: 'rollback-state' };
+
+    const pinned = writePinnedBackupArtifact({
+        backupDir,
+        artifact,
+        createdAt: new Date('2026-07-01T02:15:00.000Z'),
+        nonce: 'cutover'
+    });
+    for (let day = 2; day <= 10; day += 1) {
+        writeDailyBackupArtifact({
+            backupDir,
+            artifact: { day },
+            createdAt: new Date(`2026-07-${String(day).padStart(2, '0')}T02:15:00.000Z`),
+            nonce: `run-${day}`
+        });
+    }
+
+    const body = fs.readFileSync(pinned.filePath);
+    assert.equal(fs.existsSync(pinned.filePath), true);
+    assert.equal(path.dirname(pinned.filePath), path.join(path.resolve(backupDir), 'pinned'));
+    assert.equal(pinned.sha256, crypto.createHash('sha256').update(body).digest('hex'));
+    assert.equal(
+        fs.readFileSync(pinned.checksumPath, 'utf8'),
+        `${pinned.sha256}  ${path.basename(pinned.filePath)}\n`
+    );
+    assert.equal(fs.readdirSync(backupDir).filter((name) => name.endsWith('.hsbackup')).length, 7);
+    if (process.platform !== 'win32') {
+        assert.equal(fs.statSync(pinned.filePath).mode & 0o777, 0o600);
+        assert.equal(fs.statSync(pinned.checksumPath).mode & 0o777, 0o600);
     }
 });

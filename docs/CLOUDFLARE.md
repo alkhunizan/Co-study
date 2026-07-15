@@ -129,6 +129,7 @@ room or user JSON files.
    R2_ACCESS_KEY_ID=<...>
    R2_SECRET_ACCESS_KEY=<...>
    R2_BUCKET=halastudy-backups
+   BACKUP_R2_ENABLED=true
    ```
 3. Verify the credentials (creates the bucket if missing, PUT/GET/DELETE round-trip):
    ```bash
@@ -142,10 +143,22 @@ room or user JSON files.
 
 The canonical nightly scheduler is `halastudy-backup.timer`; see
 [`BACKUP-RESTORE.md`](BACKUP-RESTORE.md). Do not put secrets directly in a cron
-line, and do not upload raw state files. The explicitly scoped automated
+line, and do not upload raw state files. With `BACKUP_R2_ENABLED` absent or
+`false`, the scheduler intentionally creates only the protected local artifact.
+When it is exactly `true`, missing R2 configuration or a failed upload fails the
+nightly job. The explicitly scoped automated
 retention pass keeps seven daily encrypted artifacts and can delete only
 validated backup keys under the fixed `encrypted/` prefix. Use
 `backup-r2.js --retention-dry-run` to inspect candidates without mutation.
+
+Pre-cutover rollback pins use the separate fixed `pinned/pre-cutover/` prefix
+and are excluded from automated retention. Create and authenticate the local
+pin first, then upload it without accepting a caller-selected key:
+
+```bash
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --pin-pre-cutover
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --upload-pinned-pre-cutover
+```
 
 The uploader signs requests with AWS SigV4 using only `node:crypto`
 (`scripts/cloudflare/r2-client.js`) — no aws-sdk, consistent with the app's

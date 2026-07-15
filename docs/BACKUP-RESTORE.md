@@ -15,7 +15,7 @@ The encrypted payload contains exactly one manifest and the readable datasets co
 
 An empty array is a readable source. If no source is readable, the command fails and creates no artifact. A partial artifact is marked in its encrypted manifest and the CLI emits a warning naming the unavailable sources. Deletion tombstones are a critical source: when Supabase is configured, failure to read them fails the whole backup so an unsafe database artifact cannot displace a complete daily snapshot.
 
-Artifacts are written by same-directory atomic rename with mode `0600`. Retention keeps one successful artifact for each of the latest seven UTC days. A second successful run on the same day replaces that day's older artifact only after the new file exists.
+Artifacts are written by same-directory atomic rename with mode `0600`. Retention keeps one successful artifact for each of the latest seven UTC days. A second successful run on the same day replaces that day's older artifact only after the new file exists. Explicit pre-cutover artifacts are stored under `backups/pinned/` with a mode-`0600` SHA-256 sidecar and are never candidates for daily retention.
 
 ## Configure the key
 
@@ -33,6 +33,7 @@ ROOM_STATE_FILE=/var/lib/halastudy/rooms.json
 ROOM_STATE_BACKUP_DIR=/var/lib/halastudy/backups
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+BACKUP_R2_ENABLED=false
 ```
 
 Protect the file and directory:
@@ -47,7 +48,7 @@ Do not commit, log, or pass the encryption key on a command line. Losing it make
 
 ## Nightly scheduling
 
-Systemd is the production scheduler. The unit runs as `halastudy`, sets `UMask=0077`, and invokes the wrapper that accepts only the service-owned mode-`0400`/`0600` environment file.
+Systemd is the production scheduler. The unit runs as `halastudy`, sets `UMask=0077`, and invokes the wrapper that accepts only the service-owned mode-`0400`/`0600` environment file. Nightly work is local-only unless that file contains the exact opt-in `BACKUP_R2_ENABLED=true`. When enabled, all four `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET` values are mandatory and any upload failure fails the service job.
 
 ```bash
 sudo install -m 0644 /opt/halastudy/scripts/deploy/halastudy-backup.service \
@@ -77,6 +78,34 @@ sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh
 ```
 
 `npm run backup:state` is the underlying CLI. `npm run backup:rooms` remains a compatibility alias but creates the same multi-source encrypted artifact.
+
+## Pin a pre-cutover rollback artifact
+
+Before a migration or production cutover, create a separate full rollback artifact:
+
+```bash
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --pin-pre-cutover
+```
+
+Pinning requires the current schema-v2 format, all six production datasets, and zero failed sources. The command authenticates the new AES-GCM envelope, verifies the embedded dataset checksums, and prints its absolute path and SHA-256. It writes the artifact and sidecar below `/var/lib/halastudy/backups/pinned/`; normal local and R2 daily retention never list that namespace.
+
+Record the printed path and verify both the outer checksum and restore plan before proceeding:
+
+```bash
+cd /var/lib/halastudy/backups/pinned
+sha256sum --check halastudy-pre-cutover-YYYY-MM-DDTHHMMSSZ-xxxx.hsbackup.sha256
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/restore.sh \
+  /var/lib/halastudy/backups/pinned/halastudy-pre-cutover-YYYY-MM-DDTHHMMSSZ-xxxx.hsbackup
+```
+
+If R2 is enabled, upload that exact authenticated local pin through the fixed operator workflow:
+
+```bash
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --upload-pinned-pre-cutover
+# pinned/pre-cutover/halastudy-pre-cutover-YYYY-MM-DDTHHMMSSZ-xxxx.hsbackup
+```
+
+The CLI accepts no caller-selected key or prefix. Automated retention lists only `encrypted/`, so it cannot prune `pinned/pre-cutover/`. Removing a pinned rollback artifact is a separate, explicitly approved operator action.
 
 ## Dry-run restore
 
@@ -132,7 +161,7 @@ npm --prefix /opt/halastudy run verify:deploy -- https://your-domain.example
 
 ## Optional R2 copy
 
-`npm run backup:r2` authenticates the newest local `.hsbackup` file, requires all six production sources with no manifest failures, and only then makes an R2 request. A partial local diagnostic artifact cannot be uploaded or trigger retention. Complete artifacts are copied under the fixed `encrypted/` prefix, after which retention keeps one successful artifact for each of the latest seven UTC days. Automated retention can list and delete only keys matching `encrypted/halastudy-YYYY-MM-DDTHHMMSSZ-*.hsbackup`; unrelated encrypted objects, legacy `users/` objects, and every other prefix are outside its mutation boundary. A matching key whose timestamp is later than R2's server-side `LastModified` (allowing five minutes of clock skew) aborts the pass before any deletion.
+`npm run backup:r2` authenticates the newest local `.hsbackup` file, requires a complete current schema-v2 artifact with all six production sources and no manifest failures, and only then makes an R2 request. A partial local diagnostic artifact cannot be uploaded or trigger retention. Complete artifacts are copied under the fixed `encrypted/` prefix, after which retention keeps one successful artifact for each of the latest seven UTC days. Automated retention can list and delete only keys matching `encrypted/halastudy-YYYY-MM-DDTHHMMSSZ-*.hsbackup`; pinned rollback objects, unrelated encrypted objects, legacy `users/` objects, and every other prefix are outside its mutation boundary. A matching key whose timestamp is later than R2's server-side `LastModified` (allowing five minutes of clock skew) aborts the pass before any deletion.
 
 The package command and the service-owned `backup.sh --with-r2` path both pass the explicit `--apply-retention` scope. Direct script execution without one recognized mode fails. Preview the exact candidate set without uploading or deleting anything with:
 
@@ -141,5 +170,7 @@ sudo -u halastudy -H /usr/bin/node /opt/halastudy/scripts/backup-r2.js --retenti
 ```
 
 `backup.sh --check-r2` performs the isolated credential round-trip. It creates and removes only its timestamped `healthcheck/` marker.
+
+Deploy verification deliberately does not accept schema-v1 restore compatibility as release evidence. After the writer starts and reaches readiness, run `backup.sh` to create a fresh complete schema-v2 daily artifact, then run `npm run verify:deploy`. The verifier authenticates the manifest, requires all six sources, checks that its timestamp matches the daily filename, and enforces the configured freshness window.
 
 Never use an automated test or local development shell with production R2 or Supabase credentials. Provider tests must inject fakes or use designated staging projects.

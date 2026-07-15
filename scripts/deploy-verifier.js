@@ -3,7 +3,12 @@ const http = require('node:http');
 const https = require('node:https');
 const path = require('node:path');
 const { version: DEFAULT_EXPECTED_VERSION } = require('../package.json');
-const { decryptBackupArtifact, parseBackupEncryptionKey } = require('../services/ops/backup-artifact');
+const {
+    BACKUP_SCHEMA_VERSION,
+    assertCompleteCurrentBackupBundle,
+    decryptBackupArtifact,
+    parseBackupEncryptionKey
+} = require('../services/ops/backup-artifact');
 const {
     DEFAULT_VIEWER_PRESET_NAME,
     PRESET_KINDS,
@@ -18,14 +23,6 @@ const DEFAULT_MAX_BACKUP_AGE_HOURS = 36;
 const MAX_HTTP_RESPONSE_BYTES = 1024 * 1024;
 const MAX_BACKUP_ARTIFACT_BYTES = 128 * 1024 * 1024;
 const BACKUP_ARTIFACT_PATTERN = /^halastudy-(\d{4}-\d{2}-\d{2})T(\d{2})(\d{2})(\d{2})Z-[A-Za-z0-9-]+\.hsbackup$/;
-const REQUIRED_BACKUP_SOURCES = [
-    'profiles',
-    'deletion_tombstones',
-    'focus_completion_claims',
-    'focus_sessions',
-    'room_events',
-    'rooms'
-];
 
 function isLoopbackHost(hostname) {
     return ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(String(hostname).toLowerCase());
@@ -274,16 +271,19 @@ function assertCompletedBackupArtifact(filePath, stat, encryptionKey) {
         throw new Error('Last successful backup artifact is incomplete or unsupported.');
     }
     const bundle = decryptBackupArtifact({ artifact, encryptionKey });
-    const missingSources = REQUIRED_BACKUP_SOURCES.filter(
-        (name) => !Object.hasOwn(bundle.datasets, name)
-    );
-    if (missingSources.length > 0 || bundle.manifest.failedSources.length > 0) {
-        throw new Error(
-            `Last successful backup artifact is missing required sources: ${[
-                ...new Set([...missingSources, ...bundle.manifest.failedSources])
-            ].join(', ')}.`
-        );
+    try {
+        assertCompleteCurrentBackupBundle(bundle, 'Last successful schema-v2 backup artifact');
+    } catch (error) {
+        if (bundle.manifest.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+            throw new Error('Deployment verification requires a fresh complete schema-v2 backup artifact.');
+        }
+        const missingSources = String(error?.message || '').match(/missing or failed sources: (.+)$/)?.[1];
+        if (missingSources) {
+            throw new Error(`Last successful backup artifact is missing required sources: ${missingSources}`);
+        }
+        throw error;
     }
+    return bundle;
 }
 
 function parseBackupTimestamp(match) {
@@ -320,10 +320,14 @@ function verifyLastSuccessfulBackup(config, nowValue = Date.now) {
     } catch (_error) {
         throw new Error('Last successful backup artifact is unavailable.');
     }
-    assertCompletedBackupArtifact(filePath, stat, config.backupEncryptionKey);
+    const bundle = assertCompletedBackupArtifact(filePath, stat, config.backupEncryptionKey);
     const now = typeof nowValue === 'function' ? Number(nowValue()) : Number(nowValue);
     if (!Number.isFinite(now)) throw new Error('Deployment verification clock is invalid.');
-    const ageMs = now - latest.parsed;
+    const manifestCreatedAt = Date.parse(bundle.manifest.createdAt);
+    if (Math.abs(manifestCreatedAt - latest.parsed) > 5 * 60 * 1000) {
+        throw new Error('Last successful backup authenticated manifest timestamp does not match its filename.');
+    }
+    const ageMs = now - manifestCreatedAt;
     if (ageMs < -5 * 60 * 1000) {
         throw new Error('Last successful backup timestamp is unexpectedly in the future.');
     }
@@ -335,7 +339,7 @@ function verifyLastSuccessfulBackup(config, nowValue = Date.now) {
     }
     return {
         fileName: latest.entry.name,
-        createdAt: latest.timestamp,
+        createdAt: bundle.manifest.createdAt,
         ageHours: Number(ageHours.toFixed(2)),
         maxAgeHours: config.maxBackupAgeHours,
         sizeBytes: stat.size
