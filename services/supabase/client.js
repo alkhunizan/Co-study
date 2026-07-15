@@ -7,6 +7,17 @@
 
 const REST_PATH = '/rest/v1/';
 
+function providerErrorCode(responseText) {
+    try {
+        const parsed = JSON.parse(responseText);
+        return typeof parsed?.code === 'string' && /^[A-Z0-9_]{1,40}$/i.test(parsed.code)
+            ? parsed.code
+            : null;
+    } catch {
+        return null;
+    }
+}
+
 /**
  * @param {{ url?: string, serviceKey?: string, fetchImpl?: typeof fetch, timeoutMs?: number }} options
  */
@@ -60,6 +71,11 @@ function createSupabaseClient(options = {}) {
                     const error = new Error(`Supabase ${method} ${path} failed: ${res.status} ${text.slice(0, 400)}`);
                     // @ts-expect-error attach for callers that want to branch on status
                     error.status = res.status;
+                    const code = providerErrorCode(text);
+                    if (code) {
+                        // @ts-expect-error attach a non-sensitive provider classification for evidence tooling
+                        error.providerCode = code;
+                    }
                     throw error;
                 }
                 if (!text) return null;

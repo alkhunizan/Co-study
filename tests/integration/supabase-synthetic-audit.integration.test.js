@@ -71,6 +71,8 @@ test('Supabase synthetic audit is locked to the approved UTC window and writes a
 
     assert.equal(result.outputPath, outputPath);
     assert.equal(result.report.readOnly, true);
+    assert.equal(result.report.auditComplete, true);
+    assert.deepEqual(result.report.sourceErrors, []);
     assert.equal(result.report.window.start, AUDIT_WINDOW_START);
     assert.equal(result.report.window.end, AUDIT_WINDOW_END);
     assert.equal(result.report.totalCandidateRows, 4);
@@ -168,4 +170,48 @@ test('Supabase audit runtime client exposes only frozen GET selection', async ()
     assert.equal('upsert' in client, false);
     await client.select('profiles', 'select=id');
     assert.deepEqual(requests.map((request) => request.method), ['GET']);
+
+    const failingClient = createSupabaseReadOnlyClient({
+        url: 'https://audit-project.supabase.invalid',
+        serviceKey: 'test-service-key',
+        fetchImpl: async () => ({
+            ok: false,
+            status: 404,
+            text: async () => JSON.stringify({ code: 'PGRST205', message: 'schema detail' })
+        })
+    });
+    await assert.rejects(
+        failingClient.select('profiles', 'select=id'),
+        /** @param {any} error */ (error) => error.status === 404 && error.providerCode === 'PGRST205'
+    );
+});
+
+test('Supabase source failures write an explicitly incomplete non-authorizing report', async (t) => {
+    const outputPath = tempReportPath(t);
+    const client = {
+        async select(table) {
+            if (table === 'profiles') {
+                const error = Object.assign(new Error('provider response must not be copied'), {
+                    status: 404,
+                    providerCode: 'PGRST205'
+                });
+                throw error;
+            }
+            return [];
+        }
+    };
+
+    const result = await runSupabaseSyntheticAudit({ client, outputPath });
+
+    assert.equal(result.report.auditComplete, false);
+    assert.equal(result.report.deletionAuthorized, false);
+    assert.equal(result.report.totalCandidateRows, 0);
+    assert.deepEqual(result.report.sourceErrors, [{
+        table: 'profiles',
+        status: 404,
+        providerCode: 'PGRST205'
+    }]);
+    const serialized = fs.readFileSync(outputPath, 'utf8');
+    assert.doesNotMatch(serialized, /provider response must not be copied/);
+    assert.match(serialized, /INCOMPLETE/i);
 });

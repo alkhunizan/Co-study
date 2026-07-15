@@ -163,6 +163,19 @@ function sourceHost(rawUrl) {
     }
 }
 
+function safeSourceError(spec, error) {
+    const status = Number(error?.status);
+    const providerCode = typeof error?.providerCode === 'string'
+        && /^[A-Z0-9_]{1,40}$/i.test(error.providerCode)
+        ? error.providerCode
+        : null;
+    return {
+        table: spec.table,
+        status: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+        providerCode
+    };
+}
+
 async function runSupabaseSyntheticAudit({
     client,
     outputPath,
@@ -178,30 +191,41 @@ async function runSupabaseSyntheticAudit({
     }
     const generatedAt = (now instanceof Date ? now : new Date(now)).toISOString();
     const candidates = {};
+    const sourceErrors = [];
     let rejectedProviderRows = 0;
     for (const spec of TABLE_SPECS) {
-        const result = await readCandidateRows(readOnlyClient, spec);
-        candidates[spec.reportKey] = result.candidates;
-        rejectedProviderRows += result.rejectedProviderRows;
+        try {
+            const result = await readCandidateRows(readOnlyClient, spec);
+            candidates[spec.reportKey] = result.candidates;
+            rejectedProviderRows += result.rejectedProviderRows;
+        } catch (error) {
+            candidates[spec.reportKey] = [];
+            sourceErrors.push(safeSourceError(spec, error));
+        }
     }
+    const auditComplete = sourceErrors.length === 0;
     const totalCandidateRows = Object.values(candidates)
         .reduce((total, rows) => total + rows.length, 0);
     const evidenceSha256 = crypto.createHash('sha256')
-        .update(JSON.stringify({ candidates, rejectedProviderRows }))
+        .update(JSON.stringify({ auditComplete, candidates, rejectedProviderRows, sourceErrors }))
         .digest('hex');
     const report = {
         schemaVersion: 1,
         kind: 'halastudy-supabase-synthetic-candidate-audit',
         generatedAt,
         readOnly: true,
+        auditComplete,
         deletionAuthorized: false,
         sourceHost: sourceHost(env.SUPABASE_URL),
         window: { start: AUDIT_WINDOW_START, end: AUDIT_WINDOW_END, inclusive: true },
         totalCandidateRows,
         rejectedProviderRows,
+        sourceErrors,
         candidates,
         evidenceSha256,
-        operatorNotice: 'Candidates require separate human approval. This tool cannot delete or modify rows.'
+        operatorNotice: auditComplete
+            ? 'Candidates require separate human approval. This tool cannot delete or modify rows.'
+            : 'INCOMPLETE: one or more sources could not be read. This report cannot support a zero-candidate conclusion or authorize deletion.'
     };
     const resolvedOutput = outputPath
         ? path.resolve(outputPath)
@@ -224,6 +248,10 @@ async function main() {
     loadDotEnv();
     const result = await runSupabaseSyntheticAudit({ outputPath: args.outputPath });
     console.log(`Read-only candidate audit wrote ${result.report.totalCandidateRows} row(s) to ${result.outputPath}`);
+    if (!result.report.auditComplete) {
+        console.error(`Audit incomplete: ${result.report.sourceErrors.length} source(s) could not be read.`);
+        process.exitCode = 2;
+    }
 }
 
 if (require.main === module) {
