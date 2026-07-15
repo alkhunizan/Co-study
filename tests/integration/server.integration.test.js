@@ -10,9 +10,6 @@ const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-clien
 const { signupUser } = require('../helpers/auth-helpers');
 const { version: APP_VERSION } = require('../../package.json');
 
-const DEFAULT_ICE_SERVERS = [
-    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
-];
 const TEST_BACKUP_ENCRYPTION_KEY = Buffer.alloc(32, 11).toString('base64');
 
 function buildFutureRiyadhSchedule(options = {}) {
@@ -192,18 +189,24 @@ test('security headers allow-list the SFU origin when SFU_BASE_URL is configured
     );
 });
 
-test('runtime config falls back to the default ICE servers', async (t) => {
+test('RealtimeKit runtime does not expose legacy mesh ICE configuration', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
 
     const response = await server.request('/api/runtime-config');
 
     assert.equal(response.status, 200);
-    assert.deepEqual(response.body.iceServers, DEFAULT_ICE_SERVERS);
+    assert.deepEqual(response.body.iceServers, []);
     assert.equal(response.body.sfuBaseUrl, '');
     assert.equal(response.body.sfuAvailable, false);
     assert.deepEqual(response.body.supportedMediaModes, ['mesh']);
     assert.equal(response.body.meshParticipantLimit, 4);
+    assert.equal(response.body.devMeshEnabled, false);
+    assert.equal(response.body.maxGlobalVideoParticipants, 20);
+    assert.equal(response.body.videoPolicy.maxGlobalParticipants, 20);
+    assert.equal(response.body.videoPolicy.maxRoomParticipants, 20);
+    assert.equal(response.body.videoPolicy.screenshareEnabled, false);
+    assert.equal(response.body.videoPolicy.chatEnabled, false);
     assert.doesNotMatch(JSON.stringify(response.body), /CLOUDFLARE|fake-secret-token|apiToken/);
 });
 
@@ -1617,7 +1620,7 @@ test('RealtimeKit token reuse is revoked, counts every provider peer, and cannot
 });
 
 test('mesh rooms enforce participant caps while allowing same-identity reconnects at capacity', async (t) => {
-    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     await cleanupServer(t, server);
 
     const sessionBootstrap = await server.request('/');

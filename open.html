@@ -439,7 +439,8 @@
             sfuAvailable: false,
             supportedMediaModes: [MEDIA_MODE_MESH],
             meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT,
-            videoProvider: VIDEO_PROVIDER_MESH,
+            videoProvider: VIDEO_PROVIDER_REALTIMEKIT,
+            devMeshEnabled: false,
             videoPolicy: null
         };
         let joinPreviewRoom = null;
@@ -514,7 +515,7 @@
         }
 
         function normalizeVideoProvider(provider) {
-            return provider === VIDEO_PROVIDER_REALTIMEKIT ? VIDEO_PROVIDER_REALTIMEKIT : VIDEO_PROVIDER_MESH;
+            return provider === VIDEO_PROVIDER_MESH ? VIDEO_PROVIDER_MESH : VIDEO_PROVIDER_REALTIMEKIT;
         }
 
         function getMeshParticipantLimit() {
@@ -1111,7 +1112,9 @@
                 button.setAttribute('aria-checked', active ? 'true' : 'false');
             });
             if (mediaModeSfuButton) {
-                mediaModeSfuButton.hidden = runtimeConfig.videoProvider !== VIDEO_PROVIDER_MESH || !runtimeConfig.sfuAvailable;
+                mediaModeSfuButton.hidden = runtimeConfig.devMeshEnabled !== true
+                    || runtimeConfig.videoProvider !== VIDEO_PROVIDER_MESH
+                    || !runtimeConfig.sfuAvailable;
             }
             if (mediaModeMeshDesc) {
                 mediaModeMeshDesc.textContent = interpolate(copy().mediaModeMeshDesc, {
@@ -1125,6 +1128,7 @@
         function setSelectedMediaMode(mode) {
             const nextMode = normalizeMediaMode(mode);
             selectedMediaMode = nextMode === MEDIA_MODE_SFU
+                && runtimeConfig.devMeshEnabled === true
                 && runtimeConfig.videoProvider === VIDEO_PROVIDER_MESH
                 && runtimeConfig.sfuAvailable
                 ? MEDIA_MODE_SFU
@@ -1167,7 +1171,9 @@
             const activeVideoCount = Number.isInteger(room.activeVideoParticipantCount) ? room.activeVideoParticipantCount : count;
             const isFullMeshRoom = provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_MESH && limit !== null && count >= limit;
             const isFullRealtimeKitRoom = provider === VIDEO_PROVIDER_REALTIMEKIT && limit !== null && activeVideoCount >= limit;
-            const largeRoomUnavailable = provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable;
+            const legacyMediaUnavailable = provider === VIDEO_PROVIDER_MESH && runtimeConfig.devMeshEnabled !== true;
+            const largeRoomUnavailable = legacyMediaUnavailable
+                || (provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable);
 
             joinRoomPreview.hidden = false;
             joinRoomPreviewName.textContent = room.name || room.roomId || joinCodeInput.value.trim().toUpperCase();
@@ -1198,6 +1204,7 @@
                     : [MEDIA_MODE_MESH],
                 meshParticipantLimit,
                 videoProvider: normalizeVideoProvider(payload.videoProvider),
+                devMeshEnabled: payload.devMeshEnabled === true,
                 videoPolicy: payload.videoPolicy || null
             };
             if (!runtimeConfig.sfuAvailable) {

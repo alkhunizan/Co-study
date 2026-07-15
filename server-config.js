@@ -7,6 +7,7 @@ const DEFAULT_VIDEO_PRESET_NAME = 'halastudy_student';
 const DEFAULT_VIEWER_PRESET_NAME = 'halastudy_viewer';
 const DEFAULT_CLOUDFLARE_API_BASE_URL = 'https://api.cloudflare.com/client/v4';
 const DEFAULT_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL = 'https://api.realtime.cloudflare.com/.well-known/webhooks.json';
+const MAX_VIDEO_PARTICIPANTS = 20;
 
 function parseBoolean(value, fallback = false) {
     if (value === undefined || value === null || value === '') return fallback;
@@ -21,6 +22,14 @@ function parsePositiveInteger(value, envName, fallback) {
     const parsed = Number.parseInt(value, 10);
     if (!Number.isInteger(parsed) || parsed < 1) {
         throw new Error(`${envName} must be a positive integer.`);
+    }
+    return parsed;
+}
+
+function parseCappedPositiveInteger(value, envName, fallback, maximum) {
+    const parsed = parsePositiveInteger(value, envName, fallback);
+    if (parsed > maximum) {
+        throw new Error(`${envName} must be at most ${maximum}.`);
     }
     return parsed;
 }
@@ -76,8 +85,24 @@ function resolveVideoConfig(env = process.env) {
 
     const nodeEnv = env.NODE_ENV || 'development';
     const isProduction = nodeEnv === 'production';
+    const isDevelopmentMeshEnvironment = nodeEnv === 'development' || nodeEnv === 'test';
+    const devMeshRequested = parseBoolean(env.ENABLE_DEV_MESH, false);
+    if (isProduction && devMeshRequested) {
+        throw new Error('ENABLE_DEV_MESH is forbidden in production.');
+    }
+    if (isProduction && String(env.ICE_SERVERS_JSON || '').trim()) {
+        throw new Error('ICE_SERVERS_JSON is forbidden in production; RealtimeKit manages production media transport.');
+    }
     if (isProduction && provider === VIDEO_PROVIDER_MESH) {
         throw new Error('VIDEO_PROVIDER=mesh is development-only; production requires RealtimeKit.');
+    }
+    if (provider === VIDEO_PROVIDER_MESH) {
+        if (!isDevelopmentMeshEnvironment) {
+            throw new Error('VIDEO_PROVIDER=mesh is development/test-only.');
+        }
+        if (!devMeshRequested) {
+            throw new Error('VIDEO_PROVIDER=mesh requires ENABLE_DEV_MESH=true.');
+        }
     }
     const cloudflare = {
         accountId: String(env.CLOUDFLARE_ACCOUNT_ID || '').trim(),
@@ -97,9 +122,22 @@ function resolveVideoConfig(env = process.env) {
 
     const video = {
         provider,
+        devMeshEnabled: provider === VIDEO_PROVIDER_MESH
+            && isDevelopmentMeshEnvironment
+            && devMeshRequested,
         joinDisabled: parseBoolean(env.VIDEO_JOIN_DISABLED, false),
-        maxGlobalParticipants: parsePositiveInteger(env.MAX_GLOBAL_VIDEO_PARTICIPANTS, 'MAX_GLOBAL_VIDEO_PARTICIPANTS', 20),
-        maxRoomParticipants: parsePositiveInteger(env.MAX_ROOM_VIDEO_PARTICIPANTS, 'MAX_ROOM_VIDEO_PARTICIPANTS', 20),
+        maxGlobalParticipants: parseCappedPositiveInteger(
+            env.MAX_GLOBAL_VIDEO_PARTICIPANTS,
+            'MAX_GLOBAL_VIDEO_PARTICIPANTS',
+            MAX_VIDEO_PARTICIPANTS,
+            MAX_VIDEO_PARTICIPANTS
+        ),
+        maxRoomParticipants: parseCappedPositiveInteger(
+            env.MAX_ROOM_VIDEO_PARTICIPANTS,
+            'MAX_ROOM_VIDEO_PARTICIPANTS',
+            MAX_VIDEO_PARTICIPANTS,
+            MAX_VIDEO_PARTICIPANTS
+        ),
         maxRoomDurationMinutes: parsePositiveInteger(env.MAX_ROOM_DURATION_MINUTES, 'MAX_ROOM_DURATION_MINUTES', 180),
         recordingEnabled: parseBoolean(env.VIDEO_RECORDING_ENABLED, false),
         screenshareEnabled: parseBoolean(env.VIDEO_SCREENSHARE_ENABLED, false),
@@ -113,6 +151,12 @@ function resolveVideoConfig(env = process.env) {
 
     if (video.recordingEnabled) {
         throw new Error('VIDEO_RECORDING_ENABLED must remain false for the RealtimeKit launch MVP.');
+    }
+    if (video.screenshareEnabled) {
+        throw new Error('VIDEO_SCREENSHARE_ENABLED must remain false for the RealtimeKit launch MVP.');
+    }
+    if (video.chatEnabled) {
+        throw new Error('VIDEO_CHAT_ENABLED must remain false for the RealtimeKit launch MVP.');
     }
 
     if (provider === VIDEO_PROVIDER_REALTIMEKIT) {

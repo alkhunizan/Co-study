@@ -41,6 +41,7 @@ test('Docker Compose is explicitly local development with mesh media', () => {
 
     assert.match(compose, /NODE_ENV:\s*development/);
     assert.match(compose, /VIDEO_PROVIDER:\s*mesh/);
+    assert.match(compose, /ENABLE_DEV_MESH:\s*["']?true["']?/);
     assert.match(compose, /HOST:\s*["']?0\.0\.0\.0["']?/);
     assert.doesNotMatch(compose, /NODE_ENV[=:]-?production/);
 });
