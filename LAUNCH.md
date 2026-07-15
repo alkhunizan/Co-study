@@ -48,12 +48,13 @@ long-form is below if you prefer it step by step.
 <details><summary>Manual long-form (DEPLOYMENT.md §1–§6)</summary>
 
 - [ ] Install Node 22, clone the repo, `npm ci --omit=dev`.
-- [ ] Create the state dir **outside** the repo: `sudo mkdir -p /var/lib/halastudy && sudo chown $USER /var/lib/halastudy`.
+- [ ] Create the `halastudy` service user and owner-only state directory (the bootstrap script does this automatically).
 - [ ] Write `/var/lib/halastudy/.env` (or use `ecosystem.config.js`). Start from `.env.example` and set, at minimum:
 
 ```bash
 NODE_ENV=production
 PORT=3000
+HOST=127.0.0.1
 TRUST_PROXY=1
 ALLOWED_ORIGINS=https://halastudy.com          # your exact origin
 ROOM_STATE_FILE=/var/lib/halastudy/rooms.json
@@ -61,6 +62,7 @@ USER_STATE_FILE=/var/lib/halastudy/users.json
 ROOM_STATE_BACKUP_DIR=/var/lib/halastudy/backups
 BACKUP_INTERVAL_MINUTES=60
 SESSION_SECRET=<from npm run secret:gen>        # REQUIRED — startup fails without it
+ADMIN_SESSION_SECRET=<second generated value>  # REQUIRED and distinct
 ADMIN_PATH=<your secret slug>                   # both admin vars or neither
 ADMIN_PASSWORD_HASH=<from npm run admin:hash>
 # TURN — see step 3
@@ -73,7 +75,7 @@ CLOUDFLARE_REALTIMEKIT_API_TOKEN=<...>
 VIDEO_DEFAULT_PRESET_NAME=halastudy_student
 ```
 
-- [ ] Start under PM2, **single instance** (persistence is single-process by design): `pm2 start ecosystem.config.js`.
+- [ ] Set `.env` owner/mode to `halastudy:halastudy`/`600`, then run `scripts/deploy/start.sh` as `halastudy`; it keeps exactly one PM2 instance.
 - [ ] Configure Nginx as the TLS terminator + reverse proxy (`DEPLOYMENT.md §5`) and issue the cert with certbot (`§6`).
 
 </details>
