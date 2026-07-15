@@ -3548,7 +3548,7 @@ function createCoStudyServer(options = {}) {
                 }
             }
 
-            ensureRoom(roomCode, {
+            const createdRoom = ensureRoom(roomCode, {
                 name: cleanName,
                 ownerUserId: creator?.id || null,
                 requirePassword: shouldProtect,
@@ -3560,7 +3560,20 @@ function createCoStudyServer(options = {}) {
             });
 
             scheduleRoomCleanup(roomCode);
-            persistRoomsSoon();
+            try {
+                // A room code is not usable until the complete room record,
+                // including its expiry, has reached the immediate store.
+                await roomStore.flush(rooms);
+            } catch (error) {
+                clearRoomCleanupTimer(createdRoom);
+                rooms.delete(roomCode);
+                logger.error({
+                    event: 'room_create_persist_failed',
+                    roomId: roomCode,
+                    error: error?.message
+                });
+                return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
+            }
 
             if (creator) {
                 try {
@@ -3719,6 +3732,53 @@ function createCoStudyServer(options = {}) {
                 return ackError(ack, 'ROOM_FULL');
             }
 
+            const joiningUser = getSocketUser();
+            let previousMyRooms = null;
+            if (joiningUser) {
+                try {
+                    await runUserMutation(joiningUser, async () => {
+                        previousMyRooms = structuredClone(joiningUser.myRooms);
+                        recordMyRoom(joiningUser, { roomId: normalizedRoom, name: room.name, role: 'joined' });
+                        try {
+                            // Persist account metadata before invalidating the
+                            // source membership or any provider credential. A
+                            // rejected write therefore leaves both rooms and
+                            // the old membership token exactly untouched.
+                            await persistUserImmediate(joiningUser);
+                        } catch (error) {
+                            joiningUser.myRooms = previousMyRooms;
+                            throw error;
+                        }
+                    });
+                } catch (error) {
+                    return ackError(
+                        ack,
+                        error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED'
+                            ? 'AUTH_REQUIRED'
+                            : 'PERSISTENCE_UNAVAILABLE'
+                    );
+                }
+            }
+
+            const rollbackUserRoomMetadata = async () => {
+                if (!joiningUser || !previousMyRooms) return true;
+                try {
+                    await runUserMutation(joiningUser, async () => {
+                        joiningUser.myRooms = structuredClone(previousMyRooms);
+                        await persistUserImmediate(joiningUser);
+                    });
+                    return true;
+                } catch (error) {
+                    logger.error({
+                        event: 'room_join_user_rollback_failed',
+                        roomId: normalizedRoom,
+                        userId: joiningUser.id,
+                        error: error?.message
+                    });
+                    return false;
+                }
+            };
+
             // Provider credentials are socket-bound just like membership.
             // Revoke them durably before mutating either room so a successful
             // switch/reconnect can never leave a cached provider token usable.
@@ -3732,11 +3792,17 @@ function createCoStudyServer(options = {}) {
                     'room_membership_revoked'
                 );
                 if (revoked.persistenceUnavailable) {
+                    await rollbackUserRoomMetadata();
                     return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
                 }
                 if (!revoked.providerIdentityRevoked) {
                     realtimeKitProviderAvailable = false;
-                    return ackError(ack, 'VIDEO_PROVIDER_UNAVAILABLE');
+                    return ackError(
+                        ack,
+                        await rollbackUserRoomMetadata()
+                            ? 'VIDEO_PROVIDER_UNAVAILABLE'
+                            : 'PERSISTENCE_UNAVAILABLE'
+                    );
                 }
             }
 
@@ -3774,7 +3840,6 @@ function createCoStudyServer(options = {}) {
                 );
             });
 
-            const joiningUser = getSocketUser();
             const scheduleChanged = !!(
                 joiningUser
                 && room.ownerUserId
@@ -3796,28 +3861,6 @@ function createCoStudyServer(options = {}) {
                 avatarColor: joiningUser ? joiningUser.avatarColor : null,
                 streakCurrent: joiningUser ? joiningUser.streak.current : null
             };
-
-            if (joiningUser) {
-                try {
-                    await runUserMutation(joiningUser, async () => {
-                        const previousMyRooms = structuredClone(joiningUser.myRooms);
-                        recordMyRoom(joiningUser, { roomId: normalizedRoom, name: room.name, role: 'joined' });
-                        try {
-                            await persistUserImmediate(joiningUser);
-                        } catch (error) {
-                            joiningUser.myRooms = previousMyRooms;
-                            throw error;
-                        }
-                    });
-                } catch (error) {
-                    return ackError(
-                        ack,
-                        error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED'
-                            ? 'AUTH_REQUIRED'
-                            : 'PERSISTENCE_UNAVAILABLE'
-                    );
-                }
-            }
 
             room.users.set(socket.id, userRecord);
             if (identityKey) {
