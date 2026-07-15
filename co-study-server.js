@@ -613,6 +613,12 @@ function normalizeClientId(raw = '') {
     return trimmed.slice(0, CLIENT_ID_MAX_LENGTH);
 }
 
+function normalizeOpaqueId(raw = '') {
+    if (typeof raw !== 'string') return null;
+    const trimmed = raw.trim();
+    return /^[A-Za-z0-9_-]{32,128}$/.test(trimmed) ? trimmed : null;
+}
+
 function isPlainObject(value) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
     const prototype = Object.getPrototypeOf(value);
@@ -1080,8 +1086,6 @@ function createCoStudyServer(options = {}) {
         if (!session?.roomId) return;
         io.to(session.roomId).emit('video-session-ended', {
             roomId: session.roomId,
-            userId: session.userId,
-            clientSessionId: session.clientSessionId,
             reason: session.leaveReason || 'left'
         });
         emitVideoCapacity(session.roomId);
@@ -1429,17 +1433,18 @@ function createCoStudyServer(options = {}) {
         });
     }
 
-    function findRoomVideoMember(req, room, displayName, clientSessionId) {
-        const cookies = parseCookies(req.headers.cookie || '');
-        const sessionId = verifyAnonSessionToken(cookies[SESSION_COOKIE_NAME], { secret: config.sessionSecret }) || '';
-        const users = Array.from(room.users.values());
-        return users.find((user) => {
-            if (!user || user.name !== displayName) return false;
-            if (clientSessionId && user.clientId === clientSessionId) return true;
-            if (clientSessionId && user.sessionId === clientSessionId) return true;
-            if (sessionId && user.sessionId === sessionId) return true;
-            return false;
-        }) || null;
+    function resolveRoomMembership(req, room, roomId) {
+        const rawHeader = req.headers['x-halastudy-membership'];
+        const token = normalizeOpaqueId(Array.isArray(rawHeader) ? rawHeader[0] : rawHeader);
+        const membership = token ? membershipTokens.get(token) : null;
+        if (!membership || membership.roomId !== roomId) return null;
+
+        const socketRef = io.sockets.sockets.get(membership.socketId);
+        const member = room.users.get(membership.socketId);
+        if (!socketRef || !member) return null;
+        if (socketRef.data.membershipToken !== token || member.membershipToken !== token) return null;
+        if (socketRef.data.roomId !== roomId || member.identityId !== membership.identityId) return null;
+        return { membership, member, socketRef };
     }
 
     async function ensureRealtimeKitMeeting(roomId, room) {
@@ -1516,17 +1521,16 @@ function createCoStudyServer(options = {}) {
         return true;
     }
 
-    function isSameActiveVideoSession(session, roomId, userId, clientSessionId) {
+    function isSameActiveVideoSession(session, roomId, userId) {
         return session
             && !session.leftAt
             && session.roomId === roomId
-            && session.userId === userId
-            && session.clientSessionId === clientSessionId;
+            && session.userId === userId;
     }
 
-    function findActiveVideoSession(roomId, userId, clientSessionId) {
+    function findActiveVideoSession(roomId, userId) {
         return videoSessionRegistry.listActive().find((session) => {
-            return isSameActiveVideoSession(session, roomId, userId, clientSessionId);
+            return isSameActiveVideoSession(session, roomId, userId);
         }) || null;
     }
 
@@ -1543,7 +1547,7 @@ function createCoStudyServer(options = {}) {
                 res.setHeader('Vary', 'Origin');
                 res.setHeader('Access-Control-Allow-Origin', origin);
                 res.setHeader('Access-Control-Allow-Credentials', 'true');
-                res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+                res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Halastudy-Membership');
                 res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
             }
             if (req.method === 'OPTIONS') {
@@ -1796,7 +1800,6 @@ function createCoStudyServer(options = {}) {
         }
 
         const displayName = sanitizeNickname(req.body?.displayName);
-        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
         const rawRole = typeof req.body?.role === 'string' ? req.body.role.trim().toLowerCase() : '';
         // 'student' is the legacy publisher role sent by normal mesh/private rooms
         // and stays a publisher. The Lobby sends explicit 'viewer' | 'publisher'.
@@ -1809,7 +1812,7 @@ function createCoStudyServer(options = {}) {
             role = null;
         }
 
-        if (!displayName || !clientSessionId || !role) {
+        if (!displayName || !role) {
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
             return;
         }
@@ -1831,11 +1834,12 @@ function createCoStudyServer(options = {}) {
             return;
         }
 
-        const member = findRoomVideoMember(req, room, displayName, clientSessionId);
-        if (!member) {
-            sendVideoError(res, 403, 'ROOM_NOT_JOINED');
+        const resolvedMembership = resolveRoomMembership(req, room, normalizedRoom);
+        if (!resolvedMembership || resolvedMembership.member.name !== displayName) {
+            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
             return;
         }
+        const { member } = resolvedMembership;
 
         // The Lobby is public: anyone may watch (viewer preset), but going on
         // camera (publisher preset) requires a signed-in, ban-able account.
@@ -1845,8 +1849,8 @@ function createCoStudyServer(options = {}) {
             return;
         }
 
-        const userId = member.clientId || member.sessionId || clientSessionId;
-        const existingActive = findActiveVideoSession(normalizedRoom, userId, clientSessionId);
+        const userId = member.identityId;
+        const existingActive = findActiveVideoSession(normalizedRoom, userId);
         const activeGlobal = videoSessionRegistry.countActiveGlobalVideoParticipants();
         const activeRoom = videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom);
         const effectiveGlobal = activeGlobal - (existingActive ? 1 : 0);
@@ -1879,10 +1883,9 @@ function createCoStudyServer(options = {}) {
             return;
         }
 
-        videoSessionRegistry.registerVideoSession({
+        const registeredSession = videoSessionRegistry.registerVideoSession({
             roomId: normalizedRoom,
             userId,
-            clientSessionId,
             socketId: member.socketId,
             provider: roomVideoProvider,
             providerMeetingId: room.videoProviderMeetingId,
@@ -1900,12 +1903,12 @@ function createCoStudyServer(options = {}) {
             const tokenPayload = await videoProvider.createParticipantToken({
                 roomId: normalizedRoom,
                 meetingId: meeting.meetingId,
-                userId,
+                userId: registeredSession.videoSessionId,
                 displayName,
                 presetName
             });
 
-            videoSessionRegistry.updateVideoSession({ roomId: normalizedRoom, userId, clientSessionId }, {
+            videoSessionRegistry.updateVideoSession({ videoSessionId: registeredSession.videoSessionId }, {
                 providerMeetingId: tokenPayload.meetingId,
                 providerParticipantId: tokenPayload.participantId,
                 lastSeenAt: Date.now()
@@ -1916,7 +1919,7 @@ function createCoStudyServer(options = {}) {
                 provider: roomVideoProvider,
                 roomId: normalizedRoom,
                 userId,
-                clientSessionId,
+                videoSessionId: registeredSession.videoSessionId,
                 activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
                 activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
             });
@@ -1926,6 +1929,7 @@ function createCoStudyServer(options = {}) {
                 provider: roomVideoProvider,
                 roomId: normalizedRoom,
                 role,
+                videoSessionId: registeredSession.videoSessionId,
                 meetingId: tokenPayload.meetingId,
                 participantId: tokenPayload.participantId,
                 authToken: tokenPayload.authToken,
@@ -1933,7 +1937,7 @@ function createCoStudyServer(options = {}) {
                 policy: getClientVideoPolicy(room)
             });
         } catch (error) {
-            videoSessionRegistry.markVideoSessionLeft({ roomId: normalizedRoom, userId, clientSessionId }, 'provider_failure');
+            videoSessionRegistry.markVideoSessionLeft({ videoSessionId: registeredSession.videoSessionId }, 'provider_failure');
             emitVideoCapacity(normalizedRoom);
             logger.warn({
                 event: 'video_token_rejected',
@@ -1959,17 +1963,25 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 404, 'ROOM_NOT_FOUND');
             return;
         }
-        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
-        const displayName = sanitizeNickname(req.body?.displayName);
-        const member = displayName && clientSessionId
-            ? findRoomVideoMember(req, room, displayName, clientSessionId)
-            : null;
-        const userId = member?.clientId || member?.sessionId || clientSessionId;
-        if (!clientSessionId || !userId) {
+        const resolvedMembership = resolveRoomMembership(req, room, normalizedRoom);
+        if (!resolvedMembership) {
+            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
+            return;
+        }
+        const videoSessionId = normalizeOpaqueId(req.body?.videoSessionId);
+        if (!videoSessionId) {
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
             return;
         }
-        const session = videoSessionRegistry.touchVideoSession({ roomId: normalizedRoom, userId, clientSessionId });
+        const activeSession = videoSessionRegistry.findSession({ videoSessionId });
+        if (!activeSession
+            || activeSession.roomId !== normalizedRoom
+            || activeSession.socketId !== resolvedMembership.member.socketId
+            || activeSession.userId !== resolvedMembership.member.identityId) {
+            sendVideoError(res, 403, 'VIDEO_SESSION_FORBIDDEN');
+            return;
+        }
+        const session = videoSessionRegistry.touchVideoSession({ videoSessionId });
         if (!session) {
             sendVideoError(res, 404, 'VIDEO_SESSION_NOT_FOUND');
             return;
@@ -1987,17 +1999,25 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 404, 'ROOM_NOT_FOUND');
             return;
         }
-        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
-        const displayName = sanitizeNickname(req.body?.displayName);
-        const member = displayName && clientSessionId
-            ? findRoomVideoMember(req, room, displayName, clientSessionId)
-            : null;
-        const userId = member?.clientId || member?.sessionId || clientSessionId;
-        if (!clientSessionId || !userId) {
+        const resolvedMembership = resolveRoomMembership(req, room, normalizedRoom);
+        if (!resolvedMembership) {
+            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
+            return;
+        }
+        const videoSessionId = normalizeOpaqueId(req.body?.videoSessionId);
+        if (!videoSessionId) {
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
             return;
         }
-        const ended = videoSessionRegistry.markVideoSessionLeft({ roomId: normalizedRoom, userId, clientSessionId }, 'client_leave');
+        const activeSession = videoSessionRegistry.findSession({ videoSessionId });
+        if (!activeSession
+            || activeSession.roomId !== normalizedRoom
+            || activeSession.socketId !== resolvedMembership.member.socketId
+            || activeSession.userId !== resolvedMembership.member.identityId) {
+            sendVideoError(res, 403, 'VIDEO_SESSION_FORBIDDEN');
+            return;
+        }
+        const ended = videoSessionRegistry.markVideoSessionLeft({ videoSessionId }, 'client_leave');
         if (ended) emitVideoSessionEnded(ended);
         res.json({
             ok: true,

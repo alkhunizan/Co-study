@@ -1,7 +1,9 @@
+const crypto = require('node:crypto');
+
 const DEFAULT_STALE_AFTER_MS = 150000;
 
-function createSessionKey(roomId, userId, clientSessionId) {
-    return `${roomId || ''}:${userId || ''}:${clientSessionId || ''}`;
+function createSessionKey(roomId, userId, videoSessionId) {
+    return `${roomId || ''}:${userId || ''}:${videoSessionId || ''}`;
 }
 
 function createVideoSessionRegistry(options = {}) {
@@ -14,14 +16,35 @@ function createVideoSessionRegistry(options = {}) {
         return Array.from(sessions.values()).filter((session) => !session.leftAt);
     }
 
+    function findSession(match = {}) {
+        if (match.videoSessionId) {
+            return listActive().find((session) => {
+                return session.videoSessionId === match.videoSessionId;
+            }) || null;
+        }
+        return listActive().find((session) => {
+            return (!match.roomId || session.roomId === match.roomId)
+                && (!match.userId || session.userId === match.userId)
+                && (!match.clientSessionId || session.clientSessionId === match.clientSessionId);
+        }) || null;
+    }
+
     function registerVideoSession(session = {}) {
         const joinedAt = session.joinedAt || now();
-        const key = createSessionKey(session.roomId, session.userId, session.clientSessionId);
-        const previous = sessions.get(key);
+        const previous = findSession({
+            roomId: session.roomId,
+            userId: session.userId,
+            videoSessionId: session.videoSessionId
+        });
+        const videoSessionId = previous?.videoSessionId
+            || session.videoSessionId
+            || crypto.randomBytes(32).toString('base64url');
+        const key = previous?.key || createSessionKey(session.roomId, session.userId, videoSessionId);
         const next = {
             ...previous,
             ...session,
             key,
+            videoSessionId,
             joinedAt: previous?.joinedAt || joinedAt,
             lastSeenAt: session.lastSeenAt || now(),
             leftAt: null
@@ -31,21 +54,19 @@ function createVideoSessionRegistry(options = {}) {
     }
 
     function updateVideoSession(match = {}, patch = {}) {
-        const key = createSessionKey(match.roomId, match.userId, match.clientSessionId);
-        const session = sessions.get(key);
+        const session = findSession(match);
         if (!session || session.leftAt) return null;
         const next = {
             ...session,
             ...patch,
             lastSeenAt: patch.lastSeenAt || session.lastSeenAt || now()
         };
-        sessions.set(key, next);
+        sessions.set(session.key, next);
         return next;
     }
 
     function markVideoSessionLeft(match = {}, reason = 'left') {
-        const key = createSessionKey(match.roomId, match.userId, match.clientSessionId);
-        const session = sessions.get(key);
+        const session = findSession(match);
         if (!session || session.leftAt) return null;
         const leftAt = now();
         const next = {
@@ -54,13 +75,13 @@ function createVideoSessionRegistry(options = {}) {
             leaveReason: reason,
             durationSeconds: Math.max(0, Math.round((leftAt - session.joinedAt) / 1000))
         };
-        sessions.set(key, next);
+        sessions.set(session.key, next);
         logger?.info({
             event: 'video_session_ended',
             provider: next.provider,
             roomId: next.roomId,
             userId: next.userId,
-            clientSessionId: next.clientSessionId,
+            videoSessionId: next.videoSessionId,
             durationSeconds: next.durationSeconds,
             reason
         });
@@ -119,6 +140,7 @@ function createVideoSessionRegistry(options = {}) {
         countActiveGlobalVideoParticipants,
         countActiveRoomVideoParticipants,
         sweepStaleVideoSessions,
+        findSession,
         listActive,
         sessions
     };

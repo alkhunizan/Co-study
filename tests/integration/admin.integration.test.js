@@ -144,6 +144,7 @@ test('video kill-switch toggles at runtime and is reflected in runtime-config an
 
     const token = await server.request(`/api/rooms/${roomId}/video-token`, {
         method: 'POST',
+        headers: { 'X-Halastudy-Membership': joined.membershipToken },
         body: { displayName: 'Owner', clientSessionId: 'ks-owner', role: 'student' }
     });
     assert.equal(token.status, 503);

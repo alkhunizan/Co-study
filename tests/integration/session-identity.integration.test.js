@@ -267,3 +267,66 @@ test('hidden status broadcasts only visibility and update time', async (t) => {
     assert.deepEqual(Object.keys(update.status).sort(), ['updatedAt', 'visible']);
     assert.equal(update.status.visible, false);
 });
+
+test('video endpoints require the server-issued room membership and video session ids', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    t.after(() => server.stop());
+
+    const owner = await connectSocket(server.baseUrl);
+    const attacker = await connectSocket(server.baseUrl);
+    t.after(async () => {
+        await closeSocket(owner);
+        await closeSocket(attacker);
+    });
+
+    const created = await emitAck(owner, 'create-room', { roomName: 'Video identity' });
+    assert.equal(created.ok, true);
+    const roomId = created.room.code;
+    const ownerJoin = await emitAck(owner, 'join-room', { roomId, username: 'Owner' });
+    const attackerJoin = await emitAck(attacker, 'join-room', { roomId, username: 'Attacker' });
+
+    const unbound = await server.request(`/api/rooms/${roomId}/video-token`, {
+        method: 'POST',
+        body: { displayName: 'Owner', clientSessionId: 'caller-picked', role: 'student' }
+    });
+    assert.equal(unbound.status, 403);
+    assert.equal(unbound.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+
+    const forged = await server.request(`/api/rooms/${roomId}/video-token`, {
+        method: 'POST',
+        headers: { 'X-Halastudy-Membership': attackerJoin.membershipToken },
+        body: { displayName: 'Owner', clientSessionId: 'caller-picked', role: 'student' }
+    });
+    assert.equal(forged.status, 403);
+    assert.equal(forged.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+
+    const issued = await server.request(`/api/rooms/${roomId}/video-token`, {
+        method: 'POST',
+        headers: { 'X-Halastudy-Membership': ownerJoin.membershipToken },
+        body: { displayName: 'Owner', clientSessionId: 'caller-picked', role: 'student' }
+    });
+    assert.equal(issued.status, 200);
+    assert.match(issued.body.videoSessionId, /^[A-Za-z0-9_-]{32,}$/);
+    assert.notEqual(issued.body.videoSessionId, 'caller-picked');
+
+    const attackerHeartbeat = await server.request(`/api/rooms/${roomId}/video-heartbeat`, {
+        method: 'POST',
+        headers: { 'X-Halastudy-Membership': attackerJoin.membershipToken },
+        body: { videoSessionId: issued.body.videoSessionId }
+    });
+    assert.equal(attackerHeartbeat.status, 403);
+
+    const heartbeat = await server.request(`/api/rooms/${roomId}/video-heartbeat`, {
+        method: 'POST',
+        headers: { 'X-Halastudy-Membership': ownerJoin.membershipToken },
+        body: { videoSessionId: issued.body.videoSessionId }
+    });
+    assert.equal(heartbeat.status, 200);
+
+    const leave = await server.request(`/api/rooms/${roomId}/video-leave`, {
+        method: 'POST',
+        headers: { 'X-Halastudy-Membership': ownerJoin.membershipToken },
+        body: { videoSessionId: issued.body.videoSessionId }
+    });
+    assert.equal(leave.status, 200);
+});

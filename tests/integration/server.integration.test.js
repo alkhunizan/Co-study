@@ -73,10 +73,13 @@ async function expectStartFailure(startOptions, pattern) {
 }
 
 async function issueVideoToken(server, roomId, body, headers = {}) {
+    const { membershipToken, ...requestBody } = body;
     return server.request(`/api/rooms/${roomId}/video-token`, {
         method: 'POST',
-        body,
-        headers
+        body: requestBody,
+        headers: membershipToken
+            ? { ...headers, 'X-Halastudy-Membership': membershipToken }
+            : headers
     });
 }
 
@@ -520,7 +523,8 @@ test('RealtimeKit video token endpoint issues safe participant tokens after room
     const token = await issueVideoToken(server, createRoom.room.roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: joinOwner.membershipToken
     });
 
     assert.equal(token.status, 200);
@@ -535,7 +539,7 @@ test('RealtimeKit video token endpoint issues safe participant tokens after room
     assert.equal(fakeState.meetings.length, 1);
     assert.equal(fakeState.participants.length, 1);
     assert.equal(fakeState.participants[0].body.preset_name, 'halastudy_student');
-    assert.equal(fakeState.participants[0].body.custom_participant_id, 'rtk-owner');
+    assert.equal(fakeState.participants[0].body.custom_participant_id, token.body.videoSessionId);
 });
 
 test('the Lobby issues viewer tokens to guests but gates camera (publisher) behind an account', async (t) => {
@@ -554,7 +558,8 @@ test('the Lobby issues viewer tokens to guests but gates camera (publisher) behi
 
     // Guest -> viewer token: allowed, uses the viewer preset, no account needed.
     const viewerToken = await issueVideoToken(server, 'LOBBY', {
-        displayName: 'Guest', clientSessionId: 'lobby-guest', role: 'viewer'
+        displayName: 'Guest', clientSessionId: 'lobby-guest', role: 'viewer',
+        membershipToken: guestJoin.membershipToken
     });
     assert.equal(viewerToken.status, 200);
     assert.equal(viewerToken.body.ok, true);
@@ -562,7 +567,8 @@ test('the Lobby issues viewer tokens to guests but gates camera (publisher) behi
 
     // Guest -> publisher: rejected. Turning on camera in the Lobby needs an account.
     const guestPublish = await issueVideoToken(server, 'LOBBY', {
-        displayName: 'Guest', clientSessionId: 'lobby-guest', role: 'publisher'
+        displayName: 'Guest', clientSessionId: 'lobby-guest', role: 'publisher',
+        membershipToken: guestJoin.membershipToken
     });
     assert.equal(guestPublish.status, 403);
     assert.equal(guestPublish.body.errorCode, 'AUTH_REQUIRED');
@@ -591,7 +597,8 @@ test('the Lobby issues a publisher token to a signed-in account', async (t) => {
 
     // Same request, now with the auth cookie -> publisher token with the student preset.
     const publish = await issueVideoToken(server, 'LOBBY', {
-        displayName: 'Member', clientSessionId: 'lobby-member', role: 'publisher'
+        displayName: 'Member', clientSessionId: 'lobby-member', role: 'publisher',
+        membershipToken: join.membershipToken
     }, { Cookie: account.cookie });
     assert.equal(publish.status, 200);
     assert.equal(publish.body.ok, true);
@@ -630,7 +637,7 @@ test('RealtimeKit video token endpoint rejects invalid or unauthorized requests 
         role: 'student'
     });
     assert.equal(notJoined.status, 403);
-    assert.equal(notJoined.body.errorCode, 'ROOM_NOT_JOINED');
+    assert.equal(notJoined.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
 
     const joinOwner = await emitAck(ownerSocket, 'join-room', {
         roomId,
@@ -642,7 +649,8 @@ test('RealtimeKit video token endpoint rejects invalid or unauthorized requests 
     const invalidRole = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-auth-owner',
-        role: 'host'
+        role: 'host',
+        membershipToken: joinOwner.membershipToken
     });
     assert.equal(invalidRole.status, 400);
     assert.equal(invalidRole.body.errorCode, 'VIDEO_REQUEST_INVALID');
@@ -691,14 +699,16 @@ test('RealtimeKit caps reject before provider participant creation', async (t) =
     const firstToken = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-cap-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: ownerJoin.membershipToken
     });
     assert.equal(firstToken.status, 200);
 
     const blockedToken = await issueVideoToken(server, roomId, {
         displayName: 'Peer',
         clientSessionId: 'rtk-cap-peer',
-        role: 'student'
+        role: 'student',
+        membershipToken: peerJoin.membershipToken
     });
     assert.equal(blockedToken.status, 409);
     assert.equal(blockedToken.body.errorCode, 'GLOBAL_VIDEO_LIMIT_REACHED');
@@ -729,12 +739,12 @@ test('RealtimeKit room cap rejects before provider participant creation', async 
         roomName: 'RealtimeKit Room Cap'
     });
     const roomId = createRoom.room.roomId;
-    await emitAck(ownerSocket, 'join-room', {
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
         roomId,
         username: 'Owner',
         clientId: 'rtk-room-cap-owner'
     });
-    await emitAck(peerSocket, 'join-room', {
+    const peerJoin = await emitAck(peerSocket, 'join-room', {
         roomId,
         username: 'Peer',
         clientId: 'rtk-room-cap-peer'
@@ -743,14 +753,16 @@ test('RealtimeKit room cap rejects before provider participant creation', async 
     const firstToken = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-room-cap-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: ownerJoin.membershipToken
     });
     assert.equal(firstToken.status, 200);
 
     const blockedToken = await issueVideoToken(server, roomId, {
         displayName: 'Peer',
         clientSessionId: 'rtk-room-cap-peer',
-        role: 'student'
+        role: 'student',
+        membershipToken: peerJoin.membershipToken
     });
     assert.equal(blockedToken.status, 409);
     assert.equal(blockedToken.body.errorCode, 'ROOM_FULL');
@@ -776,7 +788,7 @@ test('RealtimeKit provider failures release capacity and hide provider internals
         roomName: 'RealtimeKit Failure Room'
     });
     const roomId = createRoom.room.roomId;
-    await emitAck(ownerSocket, 'join-room', {
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
         roomId,
         username: 'Owner',
         clientId: 'rtk-fail-owner'
@@ -785,7 +797,8 @@ test('RealtimeKit provider failures release capacity and hide provider internals
     const failed = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-fail-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: ownerJoin.membershipToken
     });
     assert.equal(failed.status, 502);
     assert.equal(failed.body.errorCode, 'VIDEO_PROVIDER_UNAVAILABLE');
@@ -819,7 +832,7 @@ test('RealtimeKit meeting metadata persists and is reused after restart', async 
         roomName: 'RealtimeKit Persist Room'
     });
     const roomId = createRoom.room.roomId;
-    await emitAck(ownerSocket, 'join-room', {
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
         roomId,
         username: 'Owner',
         clientId: 'rtk-persist-owner'
@@ -827,7 +840,8 @@ test('RealtimeKit meeting metadata persists and is reused after restart', async 
     const firstToken = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-persist-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: ownerJoin.membershipToken
     });
     assert.equal(firstToken.status, 200);
     assert.equal(firstToken.body.meetingId, 'meeting_1');
@@ -854,7 +868,8 @@ test('RealtimeKit meeting metadata persists and is reused after restart', async 
     const secondToken = await issueVideoToken(server, roomId, {
         displayName: 'Verifier',
         clientSessionId: 'rtk-persist-verifier',
-        role: 'student'
+        role: 'student',
+        membershipToken: verifierJoin.membershipToken
     });
     assert.equal(secondToken.status, 200);
     assert.equal(secondToken.body.meetingId, 'meeting_1');
@@ -913,7 +928,8 @@ test('RealtimeKit expired idle meeting metadata is recycled for reusable rooms',
     const token = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-recycle-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: joinOwner.membershipToken
     });
     assert.equal(token.status, 200);
     assert.equal(token.body.meetingId, 'meeting_1');
@@ -938,12 +954,12 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
         roomName: 'RealtimeKit Lifecycle Room'
     });
     const roomId = createRoom.room.roomId;
-    await emitAck(ownerSocket, 'join-room', {
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
         roomId,
         username: 'Owner',
         clientId: 'rtk-life-owner'
     });
-    await emitAck(peerSocket, 'join-room', {
+    const peerJoin = await emitAck(peerSocket, 'join-room', {
         roomId,
         username: 'Peer',
         clientId: 'rtk-life-peer'
@@ -952,14 +968,16 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
     const token = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-life-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: ownerJoin.membershipToken
     });
     assert.equal(token.status, 200);
 
     const heartbeat = await server.request(`/api/rooms/${roomId}/video-heartbeat`, {
         method: 'POST',
+        headers: { 'X-Halastudy-Membership': ownerJoin.membershipToken },
         body: {
-            clientSessionId: 'rtk-life-owner'
+            videoSessionId: token.body.videoSessionId
         }
     });
     assert.equal(heartbeat.status, 200);
@@ -967,8 +985,9 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
 
     const leave = await server.request(`/api/rooms/${roomId}/video-leave`, {
         method: 'POST',
+        headers: { 'X-Halastudy-Membership': ownerJoin.membershipToken },
         body: {
-            clientSessionId: 'rtk-life-owner'
+            videoSessionId: token.body.videoSessionId
         }
     });
     assert.equal(leave.status, 200);
@@ -977,7 +996,8 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
     const peerToken = await issueVideoToken(server, roomId, {
         displayName: 'Peer',
         clientSessionId: 'rtk-life-peer',
-        role: 'student'
+        role: 'student',
+        membershipToken: peerJoin.membershipToken
     });
     assert.equal(peerToken.status, 200);
     await closeSocket(peerSocket);
@@ -1711,7 +1731,8 @@ test('protected room GET exposes only a safe preview and leaks no private state'
     const token = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'priv-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: joinOwner.membershipToken
     });
     assert.equal(token.status, 200);
 
@@ -1865,7 +1886,7 @@ test('video-token requires verified room membership even for existing rooms', as
         role: 'student'
     });
     assert.equal(denied.status, 403);
-    assert.equal(denied.body.errorCode, 'ROOM_NOT_JOINED');
+    assert.equal(denied.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
     assert.equal(denied.body.authToken, undefined);
 
     // ...but a verified member can, after a real join.
@@ -1879,7 +1900,8 @@ test('video-token requires verified room membership even for existing rooms', as
     const granted = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'vt-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: joinOwner.membershipToken
     });
     assert.equal(granted.status, 200);
     assert.equal(typeof granted.body.authToken, 'string');
