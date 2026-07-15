@@ -52,6 +52,29 @@ test('admin login rejects a wrong password, then unlocks the overview tiles', as
     }
 });
 
+test('admin refresh reloads the active panel immediately', async ({ browser }) => {
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await page.goto(ADMIN_PATH);
+        await page.fill('#admin-password', ADMIN_PASSWORD);
+        await page.click('#login-form button[type="submit"]');
+        await expect(page.locator('#ops-shell')).toBeVisible();
+        await expect(page.locator('#overview-tiles .tile')).toHaveCount(6);
+
+        const refreshRequest = page.waitForRequest((request) => {
+            return request.method() === 'GET'
+                && new URL(request.url()).pathname === `${ADMIN_PATH}/api/overview`;
+        }, { timeout: 2000 });
+
+        await page.click('#btn-refresh');
+        await refreshRequest;
+        await expect(page.locator('#btn-refresh')).toBeEnabled();
+    } finally {
+        await operator.context.close();
+    }
+});
+
 test('force-close from the console requires typing the room code and kills the live room', async ({ browser }) => {
     const student = await createAdminPage(browser);
     const operator = await createAdminPage(browser);
