@@ -6,7 +6,7 @@ const {
     applyRestorePlan,
     buildRestorePlan,
     createSupabaseRestoreTarget,
-    hasDatabaseDatasets,
+    requiresDeletionTombstoneFilter,
     writeRoomsAtomically
 } = require('../services/ops/backup-restore');
 const { createSupabaseClient } = require('../services/supabase/client');
@@ -59,7 +59,7 @@ async function main({ args = process.argv.slice(2), env = process.env, logger = 
         });
         let supabaseTarget = null;
         let deletionTombstones = [];
-        if (hasDatabaseDatasets(bundle)) {
+        if (requiresDeletionTombstoneFilter(bundle)) {
             supabaseTarget = createRequiredSupabaseTarget(env);
             deletionTombstones = await supabaseTarget.readDeletionTombstones();
         }

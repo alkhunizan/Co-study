@@ -7,7 +7,8 @@ const test = require('node:test');
 const {
     applyRestorePlan,
     buildRestorePlan,
-    createSupabaseRestoreTarget
+    createSupabaseRestoreTarget,
+    requiresDeletionTombstoneFilter
 } = require('../../services/ops/backup-restore');
 
 function sampleBundle() {
@@ -52,6 +53,19 @@ test('restore plans filter every current deletion tombstone before data can be a
         room_events: 1,
         rooms: 1
     });
+});
+
+test('rooms-only restore artifacts still require current tombstones when ownership can resurrect a user', () => {
+    assert.equal(requiresDeletionTombstoneFilter({
+        datasets: {
+            rooms: [{ id: 'OWNED', ownerUserId: 'deleted-user' }]
+        }
+    }), true);
+    assert.equal(requiresDeletionTombstoneFilter({
+        datasets: {
+            rooms: [{ id: 'ANONYMOUS', ownerUserId: null }]
+        }
+    }), false);
 });
 
 test('restore defaults to dry-run and performs no writes', async () => {

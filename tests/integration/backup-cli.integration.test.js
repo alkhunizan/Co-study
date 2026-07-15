@@ -79,6 +79,30 @@ test('backup CLI fails when every configured source is unreadable', (t) => {
     assert.equal(fs.existsSync(backupDir), false);
 });
 
+test('rooms-only restore fails closed without live tombstones when a room references an account', (t) => {
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-backup-owned-room-'));
+    const roomStateFile = path.join(workDir, 'rooms.json');
+    const backupDir = path.join(workDir, 'backups');
+    fs.writeFileSync(roomStateFile, `${JSON.stringify([{ id: 'OWNED', ownerUserId: 'deleted-user' }])}\n`);
+    t.after(() => fs.rmSync(workDir, { recursive: true, force: true }));
+    const env = {
+        BACKUP_ENCRYPTION_KEY: BACKUP_KEY,
+        ROOM_STATE_FILE: roomStateFile,
+        ROOM_STATE_BACKUP_DIR: backupDir
+    };
+
+    const backup = runScript('scripts/backup-state.js', [], env);
+    assert.equal(backup.status, 0, backup.stderr);
+    const artifactPath = path.join(
+        backupDir,
+        fs.readdirSync(backupDir).find((name) => name.endsWith('.hsbackup'))
+    );
+    const restore = runScript('scripts/restore-state.js', [artifactPath], env);
+
+    assert.notEqual(restore.status, 0);
+    assert.match(restore.stderr, /Supabase credentials are required.*filter deletion tombstones/i);
+});
+
 test('nightly templates run as the service account and load only its protected env file', () => {
     const wrapper = fs.readFileSync(path.join(repoRoot, 'scripts/deploy/backup.sh'), 'utf8');
     const restoreWrapper = fs.readFileSync(path.join(repoRoot, 'scripts/deploy/restore.sh'), 'utf8');

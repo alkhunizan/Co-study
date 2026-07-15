@@ -3,6 +3,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const DATABASE_DATASETS = ['profiles', 'focus_sessions', 'room_events'];
+const ROOM_USER_REFERENCE_FIELDS = [
+    'owner_user_id',
+    'ownerUserId',
+    'created_by_user_id',
+    'createdByUserId'
+];
 
 function tombstoneUserId(row) {
     if (!row || typeof row !== 'object') return '';
@@ -155,10 +161,23 @@ function hasDatabaseDatasets(bundle) {
     return DATABASE_DATASETS.some((name) => Object.hasOwn(bundle.datasets, name));
 }
 
+function requiresDeletionTombstoneFilter(bundle) {
+    if (!bundle || typeof bundle !== 'object' || !bundle.datasets || typeof bundle.datasets !== 'object') {
+        throw new Error('Validated backup bundle is required.');
+    }
+    if (hasDatabaseDatasets(bundle)) return true;
+    const rooms = bundle.datasets.rooms;
+    if (!Array.isArray(rooms)) return false;
+    return rooms.some((room) => ROOM_USER_REFERENCE_FIELDS.some(
+        (field) => typeof room?.[field] === 'string' && room[field].trim() !== ''
+    ));
+}
+
 module.exports = {
     applyRestorePlan,
     buildRestorePlan,
     createSupabaseRestoreTarget,
     hasDatabaseDatasets,
+    requiresDeletionTombstoneFilter,
     writeRoomsAtomically
 };
