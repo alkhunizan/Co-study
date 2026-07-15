@@ -9,8 +9,11 @@ const REALTIMEKIT_CLIENT_SOURCE = fs.readFileSync(
     'utf8'
 );
 
-/** @param {{ init: (options: any) => Promise<any> }} RealtimeKitClient */
-function loadClient(RealtimeKitClient) {
+/**
+ * @param {{ init: (options: any) => Promise<any> }} RealtimeKitClient
+ * @param {(document: any) => void} [configureDocument]
+ */
+function loadClient(RealtimeKitClient, configureDocument) {
     const loadedCoreScript = {
         dataset: { loaded: 'true' },
         addEventListener() {}
@@ -29,6 +32,7 @@ function loadClient(RealtimeKitClient) {
             appendChild() {}
         }
     };
+    configureDocument?.(document);
     const window = { RealtimeKitClient };
 
     vm.runInNewContext(
@@ -186,4 +190,111 @@ test('headless join failure disconnects the initialized meeting', async () => {
 
     await assert.rejects(client.joinHeadless({ authToken: 'token' }), /headless join failed/);
     assert.equal(disconnects, 1);
+});
+
+test('leave rejection still disables every local producer, stops tracks, exits fullscreen, and unmounts UI', async () => {
+    const calls = [];
+    const tracks = {
+        audio: { kind: 'audio', stop() { calls.push('stop-audio'); } },
+        video: { kind: 'video', stop() { calls.push('stop-video'); } },
+        screenAudio: { kind: 'audio', stop() { calls.push('stop-screen-audio'); } },
+        screenVideo: { kind: 'video', stop() { calls.push('stop-screen-video'); } }
+    };
+    const meeting = {
+        self: {
+            audioTrack: tracks.audio,
+            videoTrack: tracks.video,
+            screenShareTracks: {
+                audio: tracks.screenAudio,
+                video: tracks.screenVideo
+            },
+            async disableAudio() { calls.push('disable-audio'); },
+            async disableVideo() { calls.push('disable-video'); },
+            async disableScreenShare() {
+                calls.push('disable-screen-share');
+                throw new Error('screen share disable failed');
+            }
+        },
+        async join() {},
+        async leaveRoom() {
+            calls.push('leave-room');
+            throw new Error('provider leave failed');
+        }
+    };
+    const { element, parent } = createMeetingElement();
+    let fullscreenExits = 0;
+    const client = loadClient({ async init() { return meeting; } }, (document) => {
+        document.fullscreenElement = element;
+        document.exitFullscreen = async () => {
+            fullscreenExits += 1;
+            document.fullscreenElement = null;
+        };
+    });
+
+    const joined = await client.join({ authToken: 'token', meetingElement: element });
+    await assert.rejects(joined.leave(), /provider leave failed/);
+
+    assert.deepEqual(new Set(calls), new Set([
+        'disable-audio',
+        'disable-video',
+        'disable-screen-share',
+        'stop-audio',
+        'stop-video',
+        'stop-screen-audio',
+        'stop-screen-video',
+        'leave-room'
+    ]));
+    assert.equal(fullscreenExits, 1);
+    assert.equal(element.meeting, null);
+    assert.equal(parent.children.includes(element), false);
+});
+
+test('headless leave without a provider disconnect method still releases locally held media', async () => {
+    let disables = 0;
+    let stops = 0;
+    const client = loadClient({
+        async init() {
+            return {
+                self: {
+                    audioTrack: { kind: 'audio', stop() { stops += 1; } },
+                    videoTrack: { kind: 'video', stop() { stops += 1; } },
+                    disableAudio() { disables += 1; },
+                    disableVideo() { disables += 1; },
+                    disableScreenShare() { disables += 1; }
+                },
+                async join() {}
+            };
+        }
+    });
+
+    const joined = await client.joinHeadless({ authToken: 'token' });
+    disables = 0;
+    await joined.leave();
+
+    assert.equal(disables, 3);
+    assert.equal(stops, 2);
+});
+
+test('provider disconnect falls back when the preferred leave method rejects', async () => {
+    const attempts = [];
+    const client = loadClient({
+        async init() {
+            return {
+                async join() {},
+                async leaveRoom() {
+                    attempts.push('leaveRoom');
+                    throw new Error('leaveRoom failed');
+                },
+                async disconnect() {
+                    attempts.push('disconnect');
+                }
+            };
+        }
+    });
+    const { element } = createMeetingElement();
+
+    const joined = await client.join({ authToken: 'token', meetingElement: element });
+    await joined.leave();
+
+    assert.deepEqual(attempts, ['leaveRoom', 'disconnect']);
 });
