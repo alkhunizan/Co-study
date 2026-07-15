@@ -1,5 +1,18 @@
 (function attachVideoClient(global) {
     const HEARTBEAT_INTERVAL_MS = 45000;
+    const MEMBERSHIP_HEADER = 'X-Halastudy-Membership';
+    const MAX_MEMBERSHIP_TOKEN_LENGTH = 4096;
+    const MAX_VIDEO_SESSION_ID_LENGTH = 256;
+    const FATAL_SESSION_ERROR_CODES = new Set([
+        'ROOM_MEMBERSHIP_REQUIRED',
+        'ROOM_NOT_FOUND',
+        'VIDEO_REQUEST_INVALID',
+        'VIDEO_SESSION_FORBIDDEN',
+        'VIDEO_SESSION_NOT_FOUND',
+        'HTTP_401',
+        'HTTP_403',
+        'HTTP_404'
+    ]);
 
     function buildApiUrl(apiBaseUrl, path) {
         const base = apiBaseUrl ? apiBaseUrl.replace(/\/$/, '') : '';
@@ -9,7 +22,11 @@
     async function postJson(url, body, options = {}) {
         const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                ...(options.headers || {})
+            },
             credentials: 'include',
             body: JSON.stringify(body),
             keepalive: !!options.keepalive
@@ -25,11 +42,34 @@
         return payload;
     }
 
-    function supersededJoinError() {
+    function createVideoError(code, message) {
         /** @type {Error & { code?: string }} */
-        const error = new Error('Video join was superseded by a newer lifecycle request.');
-        error.code = 'VIDEO_JOIN_SUPERSEDED';
+        const error = new Error(message);
+        error.code = code;
         return error;
+    }
+
+    function supersededJoinError() {
+        return createVideoError(
+            'VIDEO_JOIN_SUPERSEDED',
+            'Video join was superseded by a newer lifecycle request.'
+        );
+    }
+
+    function normalizeOpaqueValue(value, maxLength) {
+        if (typeof value !== 'string') return '';
+        const normalized = value.trim();
+        if (!normalized || normalized.length > maxLength || /[\r\n]/.test(normalized)) return '';
+        return normalized;
+    }
+
+    function membershipHeaders(membershipToken) {
+        return { [MEMBERSHIP_HEADER]: membershipToken };
+    }
+
+    function isFatalSessionError(error) {
+        const code = error && typeof error.code === 'string' ? error.code : '';
+        return FATAL_SESSION_ERROR_CODES.has(code);
     }
 
     function createVideoClient(options = {}) {
@@ -56,16 +96,20 @@
 
         async function heartbeat() {
             const session = state.session;
-            if (!session?.roomId || !session.clientSessionId) return;
+            if (!session?.roomId || !session.membershipToken || !session.videoSessionId) return;
             try {
                 await postJson(
                     buildApiUrl(apiBaseUrl, `/api/rooms/${encodeURIComponent(session.roomId)}/video-heartbeat`),
-                    {
-                        clientSessionId: session.clientSessionId,
-                        displayName: session.displayName
-                    }
+                    { videoSessionId: session.videoSessionId },
+                    { headers: membershipHeaders(session.membershipToken) }
                 );
-            } catch (_error) {}
+            } catch (error) {
+                if (!isFatalSessionError(error)) return;
+                await enqueue(async () => {
+                    if (state.session !== session) return;
+                    await disposeActiveSession({ notifyServer: false });
+                });
+            }
         }
 
         function startHeartbeat() {
@@ -77,15 +121,18 @@
 
         async function disposeSession(session, joined, options = {}) {
             const cleanup = [];
-            if (session?.roomId && session.clientSessionId) {
+            if (options.notifyServer !== false
+                && session?.roomId
+                && session.membershipToken
+                && session.videoSessionId) {
                 cleanup.push(
                     postJson(
                         buildApiUrl(apiBaseUrl, `/api/rooms/${encodeURIComponent(session.roomId)}/video-leave`),
+                        { videoSessionId: session.videoSessionId },
                         {
-                            clientSessionId: session.clientSessionId,
-                            displayName: session.displayName
-                        },
-                        { keepalive: !!options.keepalive }
+                            headers: membershipHeaders(session.membershipToken),
+                            keepalive: !!options.keepalive
+                        }
                     )
                 );
             }
@@ -122,30 +169,51 @@
 
                 const session = {
                     generation: joinGeneration,
-                    roomId: options.roomId || '',
-                    displayName: options.displayName || '',
-                    clientSessionId: options.clientSessionId || ''
+                    roomId: typeof options.roomId === 'string' ? options.roomId.trim() : '',
+                    displayName: typeof options.displayName === 'string' ? options.displayName : '',
+                    membershipToken: normalizeOpaqueValue(
+                        options.membershipToken,
+                        MAX_MEMBERSHIP_TOKEN_LENGTH
+                    ),
+                    videoSessionId: ''
                 };
                 let joined = null;
 
                 try {
+                    if (!session.roomId || !session.displayName) {
+                        throw createVideoError('VIDEO_REQUEST_INVALID', 'Video room and display name are required.');
+                    }
+                    if (!session.membershipToken) {
+                        throw createVideoError(
+                            'ROOM_MEMBERSHIP_REQUIRED',
+                            'A verified room membership is required for video.'
+                        );
+                    }
+
                     const tokenPayload = await postJson(
                         buildApiUrl(apiBaseUrl, `/api/rooms/${encodeURIComponent(session.roomId)}/video-token`),
                         {
                             displayName: session.displayName,
-                            clientSessionId: session.clientSessionId,
                             role: options.role || 'student'
-                        }
+                        },
+                        { headers: membershipHeaders(session.membershipToken) }
                     );
+                    session.videoSessionId = normalizeOpaqueValue(
+                        tokenPayload.videoSessionId,
+                        MAX_VIDEO_SESSION_ID_LENGTH
+                    );
+                    if (!session.videoSessionId) {
+                        throw createVideoError(
+                            'VIDEO_SESSION_INVALID',
+                            'Video token response did not include a valid server session id.'
+                        );
+                    }
                     if (joinGeneration !== lifecycleGeneration) throw supersededJoinError();
 
                     const realtimeKitClient = (/** @type {any} */ (global)).HalastudyRealtimeKitClient;
                     const joinMethod = options.headless ? realtimeKitClient?.joinHeadless : realtimeKitClient?.join;
                     if (typeof joinMethod !== 'function') {
-                        /** @type {Error & { code?: string }} */
-                        const error = new Error('RealtimeKit client is unavailable.');
-                        error.code = 'VIDEO_PROVIDER_UNAVAILABLE';
-                        throw error;
+                        throw createVideoError('VIDEO_PROVIDER_UNAVAILABLE', 'RealtimeKit client is unavailable.');
                     }
 
                     joined = await joinMethod.call(realtimeKitClient, {
@@ -163,7 +231,7 @@
                         meeting: joined?.meeting || null
                     };
                 } catch (error) {
-                    if (state.session && state.session.generation === joinGeneration) {
+                    if (state.session?.generation === joinGeneration) {
                         stopHeartbeat();
                         state.session = null;
                         state.joined = null;

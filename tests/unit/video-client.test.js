@@ -57,7 +57,11 @@ function createHarness(options = {}) {
             const request = { url: String(url), options };
             requests.push(request);
             if (fetchImpl) return fetchImpl(request);
-            return jsonResponse({ ok: true, authToken: `token-${requests.length}` });
+            return jsonResponse({
+                ok: true,
+                authToken: `token-${requests.length}`,
+                videoSessionId: `video-session-${requests.length}`
+            });
         },
         setInterval(callback) {
             const timer = { id: nextTimerId, callback };
@@ -85,6 +89,14 @@ function requestPath(request) {
     return new URL(request.url, 'https://halastudy.test').pathname;
 }
 
+function requestBody(request) {
+    return JSON.parse(request.options.body);
+}
+
+function membershipHeader(request) {
+    return request.options.headers['X-Halastudy-Membership'];
+}
+
 test('rapid join, leave, and rejoin disposes the stale join and leaves the latest session active', async () => {
     const firstJoin = deferred();
     const firstJoinStarted = deferred();
@@ -95,7 +107,12 @@ test('rapid join, leave, and rejoin disposes the stale join and leaves the lates
             const pathname = requestPath(request);
             if (pathname.endsWith('/video-token')) {
                 const roomId = pathname.split('/')[3];
-                return jsonResponse({ ok: true, authToken: `token-${roomId}`, policy: {} });
+                return jsonResponse({
+                    ok: true,
+                    authToken: `token-${roomId}`,
+                    videoSessionId: `video-session-${roomId}`,
+                    policy: {}
+                });
             }
             return jsonResponse({ ok: true });
         },
@@ -115,7 +132,8 @@ test('rapid join, leave, and rejoin disposes the stale join and leaves the lates
     const roomOneJoin = harness.client.joinRealtimeKitRoom({
         roomId: 'ROOM1',
         displayName: 'First',
-        clientSessionId: 'client-1',
+        membershipToken: 'membership-room-1',
+        clientSessionId: 'caller-picked-id-must-be-ignored',
         meetingElement: {}
     });
     await firstJoinStarted.promise;
@@ -124,7 +142,7 @@ test('rapid join, leave, and rejoin disposes the stale join and leaves the lates
     const roomTwoJoin = harness.client.joinRealtimeKitRoom({
         roomId: 'ROOM2',
         displayName: 'Second',
-        clientSessionId: 'client-1',
+        membershipToken: 'membership-room-2',
         meetingElement: {}
     });
 
@@ -146,6 +164,7 @@ test('rapid join, leave, and rejoin disposes the stale join and leaves the lates
     assert.equal(mediaLeaves.first, 1);
     assert.equal(mediaLeaves.second, 0);
     assert.equal(harness.timers.size, 1);
+    await harness.client.heartbeat();
 
     await Promise.all([harness.client.leave(), harness.client.leave()]);
 
@@ -155,6 +174,50 @@ test('rapid join, leave, and rejoin disposes the stale join and leaves the lates
         harness.requests.filter((request) => requestPath(request).endsWith('/video-leave')).map(requestPath),
         ['/api/rooms/ROOM1/video-leave', '/api/rooms/ROOM2/video-leave']
     );
+
+    const roomOneToken = harness.requests.find(
+        (request) => requestPath(request) === '/api/rooms/ROOM1/video-token'
+    );
+    const roomOneLeave = harness.requests.find(
+        (request) => requestPath(request) === '/api/rooms/ROOM1/video-leave'
+    );
+    const roomTwoToken = harness.requests.find(
+        (request) => requestPath(request) === '/api/rooms/ROOM2/video-token'
+    );
+    const roomTwoHeartbeat = harness.requests.find(
+        (request) => requestPath(request) === '/api/rooms/ROOM2/video-heartbeat'
+    );
+    const roomTwoLeave = harness.requests.find(
+        (request) => requestPath(request) === '/api/rooms/ROOM2/video-leave'
+    );
+
+    assert.equal(membershipHeader(roomOneToken), 'membership-room-1');
+    assert.deepEqual(requestBody(roomOneToken), { displayName: 'First', role: 'student' });
+    assert.equal(membershipHeader(roomOneLeave), 'membership-room-1');
+    assert.deepEqual(requestBody(roomOneLeave), { videoSessionId: 'video-session-ROOM1' });
+    assert.equal(membershipHeader(roomTwoToken), 'membership-room-2');
+    assert.deepEqual(requestBody(roomTwoToken), { displayName: 'Second', role: 'student' });
+    assert.equal(membershipHeader(roomTwoHeartbeat), 'membership-room-2');
+    assert.deepEqual(requestBody(roomTwoHeartbeat), { videoSessionId: 'video-session-ROOM2' });
+    assert.equal(membershipHeader(roomTwoLeave), 'membership-room-2');
+    assert.deepEqual(requestBody(roomTwoLeave), { videoSessionId: 'video-session-ROOM2' });
+});
+
+test('a video join without a room membership token fails before making a request', async () => {
+    const harness = createHarness();
+
+    await assert.rejects(
+        harness.client.joinRealtimeKitRoom({
+            roomId: 'NOAUTH',
+            displayName: 'Student',
+            clientSessionId: 'caller-picked-id',
+            meetingElement: {}
+        }),
+        (error) => (/** @type {any} */ (error)).code === 'ROOM_MEMBERSHIP_REQUIRED'
+    );
+
+    assert.equal(harness.requests.length, 0);
+    assert.equal(harness.timers.size, 0);
 });
 
 test('a failed token request clears identity so heartbeat and repeated leave are no-ops', async () => {
@@ -171,7 +234,7 @@ test('a failed token request clears identity so heartbeat and repeated leave are
         harness.client.joinRealtimeKitRoom({
             roomId: 'FAILED',
             displayName: 'Student',
-            clientSessionId: 'client-failed',
+            membershipToken: 'membership-failed',
             meetingElement: {}
         }),
         (error) => (/** @type {any} */ (error)).code === 'VIDEO_PROVIDER_UNAVAILABLE'
@@ -187,6 +250,39 @@ test('a failed token request clears identity so heartbeat and repeated leave are
         harness.requests.filter((request) => requestPath(request).endsWith('/video-heartbeat')).length,
         0
     );
+    assert.equal(membershipHeader(harness.requests[0]), 'membership-failed');
+    assert.deepEqual(requestBody(harness.requests[0]), { displayName: 'Student', role: 'student' });
+});
+
+test('a token response without a server video session id fails closed and retains no membership state', async () => {
+    let mediaJoinAttempts = 0;
+    const harness = createHarness({
+        fetchImpl() {
+            return jsonResponse({ ok: true, authToken: 'token-without-session', policy: {} });
+        },
+        join: async () => {
+            mediaJoinAttempts += 1;
+            return { leave: async () => {} };
+        }
+    });
+
+    await assert.rejects(
+        harness.client.joinRealtimeKitRoom({
+            roomId: 'INVALID',
+            displayName: 'Student',
+            membershipToken: 'membership-invalid',
+            meetingElement: {}
+        }),
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_SESSION_INVALID'
+    );
+
+    const requestCountAfterFailure = harness.requests.length;
+    await harness.client.heartbeat();
+    await harness.client.leave();
+
+    assert.equal(mediaJoinAttempts, 0);
+    assert.equal(harness.timers.size, 0);
+    assert.equal(harness.requests.length, requestCountAfterFailure);
 });
 
 test('a failed media join releases the server session and clears all lifecycle state', async () => {
@@ -194,7 +290,12 @@ test('a failed media join releases the server session and clears all lifecycle s
     const harness = createHarness({
         fetchImpl(request) {
             if (requestPath(request).endsWith('/video-token')) {
-                return jsonResponse({ ok: true, authToken: 'broken-token', policy: {} });
+                return jsonResponse({
+                    ok: true,
+                    authToken: 'broken-token',
+                    videoSessionId: 'video-session-broken',
+                    policy: {}
+                });
             }
             return jsonResponse({ ok: true });
         },
@@ -208,7 +309,7 @@ test('a failed media join releases the server session and clears all lifecycle s
         harness.client.joinRealtimeKitRoom({
             roomId: 'BROKEN',
             displayName: 'Student',
-            clientSessionId: 'client-broken',
+            membershipToken: 'membership-broken',
             meetingElement: {}
         }),
         /RealtimeKit failed to initialize/
@@ -223,6 +324,11 @@ test('a failed media join releases the server session and clears all lifecycle s
         harness.requests.filter((request) => requestPath(request).endsWith('/video-leave')).map(requestPath),
         ['/api/rooms/BROKEN/video-leave']
     );
+    const leaveRequest = harness.requests.find(
+        (request) => requestPath(request) === '/api/rooms/BROKEN/video-leave'
+    );
+    assert.equal(membershipHeader(leaveRequest), 'membership-broken');
+    assert.deepEqual(requestBody(leaveRequest), { videoSessionId: 'video-session-broken' });
     assert.equal(
         harness.requests.filter((request) => requestPath(request).endsWith('/video-heartbeat')).length,
         0
@@ -234,7 +340,12 @@ test('media leave failure still clears heartbeat and prevents duplicate teardown
     const harness = createHarness({
         fetchImpl(request) {
             if (requestPath(request).endsWith('/video-token')) {
-                return jsonResponse({ ok: true, authToken: 'token', policy: {} });
+                return jsonResponse({
+                    ok: true,
+                    authToken: 'token',
+                    videoSessionId: 'video-session-leave-fail',
+                    policy: {}
+                });
             }
             return jsonResponse({ ok: true });
         },
@@ -249,7 +360,7 @@ test('media leave failure still clears heartbeat and prevents duplicate teardown
     await harness.client.joinRealtimeKitRoom({
         roomId: 'LEAVEFAIL',
         displayName: 'Student',
-        clientSessionId: 'client-leave',
+        membershipToken: 'membership-leave-fail',
         meetingElement: {}
     });
     await Promise.all([harness.client.leave(), harness.client.leave()]);
@@ -261,4 +372,60 @@ test('media leave failure still clears heartbeat and prevents duplicate teardown
         harness.requests.filter((request) => requestPath(request).endsWith('/video-heartbeat')).length,
         0
     );
+    const leaveRequest = harness.requests.find(
+        (request) => requestPath(request) === '/api/rooms/LEAVEFAIL/video-leave'
+    );
+    assert.equal(membershipHeader(leaveRequest), 'membership-leave-fail');
+    assert.deepEqual(requestBody(leaveRequest), { videoSessionId: 'video-session-leave-fail' });
+});
+
+test('a fatal heartbeat response tears down media and clears membership and session state', async () => {
+    let mediaLeaves = 0;
+    const harness = createHarness({
+        fetchImpl(request) {
+            const pathname = requestPath(request);
+            if (pathname.endsWith('/video-token')) {
+                return jsonResponse({
+                    ok: true,
+                    authToken: 'fatal-heartbeat-token',
+                    videoSessionId: 'video-session-fatal',
+                    policy: {}
+                });
+            }
+            if (pathname.endsWith('/video-heartbeat')) {
+                return jsonResponse({ ok: false, errorCode: 'VIDEO_SESSION_FORBIDDEN' }, 403);
+            }
+            return jsonResponse({ ok: true });
+        },
+        join: async () => ({
+            leave: async () => {
+                mediaLeaves += 1;
+            }
+        })
+    });
+
+    await harness.client.joinRealtimeKitRoom({
+        roomId: 'FATAL',
+        displayName: 'Student',
+        membershipToken: 'membership-fatal',
+        meetingElement: {}
+    });
+    await harness.client.heartbeat();
+
+    const requestCountAfterFatal = harness.requests.length;
+    await harness.client.heartbeat();
+    await harness.client.leave();
+
+    assert.equal(mediaLeaves, 1);
+    assert.equal(harness.timers.size, 0);
+    assert.equal(harness.requests.length, requestCountAfterFatal);
+    assert.equal(
+        harness.requests.filter((request) => requestPath(request).endsWith('/video-leave')).length,
+        0
+    );
+    const heartbeatRequest = harness.requests.find(
+        (request) => requestPath(request) === '/api/rooms/FATAL/video-heartbeat'
+    );
+    assert.equal(membershipHeader(heartbeatRequest), 'membership-fatal');
+    assert.deepEqual(requestBody(heartbeatRequest), { videoSessionId: 'video-session-fatal' });
 });
