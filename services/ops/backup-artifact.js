@@ -178,6 +178,21 @@ function validateBackupBundle(bundle) {
     return bundle;
 }
 
+function assertCompleteCurrentBackupBundle(bundle, label = 'Backup artifact') {
+    validateBackupBundle(bundle);
+    if (bundle.manifest.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+        throw new Error(`${label} must use the current schema-v${BACKUP_SCHEMA_VERSION} format.`);
+    }
+    const missingOrFailed = [...new Set([
+        ...BACKUP_DATASETS.filter((name) => !Object.hasOwn(bundle.datasets, name)),
+        ...bundle.manifest.failedSources
+    ])];
+    if (missingOrFailed.length > 0) {
+        throw new Error(`${label} is incomplete; missing or failed sources: ${missingOrFailed.join(', ')}.`);
+    }
+    return bundle;
+}
+
 function createEncryptedBackupArtifact({
     datasets,
     failedSources = [],
@@ -264,6 +279,7 @@ function decryptBackupArtifact({ artifact, encryptionKey }) {
 
 module.exports = {
     BACKUP_SCHEMA_VERSION,
+    assertCompleteCurrentBackupBundle,
     createEncryptedBackupArtifact,
     decryptBackupArtifact,
     parseBackupEncryptionKey,

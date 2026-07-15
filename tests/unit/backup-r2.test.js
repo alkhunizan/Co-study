@@ -1,15 +1,22 @@
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
 const {
+    R2_PINNED_PREFIX,
     R2_RETENTION_SCOPE,
     executeR2Retention,
     findLatestEncryptedArtifact,
+    main,
+    parseArguments,
     planR2Retention
 } = require('../../scripts/backup-r2');
+const { createEncryptedBackupArtifact } = require('../../services/ops/backup-artifact');
+
+const BACKUP_KEY = Buffer.alloc(32, 17).toString('base64');
 
 test('R2 upload selection accepts only the newest encrypted artifact', (t) => {
     const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-r2-selection-'));
@@ -42,6 +49,10 @@ function encryptedObject(day, time = '021500', nonce = 'run') {
 test('R2 retention keeps one encrypted artifact for each of the latest seven UTC days', () => {
     const objects = Array.from({ length: 9 }, (_, index) => encryptedObject(index + 1));
     objects.push(encryptedObject(9, '031500', 'replacement'));
+    objects.push({
+        key: 'pinned/pre-cutover/halastudy-pre-cutover-2026-07-01T021500Z-rollback.hsbackup',
+        lastModified: '2026-07-01T02:15:00.000Z'
+    });
     objects.push({ key: 'encrypted/operator-note.txt', lastModified: '2026-07-01T00:00:00.000Z' });
     objects.push({ key: 'users/legacy-user.json', lastModified: '2026-07-01T00:00:00.000Z' });
 
@@ -54,6 +65,18 @@ test('R2 retention keeps one encrypted artifact for each of the latest seven UTC
     assert.ok(plan.deleteKeys.every((key) => /^encrypted\/halastudy-.*\.hsbackup$/.test(key)));
     assert.ok(!plan.deleteKeys.includes('encrypted/operator-note.txt'));
     assert.ok(!plan.deleteKeys.includes('users/legacy-user.json'));
+    assert.ok(!plan.deleteKeys.some((key) => key.startsWith('pinned/')));
+});
+
+test('R2 pin mode accepts no caller-selected object key or prefix', () => {
+    assert.throws(
+        () => parseArguments(['--upload-pinned-pre-cutover=pinned/operator-choice/']),
+        /Usage: node scripts\/backup-r2\.js/i
+    );
+    assert.throws(
+        () => parseArguments(['--upload-pinned-pre-cutover', 'pinned/operator-choice/']),
+        /Usage: node scripts\/backup-r2\.js/i
+    );
 });
 
 test('R2 retention dry-run cannot delete and apply requires the fixed automated scope', async () => {
@@ -117,4 +140,99 @@ test('R2 retention rejects future-dated keys before deleting any valid artifact'
         /future-dated artifact timestamp/i
     );
     assert.deepEqual(calls, [['list']]);
+});
+
+test('pre-cutover upload authenticates its checksum and uses only the fixed pinned prefix', async (t) => {
+    const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-r2-pinned-'));
+    const pinnedDir = path.join(backupDir, 'pinned');
+    fs.mkdirSync(pinnedDir);
+    t.after(() => fs.rmSync(backupDir, { recursive: true, force: true }));
+    const fileName = 'halastudy-pre-cutover-2026-07-15T021500Z-cutover.hsbackup';
+    const artifact = createEncryptedBackupArtifact({
+        datasets: {
+            profiles: [],
+            deletion_tombstones: [],
+            focus_completion_claims: [],
+            focus_sessions: [],
+            room_events: [],
+            rooms: []
+        },
+        encryptionKey: BACKUP_KEY,
+        createdAt: new Date('2026-07-15T02:15:00.000Z'),
+        randomBytes: () => Buffer.alloc(12, 4)
+    });
+    const body = Buffer.from(`${JSON.stringify(artifact)}\n`);
+    fs.writeFileSync(path.join(pinnedDir, fileName), body);
+    fs.writeFileSync(
+        path.join(pinnedDir, `${fileName}.sha256`),
+        `${crypto.createHash('sha256').update(body).digest('hex')}  ${fileName}\n`
+    );
+    const calls = [];
+    const client = {
+        host: 'loopback-r2.invalid',
+        async headBucket(bucket) {
+            calls.push(['head', bucket]);
+            return true;
+        },
+        async putObject(bucket, key, uploadedBody) {
+            calls.push(['put', bucket, key, Buffer.compare(uploadedBody, body)]);
+        },
+        async listObjectsDetailed() {
+            calls.push(['list']);
+            return [];
+        },
+        async deleteObject() {
+            calls.push(['delete']);
+        }
+    };
+
+    const result = await main({
+        args: ['--upload-pinned-pre-cutover'],
+        env: {
+            NODE_ENV: 'test',
+            ROOM_STATE_BACKUP_DIR: backupDir,
+            BACKUP_ENCRYPTION_KEY: BACKUP_KEY,
+            R2_BUCKET: 'backups'
+        },
+        logger: { log() {} },
+        client
+    });
+
+    assert.equal(result.objectKey, `${R2_PINNED_PREFIX}${fileName}`);
+    assert.deepEqual(calls, [
+        ['head', 'backups'],
+        ['put', 'backups', `${R2_PINNED_PREFIX}${fileName}`, 0]
+    ]);
+});
+
+test('pre-cutover upload rejects a checksum mismatch before any R2 request', async (t) => {
+    const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-r2-pinned-tamper-'));
+    const pinnedDir = path.join(backupDir, 'pinned');
+    fs.mkdirSync(pinnedDir);
+    t.after(() => fs.rmSync(backupDir, { recursive: true, force: true }));
+    const fileName = 'halastudy-pre-cutover-2026-07-15T021500Z-cutover.hsbackup';
+    fs.writeFileSync(path.join(pinnedDir, fileName), '{}\n');
+    fs.writeFileSync(path.join(pinnedDir, `${fileName}.sha256`), `${'0'.repeat(64)}  ${fileName}\n`);
+    let touchedR2 = false;
+
+    await assert.rejects(
+        main({
+            args: ['--upload-pinned-pre-cutover'],
+            env: {
+                NODE_ENV: 'test',
+                ROOM_STATE_BACKUP_DIR: backupDir,
+                BACKUP_ENCRYPTION_KEY: BACKUP_KEY,
+                R2_BUCKET: 'backups'
+            },
+            logger: { log() {} },
+            client: {
+                async headBucket() {
+                    touchedR2 = true;
+                    return true;
+                }
+            }
+        }),
+        /checksum mismatch/i
+    );
+    assert.equal(touchedR2, false);
 });

@@ -1,26 +1,25 @@
 // Off-site copy of the newest client-side encrypted Halastudy artifact.
 // Raw rooms/profile/event sources are never uploaded by this command.
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { decryptBackupArtifact, parseBackupEncryptionKey } = require('../services/ops/backup-artifact');
+const {
+    assertCompleteCurrentBackupBundle,
+    decryptBackupArtifact,
+    parseBackupEncryptionKey
+} = require('../services/ops/backup-artifact');
 const { loadDotEnv } = require('./cloudflare/realtimekit-common');
 const { createR2Client } = require('./cloudflare/r2-client');
 const { resolveBackupDir, timestampLabel } = require('./room-state-utils');
 
 const ENCRYPTED_ARTIFACT_PATTERN = /^halastudy-\d{4}-\d{2}-\d{2}T\d{6}Z-[A-Za-z0-9-]+\.hsbackup$/;
+const PINNED_ARTIFACT_PATTERN = /^halastudy-pre-cutover-\d{4}-\d{2}-\d{2}T\d{6}Z-[A-Za-z0-9-]+\.hsbackup$/;
 const R2_ENCRYPTED_PREFIX = 'encrypted/';
+const R2_PINNED_PREFIX = 'pinned/pre-cutover/';
 const R2_ARTIFACT_PATTERN = /^encrypted\/halastudy-(\d{4}-\d{2}-\d{2})T(\d{2})(\d{2})(\d{2})Z-[A-Za-z0-9-]+\.hsbackup$/;
 const R2_RETENTION_DAYS = 7;
 const R2_RETENTION_SCOPE = 'encrypted-daily-backups';
 const R2_TIMESTAMP_FUTURE_SKEW_MS = 5 * 60 * 1000;
-const REQUIRED_R2_BACKUP_SOURCES = [
-    'profiles',
-    'deletion_tombstones',
-    'focus_completion_claims',
-    'focus_sessions',
-    'room_events',
-    'rooms'
-];
 
 /** @param {any} client @param {string} bucket @param {{log(...args: any[]): void}} logger */
 async function runCheck(client, bucket, logger = console) {
@@ -111,9 +110,17 @@ async function executeR2Retention({
 }
 
 function parseArguments(args) {
-    const modes = new Set(['--check', '--retention-dry-run', '--apply-retention']);
+    const modes = new Set([
+        '--check',
+        '--retention-dry-run',
+        '--apply-retention',
+        '--upload-pinned-pre-cutover'
+    ]);
     if (!Array.isArray(args) || args.length !== 1 || !modes.has(args[0])) {
-        throw new Error('Usage: node scripts/backup-r2.js --check|--retention-dry-run|--apply-retention');
+        throw new Error(
+            'Usage: node scripts/backup-r2.js '
+            + '--check|--retention-dry-run|--apply-retention|--upload-pinned-pre-cutover'
+        );
     }
     return args[0];
 }
@@ -131,15 +138,48 @@ function findLatestEncryptedArtifact(backupDir) {
     return path.join(resolvedDir, latest);
 }
 
-function assertCompleteR2Backup(bundle) {
-    const missingOrFailed = [...new Set([
-        ...REQUIRED_R2_BACKUP_SOURCES.filter((name) => !Object.hasOwn(bundle.datasets, name)),
-        ...bundle.manifest.failedSources
-    ])];
-    if (missingOrFailed.length > 0) {
-        throw new Error(
-            `R2 backup artifact is incomplete; missing or failed sources: ${missingOrFailed.join(', ')}.`
-        );
+function findLatestPinnedArtifact(backupDir) {
+    const pinnedDir = path.join(path.resolve(backupDir), 'pinned');
+    if (!fs.existsSync(pinnedDir)) {
+        throw new Error(`No pinned pre-cutover backup artifact exists in ${pinnedDir}.`);
+    }
+    const latest = fs.readdirSync(pinnedDir)
+        .filter((name) => PINNED_ARTIFACT_PATTERN.test(name))
+        .sort()
+        .at(-1);
+    if (!latest) throw new Error(`No pinned pre-cutover backup artifact exists in ${pinnedDir}.`);
+    return path.join(pinnedDir, latest);
+}
+
+function readVerifiedPinnedArtifact(artifactPath) {
+    const body = fs.readFileSync(artifactPath);
+    const fileName = path.basename(artifactPath);
+    const checksumPath = `${artifactPath}.sha256`;
+    let checksumText;
+    try {
+        checksumText = fs.readFileSync(checksumPath, 'utf8');
+    } catch {
+        throw new Error(`Pinned pre-cutover checksum is unavailable: ${checksumPath}.`);
+    }
+    const match = checksumText.match(/^([a-f0-9]{64}) {2}([A-Za-z0-9.-]+)\n$/);
+    if (!match || match[2] !== fileName) {
+        throw new Error('Pinned pre-cutover checksum file is invalid.');
+    }
+    const actual = crypto.createHash('sha256').update(body).digest('hex');
+    if (!crypto.timingSafeEqual(Buffer.from(match[1], 'hex'), Buffer.from(actual, 'hex'))) {
+        throw new Error('Pinned pre-cutover artifact checksum mismatch.');
+    }
+    return body;
+}
+
+function authenticateCompleteArtifact(body, env, label = 'R2 backup artifact') {
+    const encryptionKey = parseBackupEncryptionKey(env.BACKUP_ENCRYPTION_KEY);
+    try {
+        const bundle = decryptBackupArtifact({ artifact: body, encryptionKey });
+        assertCompleteCurrentBackupBundle(bundle, label);
+        return bundle;
+    } finally {
+        encryptionKey.fill(0);
     }
 }
 
@@ -180,15 +220,23 @@ async function main({
         return { retention };
     }
 
+    if (mode === '--upload-pinned-pre-cutover') {
+        const artifactPath = findLatestPinnedArtifact(resolveBackupDir(env));
+        const body = readVerifiedPinnedArtifact(artifactPath);
+        authenticateCompleteArtifact(body, env, 'Pinned pre-cutover backup');
+        if (!(await client.headBucket(bucket))) {
+            logger.log('  bucket missing — creating…');
+            await client.createBucket(bucket);
+        }
+        const objectKey = `${R2_PINNED_PREFIX}${path.basename(artifactPath)}`;
+        await client.putObject(bucket, objectKey, body, 'application/vnd.halastudy.backup+json');
+        logger.log(`R2 pinned pre-cutover backup → ${objectKey}`);
+        return { artifactPath, objectKey };
+    }
+
     const artifactPath = findLatestEncryptedArtifact(resolveBackupDir(env));
     const body = fs.readFileSync(artifactPath);
-    const encryptionKey = parseBackupEncryptionKey(env.BACKUP_ENCRYPTION_KEY);
-    try {
-        const bundle = decryptBackupArtifact({ artifact: body, encryptionKey });
-        assertCompleteR2Backup(bundle);
-    } finally {
-        encryptionKey.fill(0);
-    }
+    authenticateCompleteArtifact(body, env);
 
     logger.log(`R2 encrypted backup → bucket "${bucket}"`);
     if (!(await client.headBucket(bucket))) {
@@ -220,9 +268,11 @@ async function runCli() {
 if (require.main === module) void runCli();
 
 module.exports = {
+    R2_PINNED_PREFIX,
     R2_RETENTION_SCOPE,
     executeR2Retention,
     findLatestEncryptedArtifact,
+    findLatestPinnedArtifact,
     main,
     parseArguments,
     planR2Retention,

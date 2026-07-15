@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
@@ -145,6 +146,10 @@ async function startRealtimeKitFixture({ driftViewer = false } = {}) {
 function createBackupFixture(timestamp = '2026-07-15T033000Z', artifactOverride = null) {
     const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-deploy-backup-'));
     const fileName = `halastudy-${timestamp}-fixture.hsbackup`;
+    const createdAt = new Date(timestamp.replace(
+        /T(\d{2})(\d{2})(\d{2})Z$/,
+        'T$1:$2:$3.000Z'
+    ));
     const artifact = artifactOverride || createEncryptedBackupArtifact({
         datasets: {
             profiles: [],
@@ -155,7 +160,7 @@ function createBackupFixture(timestamp = '2026-07-15T033000Z', artifactOverride 
             rooms: [{ id: 'BACKUP-FIXTURE' }]
         },
         encryptionKey: BACKUP_KEY,
-        createdAt: new Date(FIXED_NOW - 30 * 60 * 1000),
+        createdAt,
         randomBytes: () => Buffer.alloc(12, 1)
     });
     fs.writeFileSync(path.join(backupDir, fileName), `${JSON.stringify(artifact)}\n`);
@@ -165,6 +170,48 @@ function createBackupFixture(timestamp = '2026-07-15T033000Z', artifactOverride 
         close() {
             fs.rmSync(backupDir, { recursive: true, force: true });
         }
+    };
+}
+
+function createLegacyV1BackupArtifact() {
+    const datasets = {
+        profiles: [],
+        deletion_tombstones: [],
+        focus_completion_claims: [],
+        focus_sessions: [],
+        room_events: [],
+        rooms: []
+    };
+    const sources = Object.fromEntries(Object.entries(datasets).map(([name, rows]) => [name, {
+        rowCount: rows.length,
+        sha256: crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex')
+    }]));
+    const iv = Buffer.alloc(12, 6);
+    const key = Buffer.from(BACKUP_KEY, 'base64');
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    cipher.setAAD(Buffer.from('halastudy-encrypted-backup:1'));
+    const ciphertext = Buffer.concat([
+        cipher.update(JSON.stringify({
+            manifest: {
+                schemaVersion: 1,
+                createdAt: '2026-07-15T03:30:00.000Z',
+                sources,
+                failedSources: []
+            },
+            datasets
+        })),
+        cipher.final()
+    ]);
+    key.fill(0);
+    return {
+        format: 'halastudy-encrypted-backup',
+        artifactVersion: 1,
+        encryption: {
+            algorithm: 'AES-256-GCM',
+            iv: iv.toString('base64'),
+            authTag: cipher.getAuthTag().toString('base64')
+        },
+        ciphertext: ciphertext.toString('base64')
     };
 }
 
@@ -396,6 +443,55 @@ test('deployment verification rejects an authenticated but partial production ba
             now: () => FIXED_NOW
         }),
         /backup artifact is missing required sources/i
+    );
+});
+
+test('deployment verification requires a fresh complete schema-v2 artifact even though restore supports v1', async (t) => {
+    const deployment = await startDeploymentFixture();
+    const realtimeKit = await startRealtimeKitFixture();
+    const backup = createBackupFixture('2026-07-15T033000Z', createLegacyV1BackupArtifact());
+    t.after(deployment.close);
+    t.after(realtimeKit.close);
+    t.after(backup.close);
+
+    await assert.rejects(
+        () => verifyDeployment(deployment.baseUrl, {
+            requireOperationalChecks: true,
+            env: operationalEnv(realtimeKit, backup),
+            now: () => FIXED_NOW
+        }),
+        /schema-v2 backup artifact/i
+    );
+});
+
+test('deployment verification uses the authenticated manifest time instead of a renamed fresh filename', async (t) => {
+    const deployment = await startDeploymentFixture();
+    const realtimeKit = await startRealtimeKitFixture();
+    const oldArtifact = createEncryptedBackupArtifact({
+        datasets: {
+            profiles: [],
+            deletion_tombstones: [],
+            focus_completion_claims: [],
+            focus_sessions: [],
+            room_events: [],
+            rooms: []
+        },
+        encryptionKey: BACKUP_KEY,
+        createdAt: new Date('2026-07-13T03:30:00.000Z'),
+        randomBytes: () => Buffer.alloc(12, 8)
+    });
+    const backup = createBackupFixture('2026-07-15T033000Z', oldArtifact);
+    t.after(deployment.close);
+    t.after(realtimeKit.close);
+    t.after(backup.close);
+
+    await assert.rejects(
+        () => verifyDeployment(deployment.baseUrl, {
+            requireOperationalChecks: true,
+            env: operationalEnv(realtimeKit, backup),
+            now: () => FIXED_NOW
+        }),
+        /authenticated manifest timestamp|Last successful backup is stale/i
     );
 });
 

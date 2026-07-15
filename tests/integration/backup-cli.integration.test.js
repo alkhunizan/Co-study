@@ -98,6 +98,24 @@ test('production backup refuses a room-only snapshot when Supabase is not config
     assert.equal(fs.existsSync(backupDir), false);
 });
 
+test('pre-cutover pin refuses a partial artifact and leaves no pinned rollback file', (t) => {
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-backup-pin-partial-'));
+    const roomStateFile = path.join(workDir, 'rooms.json');
+    const backupDir = path.join(workDir, 'backups');
+    fs.writeFileSync(roomStateFile, '[]\n');
+    t.after(() => fs.rmSync(workDir, { recursive: true, force: true }));
+
+    const result = runScript('scripts/backup-state.js', ['--pin-pre-cutover'], {
+        BACKUP_ENCRYPTION_KEY: BACKUP_KEY,
+        ROOM_STATE_FILE: roomStateFile,
+        ROOM_STATE_BACKUP_DIR: backupDir
+    });
+
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Pinned pre-cutover backup is incomplete.*profiles/i);
+    assert.equal(fs.existsSync(path.join(backupDir, 'pinned')), false);
+});
+
 test('rooms-only restore fails closed without live tombstones when a room references an account', (t) => {
     const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-backup-owned-room-'));
     const roomStateFile = path.join(workDir, 'rooms.json');
@@ -135,7 +153,14 @@ test('nightly templates run as the service account and load only its protected e
     assert.match(wrapper, /400\|600/);
     assert.match(wrapper, /umask 077/);
     assert.match(wrapper, /--with-r2/);
+    assert.match(wrapper, /BACKUP_R2_ENABLED/);
+    assert.match(wrapper, /backup_r2_enabled="\$\{BACKUP_R2_ENABLED:-false\}"/);
+    assert.match(wrapper, /if \[\[ "\$\{backup_r2_enabled\}" == "true" \]\]; then/);
+    assert.match(wrapper, /R2_ENDPOINT R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET/);
+    assert.match(wrapper, /--pin-pre-cutover/);
+    assert.match(wrapper, /--upload-pinned-pre-cutover/);
     assert.match(wrapper, /scripts\/backup-r2\.js --apply-retention/);
+    assert.match(wrapper, /^set -euo pipefail$/m);
     assert.match(restoreWrapper, /SERVICE_USER="halastudy"/);
     assert.match(restoreWrapper, /ENV_FILE="\/var\/lib\/halastudy\/\.env"/);
     assert.match(restoreWrapper, /400\|600/);
@@ -145,11 +170,13 @@ test('nightly templates run as the service account and load only its protected e
     assert.match(service, /^Group=halastudy$/m);
     assert.match(service, /^UMask=0077$/m);
     assert.match(service, /ExecStart=\/opt\/halastudy\/scripts\/deploy\/backup\.sh/);
+    assert.doesNotMatch(service, /--with-r2/);
     assert.match(service, /^ProtectSystem=strict$/m);
     assert.match(service, /^ReadWritePaths=\/var\/lib\/halastudy\/backups$/m);
     assert.match(timer, /^OnCalendar=.*02:15:00 UTC$/m);
     assert.match(cron, /^CRON_TZ=UTC$/m);
     assert.match(cron, /^15 2 \* \* \* halastudy \/opt\/halastudy\/scripts\/deploy\/backup\.sh$/m);
+    assert.doesNotMatch(cron, /--with-r2/);
     assert.match(bootstrap, /install -m 0644 .*halastudy-backup\.service/);
     assert.match(bootstrap, /systemctl daemon-reload/);
     assert.doesNotMatch(service, /^User=root$/m);

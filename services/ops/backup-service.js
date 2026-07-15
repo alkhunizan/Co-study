@@ -11,6 +11,7 @@ const SUPABASE_DATASETS = {
 };
 const RETENTION_DAYS = 7;
 const ARTIFACT_PATTERN = /^halastudy-(\d{4}-\d{2}-\d{2})T\d{6}Z-[A-Za-z0-9-]+\.hsbackup$/;
+const PINNED_BACKUP_DIRECTORY = 'pinned';
 
 /** @param {{ client: any, pageSize?: number }} options */
 function createSupabaseBackupSource({ client, pageSize = 1000 } = /** @type {any} */ ({})) {
@@ -97,9 +98,7 @@ function pruneDailyArtifacts(backupDir) {
     return removedFiles;
 }
 
-/** @param {{ backupDir: string, artifact: any, createdAt?: Date, nonce?: string }} options */
-function writeDailyBackupArtifact({ backupDir, artifact, createdAt = new Date(), nonce } = /** @type {any} */ ({})) {
-    if (typeof backupDir !== 'string' || !backupDir.trim()) throw new Error('Backup directory is required.');
+function backupFileParts({ createdAt, nonce, prefix = 'halastudy' }) {
     const date = createdAt instanceof Date ? createdAt : new Date(createdAt);
     if (!Number.isFinite(date.getTime())) throw new Error('Backup creation time is invalid.');
     const safeNonce = typeof nonce === 'string' && /^[A-Za-z0-9-]{1,32}$/.test(nonce)
@@ -107,11 +106,13 @@ function writeDailyBackupArtifact({ backupDir, artifact, createdAt = new Date(),
         : crypto.randomBytes(6).toString('hex');
     const iso = date.toISOString();
     const timestamp = `${iso.slice(0, 10)}T${iso.slice(11, 19).replaceAll(':', '')}Z`;
-    const fileName = `halastudy-${timestamp}-${safeNonce}.hsbackup`;
-    const resolvedDir = path.resolve(backupDir);
+    return { fileName: `${prefix}-${timestamp}-${safeNonce}.hsbackup` };
+}
+
+function writePrivateArtifact({ directory, fileName, artifact }) {
+    const resolvedDir = path.resolve(directory);
     const filePath = path.join(resolvedDir, fileName);
     const tempPath = path.join(resolvedDir, `.${fileName}.${process.pid}.tmp`);
-
     fs.mkdirSync(resolvedDir, { recursive: true, mode: 0o700 });
     fs.chmodSync(resolvedDir, 0o700);
     try {
@@ -122,16 +123,56 @@ function writeDailyBackupArtifact({ backupDir, artifact, createdAt = new Date(),
         });
         fs.renameSync(tempPath, filePath);
         fs.chmodSync(filePath, 0o600);
+        return filePath;
     } catch (error) {
         fs.rmSync(tempPath, { force: true });
         throw error;
     }
+}
+
+/** @param {{ backupDir: string, artifact: any, createdAt?: Date, nonce?: string }} options */
+function writeDailyBackupArtifact({ backupDir, artifact, createdAt = new Date(), nonce } = /** @type {any} */ ({})) {
+    if (typeof backupDir !== 'string' || !backupDir.trim()) throw new Error('Backup directory is required.');
+    const resolvedDir = path.resolve(backupDir);
+    const { fileName } = backupFileParts({ createdAt, nonce });
+    const filePath = writePrivateArtifact({ directory: resolvedDir, fileName, artifact });
     const removedFiles = pruneDailyArtifacts(resolvedDir);
     return { filePath, removedFiles };
+}
+
+/** @param {{ backupDir: string, artifact: any, createdAt?: Date, nonce?: string }} options */
+function writePinnedBackupArtifact({ backupDir, artifact, createdAt = new Date(), nonce } = /** @type {any} */ ({})) {
+    if (typeof backupDir !== 'string' || !backupDir.trim()) throw new Error('Backup directory is required.');
+    const { fileName } = backupFileParts({
+        createdAt,
+        nonce,
+        prefix: 'halastudy-pre-cutover'
+    });
+    const pinnedDir = path.join(path.resolve(backupDir), PINNED_BACKUP_DIRECTORY);
+    let filePath;
+    let checksumPath;
+    try {
+        filePath = writePrivateArtifact({ directory: pinnedDir, fileName, artifact });
+        const body = fs.readFileSync(filePath);
+        const sha256 = crypto.createHash('sha256').update(body).digest('hex');
+        checksumPath = `${filePath}.sha256`;
+        fs.writeFileSync(checksumPath, `${sha256}  ${fileName}\n`, {
+            encoding: 'utf8',
+            flag: 'wx',
+            mode: 0o600
+        });
+        fs.chmodSync(checksumPath, 0o600);
+        return { filePath, checksumPath, sha256 };
+    } catch (error) {
+        if (checksumPath) fs.rmSync(checksumPath, { force: true });
+        if (filePath) fs.rmSync(filePath, { force: true });
+        throw error;
+    }
 }
 
 module.exports = {
     collectBackupDatasets,
     createSupabaseBackupSource,
+    writePinnedBackupArtifact,
     writeDailyBackupArtifact
 };

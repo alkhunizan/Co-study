@@ -105,11 +105,23 @@ Any signal resets the relevant path's 14-day clock.
 5. Create the encrypted pre-cutover backup and prove its dry-run restore:
 
    ```bash
-   npm run backup:state
-   npm run restore:state -- /absolute/path/to/pre-cutover.hsbackup
+   sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --pin-pre-cutover
+   cd /var/lib/halastudy/backups/pinned
+   sha256sum --check halastudy-pre-cutover-YYYY-MM-DDTHHMMSSZ-xxxx.hsbackup.sha256
+   sudo -u halastudy -H /opt/halastudy/scripts/deploy/restore.sh \
+     /var/lib/halastudy/backups/pinned/halastudy-pre-cutover-YYYY-MM-DDTHHMMSSZ-xxxx.hsbackup
    ```
 
-   Record the authenticated artifact path/checksum and the room migration plan.
+   Pinning fails unless all six production sources are present in a current
+   schema-v2 artifact. Record the authenticated artifact path/checksum and the
+   room migration plan. This local `pinned/` namespace is outside seven-day
+   retention. If R2 is enabled, copy the same pin under the fixed, non-retained
+   `pinned/pre-cutover/` prefix:
+
+   ```bash
+   sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh \
+     --upload-pinned-pre-cutover
+   ```
 
 6. Stop the single writer, apply the room migration, and retain the reported
    mode-`0600` pre-migration room backup:
@@ -132,6 +144,15 @@ Any signal resets the relevant path's 14-day clock.
    persistence, Socket.IO, RealtimeKit presets/token/webhook health, static
    assets, HTTPS/HSTS, build version, and last successful backup. Never use
    production credentials in automated tests.
+
+   Before `verify:deploy`, create a fresh complete schema-v2 daily artifact;
+   a pinned rollback artifact and schema-v1 restore compatibility do not satisfy
+   the deploy gate:
+
+   ```bash
+   sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh
+   npm --prefix /opt/halastudy run verify:deploy -- https://your-domain.example
+   ```
 
 9. Enable video joins through the admin kill switch only after every readiness
    and smoke check passes. Record the cutover timestamp; it starts both the
@@ -166,7 +187,8 @@ log-based 14-day evidence window.
    tombstone filtering, and restore order:
 
    ```bash
-   npm run restore:state -- /absolute/path/to/pre-cutover.hsbackup
+   npm run restore:state -- \
+     /var/lib/halastudy/backups/pinned/halastudy-pre-cutover-YYYY-MM-DDTHHMMSSZ-xxxx.hsbackup
    ```
 
 4. Stop the single PM2 writer. Deploy the previous known-good **dual-read**
@@ -176,7 +198,8 @@ log-based 14-day evidence window.
    verified artifact only while the writer is stopped:
 
    ```bash
-   npm run restore:state -- /absolute/path/to/pre-cutover.hsbackup \
+   npm run restore:state -- \
+     /var/lib/halastudy/backups/pinned/halastudy-pre-cutover-YYYY-MM-DDTHHMMSSZ-xxxx.hsbackup \
      --apply --writer-stopped
    ```
 

@@ -1,9 +1,15 @@
 const path = require('node:path');
 
-const { createEncryptedBackupArtifact, parseBackupEncryptionKey } = require('../services/ops/backup-artifact');
+const {
+    assertCompleteCurrentBackupBundle,
+    createEncryptedBackupArtifact,
+    decryptBackupArtifact,
+    parseBackupEncryptionKey
+} = require('../services/ops/backup-artifact');
 const {
     collectBackupDatasets,
     createSupabaseBackupSource,
+    writePinnedBackupArtifact,
     writeDailyBackupArtifact
 } = require('../services/ops/backup-service');
 const { createSupabaseClient } = require('../services/supabase/client');
@@ -26,7 +32,20 @@ function createOptionalSupabaseSource(env) {
     });
 }
 
-async function main({ env = process.env, logger = console, now = new Date() } = {}) {
+function parseArguments(args) {
+    if (!Array.isArray(args) || args.length > 1 || (args.length === 1 && args[0] !== '--pin-pre-cutover')) {
+        throw new Error('Usage: node scripts/backup-state.js [--pin-pre-cutover]');
+    }
+    return args[0] === '--pin-pre-cutover' ? 'pin-pre-cutover' : 'daily';
+}
+
+async function main({
+    args = process.argv.slice(2),
+    env = process.env,
+    logger = console,
+    now = new Date()
+} = {}) {
+    const mode = parseArguments(args);
     const encryptionKey = parseBackupEncryptionKey(env.BACKUP_ENCRYPTION_KEY);
     try {
         const roomStateFile = resolveRoomStateFile(env);
@@ -42,20 +61,27 @@ async function main({ env = process.env, logger = console, now = new Date() } = 
             encryptionKey,
             createdAt: now
         });
-        const written = writeDailyBackupArtifact({
-            backupDir,
-            artifact,
-            createdAt: now
-        });
+        let written;
+        if (mode === 'pin-pre-cutover') {
+            const authenticated = decryptBackupArtifact({ artifact, encryptionKey });
+            assertCompleteCurrentBackupBundle(authenticated, 'Pinned pre-cutover backup');
+            written = writePinnedBackupArtifact({ backupDir, artifact, createdAt: now });
+            logger.log(`Pinned pre-cutover backup created: ${written.filePath}`);
+            logger.log(`Authenticated schema v${authenticated.manifest.schemaVersion}; SHA-256: ${written.sha256}`);
+        } else {
+            written = writeDailyBackupArtifact({ backupDir, artifact, createdAt: now });
+            logger.log(`Encrypted backup created: ${written.filePath}`);
+            logger.log(`Daily snapshots retained: 7 (${written.removedFiles.length} old artifact(s) pruned)`);
+        }
 
-        logger.log(`Encrypted backup created: ${written.filePath}`);
         logger.log(`Sources: ${Object.keys(collected.datasets).join(', ')}`);
-        logger.log(`Daily snapshots retained: 7 (${written.removedFiles.length} old artifact(s) pruned)`);
         if (collected.failedSources.length > 0) {
             logger.warn(`Unreadable sources recorded in manifest: ${collected.failedSources.join(', ')}`);
         }
         return {
             filePath: path.resolve(written.filePath),
+            checksumPath: written.checksumPath ? path.resolve(written.checksumPath) : null,
+            sha256: written.sha256 || null,
             sources: Object.keys(collected.datasets),
             failedSources: collected.failedSources
         };
@@ -78,5 +104,6 @@ if (require.main === module) void runCli();
 module.exports = {
     createOptionalSupabaseSource,
     main,
+    parseArguments,
     runCli
 };
