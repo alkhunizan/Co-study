@@ -220,6 +220,7 @@
     // RealtimeKit media layer (P4, option A). When connected, meeting participants
     // are the grid source; on any failure the lobby degrades to socket presence.
     const rtk = { meeting: null, connected: false, role: 'viewer', generation: 0 };
+    let membershipToken = '';
     const videoClient = window.HalastudyVideoClient
       ? window.HalastudyVideoClient.createVideoClient()
       : null;
@@ -358,29 +359,37 @@
     }
 
     function joinLobby(name) {
+      membershipToken = '';
+      void leaveRealtimeKit();
       socket = io({ auth: { clientId: clientId() } });
-      socket.on('connect', () => {
-        socket.emit('join-room', { roomId: 'LOBBY', username: name, clientId: clientId() }, (res = {}) => {
+      const activeSocket = socket;
+      activeSocket.on('connect', () => {
+        activeSocket.emit('join-room', { roomId: 'LOBBY', username: name, clientId: clientId() }, (res = {}) => {
+          if (socket !== activeSocket) return;
           if (!res.ok) {
+            membershipToken = '';
             if (res.errorCode === 'ROOM_FULL' && window.HalaUI) window.HalaUI.toast(t('full'), { kind: 'error' });
             return;
           }
+          membershipToken = typeof res.membershipToken === 'string' ? res.membershipToken.trim() : '';
           setParticipants((res.room && res.room.participants) || []);
           // Now that we are a verified room member, connect to the SFU as a
           // watcher. Degrades silently to presence-only if video is unavailable.
           connectRealtimeKit('viewer');
         });
       });
-      socket.on('presence', (list) => setParticipants(list || []));
-      socket.on('disconnect', () => { void leaveRealtimeKit(); });
-      socket.on('kicked', () => { location.href = '/'; });
-      socket.on('room-closed', () => { location.href = '/'; });
+      activeSocket.on('presence', (list) => setParticipants(list || []));
+      activeSocket.on('connect_error', () => { if (socket === activeSocket) void leaveRealtimeKit(); });
+      activeSocket.on('disconnect', () => { if (socket === activeSocket) void leaveRealtimeKit(); });
+      activeSocket.on('kicked', () => { void leaveRealtimeKit({ keepalive: true }); location.href = '/'; });
+      activeSocket.on('room-closed', () => { void leaveRealtimeKit({ keepalive: true }); location.href = '/'; });
     }
 
     function leaveRealtimeKit(options = {}) {
       rtk.generation += 1;
       rtk.connected = false;
       rtk.meeting = null;
+      membershipToken = '';
       return videoClient ? videoClient.leave(options) : Promise.resolve();
     }
 
@@ -393,7 +402,7 @@
         const payload = await videoClient.joinRealtimeKitRoom({
           roomId: 'LOBBY',
           displayName: state.myName,
-          clientSessionId: clientId(),
+          membershipToken,
           role,
           headless: true
         });
