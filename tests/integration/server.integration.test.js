@@ -479,7 +479,7 @@ test('startup fails fast for malformed room state and invalid env config', async
                 CLOUDFLARE_REALTIMEKIT_APP_ID: '',
                 CLOUDFLARE_REALTIMEKIT_API_TOKEN: ''
             }
-        }, /RealtimeKit is selected/);
+        }, /NODE_ENV is fixed to test/);
 
         const badParent = makeTempStateFile('co-study-state-parent');
         fs.writeFileSync(badParent, 'file-not-dir', 'utf8');
