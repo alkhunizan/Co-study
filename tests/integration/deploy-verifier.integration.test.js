@@ -1,9 +1,19 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const http = require('node:http');
+const os = require('node:os');
+const path = require('node:path');
 const test = require('node:test');
 
 const { version } = require('../../package.json');
 const { validateDeploymentUrl, verifyDeployment } = require('../../scripts/deploy-verifier');
+const { loadVerificationEnvFile, parseArguments } = require('../../scripts/verify-deploy');
+const {
+    PRESET_KINDS,
+    buildPresetBody
+} = require('../../scripts/cloudflare/realtimekit-setup');
+
+const FIXED_NOW = Date.parse('2026-07-15T04:00:00.000Z');
 
 function sendJson(res, status, body, headers = {}) {
     res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
@@ -31,11 +41,30 @@ async function startDeploymentFixture(overrides = {}) {
             return;
         }
         if (req.url === '/api/metrics') {
-            sendJson(res, 200, { status: 'ok', roomCount: 1, participantCount: 0, memoryRssMb: 32 });
+            sendJson(res, 200, {
+                status: 'ok',
+                roomCount: 1,
+                participantCount: 0,
+                memoryRssMb: 32,
+                realtimeKitProviderAvailable: overrides.realtimeKitProviderAvailable ?? true,
+                realtimeKitWebhookDedupEntries: overrides.realtimeKitWebhookDedupEntries ?? 4
+            });
             return;
         }
         if (req.url === '/api/runtime-config') {
-            sendJson(res, 200, { videoProvider: 'realtimekit', videoPolicy: {}, googleAuthEnabled: false });
+            sendJson(res, 200, {
+                videoProvider: overrides.videoProvider || 'realtimekit',
+                videoPolicy: {},
+                googleAuthEnabled: false
+            });
+            return;
+        }
+        if (req.url === '/api/webhooks/realtimekit' && req.method === 'POST') {
+            sendJson(
+                res,
+                overrides.webhookStatus || 401,
+                { errorCode: overrides.webhookErrorCode || 'WEBHOOK_SIGNATURE_INVALID' }
+            );
             return;
         }
         if (req.url === '/manifest.webmanifest') {
@@ -60,6 +89,91 @@ async function startDeploymentFixture(overrides = {}) {
         close: () => new Promise((resolve, reject) => {
             server.close((error) => error ? reject(error) : resolve());
         })
+    };
+}
+
+async function startRealtimeKitFixture({ driftViewer = false } = {}) {
+    const student = {
+        id: 'preset-student',
+        ...buildPresetBody(PRESET_KINDS.STUDENT, 'halastudy_student')
+    };
+    const viewer = {
+        id: 'preset-viewer',
+        ...buildPresetBody(PRESET_KINDS.VIEWER, 'halastudy_viewer')
+    };
+    if (driftViewer) viewer.permissions.media.video.can_produce = 'ALLOWED';
+    const presets = [student, viewer];
+
+    const server = http.createServer((req, res) => {
+        if (req.headers.authorization !== 'Bearer provider-token') {
+            sendJson(res, 401, { success: false, errors: [{ message: 'unauthorized' }] });
+            return;
+        }
+        const requestUrl = new URL(req.url, 'http://127.0.0.1');
+        const presetBase = '/client/v4/accounts/account-test/realtime/kit/app-test/presets';
+        if (requestUrl.pathname === presetBase && req.method === 'GET') {
+            sendJson(res, 200, {
+                success: true,
+                data: presets.map(({ id, name }) => ({ id, name })),
+                paging: { start_offset: 1, end_offset: 2, total_count: 2 }
+            });
+            return;
+        }
+        const match = requestUrl.pathname.match(new RegExp(`^${presetBase}/([^/]+)$`));
+        if (match && req.method === 'GET') {
+            const preset = presets.find(({ id }) => id === decodeURIComponent(match[1]));
+            if (preset) {
+                sendJson(res, 200, { success: true, data: preset });
+                return;
+            }
+        }
+        sendJson(res, 404, { success: false, errors: [{ message: 'not found' }] });
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+    const address = server.address();
+    assert.ok(address && typeof address === 'object');
+    return {
+        apiBaseUrl: `http://127.0.0.1:${address.port}/client/v4`,
+        close: () => new Promise((resolve, reject) => {
+            server.close((error) => error ? reject(error) : resolve());
+        })
+    };
+}
+
+function createBackupFixture(timestamp = '2026-07-15T033000Z', artifactOverride = null) {
+    const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-deploy-backup-'));
+    const fileName = `halastudy-${timestamp}-fixture.hsbackup`;
+    const artifact = artifactOverride || {
+        format: 'halastudy-encrypted-backup',
+        artifactVersion: 1,
+        encryption: {
+            algorithm: 'AES-256-GCM',
+            iv: Buffer.alloc(12, 1).toString('base64'),
+            authTag: Buffer.alloc(16, 2).toString('base64')
+        },
+        ciphertext: Buffer.from('encrypted-fixture').toString('base64')
+    };
+    fs.writeFileSync(path.join(backupDir, fileName), `${JSON.stringify(artifact)}\n`);
+    return {
+        backupDir,
+        fileName,
+        close() {
+            fs.rmSync(backupDir, { recursive: true, force: true });
+        }
+    };
+}
+
+function operationalEnv(realtimeKit, backup) {
+    return {
+        NODE_ENV: 'test',
+        CLOUDFLARE_ACCOUNT_ID: 'account-test',
+        CLOUDFLARE_REALTIMEKIT_APP_ID: 'app-test',
+        CLOUDFLARE_REALTIMEKIT_API_TOKEN: 'provider-token',
+        CLOUDFLARE_REALTIMEKIT_API_BASE_URL: realtimeKit.apiBaseUrl,
+        VIDEO_DEFAULT_PRESET_NAME: 'halastudy_student',
+        VIDEO_VIEWER_PRESET_NAME: 'halastudy_viewer',
+        ROOM_STATE_BACKUP_DIR: backup.backupDir,
+        DEPLOY_VERIFY_MAX_BACKUP_AGE_HOURS: '2'
     };
 }
 
@@ -116,4 +230,164 @@ test('deployment verification rejects cleartext non-loopback targets before maki
         () => validateDeploymentUrl('http://deploy.example.com'),
         /Production deployment verification requires HTTPS/
     );
+});
+
+test('deployment verification checks locked RealtimeKit presets, webhook signature enforcement, and backup freshness', async (t) => {
+    const deployment = await startDeploymentFixture();
+    const realtimeKit = await startRealtimeKitFixture();
+    const backup = createBackupFixture();
+    t.after(deployment.close);
+    t.after(realtimeKit.close);
+    t.after(backup.close);
+
+    const result = await verifyDeployment(deployment.baseUrl, {
+        requireOperationalChecks: true,
+        env: operationalEnv(realtimeKit, backup),
+        now: () => FIXED_NOW
+    });
+
+    assert.deepEqual(result.realtimeKit.presets, ['halastudy_student', 'halastudy_viewer']);
+    assert.equal(result.realtimeKit.webhook, 'signature_enforced');
+    assert.equal(result.realtimeKit.webhookDedupEntries, 4);
+    assert.equal(result.backup.fileName, backup.fileName);
+    assert.equal(result.backup.ageHours, 0.5);
+});
+
+test('deployment verification fails closed when RealtimeKit verification credentials are absent', async (t) => {
+    const deployment = await startDeploymentFixture();
+    t.after(deployment.close);
+
+    await assert.rejects(
+        () => verifyDeployment(deployment.baseUrl, {
+            requireOperationalChecks: true,
+            env: { NODE_ENV: 'test' }
+        }),
+        /RealtimeKit deployment verification requires CLOUDFLARE_ACCOUNT_ID/
+    );
+});
+
+test('deployment verification rejects a drifted RealtimeKit preset policy', async (t) => {
+    const deployment = await startDeploymentFixture();
+    const realtimeKit = await startRealtimeKitFixture({ driftViewer: true });
+    const backup = createBackupFixture();
+    t.after(deployment.close);
+    t.after(realtimeKit.close);
+    t.after(backup.close);
+
+    await assert.rejects(
+        () => verifyDeployment(deployment.baseUrl, {
+            requireOperationalChecks: true,
+            env: operationalEnv(realtimeKit, backup),
+            now: () => FIXED_NOW
+        }),
+        /RealtimeKit preset halastudy_viewer failed its effective policy check/
+    );
+});
+
+test('deployment verification rejects an unavailable or incorrectly wired webhook route', async (t) => {
+    const deployment = await startDeploymentFixture({
+        webhookStatus: 503,
+        webhookErrorCode: 'WEBHOOK_UNAVAILABLE'
+    });
+    const realtimeKit = await startRealtimeKitFixture();
+    const backup = createBackupFixture();
+    t.after(deployment.close);
+    t.after(realtimeKit.close);
+    t.after(backup.close);
+
+    await assert.rejects(
+        () => verifyDeployment(deployment.baseUrl, {
+            requireOperationalChecks: true,
+            env: operationalEnv(realtimeKit, backup),
+            now: () => FIXED_NOW
+        }),
+        /RealtimeKit webhook health check failed/
+    );
+});
+
+test('deployment verification rejects an unhealthy RealtimeKit runtime before provider checks', async (t) => {
+    const deployment = await startDeploymentFixture({ realtimeKitProviderAvailable: false });
+    const realtimeKit = await startRealtimeKitFixture();
+    const backup = createBackupFixture();
+    t.after(deployment.close);
+    t.after(realtimeKit.close);
+    t.after(backup.close);
+
+    await assert.rejects(
+        () => verifyDeployment(deployment.baseUrl, {
+            requireOperationalChecks: true,
+            env: operationalEnv(realtimeKit, backup),
+            now: () => FIXED_NOW
+        }),
+        /RealtimeKit runtime health metrics are unavailable or unhealthy/
+    );
+});
+
+test('deployment verification rejects a stale last successful backup', async (t) => {
+    const deployment = await startDeploymentFixture();
+    const realtimeKit = await startRealtimeKitFixture();
+    const backup = createBackupFixture('2026-07-14T000000Z');
+    t.after(deployment.close);
+    t.after(realtimeKit.close);
+    t.after(backup.close);
+
+    await assert.rejects(
+        () => verifyDeployment(deployment.baseUrl, {
+            requireOperationalChecks: true,
+            env: operationalEnv(realtimeKit, backup),
+            now: () => FIXED_NOW
+        }),
+        /Last successful backup is stale/
+    );
+});
+
+test('deployment verification rejects an incomplete encrypted backup artifact', async (t) => {
+    const deployment = await startDeploymentFixture();
+    const realtimeKit = await startRealtimeKitFixture();
+    const backup = createBackupFixture('2026-07-15T033000Z', {
+        format: 'halastudy-encrypted-backup',
+        artifactVersion: 1
+    });
+    t.after(deployment.close);
+    t.after(realtimeKit.close);
+    t.after(backup.close);
+
+    await assert.rejects(
+        () => verifyDeployment(deployment.baseUrl, {
+            requireOperationalChecks: true,
+            env: operationalEnv(realtimeKit, backup),
+            now: () => FIXED_NOW
+        }),
+        /Last successful backup artifact is incomplete or unsupported/
+    );
+});
+
+test('deployment verifier CLI uses an explicit env file without importing unrelated secrets', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-deploy-env-'));
+    const envFile = path.join(directory, 'service.env');
+    fs.writeFileSync(envFile, [
+        'CLOUDFLARE_ACCOUNT_ID=account-from-file',
+        'CLOUDFLARE_REALTIMEKIT_API_TOKEN=token-from-file',
+        'ROOM_STATE_BACKUP_DIR="/var/lib/halastudy/backups"',
+        'SESSION_SECRET=must-not-be-imported'
+    ].join('\n'));
+    try {
+        const args = parseArguments([
+            'https://deploy.example.com',
+            '--env-file', envFile,
+            '--max-backup-age-hours=48'
+        ]);
+        const loaded = loadVerificationEnvFile(args.envFile, {
+            CLOUDFLARE_REALTIMEKIT_API_TOKEN: 'shell-token'
+        });
+
+        assert.equal(args.baseUrl, 'https://deploy.example.com');
+        assert.equal(args.maxBackupAgeHours, '48');
+        assert.equal(loaded.CLOUDFLARE_ACCOUNT_ID, 'account-from-file');
+        assert.equal(loaded.CLOUDFLARE_REALTIMEKIT_API_TOKEN, 'shell-token');
+        assert.equal(loaded.ROOM_STATE_BACKUP_DIR, '/var/lib/halastudy/backups');
+        assert.equal(loaded.SESSION_SECRET, undefined);
+    } finally {
+        fs.rmSync(directory, { recursive: true, force: true });
+    }
 });
