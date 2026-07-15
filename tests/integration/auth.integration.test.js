@@ -52,7 +52,7 @@ test('signup issues an auth cookie and /api/auth/me returns the profile', async 
     assert.equal(response.body.user.tokenEpoch, undefined);
 
     const cookie = extractCookies(response.headers['set-cookie']);
-    assert.match(cookie, /coStudyAuth=v1\./);
+    assert.match(cookie, /coStudyAuth=v2\./);
 
     const me = await authedRequest(server, '/api/auth/me', cookie);
     assert.equal(me.status, 200);
@@ -298,6 +298,46 @@ test('logout disconnects only authenticated sockets from the same signed browser
         }
     });
     assert.equal(otherSessionMutation.ok, true);
+});
+
+test('a copied auth cookie cannot pair with a freshly minted anonymous session', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const account = await signupUser(server, {
+        email: 'session-binding@example.com',
+        displayName: 'Bound Session'
+    });
+    const copiedAuthCookie = account.cookie.split('; ')
+        .find((entry) => entry.startsWith('coStudyAuth='));
+    assert.ok(copiedAuthCookie);
+
+    const freshAnonymousResponse = await server.request('/api/health');
+    const freshAnonymousCookie = extractCookies(freshAnonymousResponse.headers['set-cookie'])
+        .split('; ')
+        .find((entry) => entry.startsWith('coStudySessionId='));
+    assert.ok(freshAnonymousCookie);
+    const mismatchedCookies = `${copiedAuthCookie}; ${freshAnonymousCookie}`;
+
+    const me = await authedRequest(server, '/api/auth/me', mismatchedCookies);
+    assert.equal(me.status, 200);
+    assert.equal(me.body.user, null);
+
+    const copiedSocket = await connectSocket(server.baseUrl, {
+        extraHeaders: { Cookie: mismatchedCookies }
+    });
+    t.after(() => closeSocket(copiedSocket));
+    const tomorrow = new Date(Date.now() + (27 * 60 * 60 * 1000));
+    const authenticatedMutation = await emitAck(copiedSocket, 'create-room', {
+        roomName: 'Copied cookie room',
+        schedule: {
+            startDate: tomorrow.toISOString().slice(0, 10),
+            startTime: '20:00',
+            cadence: 'once'
+        }
+    });
+    assert.equal(authenticatedMutation.ok, false);
+    assert.equal(authenticatedMutation.errorCode, 'AUTH_REQUIRED_FOR_SCHEDULED');
 });
 
 test('profile updates validate avatar color and bio bounds', async (t) => {
