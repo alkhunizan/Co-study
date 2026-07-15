@@ -9,10 +9,11 @@
 // boundary, so every loaded row runs through the shared sanitizeUser before
 // entering memory; provider/admin fields are re-attached afterward.
 
-const { sanitizeUser } = require('./user-store');
+const { sanitizeFocusStats, sanitizeStreak, sanitizeUser } = require('./user-store');
 
 const SAVE_DEBOUNCE_MS = 250;
 const HYDRATION_PAGE_SIZE = 1000;
+const TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const AUTH_PROVIDERS = new Set(['password', 'google']);
 
 /** DB row (snake_case) -> in-memory user (camelCase), sanitized. */
@@ -72,18 +73,21 @@ function userToRow(user) {
 }
 
 /**
- * @param {{ client?: any, logger?: any }} [options]
+ * @param {{ client?: any, logger?: any, now?: () => number }} [options]
  */
 function createSupabaseUserStore(options = {}) {
-    const { client, logger = console } = options;
+    const { client, logger = console, now = () => Date.now() } = options;
     if (!client) throw new Error('createSupabaseUserStore requires a Supabase client.');
 
     let knownIds = new Set();
+    const tombstoneExpiryById = new Map();
     const knownFingerprints = new Map();
     let hydrated = false;
     let saveTimer = null;
     let queuedMap = null;
+    /** @type {Promise<any>} */
     let mutationTail = Promise.resolve();
+    /** @type {Promise<any>} */
     let lastAttempt = Promise.resolve();
 
     function warn(event, error) {
@@ -93,6 +97,28 @@ function createSupabaseUserStore(options = {}) {
 
     function rowFingerprint(row) {
         return JSON.stringify(row);
+    }
+
+    function isCurrentTombstone(userId) {
+        const expiresAt = tombstoneExpiryById.get(userId);
+        if (!Number.isFinite(expiresAt)) return false;
+        if (expiresAt > now()) return true;
+        tombstoneExpiryById.delete(userId);
+        return false;
+    }
+
+    async function deleteProfileWithTombstone(userId) {
+        if (typeof client.rpc !== 'function') {
+            throw new Error('Supabase account deletion requires the tombstone RPC.');
+        }
+        const deletedAt = now();
+        await client.rpc('delete_profile_with_tombstone', {
+            p_user_id: userId,
+            p_deleted_at: new Date(deletedAt).toISOString()
+        }, { idempotent: true });
+        tombstoneExpiryById.set(userId, deletedAt + TOMBSTONE_RETENTION_MS);
+        knownIds.delete(userId);
+        knownFingerprints.delete(userId);
     }
 
     /** Load all profiles into memory. Called once at boot; the factory awaits it. */
@@ -107,8 +133,35 @@ function createSupabaseUserStore(options = {}) {
             rows.push(...page);
             if (page.length < HYDRATION_PAGE_SIZE) break;
         }
-        const users = rows.map(rowToUser);
+        tombstoneExpiryById.clear();
+        const hydrationNow = now();
+        const currentIso = new Date(hydrationNow).toISOString();
+        for (let offset = 0; ; offset += HYDRATION_PAGE_SIZE) {
+            const page = await client.select(
+                'deletion_tombstones',
+                `select=user_id,expires_at&expires_at=gt.${encodeURIComponent(currentIso)}`
+                    + `&order=user_id.asc&limit=${HYDRATION_PAGE_SIZE}&offset=${offset}`
+            );
+            if (!Array.isArray(page)) throw new Error('Invalid deletion tombstones response: expected an array.');
+            for (const row of page) {
+                const expiresAt = Date.parse(row?.expires_at);
+                if (!row || typeof row !== 'object' || typeof row.user_id !== 'string' || !row.user_id.trim()
+                    || !Number.isFinite(expiresAt)) {
+                    throw new Error('Invalid deletion tombstones response: one or more rows failed validation.');
+                }
+                if (expiresAt > hydrationNow) tombstoneExpiryById.set(row.user_id, expiresAt);
+            }
+            if (page.length < HYDRATION_PAGE_SIZE) break;
+        }
+
+        const liveRows = rows.filter((row) => {
+            const tombstoned = isCurrentTombstone(row?.id);
+            if (tombstoned) warn('tombstoned_profile_ignored', new Error(`Profile ${row.id} is tombstoned.`));
+            return !tombstoned;
+        });
+        const users = liveRows.map(rowToUser);
         if (users.some((user) => !user)) throw new Error('Invalid profiles response: one or more rows failed validation.');
+        knownFingerprints.clear();
         const ids = new Set();
         const emails = new Set();
         const googleSubjects = new Set();
@@ -122,7 +175,7 @@ function createSupabaseUserStore(options = {}) {
             // Preserve the provider row fingerprint so the first mutation can
             // normalize legacy/defaulted columns instead of assuming the
             // sanitized in-memory projection was already stored.
-            knownFingerprints.set(user.id, rowFingerprint(rows[index]));
+            knownFingerprints.set(user.id, rowFingerprint(liveRows[index]));
         }
         knownIds = new Set(users.map((u) => u.id));
         hydrated = true;
@@ -130,8 +183,9 @@ function createSupabaseUserStore(options = {}) {
     }
 
     async function persistDiff(map) {
-        const currentIds = new Set(map.keys());
-        const rows = Array.from(map.values()).map(userToRow);
+        const liveUsers = Array.from(map.values()).filter((user) => !isCurrentTombstone(user.id));
+        const currentIds = new Set(liveUsers.map((user) => user.id));
+        const rows = liveUsers.map(userToRow);
         // Deletions only propagate once hydrated (before that, knownIds is empty
         // and an upsert-only pass can never wrongly delete a not-yet-loaded row).
         const toDelete = hydrated ? [...knownIds].filter((id) => !currentIds.has(id)) : [];
@@ -142,12 +196,17 @@ function createSupabaseUserStore(options = {}) {
             knownFingerprints.set(row.id, fingerprint);
         }
         for (const id of toDelete) {
-            await client.remove('profiles', 'id', [id]);
-            knownFingerprints.delete(id);
+            await deleteProfileWithTombstone(id);
         }
         knownIds = currentIds;
     }
 
+    /**
+     * @template T
+     * @param {() => T | Promise<T>} operation
+     * @param {string} [event]
+     * @returns {Promise<T>}
+     */
     function enqueue(operation, event = 'user_persist_failed') {
         const attempt = mutationTail.then(operation);
         mutationTail = attempt.catch(() => {});
@@ -184,6 +243,11 @@ function createSupabaseUserStore(options = {}) {
     function saveUser(user) {
         const row = userToRow(user);
         return enqueue(async () => {
+            if (isCurrentTombstone(user.id)) {
+                throw Object.assign(new Error(`Profile ${user.id} is tombstoned.`), {
+                    code: 'ACCOUNT_TOMBSTONED'
+                });
+            }
             await client.upsert('profiles', [row]);
             knownIds.add(user.id);
             knownFingerprints.set(user.id, rowFingerprint(row));
@@ -192,46 +256,67 @@ function createSupabaseUserStore(options = {}) {
 
     function deleteUser(user) {
         return enqueue(async () => {
-            if (typeof client.rpc === 'function') {
-                await client.rpc('delete_profile_with_tombstone', {
-                    p_user_id: user.id,
-                    p_deleted_at: new Date().toISOString()
-                }, { idempotent: true });
-            } else {
-                await client.remove('profiles', 'id', [user.id]);
-            }
-            knownIds.delete(user.id);
-            knownFingerprints.delete(user.id);
+            await deleteProfileWithTombstone(user.id);
         }, 'user_delete_failed');
     }
 
     function persistFocusCompletion(user, payload) {
         const row = userToRow(user);
         return enqueue(async () => {
-            if (typeof client.rpc === 'function') {
-                await client.rpc('record_focus_completion', {
-                    p_user_id: user.id,
-                    p_focus_stats: row.focus_stats,
-                    p_current_streak: row.current_streak,
-                    p_best_streak: row.best_streak,
-                    p_last_active_day: row.last_active_day,
-                    p_completion_id: payload.completionId,
-                    p_minutes: payload.acceptedMinutes,
-                    p_day_key: payload.dayKey
-                }, { idempotent: true });
-            } else {
-                await client.upsert('profiles', [row]);
-                if (payload.acceptedMinutes > 0) {
-                    await client.insert('focus_sessions', [{
-                        user_id: user.id,
-                        minutes: payload.acceptedMinutes,
-                        day_key: payload.dayKey,
-                        completion_id: payload.completionId
-                    }]);
-                }
+            if (isCurrentTombstone(user.id)) {
+                throw Object.assign(new Error(`Profile ${user.id} is tombstoned.`), {
+                    code: 'ACCOUNT_TOMBSTONED'
+                });
             }
-            knownIds.add(user.id);
-            knownFingerprints.set(user.id, rowFingerprint(row));
+            if (typeof client.rpc !== 'function') {
+                throw new Error('Supabase focus persistence requires the atomic focus RPC.');
+            }
+            const rpcResponse = await client.rpc('record_focus_completion_v2', {
+                p_user_id: user.id,
+                p_focus_stats: row.focus_stats,
+                p_current_streak: row.current_streak,
+                p_best_streak: row.best_streak,
+                p_last_active_day: row.last_active_day,
+                p_completion_id: payload.completionId,
+                p_minutes: payload.acceptedMinutes,
+                p_day_key: payload.dayKey
+            }, { idempotent: true });
+            const result = Array.isArray(rpcResponse) ? rpcResponse[0] : rpcResponse;
+            if (!result || typeof result.duplicate !== 'boolean'
+                || !Number.isInteger(result.accepted_minutes)
+                || result.accepted_minutes < 0
+                || result.accepted_minutes > 240
+                || typeof result.completion_day !== 'string'
+                || !/^\d{4}-\d{2}-\d{2}$/.test(result.completion_day)
+                || !result.persisted_focus_stats
+                || typeof result.persisted_focus_stats !== 'object'
+                || Array.isArray(result.persisted_focus_stats)
+                || !Number.isInteger(result.persisted_current_streak)
+                || result.persisted_current_streak < 0
+                || !Number.isInteger(result.persisted_best_streak)
+                || result.persisted_best_streak < result.persisted_current_streak
+                || (result.persisted_last_active_day !== null
+                    && (typeof result.persisted_last_active_day !== 'string'
+                        || !/^\d{4}-\d{2}-\d{2}$/.test(result.persisted_last_active_day)))) {
+                throw new Error('Invalid record_focus_completion_v2 response.');
+            }
+            const focusStats = sanitizeFocusStats(result.persisted_focus_stats);
+            const streak = sanitizeStreak({
+                current: result.persisted_current_streak,
+                best: result.persisted_best_streak,
+                lastActiveDay: result.persisted_last_active_day
+            }, focusStats);
+            if (!result.duplicate) {
+                knownIds.add(user.id);
+                knownFingerprints.set(user.id, rowFingerprint(row));
+            }
+            return {
+                duplicate: result.duplicate,
+                acceptedMinutes: result.accepted_minutes,
+                dayKey: result.completion_day,
+                focusStats,
+                streak
+            };
         }, 'focus_session_persist_failed');
     }
 

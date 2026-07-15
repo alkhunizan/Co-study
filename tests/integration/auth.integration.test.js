@@ -352,9 +352,8 @@ test('accounts persist across server restart with the same state file', async (t
         body: { minutes: 40, completionId: 'persisted-focus-completion' }
     });
 
-    // Let the debounced user-store write land before stopping (SIGTERM flush
-    // handlers are unreliable on Windows child processes).
-    await delay(400);
+    // The acknowledged focus mutation is an immediate durable write. Stop as
+    // soon as the response arrives so restart coverage cannot pass on debounce.
     await server.stop();
     server = await startServer({ roomStateFile, userStateFile, resetStateFileOnStart: false });
 

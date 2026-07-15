@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const SUPABASE_DATASETS = {
     profiles: 'id.asc',
+    focus_completion_claims: 'user_id.asc,completion_id.asc',
     focus_sessions: 'created_at.asc,id.asc',
     room_events: 'created_at.asc,id.asc'
 };

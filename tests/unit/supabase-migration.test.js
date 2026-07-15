@@ -11,9 +11,13 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 test('Supabase migrations satisfy the additive schema and deny-public-access contract', () => {
     const report = verifySupabaseMigrations({ repoRoot });
 
-    assert.ok(report.files.includes('20260715000000_secure_baseline.sql'));
+    assert.deepEqual(report.files, [
+        '20260715000000_secure_baseline.sql',
+        '20260715010000_account_resurrection_focus_idempotency.sql'
+    ]);
     assert.deepEqual(report.tables, [
         'deletion_tombstones',
+        'focus_completion_claims',
         'focus_sessions',
         'profiles',
         'room_events'
@@ -39,4 +43,36 @@ test('migration verification rejects destructive SQL before any database is cont
         () => verifySupabaseMigrations({ repoRoot }),
         /destructive SQL/i
     );
+});
+
+test('the additive migration blocks profile resurrection and claims focus ids before aggregates', () => {
+    const migration = fs.readFileSync(
+        path.join(
+            repoRoot,
+            'supabase',
+            'migrations',
+            '20260715010000_account_resurrection_focus_idempotency.sql'
+        ),
+        'utf8'
+    );
+    assert.match(migration, /create or replace function public\.reject_tombstoned_profile_write/i);
+    assert.match(migration, /before insert or update on public\.profiles/i);
+    assert.match(migration, /create or replace function public\.lock_account_mutation/i);
+    assert.match(migration, /before insert or update on public\.deletion_tombstones/i);
+    assert.match(migration, /pg_advisory_xact_lock/i);
+    assert.match(migration, /create table if not exists public\.focus_completion_claims/i);
+
+    const v2Start = migration.indexOf('create or replace function public.record_focus_completion_v2');
+    assert.notEqual(v2Start, -1);
+    const v2Body = migration.slice(v2Start, migration.indexOf('$function$;', v2Start));
+    assert.ok(
+        v2Body.indexOf('insert into public.focus_completion_claims')
+            < v2Body.indexOf('update public.profiles'),
+        'every focus completion id must be claimed before updating the profile aggregate'
+    );
+    assert.ok(
+        v2Body.indexOf('insert into public.focus_sessions') < v2Body.indexOf('update public.profiles'),
+        'focus completion id must be claimed before updating the profile aggregate'
+    );
+    assert.match(v2Body, /get diagnostics inserted_rows = row_count/i);
 });

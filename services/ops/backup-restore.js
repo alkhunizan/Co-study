@@ -2,7 +2,12 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const DATABASE_DATASETS = ['profiles', 'focus_sessions', 'room_events'];
+const DATABASE_DATASETS = [
+    'profiles',
+    'focus_completion_claims',
+    'focus_sessions',
+    'room_events'
+];
 const ROOM_USER_REFERENCE_FIELDS = [
     'owner_user_id',
     'ownerUserId',
@@ -10,10 +15,15 @@ const ROOM_USER_REFERENCE_FIELDS = [
     'createdByUserId'
 ];
 
-function tombstoneUserId(row) {
-    if (!row || typeof row !== 'object') return '';
+function currentTombstoneUserId(row, now) {
+    if (!row || typeof row !== 'object') throw new Error('Deletion tombstone row is invalid.');
     const value = row.user_id ?? row.userId;
-    return typeof value === 'string' ? value : '';
+    const rawExpiresAt = row.expires_at ?? row.expiresAt;
+    const expiresAt = typeof rawExpiresAt === 'string' ? Date.parse(rawExpiresAt) : Number.NaN;
+    if (typeof value !== 'string' || !value.trim() || !Number.isFinite(expiresAt)) {
+        throw new Error('Deletion tombstone row is invalid.');
+    }
+    return expiresAt > now ? value : '';
 }
 
 function rowReferencesDeletedUser(row, deletedIds, fields) {
@@ -21,13 +31,16 @@ function rowReferencesDeletedUser(row, deletedIds, fields) {
     return fields.some((field) => typeof row[field] === 'string' && deletedIds.has(row[field]));
 }
 
-/** @param {{ bundle: any, deletionTombstones?: any[] }} options */
-function buildRestorePlan({ bundle, deletionTombstones = [] } = /** @type {any} */ ({})) {
+/** @param {{ bundle: any, deletionTombstones?: any[], now?: number }} options */
+function buildRestorePlan({ bundle, deletionTombstones = [], now = Date.now() } = /** @type {any} */ ({})) {
     if (!bundle || typeof bundle !== 'object' || !bundle.datasets || typeof bundle.datasets !== 'object') {
         throw new Error('Validated backup bundle is required.');
     }
     if (!Array.isArray(deletionTombstones)) throw new Error('Deletion tombstones must be an array.');
-    const deletedIds = new Set(deletionTombstones.map(tombstoneUserId).filter(Boolean));
+    if (!Number.isFinite(now)) throw new Error('Restore timestamp is invalid.');
+    const deletedIds = new Set(deletionTombstones
+        .map((row) => currentTombstoneUserId(row, now))
+        .filter(Boolean));
     const datasets = {};
     const filtered = {};
 
@@ -35,7 +48,7 @@ function buildRestorePlan({ bundle, deletionTombstones = [] } = /** @type {any} 
         let restored = rows;
         if (name === 'profiles') {
             restored = rows.filter((row) => !rowReferencesDeletedUser(row, deletedIds, ['id']));
-        } else if (name === 'focus_sessions') {
+        } else if (name === 'focus_sessions' || name === 'focus_completion_claims') {
             restored = rows.filter((row) => !rowReferencesDeletedUser(row, deletedIds, ['user_id', 'userId']));
         } else if (name === 'room_events') {
             restored = rows.filter((row) => !rowReferencesDeletedUser(
@@ -84,6 +97,7 @@ async function applyRestorePlan({
 
     const operations = [
         ['profiles', 'restoreProfiles'],
+        ['focus_completion_claims', 'restoreFocusCompletionClaims'],
         ['focus_sessions', 'restoreFocusSessions'],
         ['room_events', 'restoreRoomEvents'],
         ['rooms', 'restoreRooms']
@@ -98,8 +112,13 @@ async function applyRestorePlan({
     return { mode: 'applied', counts: sourceCounts(plan), filtered: plan.filtered };
 }
 
-/** @param {{ client: any, pageSize?: number, batchSize?: number }} options */
-function createSupabaseRestoreTarget({ client, pageSize = 1000, batchSize = 250 } = /** @type {any} */ ({})) {
+/** @param {{ client: any, pageSize?: number, batchSize?: number, now?: () => number }} options */
+function createSupabaseRestoreTarget({
+    client,
+    pageSize = 1000,
+    batchSize = 250,
+    now = () => Date.now()
+} = /** @type {any} */ ({})) {
     if (!client || typeof client.select !== 'function' || typeof client.upsert !== 'function') {
         throw new Error('Supabase restore target requires select and upsert support.');
     }
@@ -112,27 +131,35 @@ function createSupabaseRestoreTarget({ client, pageSize = 1000, batchSize = 250 
 
     async function readDeletionTombstones() {
         const rows = [];
+        const readAt = now();
+        if (!Number.isFinite(readAt)) throw new Error('Restore timestamp is invalid.');
+        const currentIso = new Date(readAt).toISOString();
         for (let offset = 0; ; offset += pageSize) {
             const page = await client.select(
                 'deletion_tombstones',
-                `select=user_id,deleted_at,expires_at&order=user_id.asc&limit=${pageSize}&offset=${offset}`
+                `select=user_id,deleted_at,expires_at&expires_at=gt.${encodeURIComponent(currentIso)}`
+                    + `&order=user_id.asc&limit=${pageSize}&offset=${offset}`
             );
             if (!Array.isArray(page)) throw new Error('Supabase deletion tombstones response must be an array.');
-            rows.push(...page);
+            for (const row of page) {
+                if (currentTombstoneUserId(row, readAt)) rows.push(row);
+            }
             if (page.length < pageSize) break;
         }
         return rows;
     }
 
-    async function upsertBatches(table, rows) {
+    async function upsertBatches(table, rows, onConflict = 'id') {
         for (let offset = 0; offset < rows.length; offset += batchSize) {
-            await client.upsert(table, rows.slice(offset, offset + batchSize), { onConflict: 'id' });
+            await client.upsert(table, rows.slice(offset, offset + batchSize), { onConflict });
         }
     }
 
     return {
         readDeletionTombstones,
         restoreProfiles: (rows) => upsertBatches('profiles', rows),
+        restoreFocusCompletionClaims: (rows) =>
+            upsertBatches('focus_completion_claims', rows, 'user_id,completion_id'),
         restoreFocusSessions: (rows) => upsertBatches('focus_sessions', rows),
         restoreRoomEvents: (rows) => upsertBatches('room_events', rows)
     };
@@ -177,7 +204,6 @@ module.exports = {
     applyRestorePlan,
     buildRestorePlan,
     createSupabaseRestoreTarget,
-    hasDatabaseDatasets,
     requiresDeletionTombstoneFilter,
     writeRoomsAtomically
 };

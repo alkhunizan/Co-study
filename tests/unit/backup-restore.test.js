@@ -21,6 +21,10 @@ function sampleBundle() {
         },
         datasets: {
             profiles: [{ id: 'deleted-user' }, { id: 'active-user' }],
+            focus_completion_claims: [
+                { user_id: 'deleted-user', completion_id: 'deleted-claim' },
+                { user_id: 'active-user', completion_id: 'active-claim' }
+            ],
             focus_sessions: [
                 { id: 1, user_id: 'deleted-user' },
                 { id: 2, user_id: 'active-user' }
@@ -40,19 +44,36 @@ function sampleBundle() {
 test('restore plans filter every current deletion tombstone before data can be applied', () => {
     const plan = buildRestorePlan({
         bundle: sampleBundle(),
-        deletionTombstones: [{ user_id: 'deleted-user' }]
+        deletionTombstones: [{ user_id: 'deleted-user', expires_at: '2026-08-14T00:00:00.000Z' }],
+        now: Date.parse('2026-07-15T00:00:00.000Z')
     });
 
     assert.deepEqual(plan.datasets.profiles, [{ id: 'active-user' }]);
+    assert.deepEqual(plan.datasets.focus_completion_claims, [{
+        user_id: 'active-user',
+        completion_id: 'active-claim'
+    }]);
     assert.deepEqual(plan.datasets.focus_sessions, [{ id: 2, user_id: 'active-user' }]);
     assert.deepEqual(plan.datasets.room_events, [{ id: 2, user_id: 'active-user' }]);
     assert.deepEqual(plan.datasets.rooms, [{ id: 'LIVE', ownerUserId: 'active-user' }]);
     assert.deepEqual(plan.filtered, {
         profiles: 1,
+        focus_completion_claims: 1,
         focus_sessions: 1,
         room_events: 1,
         rooms: 1
     });
+});
+
+test('expired deletion tombstones no longer suppress a restore', () => {
+    const plan = buildRestorePlan({
+        bundle: sampleBundle(),
+        deletionTombstones: [{ user_id: 'deleted-user', expires_at: '2026-07-14T23:59:59.000Z' }],
+        now: Date.parse('2026-07-15T00:00:00.000Z')
+    });
+
+    assert.equal(plan.datasets.profiles.length, 2);
+    assert.equal(plan.filtered.profiles, 0);
 });
 
 test('rooms-only restore artifacts still require current tombstones when ownership can resurrect a user', () => {
@@ -74,6 +95,7 @@ test('restore defaults to dry-run and performs no writes', async () => {
         plan: buildRestorePlan({ bundle: sampleBundle(), deletionTombstones: [] }),
         target: {
             async restoreProfiles() { calls.push('profiles'); },
+            async restoreFocusCompletionClaims() { calls.push('focus_completion_claims'); },
             async restoreFocusSessions() { calls.push('focus_sessions'); },
             async restoreRoomEvents() { calls.push('room_events'); },
             async restoreRooms() { calls.push('rooms'); }
@@ -111,6 +133,9 @@ test('restore applies profiles, event tables, then rooms in dependency order', a
         writerStopped: true,
         target: {
             async restoreProfiles(rows) { calls.push(['profiles', rows.length]); },
+            async restoreFocusCompletionClaims(rows) {
+                calls.push(['focus_completion_claims', rows.length]);
+            },
             async restoreFocusSessions(rows) { calls.push(['focus_sessions', rows.length]); },
             async restoreRoomEvents(rows) { calls.push(['room_events', rows.length]); },
             async restoreRooms(rows) { calls.push(['rooms', rows.length]); }
@@ -120,6 +145,7 @@ test('restore applies profiles, event tables, then rooms in dependency order', a
     assert.equal(result.mode, 'applied');
     assert.deepEqual(calls.map(([name]) => name), [
         'profiles',
+        'focus_completion_claims',
         'focus_sessions',
         'room_events',
         'rooms'
@@ -140,6 +166,7 @@ test('a failed restore phase stops before dependent event and room writes', asyn
                     calls.push('profiles');
                     throw new Error('injected profile failure');
                 },
+                async restoreFocusCompletionClaims() { calls.push('focus_completion_claims'); },
                 async restoreFocusSessions() { calls.push('focus_sessions'); },
                 async restoreRoomEvents() { calls.push('room_events'); },
                 async restoreRooms() { calls.push('rooms'); }
@@ -157,20 +184,29 @@ test('Supabase restore target paginates tombstones and writes bounded idempotent
         async select(table, query) {
             selects.push({ table, query });
             return query.includes('offset=0')
-                ? [{ user_id: 'deleted-1' }, { user_id: 'deleted-2' }]
+                ? [
+                    { user_id: 'deleted-1', expires_at: '2026-08-14T00:00:00.000Z' },
+                    { user_id: 'deleted-2', expires_at: '2026-08-14T00:00:00.000Z' }
+                ]
                 : [];
         },
         async upsert(table, rows, options) {
             upserts.push({ table, rows, options });
         }
     };
-    const target = createSupabaseRestoreTarget({ client, pageSize: 2, batchSize: 2 });
+    const target = createSupabaseRestoreTarget({
+        client,
+        pageSize: 2,
+        batchSize: 2,
+        now: () => Date.parse('2026-07-15T00:00:00.000Z')
+    });
 
     const tombstones = await target.readDeletionTombstones();
     await target.restoreProfiles([{ id: 1 }, { id: 2 }, { id: 3 }]);
 
     assert.equal(tombstones.length, 2);
     assert.match(selects[1].query, /offset=2/);
+    assert.match(selects[0].query, /expires_at=gt\./);
     assert.deepEqual(upserts.map((entry) => entry.rows.length), [2, 1]);
     assert.ok(upserts.every((entry) => entry.table === 'profiles'));
     assert.ok(upserts.every((entry) => entry.options.onConflict === 'id'));

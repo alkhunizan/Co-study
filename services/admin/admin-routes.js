@@ -36,7 +36,8 @@ function createAdminRouter(deps) {
         buildScheduleSummary,
         closeRoom,
         revokeSocketVideoSessions,
-        persistUsersSoon,
+        persistUser,
+        runUserMutation,
         persistRoomsSoon,
         dashboard,
         logger
@@ -384,16 +385,36 @@ function createAdminRouter(deps) {
         res.json({ ok: true, total: list.length, offset, users: page });
     });
 
-    function setBanned(req, res, banned) {
+    async function setBanned(req, res, banned) {
         const user = users.get(req.params.userId);
         if (!user) {
             res.status(404).json({ errorCode: 'USER_NOT_FOUND' });
             return;
         }
-        user.banned = banned;
-        // Epoch bump kills every outstanding cookie for this user immediately.
-        user.tokenEpoch += 1;
-        persistUsersSoon();
+        try {
+            await runUserMutation(user, async () => {
+                const previousBanned = user.banned;
+                const previousTokenEpoch = user.tokenEpoch;
+                user.banned = banned;
+                // Epoch bump kills every outstanding cookie for this user immediately.
+                user.tokenEpoch += 1;
+                try {
+                    await persistUser(user);
+                } catch (error) {
+                    user.banned = previousBanned;
+                    user.tokenEpoch = previousTokenEpoch;
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(404).json({ errorCode: 'USER_NOT_FOUND' });
+                return;
+            }
+            logger.error({ event: 'admin_user_persist_failed', userId: user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
         if (banned) {
             for (const socket of io.sockets.sockets.values()) {
                 if (socket.data && socket.data.userId === user.id) {
