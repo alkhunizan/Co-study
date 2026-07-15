@@ -47,8 +47,10 @@ production-shaped values and inline notes. The critical production settings:
   `CLOUDFLARE_REALTIMEKIT_API_TOKEN`. These are server-only secrets.
 - **Video caps** — keep `MAX_GLOBAL_VIDEO_PARTICIPANTS=20` and
   `MAX_ROOM_VIDEO_PARTICIPANTS=20` for launch cost control.
-- **`SESSION_SECRET`** — REQUIRED in production (min 32 chars); startup fails
-  without it. `ADMIN_SESSION_SECRET` is also required and must be different.
+- **`SESSION_SECRET`** — REQUIRED in production and must encode exactly 32
+  random bytes (the 64-hex output of `npm run secret:gen` is canonical);
+  startup fails without it. `ADMIN_SESSION_SECRET` has the same requirement,
+  must decode to different bytes, and must be generated independently.
   Generate both with `npm run secret:gen`; rotating either invalidates its
   corresponding cookies.
 - **`USER_STATE_FILE`** — development/test fallback only; production accounts
