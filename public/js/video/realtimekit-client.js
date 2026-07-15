@@ -5,6 +5,7 @@
     const UI_LOADER_URL = `https://cdn.jsdelivr.net/npm/@cloudflare/realtimekit-ui@${REALTIMEKIT_VERSION}/loader/index.es2017.js`;
     const CORE_SDK_URL = `https://cdn.jsdelivr.net/npm/@cloudflare/realtimekit@${REALTIMEKIT_VERSION}/dist/browser.js`;
     const SDK_LOAD_TIMEOUT_MS = 15000;
+    const PROVIDER_TEARDOWN_TIMEOUT_MS = 2000;
     const LOCAL_MEDIA_FIELDS = [
         'audioTrack',
         'videoTrack',
@@ -294,6 +295,18 @@
         if (firstError) throw firstError;
     }
 
+    function withTeardownDeadline(promise) {
+        let timeoutId = null;
+        const deadline = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+                reject(new Error('RealtimeKit teardown timed out.'));
+            }, PROVIDER_TEARDOWN_TIMEOUT_MS);
+        });
+        return Promise.race([promise, deadline]).finally(() => {
+            if (timeoutId !== null) clearTimeout(timeoutId);
+        });
+    }
+
     function createIdempotentLeave(meeting, meetingElement = null) {
         let leavePromise = null;
         return function leaveMeeting() {
@@ -303,9 +316,11 @@
                 const fullscreenCleanup = clearMeetingFullscreen(meetingElement);
                 unmountMeetingElement(meetingElement);
                 const mediaCleanup = releaseLocalMedia(meeting);
-                leavePromise = disconnectMeeting(meeting).finally(async () => {
-                    await Promise.allSettled([mediaCleanup, fullscreenCleanup]);
-                });
+                leavePromise = withTeardownDeadline(
+                    disconnectMeeting(meeting).finally(async () => {
+                        await Promise.allSettled([mediaCleanup, fullscreenCleanup]);
+                    })
+                );
             }
             return leavePromise;
         };

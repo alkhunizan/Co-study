@@ -12,8 +12,9 @@ const REALTIMEKIT_CLIENT_SOURCE = fs.readFileSync(
 /**
  * @param {{ init: (options: any) => Promise<any> }} RealtimeKitClient
  * @param {(document: any) => void} [configureDocument]
+ * @param {{ setTimeout?: (callback: (...args: any[]) => void, delay?: number) => any, clearTimeout?: (handle: any) => void }} [timers]
  */
-function loadClient(RealtimeKitClient, configureDocument) {
+function loadClient(RealtimeKitClient, configureDocument, timers = {}) {
     const loadedCoreScript = {
         dataset: { loaded: 'true' },
         addEventListener() {}
@@ -45,8 +46,8 @@ function loadClient(RealtimeKitClient, configureDocument) {
                     return name === 'rtk-meeting' ? function RealtimeKitMeeting() {} : undefined;
                 }
             },
-            setTimeout,
-            clearTimeout
+            setTimeout: timers.setTimeout || setTimeout,
+            clearTimeout: timers.clearTimeout || clearTimeout
         },
         { filename: 'public/js/video/realtimekit-client.js' }
     );
@@ -297,4 +298,43 @@ test('provider disconnect falls back when the preferred leave method rejects', a
     await joined.leave();
 
     assert.deepEqual(attempts, ['leaveRoom', 'disconnect']);
+});
+
+test('a hung provider teardown releases capture immediately and settles at its deadline', async () => {
+    const slowProviderOperation = new Promise((resolve) => setTimeout(resolve, 50));
+    let stops = 0;
+    const client = loadClient({
+        async init() {
+            return {
+                self: {
+                    videoTrack: { kind: 'video', stop() { stops += 1; } },
+                    disableAudio() { return slowProviderOperation; },
+                    disableVideo() { return slowProviderOperation; },
+                    disableScreenShare() { return slowProviderOperation; }
+                },
+                async join() {},
+                leaveRoom() { return slowProviderOperation; }
+            };
+        }
+    }, undefined, {
+        setTimeout(callback) {
+            Promise.resolve().then(callback);
+            return /** @type {any} */ (1);
+        },
+        clearTimeout() {}
+    });
+    const { element, parent } = createMeetingElement();
+    const joined = await client.join({ authToken: 'token', meetingElement: element });
+
+    const outcome = await Promise.race([
+        joined.leave().then(
+            () => 'resolved',
+            (error) => error.message
+        ),
+        new Promise((resolve) => setTimeout(() => resolve('still-pending'), 25))
+    ]);
+
+    assert.match(outcome, /teardown timed out/i);
+    assert.equal(stops, 1);
+    assert.equal(parent.children.length, 0);
 });
