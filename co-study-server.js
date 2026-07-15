@@ -2316,7 +2316,7 @@ function createCoStudyServer(options = {}) {
         return true;
     }
 
-    async function issueRealtimeKitVideoToken(options) {
+    function createRealtimeKitVideoTokenOperation(options) {
         const {
             req,
             res,
@@ -2364,147 +2364,13 @@ function createCoStudyServer(options = {}) {
             return result;
         };
 
-        if (!membershipRemainsValid()) {
-            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
-            return;
-        }
-        if (!realtimeKitProviderAvailable) {
-            sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE');
-            return;
-        }
-
         const userId = member.identityId;
         const roomPolicy = getDefaultRoomVideoPolicy(room.videoPolicy);
         const roomParticipantCap = isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT : roomPolicy.maxParticipants;
-        try {
-            if (!await refreshExpiredRoomMeetingIfIdle(normalizedRoom, room)) {
-                sendVideoError(
-                    res,
-                    realtimeKitProviderAvailable ? 409 : 503,
-                    realtimeKitProviderAvailable ? 'ROOM_DURATION_LIMIT_REACHED' : 'VIDEO_PROVIDER_UNAVAILABLE'
-                );
-                return;
-            }
-        } catch (error) {
-            if (error?.code === 'PERSISTENCE_UNAVAILABLE') {
-                sendVideoError(res, 503, 'PERSISTENCE_UNAVAILABLE');
-                return;
-            }
-            throw error;
-        }
-        if (!membershipRemainsValid()) {
-            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
-            return;
-        }
-
         let registeredSession;
-        try {
-            registeredSession = videoSessionRegistry.reserveVideoSession({
-                roomId: normalizedRoom,
-                userId,
-                socketId: member.socketId,
-                requestIpKey: requestIpKey(requestIp),
-                provider: roomVideoProvider,
-                providerMeetingId: room.videoProviderMeetingId,
-                displayName,
-                role,
-                maxGlobalParticipants: config.video.maxGlobalParticipants,
-                maxRoomParticipants: roomParticipantCap,
-                maxIpParticipants: MAX_IP_VIDEO_PARTICIPANTS
-            });
-        } catch (error) {
-            const errorCode = [
-                'VIDEO_SESSION_ALREADY_ACTIVE',
-                'GLOBAL_VIDEO_LIMIT_REACHED',
-                'ROOM_FULL',
-                'IP_VIDEO_LIMIT_REACHED'
-            ].includes(error?.code)
-                ? error.code
-                : 'VIDEO_REQUEST_INVALID';
-            logger.warn({
-                event: 'video_token_rejected',
-                reason: errorCode,
-                roomId: normalizedRoom,
-                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
-                activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
-            });
-            sendVideoError(res, errorCode === 'VIDEO_REQUEST_INVALID' ? 400 : 409, errorCode);
-            return;
-        }
+        let meeting;
 
-        try {
-            const meeting = await ensureRealtimeKitMeeting(normalizedRoom, room);
-            videoSessionRegistry.updateVideoSession({ videoSessionId: registeredSession.videoSessionId }, {
-                providerMeetingId: meeting.meetingId
-            });
-            if (!membershipRemainsValid()) {
-                const released = await releaseUnissuedReservation(
-                    registeredSession,
-                    'membership_revoked_before_token'
-                );
-                sendVideoError(
-                    res,
-                    released.persistenceUnavailable ? 503 : 403,
-                    released.persistenceUnavailable ? 'PERSISTENCE_UNAVAILABLE' : 'ROOM_MEMBERSHIP_REQUIRED'
-                );
-                return;
-            }
-
-            const presetName = role === 'viewer'
-                ? config.video.viewerPresetName
-                : config.video.defaultPresetName;
-            const tokenPayload = await videoProvider.createParticipantToken({
-                roomId: normalizedRoom,
-                meetingId: meeting.meetingId,
-                userId: registeredSession.videoSessionId,
-                displayName,
-                presetName
-            });
-            videoSessionRegistry.updateVideoSession({ videoSessionId: registeredSession.videoSessionId }, {
-                providerMeetingId: tokenPayload.meetingId,
-                providerParticipantId: tokenPayload.participantId,
-                lastSeenAt: Date.now()
-            });
-            // This is the acknowledgement boundary: the provider participant
-            // and its revocation metadata must be durable before its reusable
-            // auth token can leave the process.
-            await persistVideoSessionsImmediate();
-            if (!membershipRemainsValid()) {
-                const released = await releaseUnissuedReservation(
-                    registeredSession,
-                    'membership_revoked_before_response'
-                );
-                sendVideoError(
-                    res,
-                    released.persistenceUnavailable ? 503 : 403,
-                    released.persistenceUnavailable ? 'PERSISTENCE_UNAVAILABLE' : 'ROOM_MEMBERSHIP_REQUIRED'
-                );
-                return;
-            }
-            emitVideoCapacity(normalizedRoom);
-            logger.info({
-                event: 'video_token_issued',
-                provider: roomVideoProvider,
-                roomId: normalizedRoom,
-                userId,
-                videoSessionId: registeredSession.videoSessionId,
-                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
-                activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
-            });
-
-            res.json({
-                ok: true,
-                provider: roomVideoProvider,
-                roomId: normalizedRoom,
-                role,
-                videoSessionId: registeredSession.videoSessionId,
-                meetingId: tokenPayload.meetingId,
-                participantId: tokenPayload.participantId,
-                authToken: tokenPayload.authToken,
-                expiresAt: tokenPayload.expiresAt || null,
-                policy: getClientVideoPolicy(room)
-            });
-        } catch (error) {
+        async function handleFailure(error) {
             const released = await releaseUnissuedReservation(
                 registeredSession,
                 error?.code === 'PERSISTENCE_UNAVAILABLE' ? 'persistence_failure' : 'provider_failure'
@@ -2529,6 +2395,169 @@ function createCoStudyServer(options = {}) {
             });
             sendVideoError(res, error.status || 502, 'VIDEO_PROVIDER_UNAVAILABLE');
         }
+
+        async function prepare() {
+            if (!membershipRemainsValid()) {
+                sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
+                return false;
+            }
+            if (!realtimeKitProviderAvailable) {
+                sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE');
+                return false;
+            }
+
+            try {
+                if (!await refreshExpiredRoomMeetingIfIdle(normalizedRoom, room)) {
+                    sendVideoError(
+                        res,
+                        realtimeKitProviderAvailable ? 409 : 503,
+                        realtimeKitProviderAvailable ? 'ROOM_DURATION_LIMIT_REACHED' : 'VIDEO_PROVIDER_UNAVAILABLE'
+                    );
+                    return false;
+                }
+            } catch (error) {
+                if (error?.code === 'PERSISTENCE_UNAVAILABLE') {
+                    sendVideoError(res, 503, 'PERSISTENCE_UNAVAILABLE');
+                    return false;
+                }
+                throw error;
+            }
+            if (!membershipRemainsValid()) {
+                sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
+                return false;
+            }
+
+            try {
+                registeredSession = videoSessionRegistry.reserveVideoSession({
+                    roomId: normalizedRoom,
+                    userId,
+                    socketId: member.socketId,
+                    requestIpKey: requestIpKey(requestIp),
+                    provider: roomVideoProvider,
+                    providerMeetingId: room.videoProviderMeetingId,
+                    displayName,
+                    role,
+                    maxGlobalParticipants: config.video.maxGlobalParticipants,
+                    maxRoomParticipants: roomParticipantCap,
+                    maxIpParticipants: MAX_IP_VIDEO_PARTICIPANTS
+                });
+            } catch (error) {
+                const errorCode = [
+                    'VIDEO_SESSION_ALREADY_ACTIVE',
+                    'GLOBAL_VIDEO_LIMIT_REACHED',
+                    'ROOM_FULL',
+                    'IP_VIDEO_LIMIT_REACHED'
+                ].includes(error?.code)
+                    ? error.code
+                    : 'VIDEO_REQUEST_INVALID';
+                logger.warn({
+                    event: 'video_token_rejected',
+                    reason: errorCode,
+                    roomId: normalizedRoom,
+                    activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                    activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
+                });
+                sendVideoError(res, errorCode === 'VIDEO_REQUEST_INVALID' ? 400 : 409, errorCode);
+                return false;
+            }
+
+            try {
+                meeting = await ensureRealtimeKitMeeting(normalizedRoom, room);
+                videoSessionRegistry.updateVideoSession({ videoSessionId: registeredSession.videoSessionId }, {
+                    providerMeetingId: meeting.meetingId
+                });
+                if (!membershipRemainsValid()) {
+                    const released = await releaseUnissuedReservation(
+                        registeredSession,
+                        'membership_revoked_before_token'
+                    );
+                    sendVideoError(
+                        res,
+                        released.persistenceUnavailable ? 503 : 403,
+                        released.persistenceUnavailable ? 'PERSISTENCE_UNAVAILABLE' : 'ROOM_MEMBERSHIP_REQUIRED'
+                    );
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                await handleFailure(error);
+                return false;
+            }
+        }
+
+        function issueProviderToken() {
+            const presetName = role === 'viewer'
+                ? config.video.viewerPresetName
+                : config.video.defaultPresetName;
+            return videoProvider.createParticipantToken({
+                roomId: normalizedRoom,
+                meetingId: meeting.meetingId,
+                userId: registeredSession.videoSessionId,
+                displayName,
+                presetName
+            });
+        }
+
+        async function finalize(tokenPayload) {
+            try {
+                // A switch or closure may have retired the pending reservation
+                // while the provider request was in flight. Attaching the late
+                // participant identity re-opens only its cleanup tombstone.
+                videoSessionRegistry.updateVideoSession({ videoSessionId: registeredSession.videoSessionId }, {
+                    providerMeetingId: tokenPayload.meetingId,
+                    providerParticipantId: tokenPayload.participantId,
+                    lastSeenAt: Date.now()
+                });
+                // This is the acknowledgement boundary: the provider participant
+                // and its revocation metadata must be durable before its reusable
+                // auth token can leave the process.
+                await persistVideoSessionsImmediate();
+                if (!membershipRemainsValid()) {
+                    const released = await releaseUnissuedReservation(
+                        registeredSession,
+                        'membership_revoked_before_response'
+                    );
+                    sendVideoError(
+                        res,
+                        released.persistenceUnavailable ? 503 : 403,
+                        released.persistenceUnavailable ? 'PERSISTENCE_UNAVAILABLE' : 'ROOM_MEMBERSHIP_REQUIRED'
+                    );
+                    return;
+                }
+                emitVideoCapacity(normalizedRoom);
+                logger.info({
+                    event: 'video_token_issued',
+                    provider: roomVideoProvider,
+                    roomId: normalizedRoom,
+                    userId,
+                    videoSessionId: registeredSession.videoSessionId,
+                    activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                    activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
+                });
+
+                res.json({
+                    ok: true,
+                    provider: roomVideoProvider,
+                    roomId: normalizedRoom,
+                    role,
+                    videoSessionId: registeredSession.videoSessionId,
+                    meetingId: tokenPayload.meetingId,
+                    participantId: tokenPayload.participantId,
+                    authToken: tokenPayload.authToken,
+                    expiresAt: tokenPayload.expiresAt || null,
+                    policy: getClientVideoPolicy(room)
+                });
+            } catch (error) {
+                await handleFailure(error);
+            }
+        }
+
+        return {
+            prepare,
+            issueProviderToken,
+            finalize,
+            handleFailure
+        };
     }
 
     function originGuard(req, res, next) {
@@ -3104,7 +3133,7 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE');
             return;
         }
-        await runRoomLifecycleOperation(normalizedRoom, () => issueRealtimeKitVideoToken({
+        const tokenOperation = createRealtimeKitVideoTokenOperation({
             req,
             res,
             room,
@@ -3114,7 +3143,21 @@ function createCoStudyServer(options = {}) {
             displayName,
             role,
             roomVideoProvider
-        }));
+        });
+        const prepared = await runRoomLifecycleOperation(normalizedRoom, tokenOperation.prepare);
+        if (!prepared) return;
+
+        let tokenPayload;
+        try {
+            // Do not hold the lifecycle lock while waiting on the provider.
+            // A validated room switch or durable room closure must be able to
+            // revoke this pending reservation before any token is acknowledged.
+            tokenPayload = await tokenOperation.issueProviderToken();
+        } catch (error) {
+            await runRoomLifecycleOperation(normalizedRoom, () => tokenOperation.handleFailure(error));
+            return;
+        }
+        await runRoomLifecycleOperation(normalizedRoom, () => tokenOperation.finalize(tokenPayload));
     });
 
     app.post('/api/rooms/:roomId/video-heartbeat', (req, res) => {
