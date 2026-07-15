@@ -2075,15 +2075,14 @@ function createCoStudyServer(options = {}) {
         invalidateSocketMembership(socketRef);
     }
 
-    /** @param {{ sessionId?: string|null }} [browserSession] */
+    /** @param {{ userId?: string|null, sessionId?: string|null }} [browserSession] */
     function disconnectAuthenticatedBrowserSessionSockets(browserSession = {}) {
-        const { sessionId } = browserSession;
-        if (typeof sessionId !== 'string' || !sessionId) {
+        const { userId, sessionId } = browserSession;
+        if (typeof userId !== 'string' || !userId || typeof sessionId !== 'string' || !sessionId) {
             return 0;
         }
         const matchingSockets = Array.from(io.sockets.sockets.values()).filter((socketRef) => (
-            typeof socketRef.data.userId === 'string'
-            && !!socketRef.data.userId
+            socketRef.data.userId === userId
             && socketRef.data.sessionId === sessionId
         ));
         for (const socketRef of matchingSockets) {

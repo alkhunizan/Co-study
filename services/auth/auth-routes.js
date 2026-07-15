@@ -161,6 +161,7 @@ function createAuthRouter(deps) {
         // only sockets that share this request's signed anonymous browser
         // session; password changes, bans, and deletion remain account-wide.
         onSessionLogout?.({
+            userId: req.user?.id || null,
             sessionId: req.sessionId || null
         });
         clearAuthCookie(req, res);

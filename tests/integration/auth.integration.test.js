@@ -242,6 +242,21 @@ test('logout disconnects only authenticated sockets from the same signed browser
     });
     assert.equal(joined.ok, true);
 
+    // Possession of the signed anonymous identity alone is insufficient to
+    // revoke an account-authorized socket. The authenticated account and
+    // browser-session bindings must both match.
+    const primaryAnonymousCookie = primary.cookie.split('; ')
+        .find((entry) => entry.startsWith('coStudySessionId='));
+    assert.ok(primaryAnonymousCookie);
+    const anonymousOnlyLogout = await server.request('/api/auth/logout', {
+        method: 'POST',
+        headers: { Cookie: primaryAnonymousCookie }
+    });
+    assert.equal(anonymousOnlyLogout.status, 200);
+    await delay(100);
+    assert.equal(primarySocket.connected, true);
+    assert.equal(sameSessionSocket.connected, true);
+
     const primaryDisconnected = new Promise((resolve) => primarySocket.once('disconnect', resolve));
     const sameSessionDisconnected = new Promise((resolve) => sameSessionSocket.once('disconnect', resolve));
     const logout = await authedRequest(server, '/api/auth/logout', primary.cookie, { method: 'POST' });
