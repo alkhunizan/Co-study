@@ -5,7 +5,7 @@ const test = require('node:test');
 const { spawnSync } = require('node:child_process');
 
 const { repoRoot, resetStateFile, makeTempStateFile } = require('../helpers/test-env');
-const { delay, startServer } = require('../helpers/server-control');
+const { buildTestEnvironment, delay, startServer } = require('../helpers/server-control');
 const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
 const { signupUser } = require('../helpers/auth-helpers');
 const { version: APP_VERSION } = require('../../package.json');
@@ -13,6 +13,7 @@ const { version: APP_VERSION } = require('../../package.json');
 const DEFAULT_ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
 ];
+const TEST_BACKUP_ENCRYPTION_KEY = Buffer.alloc(32, 11).toString('base64');
 
 function buildFutureRiyadhSchedule(options = {}) {
     const minutesFromNow = Number.isInteger(options.minutesFromNow) ? options.minutesFromNow : 5;
@@ -48,10 +49,7 @@ function runNodeScript(scriptRelativePath, args = [], options = {}) {
     const result = spawnSync(process.execPath, [path.join(repoRoot, scriptRelativePath), ...args], {
         cwd: repoRoot,
         encoding: 'utf8',
-        env: {
-            ...process.env,
-            ...options.env
-        }
+        env: buildTestEnvironment({ overrides: options.env })
     });
 
     return {
@@ -2044,24 +2042,30 @@ test('backup restore tooling and deploy verification work against the HTTP app',
 
     const backupResult = runNodeScript('scripts/backup-rooms.js', [], {
         env: {
+            BACKUP_ENCRYPTION_KEY: TEST_BACKUP_ENCRYPTION_KEY,
             ROOM_STATE_FILE: roomStateFile,
             ROOM_STATE_BACKUP_DIR: backupDir
         }
     });
     assert.equal(backupResult.status, 0, backupResult.stderr);
-    const backupFiles = fs.readdirSync(backupDir).filter((entry) => entry.endsWith('.backup.json'));
+    const backupFiles = fs.readdirSync(backupDir).filter((entry) => entry.endsWith('.hsbackup'));
     assert.equal(backupFiles.length, 1);
 
     fs.writeFileSync(roomStateFile, '[]\n', 'utf8');
 
-    const restoreResult = runNodeScript('scripts/restore-rooms.js', [path.join(backupDir, backupFiles[0])], {
+    const restoreResult = runNodeScript('scripts/restore-rooms.js', [
+        path.join(backupDir, backupFiles[0]),
+        '--apply',
+        '--writer-stopped'
+    ], {
         env: {
+            BACKUP_ENCRYPTION_KEY: TEST_BACKUP_ENCRYPTION_KEY,
             ROOM_STATE_FILE: roomStateFile,
             ROOM_STATE_BACKUP_DIR: backupDir
         }
     });
     assert.equal(restoreResult.status, 0, restoreResult.stderr);
-    assert.match(restoreResult.stdout, /Pre-restore safety backup/);
+    assert.match(restoreResult.stdout, /APPLIED/);
 
     server = await startServer({
         roomStateFile,
