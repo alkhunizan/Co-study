@@ -6,6 +6,7 @@ const DEFAULT_VIDEO_PRESET_NAME = 'halastudy_student';
 // to the student preset if a viewer preset was never provisioned in Cloudflare.
 const DEFAULT_VIEWER_PRESET_NAME = 'halastudy_viewer';
 const DEFAULT_CLOUDFLARE_API_BASE_URL = 'https://api.cloudflare.com/client/v4';
+const DEFAULT_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL = 'https://api.realtime.cloudflare.com/.well-known/webhooks.json';
 
 function parseBoolean(value, fallback = false) {
     if (value === undefined || value === null || value === '') return fallback;
@@ -48,6 +49,13 @@ function normalizeUrl(raw, envName, fallback = '') {
     }
 }
 
+function isLoopbackUrl(value) {
+    const hostname = new URL(value).hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    return hostname === 'localhost'
+        || hostname === '::1'
+        || /^127(?:\.\d{1,3}){3}$/.test(hostname);
+}
+
 function buildVideoPolicy(video = {}) {
     return {
         micDefaultEnabled: false,
@@ -68,6 +76,9 @@ function resolveVideoConfig(env = process.env) {
 
     const nodeEnv = env.NODE_ENV || 'development';
     const isProduction = nodeEnv === 'production';
+    if (isProduction && provider === VIDEO_PROVIDER_MESH) {
+        throw new Error('VIDEO_PROVIDER=mesh is development-only; production requires RealtimeKit.');
+    }
     const cloudflare = {
         accountId: String(env.CLOUDFLARE_ACCOUNT_ID || '').trim(),
         appId: String(env.CLOUDFLARE_REALTIMEKIT_APP_ID || '').trim(),
@@ -76,6 +87,11 @@ function resolveVideoConfig(env = process.env) {
             env.CLOUDFLARE_REALTIMEKIT_API_BASE_URL,
             'CLOUDFLARE_REALTIMEKIT_API_BASE_URL',
             DEFAULT_CLOUDFLARE_API_BASE_URL
+        ),
+        webhookPublicKeyUrl: normalizeUrl(
+            env.CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL,
+            'CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL',
+            DEFAULT_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL
         )
     };
 
@@ -111,6 +127,14 @@ function resolveVideoConfig(env = process.env) {
                 throw new Error(message);
             }
             video.warnings.push(message);
+        }
+        if (nodeEnv === 'test' && missing.length === 0) {
+            if (!isLoopbackUrl(cloudflare.apiBaseUrl)) {
+                throw new Error('CLOUDFLARE_REALTIMEKIT_API_BASE_URL must use a loopback host in tests.');
+            }
+            if (!isLoopbackUrl(cloudflare.webhookPublicKeyUrl)) {
+                throw new Error('CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL must use a loopback host in tests.');
+            }
         }
     }
 

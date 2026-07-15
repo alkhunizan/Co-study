@@ -3,6 +3,7 @@ const http = require('node:http');
 const test = require('node:test');
 
 const { buildTestEnvironment, waitForServer } = require('../helpers/server-control');
+const { resolveVideoConfig } = require('../../server-config');
 
 test('test child environments ignore ambient service credentials and force test mode', () => {
     const env = buildTestEnvironment({
@@ -46,6 +47,29 @@ test('test child environments reject unsupported overrides and non-loopback prov
     assert.throws(
         () => buildTestEnvironment({ overrides: { SFU_BASE_URL: 'https://media.example.com' } }),
         /SFU_BASE_URL must use a loopback host/
+    );
+    assert.throws(
+        () => resolveVideoConfig({
+            NODE_ENV: 'test',
+            VIDEO_PROVIDER: 'realtimekit',
+            CLOUDFLARE_ACCOUNT_ID: 'test-account',
+            CLOUDFLARE_REALTIMEKIT_APP_ID: 'test-app',
+            CLOUDFLARE_REALTIMEKIT_API_TOKEN: 'test-token'
+        }),
+        /API_BASE_URL must use a loopback host/
+    );
+    assert.doesNotThrow(() => resolveVideoConfig({
+        NODE_ENV: 'test',
+        VIDEO_PROVIDER: 'realtimekit',
+        CLOUDFLARE_ACCOUNT_ID: 'test-account',
+        CLOUDFLARE_REALTIMEKIT_APP_ID: 'test-app',
+        CLOUDFLARE_REALTIMEKIT_API_TOKEN: 'test-token',
+        CLOUDFLARE_REALTIMEKIT_API_BASE_URL: 'http://127.0.0.1:4100',
+        CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL: 'http://127.0.0.1:4100/.well-known/webhooks.json'
+    }));
+    assert.throws(
+        () => resolveVideoConfig({ NODE_ENV: 'production', VIDEO_PROVIDER: 'mesh' }),
+        /mesh is development-only/
     );
 });
 

@@ -84,6 +84,29 @@ async function issueVideoToken(server, roomId, body, headers = {}) {
     });
 }
 
+async function deliverRealtimeKitWebhook(server, event, uuid) {
+    const signed = await server.signRealtimeKitWebhook(event, uuid);
+    return server.request('/api/webhooks/realtimekit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'rtk-signature': signed.signature,
+            'rtk-uuid': signed.uuid
+        },
+        body: signed.raw
+    });
+}
+
+async function waitForRealtimeKitMeeting(server, timeoutMs = 2000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const state = await server.realtimeKitState();
+        if (state.meetings.length > 0) return state.meetings[0];
+        await delay(20);
+    }
+    throw new Error('Timed out waiting for the fake RealtimeKit meeting.');
+}
+
 test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
@@ -102,6 +125,7 @@ test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     assert.deepEqual(ready.body.checks, {
         roomStore: true,
         userStore: true,
+        videoSessionStore: true,
         socket: true,
         config: true
     });
@@ -866,6 +890,48 @@ test('RealtimeKit room cap rejects before provider participant creation', async 
     assert.equal(fakeState.participants.length, 1);
 });
 
+test('RealtimeKit reserves at most three pending or active sessions per IP', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+    const sockets = [];
+    t.after(async () => {
+        await Promise.all(sockets.map((socket) => closeSocket(socket)));
+    });
+
+    for (let index = 0; index < 4; index += 1) {
+        sockets.push(await connectSocket(server.baseUrl, { clientId: `rtk-ip-${index}` }));
+    }
+    const created = await emitAck(sockets[0], 'create-room', { roomName: 'RealtimeKit IP Cap' });
+    const roomId = created.room.roomId;
+    const joins = [];
+    for (let index = 0; index < sockets.length; index += 1) {
+        joins.push(await emitAck(sockets[index], 'join-room', {
+            roomId,
+            username: `Student${index}`,
+            clientId: `rtk-ip-${index}`
+        }));
+    }
+
+    for (let index = 0; index < 3; index += 1) {
+        const token = await issueVideoToken(server, roomId, {
+            displayName: `Student${index}`,
+            role: 'student',
+            membershipToken: joins[index].membershipToken
+        });
+        assert.equal(token.status, 200);
+    }
+    const blocked = await issueVideoToken(server, roomId, {
+        displayName: 'Student3',
+        role: 'student',
+        membershipToken: joins[3].membershipToken
+    });
+    assert.equal(blocked.status, 409);
+    assert.equal(blocked.body.errorCode, 'IP_VIDEO_LIMIT_REACHED');
+
+    const fakeState = await server.realtimeKitState();
+    assert.equal(fakeState.participants.length, 3);
+});
+
 test('RealtimeKit provider failures release capacity and hide provider internals', async (t) => {
     const server = await startServer({
         withFakeRealtimeKit: true,
@@ -939,11 +1005,16 @@ test('RealtimeKit meeting metadata persists and is reused after restart', async 
     });
     assert.equal(firstToken.status, 200);
     assert.equal(firstToken.body.meetingId, 'meeting_1');
+    const durableSessions = JSON.parse(fs.readFileSync(`${roomStateFile}.video-sessions.json`, 'utf8'));
+    assert.equal(durableSessions.sessions.length, 1);
+    assert.equal(durableSessions.sessions[0].videoSessionId, firstToken.body.videoSessionId);
+    assert.equal(durableSessions.sessions[0].providerParticipantId, firstToken.body.participantId);
 
-    await delay(400);
-    await closeSocket(ownerSocket);
+    // Simulate a process crash: no disconnect handler or final flush gets a
+    // chance to revoke the acknowledged pending credential.
+    await server.crash();
     ownerSocket = null;
-    await server.stop();
+    server = null;
 
     server = await startServer({
         roomStateFile,
@@ -971,6 +1042,182 @@ test('RealtimeKit meeting metadata persists and is reused after restart', async 
     const fakeState = await server.realtimeKitState();
     assert.equal(fakeState.meetings.length, 0);
     assert.equal(fakeState.participants.length, 1);
+});
+
+test('RealtimeKit startup reconciliation restores provider occupancy before readiness', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-rtk-reconcile');
+    const roomId = 'REC001';
+    const meetingId = 'meeting-existing';
+    fs.writeFileSync(roomStateFile, `${JSON.stringify([{
+        schemaVersion: 2,
+        id: roomId,
+        name: 'Reconciled Room',
+        ownerUserId: null,
+        requirePassword: false,
+        mediaMode: 'mesh',
+        videoProvider: 'realtimekit',
+        videoProviderMeetingId: meetingId,
+        videoProviderMeetingCreatedAt: Date.now(),
+        videoProviderStatus: 'active',
+        createdAt: Date.now(),
+        messages: [],
+        board: { goal: '', tasks: [] },
+        schedule: null
+    }], null, 2)}\n`, 'utf8');
+
+    const server = await startServer({
+        roomStateFile,
+        resetStateFileOnStart: false,
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: {
+            activeSessions: {
+                [meetingId]: {
+                    id: 'provider-session-existing',
+                    status: 'LIVE',
+                    participants: [{
+                        id: 'provider-peer-existing',
+                        custom_participant_id: 'restored-video-session-id-000000000001',
+                        display_name: 'Restored participant',
+                        joined_at: new Date().toISOString(),
+                        left_at: null
+                    }]
+                }
+            }
+        }
+    });
+    await cleanupServer(t, server);
+
+    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(snapshot.status, 200);
+    assert.equal(snapshot.body.activeVideoParticipantCount, 1);
+    const metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.activeVideoParticipants, 1);
+});
+
+test('RealtimeKit reconciliation failure keeps readiness live but fails closed for new tokens', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-rtk-reconcile-failure');
+    const roomId = 'REC002';
+    fs.writeFileSync(roomStateFile, `${JSON.stringify([{
+        schemaVersion: 2,
+        id: roomId,
+        name: 'Unavailable Provider Room',
+        ownerUserId: null,
+        requirePassword: false,
+        mediaMode: 'mesh',
+        videoProvider: 'realtimekit',
+        videoProviderMeetingId: 'meeting-unavailable',
+        videoProviderMeetingCreatedAt: Date.now(),
+        videoProviderStatus: 'active',
+        createdAt: Date.now(),
+        messages: [],
+        board: { goal: '', tasks: [] },
+        schedule: null
+    }], null, 2)}\n`, 'utf8');
+    const server = await startServer({
+        roomStateFile,
+        resetStateFileOnStart: false,
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { failReconciliation: true }
+    });
+    await cleanupServer(t, server);
+
+    const ready = await server.request('/api/ready');
+    assert.equal(ready.status, 200);
+    const socket = await connectSocket(server.baseUrl, { clientId: 'rtk-unavailable' });
+    t.after(async () => closeSocket(socket));
+    const joined = await emitAck(socket, 'join-room', {
+        roomId,
+        username: 'Unavailable',
+        clientId: 'rtk-unavailable'
+    });
+    assert.equal(joined.ok, true);
+    const token = await issueVideoToken(server, roomId, {
+        displayName: 'Unavailable',
+        role: 'student',
+        membershipToken: joined.membershipToken
+    });
+    assert.equal(token.status, 503);
+    assert.equal(token.body.errorCode, 'VIDEO_PROVIDER_UNAVAILABLE');
+});
+
+test('room closure serializes with in-flight RealtimeKit token issuance and closes the created meeting', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { participantDelayMs: 250 }
+    });
+    await cleanupServer(t, server);
+    const account = await signupUser(server, { displayName: 'Race owner' });
+    const socket = await connectSocket(server.baseUrl, {
+        clientId: 'rtk-close-race',
+        extraHeaders: { Cookie: account.cookie }
+    });
+    t.after(async () => closeSocket(socket));
+
+    const created = await emitAck(socket, 'create-room', { roomName: 'Close Race Room' });
+    const roomId = created.room.roomId;
+    const joined = await emitAck(socket, 'join-room', {
+        roomId,
+        username: 'Race owner',
+        clientId: 'rtk-close-race'
+    });
+    const tokenPromise = issueVideoToken(server, roomId, {
+        displayName: 'Race owner',
+        role: 'student',
+        membershipToken: joined.membershipToken
+    }, { Cookie: account.cookie });
+    await waitForRealtimeKitMeeting(server);
+    const closePromise = server.request(`/api/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { Cookie: account.cookie }
+    });
+    const [token, closed] = await Promise.all([tokenPromise, closePromise]);
+
+    assert.equal(token.status, 200);
+    assert.equal(closed.status, 200);
+    assert.equal(closed.body.cleanupPending, false);
+    assert.equal((await server.request(`/api/rooms/${roomId}`)).status, 404);
+    const providerState = await server.realtimeKitState();
+    assert.deepEqual(providerState.closedMeetings, [token.body.meetingId]);
+    assert.deepEqual(providerState.disabledMeetings, [token.body.meetingId]);
+    assert.deepEqual(providerState.kickAllMeetings, [token.body.meetingId]);
+});
+
+test('room switching during provider token creation revokes the pending response', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { participantDelayMs: 250 }
+    });
+    await cleanupServer(t, server);
+    const socket = await connectSocket(server.baseUrl, { clientId: 'rtk-switch-race' });
+    t.after(async () => closeSocket(socket));
+    const source = await emitAck(socket, 'create-room', { roomName: 'Token Source' });
+    const target = await emitAck(socket, 'create-room', { roomName: 'Token Target' });
+    const sourceJoin = await emitAck(socket, 'join-room', {
+        roomId: source.room.roomId,
+        username: 'Switcher',
+        clientId: 'rtk-switch-race'
+    });
+
+    const tokenPromise = issueVideoToken(server, source.room.roomId, {
+        displayName: 'Switcher',
+        role: 'student',
+        membershipToken: sourceJoin.membershipToken
+    });
+    await waitForRealtimeKitMeeting(server);
+    const targetJoin = await emitAck(socket, 'join-room', {
+        roomId: target.room.roomId,
+        username: 'Switcher',
+        clientId: 'rtk-switch-race'
+    });
+    assert.equal(targetJoin.ok, true);
+    const token = await tokenPromise;
+    assert.equal(token.status, 403);
+    assert.equal(token.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+    const sourceSnapshot = await server.request(`/api/rooms/${source.room.roomId}`);
+    assert.equal(sourceSnapshot.body.activeVideoParticipantCount, 0);
+    const providerState = await server.realtimeKitState();
+    assert.equal(providerState.deletedParticipants.length, 1);
+    assert.equal(providerState.deletedParticipants[0].participantId, 'participant_1');
 });
 
 test('RealtimeKit expired idle meeting metadata is recycled for reusable rooms', async (t) => {
@@ -1033,7 +1280,57 @@ test('RealtimeKit expired idle meeting metadata is recycled for reusable rooms',
     assert.equal(fakeState.participants.length, 1);
 });
 
-test('RealtimeKit heartbeat, leave, and socket disconnect update active video counts', async (t) => {
+test('failed expired-meeting cleanup retains a durable retry record and issues no token', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-rtk-recycle-failure');
+    const roomId = 'OLD124';
+    fs.writeFileSync(roomStateFile, `${JSON.stringify([{
+        schemaVersion: 2,
+        id: roomId,
+        name: 'Old Cleanup Retry Room',
+        requirePassword: false,
+        mediaMode: 'mesh',
+        videoProvider: 'realtimekit',
+        videoProviderMeetingId: 'old_meeting_retry',
+        videoProviderMeetingCreatedAt: Date.now() - (5 * 60 * 1000),
+        videoProviderStatus: 'active',
+        createdAt: Date.now() - (24 * 60 * 60 * 1000),
+        messages: [],
+        board: { goal: '', tasks: [] },
+        schedule: null
+    }], null, 2)}\n`, 'utf8');
+    const server = await startServer({
+        roomStateFile,
+        resetStateFileOnStart: false,
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { failClose: true },
+        env: { MAX_ROOM_DURATION_MINUTES: '1' }
+    });
+    await cleanupServer(t, server);
+    const socket = await connectSocket(server.baseUrl, { clientId: 'rtk-recycle-failure' });
+    t.after(async () => closeSocket(socket));
+    const joined = await emitAck(socket, 'join-room', {
+        roomId,
+        username: 'Cleanup retry',
+        clientId: 'rtk-recycle-failure'
+    });
+    const token = await issueVideoToken(server, roomId, {
+        displayName: 'Cleanup retry',
+        role: 'student',
+        membershipToken: joined.membershipToken
+    });
+    assert.equal(token.status, 503);
+    assert.equal(token.body.errorCode, 'VIDEO_PROVIDER_UNAVAILABLE');
+    const persisted = JSON.parse(fs.readFileSync(roomStateFile, 'utf8'));
+    const retryRoom = persisted.find((room) => room.id === roomId);
+    assert.equal(retryRoom.videoProviderMeetingId, 'old_meeting_retry');
+    assert.equal(retryRoom.videoProviderStatus, 'error');
+    assert.match(retryRoom.providerCleanupLastError, /RealtimeKit request failed/);
+    const providerState = await server.realtimeKitState();
+    assert.equal(providerState.meetings.length, 0);
+    assert.equal(providerState.participants.length, 0);
+});
+
+test('RealtimeKit webhooks authoritatively release capacity while client lifecycle calls stay advisory', async (t) => {
     const server = await startServer({ withFakeRealtimeKit: true });
     await cleanupServer(t, server);
 
@@ -1067,6 +1364,50 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
     });
     assert.equal(token.status, 200);
 
+    const joinedEvent = {
+        event: 'meeting.participantJoined',
+        meeting: { id: token.body.meetingId, sessionId: 'session-lifecycle' },
+        participant: {
+            peerId: 'peer-owner',
+            customParticipantId: token.body.videoSessionId,
+            userDisplayName: 'Owner',
+            joinedAt: new Date().toISOString()
+        }
+    };
+    const forged = await server.request('/api/webhooks/realtimekit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'rtk-signature': Buffer.from('forged').toString('base64'),
+            'rtk-uuid': 'forged-delivery'
+        },
+        body: JSON.stringify(joinedEvent)
+    });
+    assert.equal(forged.status, 401);
+
+    const oversized = await server.signRealtimeKitWebhook({
+        ...joinedEvent,
+        padding: 'x'.repeat(129 * 1024)
+    }, 'oversized-delivery');
+    const oversizedResponse = await server.request('/api/webhooks/realtimekit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'rtk-signature': oversized.signature,
+            'rtk-uuid': oversized.uuid
+        },
+        body: oversized.raw
+    });
+    assert.equal(oversizedResponse.status, 413);
+    assert.equal(oversizedResponse.body.errorCode, 'REQUEST_TOO_LARGE');
+
+    const joined = await deliverRealtimeKitWebhook(server, joinedEvent, 'lifecycle-joined');
+    assert.equal(joined.status, 200);
+    assert.equal(joined.body.duplicate, false);
+    const replay = await deliverRealtimeKitWebhook(server, joinedEvent, 'lifecycle-joined');
+    assert.equal(replay.status, 200);
+    assert.equal(replay.body.duplicate, true);
+
     const heartbeat = await server.request(`/api/rooms/${roomId}/video-heartbeat`, {
         method: 'POST',
         headers: { 'X-Halastudy-Membership': ownerJoin.membershipToken },
@@ -1085,7 +1426,23 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
         }
     });
     assert.equal(leave.status, 200);
-    assert.equal(leave.body.activeRoomVideoParticipants, 0);
+    assert.equal(leave.body.cleanupPending, true);
+    assert.equal(leave.body.activeRoomVideoParticipants, 1);
+
+    const ownerLeft = await deliverRealtimeKitWebhook(server, {
+        event: 'meeting.participantLeft',
+        meeting: { id: token.body.meetingId, sessionId: 'session-lifecycle' },
+        participant: {
+            peerId: 'peer-owner',
+            customParticipantId: token.body.videoSessionId,
+            leftAt: new Date().toISOString()
+        }
+    }, 'lifecycle-owner-left');
+    assert.equal(ownerLeft.status, 200);
+    assert.equal(ownerLeft.body.duplicate, false);
+
+    const afterProviderLeft = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(afterProviderLeft.body.activeVideoParticipantCount, 0);
 
     const peerToken = await issueVideoToken(server, roomId, {
         displayName: 'Peer',
@@ -1097,9 +1454,113 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
     await closeSocket(peerSocket);
     await delay(100);
 
-    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    let snapshot = await server.request(`/api/rooms/${roomId}`);
     assert.equal(snapshot.status, 200);
+    // A pending provider credential has no signed active peer yet. Socket
+    // revocation deletes it immediately instead of waiting for a left event.
     assert.equal(snapshot.body.activeVideoParticipantCount, 0);
+
+    await deliverRealtimeKitWebhook(server, {
+        event: 'meeting.participantLeft',
+        meeting: { id: peerToken.body.meetingId, sessionId: 'session-lifecycle' },
+        participant: {
+            peerId: 'peer-peer',
+            customParticipantId: peerToken.body.videoSessionId,
+            leftAt: new Date().toISOString()
+        }
+    }, 'lifecycle-peer-left');
+    snapshot = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(snapshot.body.activeVideoParticipantCount, 0);
+});
+
+test('RealtimeKit token reuse is revoked, counts every provider peer, and cannot reactivate', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+    const socket = await connectSocket(server.baseUrl, { clientId: 'rtk-token-reuse' });
+    t.after(async () => closeSocket(socket));
+    const created = await emitAck(socket, 'create-room', { roomName: 'Token Reuse Room' });
+    const roomId = created.room.roomId;
+    const joined = await emitAck(socket, 'join-room', {
+        roomId,
+        username: 'Reuse owner',
+        clientId: 'rtk-token-reuse'
+    });
+    const token = await issueVideoToken(server, roomId, {
+        displayName: 'Reuse owner',
+        role: 'student',
+        membershipToken: joined.membershipToken
+    });
+    assert.equal(token.status, 200);
+    const startedAt = Date.now();
+    const participantEvent = (event, peerId, offsetMs) => ({
+        event,
+        meeting: { id: token.body.meetingId, sessionId: 'reuse-provider-session' },
+        participant: {
+            peerId,
+            customParticipantId: token.body.videoSessionId,
+            ...(event === 'meeting.participantJoined'
+                ? { joinedAt: new Date(startedAt + offsetMs).toISOString() }
+                : { leftAt: new Date(startedAt + offsetMs).toISOString() })
+        }
+    });
+
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantJoined', 'reuse-peer-1', 1),
+        'reuse-join-1'
+    );
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantJoined', 'reuse-peer-2', 2),
+        'reuse-join-2'
+    );
+    let metrics = await server.request('/api/metrics');
+    assert.deepEqual(metrics.body.videoSessionCounts, {
+        pending: 0,
+        active: 0,
+        ending: 2,
+        total: 2
+    });
+    let providerState = await server.realtimeKitState();
+    assert.equal(providerState.deletedParticipants.length, 1);
+    assert.equal(providerState.exactKicks.length, 1);
+
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantLeft', 'reuse-peer-1', 3),
+        'reuse-left-1'
+    );
+    metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.videoSessionCounts.ending, 1);
+    providerState = await server.realtimeKitState();
+    assert.equal(providerState.exactKicks.length, 2);
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantLeft', 'reuse-peer-2', 4),
+        'reuse-left-2'
+    );
+    metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.videoSessionCounts.total, 0);
+
+    // A delayed/replayed provider join remains terminal. It is kicked again,
+    // never transitions back to active, and waits for the signed left event.
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantJoined', 'reuse-peer-late', 5),
+        'reuse-join-late'
+    );
+    metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.videoSessionCounts.active, 0);
+    assert.equal(metrics.body.videoSessionCounts.ending, 1);
+    providerState = await server.realtimeKitState();
+    assert.equal(providerState.exactKicks.length, 3);
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantLeft', 'reuse-peer-late', 6),
+        'reuse-left-late'
+    );
+    metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.videoSessionCounts.total, 0);
 });
 
 test('mesh rooms enforce participant caps while allowing same-identity reconnects at capacity', async (t) => {

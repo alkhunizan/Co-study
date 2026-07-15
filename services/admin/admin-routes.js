@@ -35,6 +35,7 @@ function createAdminRouter(deps) {
         announcementState,
         buildScheduleSummary,
         closeRoom,
+        revokeSocketVideoSessions,
         persistUsersSoon,
         persistRoomsSoon,
         dashboard,
@@ -266,7 +267,7 @@ function createAdminRouter(deps) {
         }
     });
 
-    router.post('/api/rooms/:roomId/kick', requireAdmin, (req, res) => {
+    router.post('/api/rooms/:roomId/kick', requireAdmin, async (req, res) => {
         const roomId = (req.params.roomId || '').trim().toUpperCase();
         const room = rooms.get(roomId);
         if (!room) {
@@ -276,6 +277,15 @@ function createAdminRouter(deps) {
         const socketId = typeof req.body?.socketId === 'string' ? req.body.socketId : '';
         if (!socketId || !room.users?.has(socketId)) {
             res.status(404).json({ errorCode: 'PARTICIPANT_NOT_FOUND' });
+            return;
+        }
+        const revocation = await revokeSocketVideoSessions(socketId, 'admin_kick');
+        if (revocation.persistenceUnavailable) {
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
+        if (!revocation.providerIdentityRevoked) {
+            res.status(503).json({ errorCode: 'VIDEO_PROVIDER_UNAVAILABLE' });
             return;
         }
         const socket = io.sockets.sockets.get(socketId);

@@ -95,6 +95,10 @@ function buildTestEnvironment({ ambientEnv = process.env, overrides = {} } = {})
     env.ADMIN_SESSION_SECRET = TEST_ADMIN_SESSION_SECRET;
     assertLoopbackProviderUrl(env.SFU_BASE_URL, 'SFU_BASE_URL');
     assertLoopbackProviderUrl(env.CLOUDFLARE_REALTIMEKIT_API_BASE_URL, 'CLOUDFLARE_REALTIMEKIT_API_BASE_URL');
+    assertLoopbackProviderUrl(
+        env.CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL,
+        'CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL'
+    );
     return env;
 }
 
@@ -235,6 +239,13 @@ async function stopChild(childProcess, timeoutMs = 10000) {
     await exitPromise;
 }
 
+async function crashChild(childProcess) {
+    if (!childProcess || childProcess.exitCode !== null || childProcess.signalCode !== null) return;
+    const exited = new Promise((resolve) => childProcess.once('exit', resolve));
+    childProcess.kill('SIGKILL');
+    await exited;
+}
+
 async function startFakeSfu(options = {}) {
     const port = options.port || await getFreePort();
     const stdout = [];
@@ -295,7 +306,11 @@ async function startFakeRealtimeKit(options = {}) {
         env: {
             ...buildTestEnvironment(),
             PORT: String(port),
-            REALTIMEKIT_FAIL_PARTICIPANT: options.failParticipants ? '1' : '0'
+            REALTIMEKIT_FAIL_PARTICIPANT: options.failParticipants ? '1' : '0',
+            REALTIMEKIT_FAIL_RECONCILIATION: options.failReconciliation ? '1' : '0',
+            REALTIMEKIT_FAIL_CLOSE: options.failClose ? '1' : '0',
+            REALTIMEKIT_PARTICIPANT_DELAY_MS: String(options.participantDelayMs || 0),
+            REALTIMEKIT_INITIAL_ACTIVE_SESSIONS_JSON: JSON.stringify(options.activeSessions || {})
         },
         stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -329,6 +344,15 @@ async function startFakeRealtimeKit(options = {}) {
         async state() {
             const response = await request(baseUrl, '/__state');
             return response.body;
+        },
+        async sign(event, uuid) {
+            const raw = JSON.stringify(event);
+            const response = await request(baseUrl, '/__sign', {
+                method: 'POST',
+                body: { raw, uuid }
+            });
+            if (response.status !== 200) throw new Error('Fake RealtimeKit could not sign a webhook.');
+            return { raw, signature: response.body.signature, uuid: response.body.uuid };
         },
         async stop() {
             await stopChild(child);
@@ -378,7 +402,8 @@ async function startServer(options = {}) {
                 CLOUDFLARE_ACCOUNT_ID: 'fake-account',
                 CLOUDFLARE_REALTIMEKIT_APP_ID: 'fake-app',
                 CLOUDFLARE_REALTIMEKIT_API_TOKEN: 'fake-secret-token',
-                CLOUDFLARE_REALTIMEKIT_API_BASE_URL: fakeRealtimeKit.baseUrl
+                CLOUDFLARE_REALTIMEKIT_API_BASE_URL: fakeRealtimeKit.baseUrl,
+                CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL: `${fakeRealtimeKit.baseUrl}/.well-known/webhooks.json`
             } : {})
         },
         stdio: ['ignore', 'pipe', 'pipe']
@@ -431,6 +456,11 @@ async function startServer(options = {}) {
                 await fakeRealtimeKit.stop();
             }
         },
+        async crash() {
+            await crashChild(child);
+            if (fakeSfu) await fakeSfu.stop();
+            if (fakeRealtimeKit) await fakeRealtimeKit.stop();
+        },
         logs() {
             return {
                 stdout: stdout.join(''),
@@ -441,6 +471,10 @@ async function startServer(options = {}) {
         },
         async realtimeKitState() {
             return fakeRealtimeKit ? fakeRealtimeKit.state() : null;
+        },
+        async signRealtimeKitWebhook(event, uuid) {
+            if (!fakeRealtimeKit) throw new Error('Fake RealtimeKit is not enabled.');
+            return fakeRealtimeKit.sign(event, uuid);
         },
         async request(pathname, requestOptions) {
             return request(baseUrl, pathname, requestOptions);

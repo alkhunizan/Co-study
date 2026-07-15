@@ -443,7 +443,10 @@ test('schedule helpers recalculate recurring sessions after stale snapshot data'
         const roomCode = await createRoomFromLanding(probe.page, {
             roomName: 'Scheduled Roll Forward Room',
             schedule: buildFutureRiyadhSchedule({
-                minutesFromNow: 20,
+                // Scheduled rooms open 15 minutes before an occurrence. Keep
+                // the fixture inside that window so this test can exercise the
+                // client-side roll-forward behavior after joining.
+                minutesFromNow: 5,
                 cadence: 'daily',
                 focusMinutes: 50,
                 breakMinutes: 10,

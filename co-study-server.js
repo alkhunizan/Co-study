@@ -31,6 +31,12 @@ const { createSupabaseClient } = require('./services/supabase/client');
 const { createSupabaseUserStore } = require('./supabase-user-store');
 const { createVideoProvider } = require('./services/video');
 const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
+const { createVideoSessionStore } = require('./services/video/video-session-store');
+const {
+    createWebhookDeduplicator,
+    processRealtimeKitWebhook,
+    verifyRealtimeKitWebhookSignature
+} = require('./services/video/realtimekit-webhook');
 const { SlidingWindowRateLimiter } = require('./services/security/bounded-rate-limiter');
 const {
     buildScheduleSummary,
@@ -88,7 +94,11 @@ const CHAT_RATE = { limit: 20, windowMs: 30 * 1000 };
 const BOARD_RATE = { limit: 40, windowMs: 30 * 1000 };
 const VIDEO_TOKEN_RATE = { limit: 12, windowMs: 60 * 1000 };
 const VIDEO_HEARTBEAT_RATE = { limit: 90, windowMs: 60 * 1000 };
-const VIDEO_SESSION_SWEEP_MS = 60 * 1000;
+const VIDEO_SESSION_SWEEP_MS = 1000;
+const VIDEO_RECONCILE_MS = 5 * 60 * 1000;
+const VIDEO_CLEANUP_RETRY_MS = 30 * 1000;
+const MAX_IP_VIDEO_PARTICIPANTS = 3;
+const WEBHOOK_BODY_LIMIT = '128kb';
 const AUTH_SIGNUP_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
 const AUTH_LOGIN_RATE = { limit: 10, windowMs: 15 * 60 * 1000 };
 const AUTH_FAILURE_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
@@ -367,6 +377,8 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
         trustProxy,
         allowedOrigins,
         roomStateFile,
+        realtimeKitWebhookStateFile: `${roomStateFile}.realtimekit-webhooks.json`,
+        videoSessionStateFile: `${roomStateFile}.video-sessions.json`,
         userStateFile,
         roomStateBackupDir,
         sessionSecret,
@@ -752,6 +764,7 @@ function createCoStudyServer(options = {}) {
     const skippedDisconnects = new Set();
     const rooms = new Map();
     const meetingCreationLocks = new Map();
+    const roomLifecycleLocks = new Map();
     const membershipTokens = new Map();
     const rateLimiters = {
         createRoom: new SlidingWindowRateLimiter(CREATE_ROOM_RATE),
@@ -771,7 +784,7 @@ function createCoStudyServer(options = {}) {
         metrics: new SlidingWindowRateLimiter(METRICS_RATE),
         reports: new SlidingWindowRateLimiter(REPORT_RATE)
     };
-    const videoProvider = createVideoProvider({ config: config.video, logger });
+    const videoProvider = options.videoProvider || createVideoProvider({ config: config.video, logger });
     const videoSessionRegistry = createVideoSessionRegistry({ logger });
     config.video.warnings.forEach((message) => {
         logger.warn({
@@ -795,6 +808,7 @@ function createCoStudyServer(options = {}) {
         config: true,
         roomStore: false,
         userStore: false,
+        videoSessionStore: false,
         socket: false
     };
 
@@ -843,6 +857,18 @@ function createCoStudyServer(options = {}) {
         sanitizeBoardTaskText,
         normalizeBoardPriority
     });
+    const realtimeKitWebhookDeduplicator = createWebhookDeduplicator({
+        filePath: config.realtimeKitWebhookStateFile,
+        logger
+    });
+    const videoSessionStore = options.videoSessionStore || createVideoSessionStore({
+        filePath: config.videoSessionStateFile,
+        logger
+    });
+    const videoCleanupLocks = new Map();
+    let realtimeKitProviderInitialized = false;
+    let realtimeKitProviderAvailable = config.video.provider !== VIDEO_PROVIDER_REALTIMEKIT;
+    let realtimeKitReconciliationPromise = null;
 
     // Persistence backend: Supabase profiles table when configured (accounts +
     // dashboards), otherwise the local users.json file store (dev default).
@@ -1113,6 +1139,310 @@ function createCoStudyServer(options = {}) {
         sessions.forEach(emitVideoSessionEnded);
     }
 
+    function requestIpKey(requestIp) {
+        return crypto.createHmac('sha256', config.sessionSecret)
+            .update(String(requestIp || 'unknown'))
+            .digest('base64url');
+    }
+
+    async function persistVideoSessionsImmediate() {
+        try {
+            await videoSessionStore.flush(videoSessionRegistry.exportPersistentState());
+        } catch (error) {
+            const persistenceError = new Error('Video session state could not be persisted.');
+            /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
+            persistenceError.cause = error;
+            throw persistenceError;
+        }
+    }
+
+    function runVideoCleanupOperation(videoSessionId, operation) {
+        const previous = videoCleanupLocks.get(videoSessionId) || Promise.resolve();
+        const attempt = previous.catch(() => {}).then(operation);
+        videoCleanupLocks.set(videoSessionId, attempt);
+        return attempt.finally(() => {
+            if (videoCleanupLocks.get(videoSessionId) === attempt) {
+                videoCleanupLocks.delete(videoSessionId);
+            }
+        });
+    }
+
+    async function requestProviderSessionEnd(session, reason = 'client_leave') {
+        if (!session?.videoSessionId) return { cleanupPending: false };
+        return runVideoCleanupOperation(session.videoSessionId, async () => {
+            let current = videoSessionRegistry.findStoredSession({ videoSessionId: session.videoSessionId });
+            if (!current) return { cleanupPending: false, providerIdentityRevoked: true };
+            if (!current.revoked) {
+                current = videoSessionRegistry.revokeVideoSession(
+                    { videoSessionId: current.videoSessionId },
+                    reason
+                );
+            }
+            let persistenceUnavailable = false;
+            try {
+                await persistVideoSessionsImmediate();
+            } catch (error) {
+                persistenceUnavailable = true;
+                logger.error({
+                    event: 'video_revocation_persist_failed',
+                    roomId: current.roomId,
+                    videoSessionId: current.videoSessionId,
+                    reason,
+                    error: error?.cause?.message || error?.message
+                });
+            }
+            if (!current.cleanupPending) {
+                return {
+                    cleanupPending: !!videoSessionRegistry.findSession({ videoSessionId: current.videoSessionId }),
+                    persistenceUnavailable,
+                    providerIdentityRevoked: !!current.participantDeletedAt || !current.providerParticipantId
+                };
+            }
+            if (
+                current.provider !== VIDEO_PROVIDER_REALTIMEKIT
+                || !current.providerMeetingId
+                || typeof videoProvider.kickParticipant !== 'function'
+            ) return {
+                cleanupPending: true,
+                persistenceUnavailable,
+                providerIdentityRevoked: false
+            };
+
+            try {
+                await videoProvider.kickParticipant({
+                    meetingId: current.providerMeetingId,
+                    customParticipantId: current.videoSessionId
+                });
+                if (current.providerParticipantId) {
+                    if (typeof videoProvider.deleteParticipant !== 'function') {
+                        throw new Error('RealtimeKit participant deletion is unavailable.');
+                    }
+                    await videoProvider.deleteParticipant({
+                        meetingId: current.providerMeetingId,
+                        participantId: current.providerParticipantId
+                    });
+                }
+                const ended = videoSessionRegistry.markCleanupComplete(
+                    { videoSessionId: current.videoSessionId },
+                    reason === 'client_leave' ? 'provider_identity_deleted' : reason
+                );
+                try {
+                    await persistVideoSessionsImmediate();
+                } catch (_error) {
+                    persistenceUnavailable = true;
+                }
+                if (ended?.state === 'ended') emitVideoSessionEnded(ended);
+                return {
+                    cleanupPending: !!videoSessionRegistry.findSession({
+                        videoSessionId: current.videoSessionId
+                    }),
+                    persistenceUnavailable,
+                    providerIdentityRevoked: true
+                };
+            } catch (error) {
+                videoSessionRegistry.markCleanupFailed({ videoSessionId: current.videoSessionId }, error);
+                try {
+                    await persistVideoSessionsImmediate();
+                } catch (persistError) {
+                    logger.error({
+                        event: 'video_cleanup_tombstone_persist_failed',
+                        roomId: current.roomId,
+                        videoSessionId: current.videoSessionId,
+                        error: persistError?.cause?.message || persistError?.message
+                    });
+                    return {
+                        cleanupPending: true,
+                        persistenceUnavailable: true,
+                        providerIdentityRevoked: false
+                    };
+                }
+                logger.warn({
+                    event: 'video_provider_identity_cleanup_failed',
+                    roomId: current.roomId,
+                    videoSessionId: current.videoSessionId,
+                    reason,
+                    error: error?.message
+                });
+                return {
+                    cleanupPending: true,
+                    persistenceUnavailable,
+                    providerIdentityRevoked: false
+                };
+            }
+        });
+    }
+
+    async function retryPendingProviderSessionCleanup() {
+        const pending = videoSessionRegistry.listCleanupPending();
+        let succeeded = true;
+        for (const session of pending) {
+            const result = await requestProviderSessionEnd(
+                session,
+                session.endingReason || 'provider_cleanup_retry'
+            );
+            if (result.cleanupPending || result.persistenceUnavailable) succeeded = false;
+        }
+        return succeeded;
+    }
+
+    async function revokeSocketVideoSessions(socketId, reason) {
+        const endingSessions = videoSessionRegistry.markSocketSessionsEnding(socketId, reason);
+        let persistenceUnavailable = false;
+        let providerIdentityRevoked = true;
+        for (const endingSession of endingSessions) {
+            emitVideoCapacity(endingSession.roomId);
+            const result = await requestProviderSessionEnd(endingSession, reason);
+            if (result.persistenceUnavailable) persistenceUnavailable = true;
+            if (!result.providerIdentityRevoked) providerIdentityRevoked = false;
+        }
+        return {
+            sessions: endingSessions,
+            persistenceUnavailable,
+            providerIdentityRevoked
+        };
+    }
+
+    async function performRealtimeKitReconciliation() {
+        if (config.video.provider !== VIDEO_PROVIDER_REALTIMEKIT) return true;
+        if (!videoProvider.isConfigured?.()) {
+            realtimeKitProviderAvailable = false;
+            return false;
+        }
+
+        try {
+            if (!realtimeKitProviderInitialized) {
+                await videoProvider.initialize();
+                realtimeKitProviderInitialized = true;
+            }
+
+            const cleanupSucceeded = await retryPendingProviderSessionCleanup();
+            /** @type {any[]} */
+            const meetingSnapshots = [];
+            for (const room of rooms.values()) {
+                if (roomIsClosed(room) || !room.videoProviderMeetingId) continue;
+                if (getRoomVideoProvider(room) !== VIDEO_PROVIDER_REALTIMEKIT) continue;
+                meetingSnapshots.push({
+                    room,
+                    meetingId: room.videoProviderMeetingId,
+                    lifecycleEpoch: room.lifecycleEpoch,
+                    providerGeneration: videoSessionRegistry.getProviderGeneration(room.videoProviderMeetingId),
+                    activeSession: null,
+                    error: null
+                });
+            }
+
+            // Bound provider concurrency so one slow room cannot turn a
+            // five-minute reconciliation into hundreds of serial requests.
+            let nextSnapshotIndex = 0;
+            let fetchFailed = false;
+            const workers = Array.from({ length: Math.min(3, meetingSnapshots.length) }, async () => {
+                while (nextSnapshotIndex < meetingSnapshots.length) {
+                    const index = nextSnapshotIndex;
+                    nextSnapshotIndex += 1;
+                    const snapshot = meetingSnapshots[index];
+                    try {
+                        snapshot.activeSession = await videoProvider.getActiveMeetingSession({
+                            meetingId: snapshot.meetingId
+                        });
+                    } catch (error) {
+                        snapshot.error = error;
+                        fetchFailed = true;
+                    }
+                }
+            });
+            await Promise.all(workers);
+
+            let cleanupAfterReconciliationSucceeded = true;
+            for (const snapshot of meetingSnapshots) {
+                const { room, meetingId, lifecycleEpoch, activeSession, error } = snapshot;
+                if (error || !activeSession) {
+                    logger.warn({
+                        event: 'video_provider_meeting_reconciliation_failed',
+                        roomId: room.id,
+                        meetingId,
+                        error: error?.message
+                    });
+                    continue;
+                }
+                if (
+                    videoSessionRegistry.getProviderGeneration(meetingId) !== snapshot.providerGeneration
+                ) {
+                    logger.info({
+                        event: 'video_provider_reconciliation_skipped_newer_event',
+                        meetingId
+                    });
+                    continue;
+                }
+                if (
+                    rooms.get(room.id) !== room
+                    || roomIsClosed(room)
+                    || room.lifecycleEpoch !== lifecycleEpoch
+                    || room.videoProviderMeetingId !== meetingId
+                ) continue;
+                const reconciliation = videoSessionRegistry.reconcileMeeting({
+                    roomId: room.id,
+                    provider: VIDEO_PROVIDER_REALTIMEKIT,
+                    providerMeetingId: meetingId,
+                    providerSessionId: activeSession.sessionId,
+                    liveParticipants: activeSession.active ? activeSession.liveParticipants : 0,
+                    participants: activeSession.active ? activeSession.participants : []
+                });
+                try {
+                    await persistVideoSessionsImmediate();
+                } catch (persistError) {
+                    fetchFailed = true;
+                    logger.error({
+                        event: 'video_reconciliation_persist_failed',
+                        meetingId,
+                        error: persistError?.cause?.message || persistError?.message
+                    });
+                    continue;
+                }
+                for (const cleanupSession of reconciliation.cleanupSessions) {
+                    const cleanup = await requestProviderSessionEnd(
+                        cleanupSession,
+                        cleanupSession.endingReason || 'provider_reconciliation'
+                    );
+                    if (cleanup.cleanupPending || cleanup.persistenceUnavailable) {
+                        cleanupAfterReconciliationSucceeded = false;
+                    }
+                }
+                emitVideoCapacity(room.id);
+            }
+            realtimeKitProviderAvailable = !!(
+                cleanupSucceeded
+                && cleanupAfterReconciliationSucceeded
+                && !fetchFailed
+            );
+            logger.info({
+                event: 'video_provider_reconciled',
+                meetingCount: meetingSnapshots.length,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants()
+            });
+            return realtimeKitProviderAvailable;
+        } catch (error) {
+            realtimeKitProviderAvailable = false;
+            logger.warn({
+                event: 'video_provider_reconciliation_failed',
+                error: error?.message
+            });
+            return false;
+        }
+    }
+
+    function reconcileRealtimeKitMeetings() {
+        if (realtimeKitReconciliationPromise) return realtimeKitReconciliationPromise;
+        const attempt = performRealtimeKitReconciliation();
+        realtimeKitReconciliationPromise = attempt;
+        const clearAttempt = () => {
+            if (realtimeKitReconciliationPromise === attempt) {
+                realtimeKitReconciliationPromise = null;
+            }
+        };
+        void attempt.then(clearAttempt, clearAttempt);
+        return attempt;
+    }
+
     function roomSnapshot(roomId) {
         const normalized = normalizeRoom(roomId);
         const room = rooms.get(normalized);
@@ -1277,7 +1607,19 @@ function createCoStudyServer(options = {}) {
         room.cleanupTimer = null;
     }
 
-    async function closeRoomLifecycle(roomId, options = {}) {
+    function runRoomLifecycleOperation(roomId, operation) {
+        const normalizedRoom = normalizeRoom(roomId);
+        const previous = roomLifecycleLocks.get(normalizedRoom) || Promise.resolve();
+        const attempt = previous.catch(() => {}).then(operation);
+        roomLifecycleLocks.set(normalizedRoom, attempt);
+        return attempt.finally(() => {
+            if (roomLifecycleLocks.get(normalizedRoom) === attempt) {
+                roomLifecycleLocks.delete(normalizedRoom);
+            }
+        });
+    }
+
+    async function performCloseRoomLifecycle(roomId, options = {}) {
         const normalizedRoom = normalizeRoom(roomId);
         const room = rooms.get(normalizedRoom);
         if (!room || isLobbyRoom(room)) return null;
@@ -1331,10 +1673,18 @@ function createCoStudyServer(options = {}) {
                 skippedDisconnects.add(socketId);
                 socketRef.disconnect(true);
             }
-            emitEndedVideoSessions(videoSessionRegistry.markSocketSessionsLeft(socketId, 'room_closed'));
+            videoSessionRegistry.markSocketSessionsEnding(socketId, 'room_closed');
         }
         room.users.clear();
         room.identities.clear();
+        try {
+            await persistVideoSessionsImmediate();
+        } catch (error) {
+            const persistenceError = new Error('Room video revocations could not be persisted.');
+            /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
+            persistenceError.cause = error;
+            throw persistenceError;
+        }
 
         if (room.cleanupPending) {
             try {
@@ -1344,6 +1694,11 @@ function createCoStudyServer(options = {}) {
                 room.cleanupPending = false;
                 room.providerCleanupLastError = null;
                 room.videoProviderStatus = 'closed';
+                emitEndedVideoSessions(videoSessionRegistry.retireMeeting(
+                    room.videoProviderMeetingId,
+                    'provider_meeting_closed'
+                ));
+                await persistVideoSessionsImmediate();
             } catch (error) {
                 room.cleanupPending = true;
                 room.providerCleanupLastError = String(error?.message || 'provider cleanup failed').slice(0, 200);
@@ -1364,6 +1719,14 @@ function createCoStudyServer(options = {}) {
                     lifecycleEpoch: room.lifecycleEpoch
                 };
             }
+        }
+
+        if (!room.cleanupPending && room.videoProviderMeetingId) {
+            emitEndedVideoSessions(videoSessionRegistry.retireMeeting(
+                room.videoProviderMeetingId,
+                'provider_meeting_closed'
+            ));
+            await persistVideoSessionsImmediate();
         }
 
         rooms.delete(normalizedRoom);
@@ -1387,6 +1750,10 @@ function createCoStudyServer(options = {}) {
             cleanupPending: false,
             lifecycleEpoch: room.lifecycleEpoch
         };
+    }
+
+    function closeRoomLifecycle(roomId, options = {}) {
+        return runRoomLifecycleOperation(roomId, () => performCloseRoomLifecycle(roomId, options));
     }
 
     function ensureRoom(roomId, meta = {}) {
@@ -1497,7 +1864,7 @@ function createCoStudyServer(options = {}) {
         return token;
     }
 
-    function removeUserFromRoom(room, socketId, normalizedRoom, existingRecord = null) {
+    function removeUserFromRoom(room, socketId, normalizedRoom, existingRecord = null, options = {}) {
         if (!room || !socketId) return false;
         const record = existingRecord || room.users.get(socketId);
         if (!record) return false;
@@ -1518,6 +1885,13 @@ function createCoStudyServer(options = {}) {
             socketRef.data.roomId = null;
         } else {
             skippedDisconnects.add(socketId);
+        }
+        if (!options.videoAlreadyRevoked) {
+            void revokeSocketVideoSessions(socketId, 'room_membership_revoked').then((result) => {
+                if (result.persistenceUnavailable || !result.providerIdentityRevoked) {
+                    realtimeKitProviderAvailable = false;
+                }
+            });
         }
         return true;
     }
@@ -1643,6 +2017,11 @@ function createCoStudyServer(options = {}) {
         if (existingLock) return existingLock;
 
         const createPromise = (async () => {
+            const previousMeetingState = {
+                videoProviderMeetingId: room.videoProviderMeetingId,
+                videoProviderMeetingCreatedAt: room.videoProviderMeetingCreatedAt,
+                videoProviderStatus: room.videoProviderStatus
+            };
             const meeting = await videoProvider.ensureRoomMeeting({
                 roomId,
                 roomName: room.name || roomId
@@ -1650,7 +2029,27 @@ function createCoStudyServer(options = {}) {
             room.videoProviderMeetingId = meeting.meetingId;
             room.videoProviderMeetingCreatedAt = Date.now();
             room.videoProviderStatus = 'active';
-            persistRoomsSoon();
+            try {
+                // The meeting identifier must survive a process crash before
+                // any reusable participant credential is created.
+                await roomStore.flush(rooms);
+            } catch (error) {
+                Object.assign(room, previousMeetingState);
+                try {
+                    await videoProvider.closeRoomMeeting({ meetingId: meeting.meetingId });
+                } catch (cleanupError) {
+                    logger.error({
+                        event: 'orphan_video_meeting_cleanup_failed',
+                        roomId,
+                        meetingId: meeting.meetingId,
+                        error: cleanupError?.message
+                    });
+                }
+                const persistenceError = new Error('RealtimeKit meeting metadata could not be persisted.');
+                /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
+                persistenceError.cause = error;
+                throw persistenceError;
+            }
             logger.info({
                 event: 'video_meeting_ready',
                 provider: getRoomVideoProvider(room),
@@ -1665,8 +2064,10 @@ function createCoStudyServer(options = {}) {
         try {
             return await createPromise;
         } catch (error) {
-            room.videoProviderStatus = 'error';
-            persistRoomsSoon();
+            if (error?.code !== 'PERSISTENCE_UNAVAILABLE') {
+                room.videoProviderStatus = 'error';
+                persistRoomsSoon();
+            }
             throw error;
         } finally {
             meetingCreationLocks.delete(roomId);
@@ -1685,13 +2086,51 @@ function createCoStudyServer(options = {}) {
         }
 
         const oldMeetingId = room.videoProviderMeetingId;
+        if (oldMeetingId && typeof videoProvider.closeRoomMeeting === 'function') {
+            try {
+                await videoProvider.closeRoomMeeting({ meetingId: oldMeetingId });
+                emitEndedVideoSessions(
+                    videoSessionRegistry.retireMeeting(oldMeetingId, 'provider_meeting_recycled')
+                );
+                await persistVideoSessionsImmediate();
+            } catch (error) {
+                room.videoProviderStatus = 'error';
+                room.providerCleanupLastError = String(error?.message || 'provider cleanup failed').slice(0, 200);
+                realtimeKitProviderAvailable = false;
+                try {
+                    await roomStore.flush(rooms);
+                } catch (persistError) {
+                    const persistenceError = new Error('Meeting cleanup retry state could not be persisted.');
+                    /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
+                    persistenceError.cause = persistError;
+                    throw persistenceError;
+                }
+                logger.warn({
+                    event: 'video_meeting_recycle_cleanup_failed',
+                    roomId,
+                    meetingId: oldMeetingId,
+                    error: error?.message
+                });
+                return false;
+            }
+        }
+
+        const previousMeetingCreatedAt = room.videoProviderMeetingCreatedAt;
         room.videoProviderMeetingId = null;
         room.videoProviderMeetingCreatedAt = null;
         room.videoProviderStatus = 'closed';
-        persistRoomsSoon();
-
-        if (oldMeetingId && typeof videoProvider.closeRoomMeeting === 'function') {
-            void videoProvider.closeRoomMeeting({ meetingId: oldMeetingId });
+        room.providerCleanupLastError = null;
+        try {
+            await roomStore.flush(rooms);
+        } catch (error) {
+            room.videoProviderMeetingId = oldMeetingId;
+            room.videoProviderMeetingCreatedAt = previousMeetingCreatedAt;
+            room.videoProviderStatus = 'error';
+            room.providerCleanupLastError = 'meeting recycle state persistence failed';
+            const persistenceError = new Error('Meeting recycle state could not be persisted.');
+            /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
+            persistenceError.cause = error;
+            throw persistenceError;
         }
         logger.info({
             event: 'video_meeting_recycled',
@@ -1703,17 +2142,219 @@ function createCoStudyServer(options = {}) {
         return true;
     }
 
-    function isSameActiveVideoSession(session, roomId, userId) {
-        return session
-            && !session.leftAt
-            && session.roomId === roomId
-            && session.userId === userId;
-    }
+    async function issueRealtimeKitVideoToken(options) {
+        const {
+            req,
+            res,
+            room,
+            normalizedRoom,
+            member,
+            requestIp,
+            displayName,
+            role,
+            roomVideoProvider
+        } = options;
+        const membershipRemainsValid = () => {
+            if (rooms.get(normalizedRoom) !== room || roomIsClosed(room)) return false;
+            const current = resolveRoomMembership(req, room, normalizedRoom);
+            return !!(
+                current
+                && current.member === member
+                && current.member.name === displayName
+            );
+        };
+        const releaseUnissuedReservation = async (session, reason) => {
+            if (!session) return { cleanupPending: false };
+            const current = videoSessionRegistry.findStoredSession({ videoSessionId: session.videoSessionId });
+            if (!current) return { cleanupPending: false };
+            let result = { cleanupPending: false };
+            if (current.providerParticipantId) {
+                const revoked = videoSessionRegistry.revokeVideoSession(
+                    { videoSessionId: current.videoSessionId },
+                    reason
+                );
+                result = await requestProviderSessionEnd(revoked, reason);
+            } else {
+                videoSessionRegistry.markVideoSessionLeft(
+                    { videoSessionId: current.videoSessionId },
+                    reason,
+                    { providerIdentityRetired: true }
+                );
+                try {
+                    await persistVideoSessionsImmediate();
+                } catch (_error) {
+                    result = { cleanupPending: false, persistenceUnavailable: true };
+                }
+            }
+            emitVideoCapacity(normalizedRoom);
+            return result;
+        };
 
-    function findActiveVideoSession(roomId, userId) {
-        return videoSessionRegistry.listActive().find((session) => {
-            return isSameActiveVideoSession(session, roomId, userId);
-        }) || null;
+        if (!membershipRemainsValid()) {
+            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
+            return;
+        }
+        if (!realtimeKitProviderAvailable) {
+            sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE');
+            return;
+        }
+
+        const userId = member.identityId;
+        const roomPolicy = getDefaultRoomVideoPolicy(room.videoPolicy);
+        const roomParticipantCap = isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT : roomPolicy.maxParticipants;
+        try {
+            if (!await refreshExpiredRoomMeetingIfIdle(normalizedRoom, room)) {
+                sendVideoError(
+                    res,
+                    realtimeKitProviderAvailable ? 409 : 503,
+                    realtimeKitProviderAvailable ? 'ROOM_DURATION_LIMIT_REACHED' : 'VIDEO_PROVIDER_UNAVAILABLE'
+                );
+                return;
+            }
+        } catch (error) {
+            if (error?.code === 'PERSISTENCE_UNAVAILABLE') {
+                sendVideoError(res, 503, 'PERSISTENCE_UNAVAILABLE');
+                return;
+            }
+            throw error;
+        }
+        if (!membershipRemainsValid()) {
+            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
+            return;
+        }
+
+        let registeredSession;
+        try {
+            registeredSession = videoSessionRegistry.reserveVideoSession({
+                roomId: normalizedRoom,
+                userId,
+                socketId: member.socketId,
+                requestIpKey: requestIpKey(requestIp),
+                provider: roomVideoProvider,
+                providerMeetingId: room.videoProviderMeetingId,
+                displayName,
+                role,
+                maxGlobalParticipants: config.video.maxGlobalParticipants,
+                maxRoomParticipants: roomParticipantCap,
+                maxIpParticipants: MAX_IP_VIDEO_PARTICIPANTS
+            });
+        } catch (error) {
+            const errorCode = [
+                'VIDEO_SESSION_ALREADY_ACTIVE',
+                'GLOBAL_VIDEO_LIMIT_REACHED',
+                'ROOM_FULL',
+                'IP_VIDEO_LIMIT_REACHED'
+            ].includes(error?.code)
+                ? error.code
+                : 'VIDEO_REQUEST_INVALID';
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: errorCode,
+                roomId: normalizedRoom,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
+            });
+            sendVideoError(res, errorCode === 'VIDEO_REQUEST_INVALID' ? 400 : 409, errorCode);
+            return;
+        }
+
+        try {
+            const meeting = await ensureRealtimeKitMeeting(normalizedRoom, room);
+            videoSessionRegistry.updateVideoSession({ videoSessionId: registeredSession.videoSessionId }, {
+                providerMeetingId: meeting.meetingId
+            });
+            if (!membershipRemainsValid()) {
+                const released = await releaseUnissuedReservation(
+                    registeredSession,
+                    'membership_revoked_before_token'
+                );
+                sendVideoError(
+                    res,
+                    released.persistenceUnavailable ? 503 : 403,
+                    released.persistenceUnavailable ? 'PERSISTENCE_UNAVAILABLE' : 'ROOM_MEMBERSHIP_REQUIRED'
+                );
+                return;
+            }
+
+            const presetName = role === 'viewer'
+                ? config.video.viewerPresetName
+                : config.video.defaultPresetName;
+            const tokenPayload = await videoProvider.createParticipantToken({
+                roomId: normalizedRoom,
+                meetingId: meeting.meetingId,
+                userId: registeredSession.videoSessionId,
+                displayName,
+                presetName
+            });
+            videoSessionRegistry.updateVideoSession({ videoSessionId: registeredSession.videoSessionId }, {
+                providerMeetingId: tokenPayload.meetingId,
+                providerParticipantId: tokenPayload.participantId,
+                lastSeenAt: Date.now()
+            });
+            // This is the acknowledgement boundary: the provider participant
+            // and its revocation metadata must be durable before its reusable
+            // auth token can leave the process.
+            await persistVideoSessionsImmediate();
+            if (!membershipRemainsValid()) {
+                const released = await releaseUnissuedReservation(
+                    registeredSession,
+                    'membership_revoked_before_response'
+                );
+                sendVideoError(
+                    res,
+                    released.persistenceUnavailable ? 503 : 403,
+                    released.persistenceUnavailable ? 'PERSISTENCE_UNAVAILABLE' : 'ROOM_MEMBERSHIP_REQUIRED'
+                );
+                return;
+            }
+            emitVideoCapacity(normalizedRoom);
+            logger.info({
+                event: 'video_token_issued',
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                userId,
+                videoSessionId: registeredSession.videoSessionId,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
+            });
+
+            res.json({
+                ok: true,
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                role,
+                videoSessionId: registeredSession.videoSessionId,
+                meetingId: tokenPayload.meetingId,
+                participantId: tokenPayload.participantId,
+                authToken: tokenPayload.authToken,
+                expiresAt: tokenPayload.expiresAt || null,
+                policy: getClientVideoPolicy(room)
+            });
+        } catch (error) {
+            const released = await releaseUnissuedReservation(
+                registeredSession,
+                error?.code === 'PERSISTENCE_UNAVAILABLE' ? 'persistence_failure' : 'provider_failure'
+            );
+            if (error?.code === 'PERSISTENCE_UNAVAILABLE' || released.persistenceUnavailable) {
+                logger.error({
+                    event: 'video_token_persistence_failed',
+                    roomId: normalizedRoom,
+                    error: error?.cause?.message || error?.message
+                });
+                sendVideoError(res, 503, 'PERSISTENCE_UNAVAILABLE');
+                return;
+            }
+            realtimeKitProviderAvailable = false;
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'VIDEO_PROVIDER_UNAVAILABLE',
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                message: error.message
+            });
+            sendVideoError(res, error.status || 502, 'VIDEO_PROVIDER_UNAVAILABLE');
+        }
     }
 
     function originGuard(req, res, next) {
@@ -1780,6 +2421,7 @@ function createCoStudyServer(options = {}) {
         const checks = {
             roomStore: readinessState.roomStore,
             userStore: readinessState.userStore,
+            videoSessionStore: readinessState.videoSessionStore,
             // @ts-expect-error internal socket.io flag for closed state
             socket: readinessState.socket && !io._closed,
             config: readinessState.config
@@ -1818,19 +2460,34 @@ function createCoStudyServer(options = {}) {
     let initialized = false;
     let initializationPromise = null;
     let videoSweepTimer = null;
+    let videoReconcileTimer = null;
+    let videoCleanupRetryTimer = null;
     let roomCleanupRetryTimer = null;
     let runtimeWorkersStarted = false;
 
     function initialize() {
         if (!initializationPromise) {
             initializationPromise = (async () => {
+                const webhookInitialization = realtimeKitWebhookDeduplicator.initialize();
+                const videoSessionHydration = videoSessionStore.initialize().then((state) => {
+                    const count = videoSessionRegistry.hydratePersistentState(state);
+                    readinessState.videoSessionStore = true;
+                    return count;
+                });
                 loadedRoomCount = loadPersistedRooms();
                 seedLobbyRoom();
-                loadedUserCount = await loadPersistedUsers();
+                const userHydration = loadPersistedUsers();
+                const [, hydratedUserCount] = await Promise.all([
+                    webhookInitialization,
+                    userHydration,
+                    videoSessionHydration
+                ]);
+                loadedUserCount = hydratedUserCount;
                 const migratedRooms = await migrateLegacyRoomOwnership();
                 if (!migratedRooms && roomStore.needsMigration?.()) {
                     await roomStore.flush(rooms);
                 }
+                await reconcileRealtimeKitMeetings();
                 initialized = true;
                 return { loadedRoomCount, loadedUserCount };
             })();
@@ -1843,10 +2500,34 @@ function createCoStudyServer(options = {}) {
         runtimeWorkersStarted = true;
         backupScheduler.start();
         videoSweepTimer = setInterval(() => {
-            const ended = videoSessionRegistry.sweepStaleVideoSessions();
-            emitEndedVideoSessions(ended);
+            const changed = videoSessionRegistry.sweepStaleVideoSessions();
+            if (!changed.length) return;
+            void persistVideoSessionsImmediate()
+                .then(() => Promise.all(changed
+                    .filter((session) => session.cleanupPending)
+                    .map((session) => requestProviderSessionEnd(
+                        session,
+                        session.endingReason || 'pending_reservation_expired'
+                    ))))
+                .then(() => emitEndedVideoSessions(changed.filter((session) => session.state === 'ended')))
+                .catch((error) => logger.error({
+                    event: 'video_session_sweep_persist_failed',
+                    error: error?.cause?.message || error?.message
+                }));
         }, VIDEO_SESSION_SWEEP_MS);
         videoSweepTimer.unref();
+        if (config.video.provider === VIDEO_PROVIDER_REALTIMEKIT) {
+            videoReconcileTimer = setInterval(() => {
+                void reconcileRealtimeKitMeetings();
+            }, VIDEO_RECONCILE_MS);
+            videoReconcileTimer.unref();
+            videoCleanupRetryTimer = setInterval(() => {
+                void retryPendingProviderSessionCleanup().then((succeeded) => {
+                    if (!succeeded) realtimeKitProviderAvailable = false;
+                });
+            }, VIDEO_CLEANUP_RETRY_MS);
+            videoCleanupRetryTimer.unref();
+        }
         const retryPendingClosures = () => {
             for (const room of rooms.values()) {
                 if (!roomIsClosed(room) || !room.cleanupPending) continue;
@@ -1879,6 +2560,12 @@ function createCoStudyServer(options = {}) {
         return new Promise((resolve) => drainWaiters.add(resolve));
     }
 
+    async function waitForVideoCleanupDrain() {
+        while (videoCleanupLocks.size > 0) {
+            await Promise.allSettled(Array.from(videoCleanupLocks.values()));
+        }
+    }
+
     function mutationDrainMiddleware(req, res, next) {
         if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
             next();
@@ -1908,6 +2595,8 @@ function createCoStudyServer(options = {}) {
             process.exit(1);
         }, 15_000);
         if (videoSweepTimer) clearInterval(videoSweepTimer);
+        if (videoReconcileTimer) clearInterval(videoReconcileTimer);
+        if (videoCleanupRetryTimer) clearInterval(videoCleanupRetryTimer);
         if (roomCleanupRetryTimer) clearInterval(roomCleanupRetryTimer);
         backupScheduler.stop();
         console.log(`Received ${signal}. Draining mutations and persisting state...`);
@@ -1919,6 +2608,8 @@ function createCoStudyServer(options = {}) {
             server.close(() => resolve());
         });
         await waitForMutationDrain();
+        await new Promise((resolve) => io.close(() => resolve()));
+        await waitForVideoCleanupDrain();
         if (typeof videoProvider.close === 'function') {
             try {
                 await videoProvider.close();
@@ -1926,10 +2617,10 @@ function createCoStudyServer(options = {}) {
                 logger.warn({ event: 'video_provider_shutdown_failed', error: error?.message });
             }
         }
-        await new Promise((resolve) => io.close(() => resolve()));
         const flushResults = await Promise.allSettled([
             roomStore.flush(rooms),
-            userStore.flush(users)
+            userStore.flush(users),
+            videoSessionStore.flush(videoSessionRegistry.exportPersistentState())
         ]);
         let exitCode = 0;
         flushResults.forEach((result) => {
@@ -1955,6 +2646,93 @@ function createCoStudyServer(options = {}) {
 
     app.use(securityHeaders);
     app.use(originGuard);
+    app.post(
+        '/api/webhooks/realtimekit',
+        express.raw({ type: 'application/json', limit: WEBHOOK_BODY_LIMIT }),
+        mutationDrainMiddleware,
+        async (req, res) => {
+            const rawBody = Buffer.isBuffer(req.body) ? req.body : null;
+            const signatureHeader = req.headers['rtk-signature'];
+            const deliveryHeader = req.headers['rtk-uuid'];
+            const signature = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
+            const deliveryId = Array.isArray(deliveryHeader) ? deliveryHeader[0] : deliveryHeader;
+            const publicKey = videoProvider.getWebhookPublicKey?.();
+
+            if (!publicKey || !realtimeKitProviderInitialized) {
+                res.status(503).json({ errorCode: 'WEBHOOK_UNAVAILABLE' });
+                return;
+            }
+            if (!rawBody || !verifyRealtimeKitWebhookSignature({ publicKey, signature, rawBody })) {
+                res.status(401).json({ errorCode: 'WEBHOOK_SIGNATURE_INVALID' });
+                return;
+            }
+
+            let event;
+            try {
+                event = JSON.parse(rawBody.toString('utf8'));
+            } catch (_error) {
+                res.status(400).json({ errorCode: 'WEBHOOK_EVENT_INVALID' });
+                return;
+            }
+
+            try {
+                const outcome = await realtimeKitWebhookDeduplicator.runOnce(deliveryId, async () => {
+                    const processed = processRealtimeKitWebhook({
+                        event,
+                        rooms,
+                        registry: videoSessionRegistry
+                    });
+                    // Accept the provider delivery only after its state
+                    // transition is durable; a failed write leaves the UUID
+                    // unconsumed so RealtimeKit can retry it.
+                    await persistVideoSessionsImmediate();
+                    return processed;
+                });
+                const result = outcome.result;
+                const cleanupSessions = result?.cleanupSessions || (
+                    result?.endingSession ? [result.endingSession] : []
+                );
+                for (const cleanupSession of cleanupSessions) {
+                    const cleanup = await requestProviderSessionEnd(
+                        cleanupSession,
+                        cleanupSession.endingReason || 'provider_event_revocation'
+                    );
+                    if (cleanup.cleanupPending || cleanup.persistenceUnavailable) {
+                        realtimeKitProviderAvailable = false;
+                    }
+                }
+                if (result?.endedSessions?.length) {
+                    emitEndedVideoSessions(result.endedSessions);
+                } else if (result?.changed && result.roomId) {
+                    emitVideoCapacity(result.roomId);
+                }
+                res.json({
+                    ok: true,
+                    duplicate: outcome.duplicate,
+                    handled: outcome.duplicate ? true : !!result?.handled
+                });
+            } catch (error) {
+                if (['WEBHOOK_DELIVERY_ID_INVALID', 'WEBHOOK_EVENT_INVALID'].includes(error?.code)) {
+                    res.status(400).json({ errorCode: error.code });
+                    return;
+                }
+                if (error?.code === 'WEBHOOK_DEDUP_CAPACITY_EXHAUSTED') {
+                    res.status(503).json({ errorCode: error.code });
+                    return;
+                }
+                if (error?.code === 'PERSISTENCE_UNAVAILABLE') {
+                    res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+                    return;
+                }
+                logger.error({
+                    event: 'realtimekit_webhook_failed',
+                    deliveryId: typeof deliveryId === 'string' ? deliveryId.slice(0, 128) : null,
+                    error: error?.message
+                });
+                res.status(500).json({ errorCode: 'WEBHOOK_PROCESSING_FAILED' });
+            }
+        }
+    );
     app.use(express.json());
     app.use(sessionMiddleware);
     app.use(attachUser);
@@ -2051,6 +2829,9 @@ function createCoStudyServer(options = {}) {
             roomCount: rooms.size,
             participantCount,
             activeVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+            videoSessionCounts: videoSessionRegistry.getVideoSessionCounts(),
+            realtimeKitProviderAvailable,
+            realtimeKitWebhookDedupEntries: realtimeKitWebhookDeduplicator.entries.size,
             memoryRssMb: Math.round(process.memoryUsage().rss / (1024 * 1024)),
             mode: config.mode
         });
@@ -2136,107 +2917,21 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 403, 'AUTH_REQUIRED');
             return;
         }
-
-        const userId = member.identityId;
-        const existingActive = findActiveVideoSession(normalizedRoom, userId);
-        const activeGlobal = videoSessionRegistry.countActiveGlobalVideoParticipants();
-        const activeRoom = videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom);
-        const effectiveGlobal = activeGlobal - (existingActive ? 1 : 0);
-        const effectiveRoom = activeRoom - (existingActive ? 1 : 0);
-        const roomPolicy = getDefaultRoomVideoPolicy(room.videoPolicy);
-        const roomParticipantCap = isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT : roomPolicy.maxParticipants;
-
-        if (effectiveGlobal >= config.video.maxGlobalParticipants) {
-            logger.warn({
-                event: 'video_token_rejected',
-                reason: 'GLOBAL_VIDEO_LIMIT_REACHED',
-                roomId: normalizedRoom,
-                activeGlobalVideoParticipants: activeGlobal
-            });
-            sendVideoError(res, 409, 'GLOBAL_VIDEO_LIMIT_REACHED');
+        if (!realtimeKitProviderAvailable) {
+            sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE');
             return;
         }
-        if (effectiveRoom >= roomParticipantCap) {
-            logger.warn({
-                event: 'video_token_rejected',
-                reason: 'ROOM_FULL',
-                roomId: normalizedRoom,
-                activeRoomVideoParticipants: activeRoom
-            });
-            sendVideoError(res, 409, 'ROOM_FULL');
-            return;
-        }
-        if (!await refreshExpiredRoomMeetingIfIdle(normalizedRoom, room)) {
-            sendVideoError(res, 409, 'ROOM_DURATION_LIMIT_REACHED');
-            return;
-        }
-
-        const registeredSession = videoSessionRegistry.registerVideoSession({
-            roomId: normalizedRoom,
-            userId,
-            socketId: member.socketId,
-            provider: roomVideoProvider,
-            providerMeetingId: room.videoProviderMeetingId,
+        await runRoomLifecycleOperation(normalizedRoom, () => issueRealtimeKitVideoToken({
+            req,
+            res,
+            room,
+            normalizedRoom,
+            member,
+            requestIp,
             displayName,
             role,
-            joinedAt: existingActive?.joinedAt || Date.now(),
-            lastSeenAt: Date.now()
-        });
-
-        try {
-            const meeting = await ensureRealtimeKitMeeting(normalizedRoom, room);
-            const presetName = role === 'viewer'
-                ? config.video.viewerPresetName
-                : config.video.defaultPresetName;
-            const tokenPayload = await videoProvider.createParticipantToken({
-                roomId: normalizedRoom,
-                meetingId: meeting.meetingId,
-                userId: registeredSession.videoSessionId,
-                displayName,
-                presetName
-            });
-
-            videoSessionRegistry.updateVideoSession({ videoSessionId: registeredSession.videoSessionId }, {
-                providerMeetingId: tokenPayload.meetingId,
-                providerParticipantId: tokenPayload.participantId,
-                lastSeenAt: Date.now()
-            });
-            emitVideoCapacity(normalizedRoom);
-            logger.info({
-                event: 'video_token_issued',
-                provider: roomVideoProvider,
-                roomId: normalizedRoom,
-                userId,
-                videoSessionId: registeredSession.videoSessionId,
-                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
-                activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
-            });
-
-            res.json({
-                ok: true,
-                provider: roomVideoProvider,
-                roomId: normalizedRoom,
-                role,
-                videoSessionId: registeredSession.videoSessionId,
-                meetingId: tokenPayload.meetingId,
-                participantId: tokenPayload.participantId,
-                authToken: tokenPayload.authToken,
-                expiresAt: tokenPayload.expiresAt || null,
-                policy: getClientVideoPolicy(room)
-            });
-        } catch (error) {
-            videoSessionRegistry.markVideoSessionLeft({ videoSessionId: registeredSession.videoSessionId }, 'provider_failure');
-            emitVideoCapacity(normalizedRoom);
-            logger.warn({
-                event: 'video_token_rejected',
-                reason: 'VIDEO_PROVIDER_UNAVAILABLE',
-                provider: roomVideoProvider,
-                roomId: normalizedRoom,
-                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
-                message: error.message
-            });
-            sendVideoError(res, error.status || 502, 'VIDEO_PROVIDER_UNAVAILABLE');
-        }
+            roomVideoProvider
+        }));
     });
 
     app.post('/api/rooms/:roomId/video-heartbeat', (req, res) => {
@@ -2280,7 +2975,7 @@ function createCoStudyServer(options = {}) {
         });
     });
 
-    app.post('/api/rooms/:roomId/video-leave', (req, res) => {
+    app.post('/api/rooms/:roomId/video-leave', async (req, res) => {
         const normalizedRoom = normalizeRoom(req.params.roomId);
         const room = rooms.get(normalizedRoom);
         if (!room || roomIsClosed(room)) {
@@ -2305,10 +3000,16 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 403, 'VIDEO_SESSION_FORBIDDEN');
             return;
         }
-        const ended = videoSessionRegistry.markVideoSessionLeft({ videoSessionId }, 'client_leave');
-        if (ended) emitVideoSessionEnded(ended);
+        const ending = videoSessionRegistry.markVideoSessionEnding({ videoSessionId }, 'client_leave');
+        const providerResult = await requestProviderSessionEnd(ending, 'client_leave');
+        emitVideoCapacity(normalizedRoom);
+        if (providerResult.persistenceUnavailable) {
+            sendVideoError(res, 503, 'PERSISTENCE_UNAVAILABLE');
+            return;
+        }
         res.json({
             ok: true,
+            cleanupPending: providerResult.cleanupPending,
             ...buildVideoCapacityPayload(normalizedRoom)
         });
     });
@@ -2434,6 +3135,7 @@ function createCoStudyServer(options = {}) {
             announcementState,
             buildScheduleSummary,
             closeRoom: closeRoomLifecycle,
+            revokeSocketVideoSessions,
             persistUsersSoon,
             persistRoomsSoon,
             dashboard: typeof userStore.readAdminOverview === 'function'
@@ -2463,6 +3165,11 @@ function createCoStudyServer(options = {}) {
 
     // Express identifies error middleware by arity — the 4th param must stay.
     app.use((err, req, res, _next) => {
+        const status = err?.type === 'entity.too.large'
+            ? 413
+            : err?.status === 400
+                ? 400
+                : 500;
         logger.error({
             event: 'unhandled_request_error',
             method: req.method,
@@ -2470,8 +3177,12 @@ function createCoStudyServer(options = {}) {
             message: err?.message
         });
         if (res.headersSent) return;
-        res.status(err?.status === 400 ? 400 : 500).json({
-            errorCode: err?.status === 400 ? 'BAD_REQUEST' : 'INTERNAL_ERROR'
+        res.status(status).json({
+            errorCode: status === 413
+                ? 'REQUEST_TOO_LARGE'
+                : status === 400
+                    ? 'BAD_REQUEST'
+                    : 'INTERNAL_ERROR'
         });
     });
 
@@ -2742,6 +3453,27 @@ function createCoStudyServer(options = {}) {
                 return ackError(ack, 'ROOM_FULL');
             }
 
+            // Provider credentials are socket-bound just like membership.
+            // Revoke them durably before mutating either room so a successful
+            // switch/reconnect can never leave a cached provider token usable.
+            const socketsWhoseVideoMustBeRevoked = new Set(releasableUsers.keys());
+            if (previousRoomId && previousRoomId !== normalizedRoom) {
+                socketsWhoseVideoMustBeRevoked.add(socket.id);
+            }
+            for (const socketId of socketsWhoseVideoMustBeRevoked) {
+                const revoked = await revokeSocketVideoSessions(
+                    socketId,
+                    'room_membership_revoked'
+                );
+                if (revoked.persistenceUnavailable) {
+                    return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
+                }
+                if (!revoked.providerIdentityRevoked) {
+                    realtimeKitProviderAvailable = false;
+                    return ackError(ack, 'VIDEO_PROVIDER_UNAVAILABLE');
+                }
+            }
+
             if (!roomHasSchedule(room)) {
                 clearRoomCleanupTimer(room);
                 room.expiresAt = null;
@@ -2749,7 +3481,13 @@ function createCoStudyServer(options = {}) {
 
             if (previousRoomId && previousRoomId !== normalizedRoom) {
                 const previousRoom = rooms.get(previousRoomId);
-                if (previousRoom && removeUserFromRoom(previousRoom, socket.id, previousRoomId)) {
+                if (previousRoom && removeUserFromRoom(
+                    previousRoom,
+                    socket.id,
+                    previousRoomId,
+                    null,
+                    { videoAlreadyRevoked: true }
+                )) {
                     io.to(previousRoomId).emit('presence', roomSnapshot(previousRoomId).participants);
                     scheduleRoomCleanup(previousRoomId);
                 }
@@ -2761,7 +3499,13 @@ function createCoStudyServer(options = {}) {
             }
 
             releasableUsers.forEach((userRecord, oldSocketId) => {
-                removeUserFromRoom(room, oldSocketId, normalizedRoom, userRecord);
+                removeUserFromRoom(
+                    room,
+                    oldSocketId,
+                    normalizedRoom,
+                    userRecord,
+                    { videoAlreadyRevoked: true }
+                );
             });
 
             const joiningUser = getSocketUser();
@@ -3139,7 +3883,14 @@ function createCoStudyServer(options = {}) {
                 return;
             }
 
-            emitEndedVideoSessions(videoSessionRegistry.markSocketSessionsLeft(socket.id, 'socket_disconnect'));
+            const endingVideoSessions = videoSessionRegistry.markSocketSessionsEnding(
+                socket.id,
+                'socket_disconnect'
+            );
+            for (const session of endingVideoSessions) {
+                emitVideoCapacity(session.roomId);
+                void requestProviderSessionEnd(session, 'socket_disconnect');
+            }
             const { roomId, sessionId: userSessionId, clientId: userClientId } = socket.data;
             if (!roomId) return;
             const room = rooms.get(roomId);
@@ -3239,6 +3990,7 @@ function createCoStudyServer(options = {}) {
         config,
         roomStore,
         userStore,
+        videoSessionStore,
         videoSessionRegistry,
         rooms,
         users,

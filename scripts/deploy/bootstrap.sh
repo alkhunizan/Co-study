@@ -93,8 +93,8 @@ cat <<NEXT
        SESSION_SECRET=<first value from npm run secret:gen>
        ADMIN_SESSION_SECRET=<second value from npm run secret:gen>
        ADMIN_PATH=/ops-<random>       ADMIN_PASSWORD_HASH=<npm run admin:hash -- "pw">
-       VIDEO_PROVIDER=mesh
-       ICE_SERVERS_JSON=<npm run cloudflare:turn>    # TURN — needed for Saudi cellular
+       VIDEO_PROVIDER=realtimekit
+       # ICE_SERVERS_JSON is development-only; production media uses RealtimeKit.
        # R2 off-site backups (optional): R2_* from .env.example
 
 3. TLS certificate (DNS must resolve first):

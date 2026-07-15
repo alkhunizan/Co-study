@@ -120,7 +120,7 @@ Co-study/
 - `ROOM_STATE_FILE`: Optional JSON file path for persisted room state. Defaults to `./data/rooms.json`.
 - `ROOM_STATE_BACKUP_DIR`: Optional directory for manual room-state backups. Defaults to `./data/backups`.
 - `SFU_BASE_URL`: Optional absolute `http(s)` base URL for the SFU iframe integration.
-- `VIDEO_PROVIDER`: Defaults to `realtimekit`. Set to `mesh` only for emergency fallback/testing.
+- `VIDEO_PROVIDER`: Defaults to `realtimekit`. `mesh` is accepted only in development/test and is rejected in production.
 - `VIDEO_JOIN_DISABLED`: Emergency kill switch. Set to `true` to reject new video tokens without stopping chat/rooms.
 - `MAX_GLOBAL_VIDEO_PARTICIPANTS`: Hard global active-video cap. Defaults to `20`.
 - `MAX_ROOM_VIDEO_PARTICIPANTS`: Hard room active-video cap. Defaults to `20`.
@@ -130,15 +130,21 @@ Co-study/
 - `VIDEO_CHAT_ENABLED`: Defaults to `false`; use Halastudy chat instead of provider chat.
 - `VIDEO_DEFAULT_PRESET_NAME`: RealtimeKit participant preset. Defaults to `halastudy_student`.
 - `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_REALTIMEKIT_APP_ID`, `CLOUDFLARE_REALTIMEKIT_API_TOKEN`: Server-only RealtimeKit credentials.
+- `CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL`: Optional verification-key endpoint override for isolated staging tests. Production defaults to Cloudflare's public key endpoint.
 - `PUBLIC_API_BASE_URL`: Reserved for a future Cloudflare Pages frontend split.
 
+RealtimeKit must deliver signed events to `POST /api/webhooks/realtimekit`. The
+server verifies the exact raw body, deduplicates `rtk-uuid` deliveries for 24
+hours, and treats provider join/left/meeting-ended events as authoritative for
+video capacity. Browser heartbeat and leave calls are advisory only.
+
 Scheduled-room notes:
-- Scheduled rooms reuse the same room code instead of expiring as ad hoc rooms.
+- One-time rooms expire 30 minutes after their occurrence closes. Recurring rooms default to a 90-day horizon and may opt into at most 365 days.
 - Schedule cadence supports `once`, `daily`, `weekdays` (Saudi Sunday-Thursday), and `weekly`.
 - Timer defaults and the starting board goal template are stored with the room schedule.
-- Attendance is room-level only in this v1: on-time count, missed count, and current streak.
+- Only the authenticated room owner receives occurrence-keyed commitment credit; reconnects and other participants cannot alter the owner's streak.
 
-TURN example:
+Development mesh TURN example:
 
 ```json
 [
@@ -147,13 +153,15 @@ TURN example:
 ]
 ```
 
-WebRTC requires TURN credentials to be delivered to the browser at runtime. That is expected in this v1 setup.
+Production media uses RealtimeKit and must not contain static TURN credentials.
+For development mesh tests, use short-lived TURN credentials and rotate them
+before expiry.
 
 RealtimeKit launch notes:
 - The browser never receives the Cloudflare API token. The backend creates/reuses one RealtimeKit meeting per Halastudy room and returns only a client participant token.
 - The token endpoint rejects the 21st active video participant before calling Cloudflare.
 - Mic is off by default; recording, screenshare, and provider chat remain off for launch.
-- The legacy mesh path remains available with `VIDEO_PROVIDER=mesh`; the iframe SFU path remains legacy-only behind `SFU_BASE_URL`.
+- The legacy mesh path remains available only in development/test with `VIDEO_PROVIDER=mesh`; production rejects it. The iframe SFU path remains legacy-only behind `SFU_BASE_URL`.
 - AI focus monitoring stays available in legacy mesh rooms only.
 
 Launch cost guardrail:
@@ -177,7 +185,7 @@ This persistence layer is designed for a single app instance. Keep PM2 at one pr
 - 20 active video participants allowed; 21st rejected before provider token creation
 - `VIDEO_JOIN_DISABLED=true` blocks video token issuance without breaking chat/presence
 - Password-protected rooms still require the room password before video token issuance
-- Legacy mesh fallback with `VIDEO_PROVIDER=mesh`
+- Development-only mesh testing with `VIDEO_PROVIDER=mesh`
 - Disconnect and rejoin during an active room
 - Mobile/network pass: iPhone Safari, Android Chrome, Saudi mobile data, weak Wi-Fi, and a 60-minute room test
 
