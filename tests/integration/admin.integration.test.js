@@ -4,7 +4,8 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { makeTempStateFile, resetStateFile } = require('../helpers/test-env');
-const { startServer } = require('../helpers/server-control');
+const { verifySessionToken } = require('../../services/auth');
+const { buildTestEnvironment, startServer } = require('../helpers/server-control');
 const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
 const { extractCookies, signupUser } = require('../helpers/auth-helpers');
 
@@ -97,6 +98,21 @@ test('admin login gates the console: wrong password 401, lockout 429, success se
     for (const key of ['uptimeSeconds', 'memory', 'roomCount', 'participantCount', 'userCount', 'videoJoinDisabled', 'backup']) {
         assert.ok(key in overview.body, `overview missing ${key}`);
     }
+});
+
+test('admin cookies use the purpose-separated admin session secret', async (t) => {
+    const server = await startAdminServer();
+    await cleanupServer(t, server);
+    const cookie = await adminLogin(server);
+    const token = cookie.match(/(?:^|;\s*)coStudyAdmin=([^;]+)/)?.[1];
+    const testEnv = buildTestEnvironment();
+
+    assert.ok(token);
+    assert.equal(verifySessionToken(token, { secret: testEnv.SESSION_SECRET }), null);
+    assert.equal(
+        verifySessionToken(token, { secret: testEnv.ADMIN_SESSION_SECRET })?.userId,
+        'admin'
+    );
 });
 
 test('admin login locks out after repeated failures', async (t) => {

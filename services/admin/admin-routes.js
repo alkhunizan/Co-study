@@ -47,7 +47,7 @@ function createAdminRouter(deps) {
         const token = createSessionToken({
             userId: ADMIN_TOKEN_USER_ID,
             tokenEpoch: 1,
-            secret: config.sessionSecret
+            secret: config.adminSessionSecret
         });
         const cookieParts = [
             `${ADMIN_COOKIE_NAME}=${token}`,
@@ -76,7 +76,7 @@ function createAdminRouter(deps) {
     function requireAdmin(req, res, next) {
         const token = parseCookies(req.headers.cookie || '')[ADMIN_COOKIE_NAME];
         const verified = verifySessionToken(token, {
-            secret: config.sessionSecret,
+            secret: config.adminSessionSecret,
             maxAgeMs: ADMIN_SESSION_TTL_MS
         });
         if (!verified || verified.userId !== ADMIN_TOKEN_USER_ID) {

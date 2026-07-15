@@ -15,6 +15,7 @@ const { createLogger } = require('./services/logging/logger');
 const { createErrorBuffer } = require('./services/ops/error-buffer');
 const { createBackupScheduler } = require('./services/ops/backup-scheduler');
 const { createAdminRouter } = require('./services/admin/admin-routes');
+const { resolveSessionSecrets } = require('./services/config/secrets');
 const { hashPassword, verifyPassword } = require('./services/auth/password');
 const {
     createSessionToken,
@@ -246,23 +247,7 @@ function parseSfuBaseUrl(value) {
 }
 
 const ADMIN_PATH_PATTERN = /^\/[a-z0-9][a-z0-9/_-]{7,63}$/i;
-const SESSION_SECRET_MIN_LENGTH = 32;
 const PASSWORD_HASH_PATTERN = /^[0-9a-f]{32}:[0-9a-f]{128}$/i;
-
-function resolveSessionSecret(env, isProduction) {
-    const raw = typeof env.SESSION_SECRET === 'string' ? env.SESSION_SECRET.trim() : '';
-    if (raw) {
-        if (raw.length < SESSION_SECRET_MIN_LENGTH) {
-            throw new Error(`SESSION_SECRET must be at least ${SESSION_SECRET_MIN_LENGTH} characters.`);
-        }
-        return { sessionSecret: raw, sessionSecretEphemeral: false };
-    }
-    if (isProduction) {
-        throw new Error('SESSION_SECRET is required in production (min 32 chars). Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
-    }
-    // Dev/test fallback: sessions die on restart, which is fine locally.
-    return { sessionSecret: crypto.randomBytes(32).toString('hex'), sessionSecretEphemeral: true };
-}
 
 function resolveAdminConfig(env) {
     const rawPath = typeof env.ADMIN_PATH === 'string' ? env.ADMIN_PATH.trim() : '';
@@ -401,8 +386,12 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
     const roomStateFile = path.resolve(env.ROOM_STATE_FILE || path.join(__dirname, 'data', 'rooms.json'));
     const userStateFile = path.resolve(env.USER_STATE_FILE || path.join(__dirname, 'data', 'users.json'));
     const roomStateBackupDir = path.resolve(env.ROOM_STATE_BACKUP_DIR || path.join(__dirname, 'data', 'backups'));
-    const isProduction = env.NODE_ENV === 'production';
-    const { sessionSecret, sessionSecretEphemeral } = resolveSessionSecret(env, isProduction);
+    const {
+        sessionSecret,
+        adminSessionSecret,
+        sessionSecretEphemeral,
+        adminSessionSecretDerived
+    } = resolveSessionSecrets(env);
     const admin = resolveAdminConfig(env);
     const backup = resolveBackupConfig(env);
     const runtimeIce = resolveRuntimeIceServers(env.ICE_SERVERS_JSON);
@@ -432,7 +421,9 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
         userStateFile,
         roomStateBackupDir,
         sessionSecret,
+        adminSessionSecret,
         sessionSecretEphemeral,
+        adminSessionSecretDerived,
         admin,
         backup,
         sfuBaseUrl,
