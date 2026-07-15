@@ -72,6 +72,124 @@
         return FATAL_SESSION_ERROR_CODES.has(code);
     }
 
+    function createMeshPeerRecoveryController(options = {}) {
+        const recoveryGraceMs = Number.isFinite(options.recoveryGraceMs)
+            ? Math.max(0, options.recoveryGraceMs)
+            : 10_000;
+        const setTimer = options.setTimeout || global.setTimeout;
+        const clearTimer = options.clearTimeout || global.clearTimeout;
+        const states = new WeakMap();
+
+        function stateFor(peerConnection) {
+            let state = states.get(peerConnection);
+            if (!state) {
+                state = { timer: null, recoveryAttempted: false };
+                states.set(peerConnection, state);
+            }
+            return state;
+        }
+
+        function clearScheduledTimer(state) {
+            if (state.timer === null) return;
+            clearTimer(state.timer);
+            state.timer = null;
+        }
+
+        function forget(peerConnection) {
+            const state = states.get(peerConnection);
+            if (!state) return;
+            clearScheduledTimer(state);
+            states.delete(peerConnection);
+        }
+
+        function isCurrentPeer(peerId, peerConnection) {
+            return typeof options.isCurrentPeer !== 'function'
+                || options.isCurrentPeer(peerId, peerConnection) === true;
+        }
+
+        function isConnected(peerConnection) {
+            const connectionUnhealthy = ['disconnected', 'failed'].includes(peerConnection.connectionState);
+            const iceUnhealthy = ['disconnected', 'failed'].includes(peerConnection.iceConnectionState);
+            return !connectionUnhealthy
+                && !iceUnhealthy
+                && (peerConnection.connectionState === 'connected'
+                    || ['connected', 'completed'].includes(peerConnection.iceConnectionState));
+        }
+
+        function isClosed(peerConnection) {
+            return peerConnection.connectionState === 'closed'
+                || peerConnection.iceConnectionState === 'closed';
+        }
+
+        function teardown(peerId, peerConnection) {
+            if (!isCurrentPeer(peerId, peerConnection)) {
+                forget(peerConnection);
+                return;
+            }
+            forget(peerConnection);
+            if (typeof options.teardownPeer === 'function') {
+                options.teardownPeer(peerId, peerConnection);
+            }
+        }
+
+        function scheduleFinalCheck(peerId, peerConnection, state) {
+            clearScheduledTimer(state);
+            state.timer = setTimer(() => {
+                state.timer = null;
+                if (!isCurrentPeer(peerId, peerConnection)) {
+                    forget(peerConnection);
+                    return;
+                }
+                if (isConnected(peerConnection)) {
+                    state.recoveryAttempted = false;
+                    return;
+                }
+                teardown(peerId, peerConnection);
+            }, recoveryGraceMs);
+        }
+
+        function beginRecovery(peerId, peerConnection, state) {
+            if (state.recoveryAttempted || !isCurrentPeer(peerId, peerConnection)) return;
+            state.recoveryAttempted = true;
+            try {
+                Promise.resolve(options.restartPeer?.(peerId, peerConnection)).catch(() => {});
+            } catch (_error) {}
+            scheduleFinalCheck(peerId, peerConnection, state);
+        }
+
+        function observe(peerId, peerConnection) {
+            if (!peerConnection || typeof peerConnection !== 'object') return;
+            if (!isCurrentPeer(peerId, peerConnection) || isClosed(peerConnection)) {
+                forget(peerConnection);
+                return;
+            }
+            const state = stateFor(peerConnection);
+            const failed = peerConnection.connectionState === 'failed'
+                || peerConnection.iceConnectionState === 'failed';
+            if (failed) {
+                if (!state.recoveryAttempted) {
+                    clearScheduledTimer(state);
+                    beginRecovery(peerId, peerConnection, state);
+                }
+                return;
+            }
+
+            const disconnected = peerConnection.connectionState === 'disconnected'
+                || peerConnection.iceConnectionState === 'disconnected';
+            if (disconnected) {
+                beginRecovery(peerId, peerConnection, state);
+                return;
+            }
+
+            if (isConnected(peerConnection)) {
+                clearScheduledTimer(state);
+                state.recoveryAttempted = false;
+            }
+        }
+
+        return { forget, observe };
+    }
+
     function createVideoClient(options = {}) {
         let apiBaseUrl = options.apiBaseUrl || '';
         let lifecycleGeneration = 0;
@@ -311,6 +429,7 @@
     }
 
     (/** @type {any} */ (global)).HalastudyVideoClient = {
-        createVideoClient
+        createVideoClient,
+        createMeshPeerRecoveryController
     };
 })(window);
