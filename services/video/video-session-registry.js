@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 
 const DEFAULT_STALE_AFTER_MS = 150000;
+const DEFAULT_ENDED_CAPACITY = 200;
 
 function createSessionKey(roomId, userId, videoSessionId) {
     return `${roomId || ''}:${userId || ''}:${videoSessionId || ''}`;
@@ -10,7 +11,9 @@ function createVideoSessionRegistry(options = {}) {
     const staleAfterMs = options.staleAfterMs || DEFAULT_STALE_AFTER_MS;
     const now = options.now || (() => Date.now());
     const logger = options.logger || null;
+    const endedCapacity = options.endedCapacity || DEFAULT_ENDED_CAPACITY;
     const sessions = new Map();
+    const endedSessionKeys = [];
 
     function listActive() {
         return Array.from(sessions.values()).filter((session) => !session.leftAt);
@@ -76,6 +79,11 @@ function createVideoSessionRegistry(options = {}) {
             durationSeconds: Math.max(0, Math.round((leftAt - session.joinedAt) / 1000))
         };
         sessions.set(session.key, next);
+        endedSessionKeys.push(session.key);
+        while (endedSessionKeys.length > endedCapacity) {
+            const expiredKey = endedSessionKeys.shift();
+            if (expiredKey) sessions.delete(expiredKey);
+        }
         logger?.info({
             event: 'video_session_ended',
             provider: next.provider,

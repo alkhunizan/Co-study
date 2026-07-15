@@ -30,6 +30,7 @@ const { createSupabaseClient } = require('./services/supabase/client');
 const { createSupabaseUserStore } = require('./supabase-user-store');
 const { createVideoProvider } = require('./services/video');
 const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
+const { SlidingWindowRateLimiter } = require('./services/security/bounded-rate-limiter');
 const {
     buildScheduleSummary,
     normalizeSchedule,
@@ -91,68 +92,6 @@ const REPORT_RATE = { limit: 3, windowMs: 60 * 1000 };
 const REPORT_REASONS = ['spam', 'harassment', 'inappropriate', 'other'];
 const REPORT_DETAIL_MAX_LENGTH = 200;
 const ROOM_REPORTS_LIMIT = 50;
-
-class SlidingWindowRateLimiter {
-    constructor({ limit, windowMs }) {
-        this.limit = limit;
-        this.windowMs = windowMs;
-        this.entries = new Map();
-    }
-
-    prune(key, now = Date.now()) {
-        const timestamps = this.entries.get(key) || [];
-        const active = timestamps.filter((timestamp) => now - timestamp < this.windowMs);
-        if (active.length > 0) {
-            this.entries.set(key, active);
-        } else {
-            this.entries.delete(key);
-        }
-        return active;
-    }
-
-    check(key, now = Date.now()) {
-        if (!key) {
-            return { allowed: true, remaining: this.limit, retryAfterMs: 0 };
-        }
-
-        const active = this.prune(key, now);
-        if (active.length >= this.limit) {
-            const retryAfterMs = Math.max(0, this.windowMs - (now - active[0]));
-            return { allowed: false, remaining: 0, retryAfterMs };
-        }
-
-        return {
-            allowed: true,
-            remaining: Math.max(0, this.limit - active.length),
-            retryAfterMs: 0
-        };
-    }
-
-    consume(key, now = Date.now()) {
-        if (!key) {
-            return { allowed: true, remaining: this.limit, retryAfterMs: 0 };
-        }
-
-        const active = this.prune(key, now);
-        if (active.length >= this.limit) {
-            const retryAfterMs = Math.max(0, this.windowMs - (now - active[0]));
-            return { allowed: false, remaining: 0, retryAfterMs };
-        }
-
-        active.push(now);
-        this.entries.set(key, active);
-        return {
-            allowed: true,
-            remaining: Math.max(0, this.limit - active.length),
-            retryAfterMs: 0
-        };
-    }
-
-    reset(key) {
-        if (!key) return;
-        this.entries.delete(key);
-    }
-}
 
 function normalizeIp(ip = '') {
     if (typeof ip !== 'string') return 'unknown';
