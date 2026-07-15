@@ -6,6 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { version } = require('../../package.json');
+const { createEncryptedBackupArtifact } = require('../../services/ops/backup-artifact');
 const { validateDeploymentUrl, verifyDeployment } = require('../../scripts/deploy-verifier');
 const { loadVerificationEnvFile, parseArguments } = require('../../scripts/verify-deploy');
 const {
@@ -14,6 +15,7 @@ const {
 } = require('../../scripts/cloudflare/realtimekit-setup');
 
 const FIXED_NOW = Date.parse('2026-07-15T04:00:00.000Z');
+const BACKUP_KEY = Buffer.alloc(32, 9).toString('base64');
 
 function sendJson(res, status, body, headers = {}) {
     res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
@@ -143,16 +145,12 @@ async function startRealtimeKitFixture({ driftViewer = false } = {}) {
 function createBackupFixture(timestamp = '2026-07-15T033000Z', artifactOverride = null) {
     const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-deploy-backup-'));
     const fileName = `halastudy-${timestamp}-fixture.hsbackup`;
-    const artifact = artifactOverride || {
-        format: 'halastudy-encrypted-backup',
-        artifactVersion: 1,
-        encryption: {
-            algorithm: 'AES-256-GCM',
-            iv: Buffer.alloc(12, 1).toString('base64'),
-            authTag: Buffer.alloc(16, 2).toString('base64')
-        },
-        ciphertext: Buffer.from('encrypted-fixture').toString('base64')
-    };
+    const artifact = artifactOverride || createEncryptedBackupArtifact({
+        datasets: { rooms: [{ id: 'BACKUP-FIXTURE' }] },
+        encryptionKey: BACKUP_KEY,
+        createdAt: new Date(FIXED_NOW - 30 * 60 * 1000),
+        randomBytes: () => Buffer.alloc(12, 1)
+    });
     fs.writeFileSync(path.join(backupDir, fileName), `${JSON.stringify(artifact)}\n`);
     return {
         backupDir,
@@ -173,6 +171,7 @@ function operationalEnv(realtimeKit, backup) {
         VIDEO_DEFAULT_PRESET_NAME: 'halastudy_student',
         VIDEO_VIEWER_PRESET_NAME: 'halastudy_viewer',
         ROOM_STATE_BACKUP_DIR: backup.backupDir,
+        BACKUP_ENCRYPTION_KEY: BACKUP_KEY,
         DEPLOY_VERIFY_MAX_BACKUP_AGE_HOURS: '2'
     };
 }
@@ -362,6 +361,28 @@ test('deployment verification rejects an incomplete encrypted backup artifact', 
     );
 });
 
+test('deployment verification authenticates and checksum-validates the newest backup', async (t) => {
+    const deployment = await startDeploymentFixture();
+    const realtimeKit = await startRealtimeKitFixture();
+    const backup = createBackupFixture();
+    const artifactPath = path.join(backup.backupDir, backup.fileName);
+    const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+    artifact.ciphertext = `${artifact.ciphertext[0] === 'A' ? 'B' : 'A'}${artifact.ciphertext.slice(1)}`;
+    fs.writeFileSync(artifactPath, `${JSON.stringify(artifact)}\n`);
+    t.after(deployment.close);
+    t.after(realtimeKit.close);
+    t.after(backup.close);
+
+    await assert.rejects(
+        () => verifyDeployment(deployment.baseUrl, {
+            requireOperationalChecks: true,
+            env: operationalEnv(realtimeKit, backup),
+            now: () => FIXED_NOW
+        }),
+        /Backup authentication failed|checksum mismatch/i
+    );
+});
+
 test('deployment verifier CLI uses an explicit env file without importing unrelated secrets', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-deploy-env-'));
     const envFile = path.join(directory, 'service.env');
@@ -369,6 +390,7 @@ test('deployment verifier CLI uses an explicit env file without importing unrela
         'CLOUDFLARE_ACCOUNT_ID=account-from-file',
         'CLOUDFLARE_REALTIMEKIT_API_TOKEN=token-from-file',
         'ROOM_STATE_BACKUP_DIR="/var/lib/halastudy/backups"',
+        `BACKUP_ENCRYPTION_KEY=${BACKUP_KEY}`,
         'SESSION_SECRET=must-not-be-imported'
     ].join('\n'));
     try {
@@ -386,6 +408,7 @@ test('deployment verifier CLI uses an explicit env file without importing unrela
         assert.equal(loaded.CLOUDFLARE_ACCOUNT_ID, 'account-from-file');
         assert.equal(loaded.CLOUDFLARE_REALTIMEKIT_API_TOKEN, 'shell-token');
         assert.equal(loaded.ROOM_STATE_BACKUP_DIR, '/var/lib/halastudy/backups');
+        assert.equal(loaded.BACKUP_ENCRYPTION_KEY, BACKUP_KEY);
         assert.equal(loaded.SESSION_SECRET, undefined);
     } finally {
         fs.rmSync(directory, { recursive: true, force: true });

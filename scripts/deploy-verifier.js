@@ -3,6 +3,7 @@ const http = require('node:http');
 const https = require('node:https');
 const path = require('node:path');
 const { version: DEFAULT_EXPECTED_VERSION } = require('../package.json');
+const { decryptBackupArtifact, parseBackupEncryptionKey } = require('../services/ops/backup-artifact');
 const {
     DEFAULT_VIEWER_PRESET_NAME,
     PRESET_KINDS,
@@ -156,6 +157,9 @@ function resolveOperationalConfig(env, baseUrl) {
     if (!backupDir || !path.isAbsolute(backupDir)) {
         throw new Error('Deployment verification requires an absolute ROOM_STATE_BACKUP_DIR.');
     }
+    const backupEncryptionKey = requiredConfig(env, 'BACKUP_ENCRYPTION_KEY');
+    const validatedBackupKey = parseBackupEncryptionKey(backupEncryptionKey);
+    validatedBackupKey.fill(0);
     return {
         accountId,
         appId,
@@ -164,6 +168,7 @@ function resolveOperationalConfig(env, baseUrl) {
         studentPresetName,
         viewerPresetName,
         backupDir: path.resolve(backupDir),
+        backupEncryptionKey,
         maxBackupAgeHours: parsePositiveHours(env?.DEPLOY_VERIFY_MAX_BACKUP_AGE_HOURS)
     };
 }
@@ -241,7 +246,7 @@ function isCanonicalBase64Text(value) {
         && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value);
 }
 
-function assertCompletedBackupArtifact(filePath, stat) {
+function assertCompletedBackupArtifact(filePath, stat, encryptionKey) {
     if (!stat.isFile() || stat.size <= 0 || stat.size > MAX_BACKUP_ARTIFACT_BYTES) {
         throw new Error('Last successful backup artifact has an invalid size.');
     }
@@ -260,6 +265,7 @@ function assertCompletedBackupArtifact(filePath, stat) {
         || !isCanonicalBase64Text(artifact.ciphertext)) {
         throw new Error('Last successful backup artifact is incomplete or unsupported.');
     }
+    decryptBackupArtifact({ artifact, encryptionKey });
 }
 
 function parseBackupTimestamp(match) {
@@ -296,7 +302,7 @@ function verifyLastSuccessfulBackup(config, nowValue = Date.now) {
     } catch (_error) {
         throw new Error('Last successful backup artifact is unavailable.');
     }
-    assertCompletedBackupArtifact(filePath, stat);
+    assertCompletedBackupArtifact(filePath, stat, config.backupEncryptionKey);
     const now = typeof nowValue === 'function' ? Number(nowValue()) : Number(nowValue);
     if (!Number.isFinite(now)) throw new Error('Deployment verification clock is invalid.');
     const ageMs = now - latest.parsed;
