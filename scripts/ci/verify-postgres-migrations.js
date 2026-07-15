@@ -85,6 +85,124 @@ function createSupabaseRoleSql() {
     ].join('\n');
 }
 
+function createPostMigrationAssertionSql() {
+    return `
+do $assertions$
+declare
+    first_completion record;
+    replayed_completion record;
+    blocked boolean := false;
+    protected_table_count integer;
+begin
+    select count(*) into protected_table_count
+    from pg_catalog.pg_class
+    where oid in (
+        'public.profiles'::regclass,
+        'public.focus_sessions'::regclass,
+        'public.focus_completion_claims'::regclass,
+        'public.room_events'::regclass,
+        'public.deletion_tombstones'::regclass
+    ) and relrowsecurity and relforcerowsecurity;
+    if protected_table_count <> 5 then
+        raise exception 'expected five FORCE RLS tables, found %', protected_table_count;
+    end if;
+    if has_table_privilege('anon', 'public.profiles', 'select')
+       or has_table_privilege('authenticated', 'public.profiles', 'select') then
+        raise exception 'public API roles retained direct profile access';
+    end if;
+    if not has_table_privilege('service_role', 'public.profiles', 'select,insert,update,delete') then
+        raise exception 'service_role profile access is missing';
+    end if;
+    if to_regprocedure(
+        'public.record_focus_completion_v2(uuid,jsonb,integer,integer,date,text,integer,date)'
+    ) is null or to_regprocedure(
+        'public.delete_profile_with_tombstone(uuid,timestamp with time zone)'
+    ) is null then
+        raise exception 'required durable RPCs are missing';
+    end if;
+
+    insert into public.profiles (
+        id, email, password_hash, password_enabled, display_name
+    ) values (
+        '00000000-0000-4000-8000-000000000001',
+        'migration-gate@example.invalid',
+        'test-only:hash',
+        true,
+        'Migration Gate'
+    );
+
+    select * into first_completion
+    from public.record_focus_completion_v2(
+        '00000000-0000-4000-8000-000000000001',
+        '{"days":{},"totalFocusMinutes":0,"totalSessions":0,"completions":[]}'::jsonb,
+        0,
+        0,
+        null,
+        'migration-zero-claim',
+        0,
+        current_date
+    );
+    select * into replayed_completion
+    from public.record_focus_completion_v2(
+        '00000000-0000-4000-8000-000000000001',
+        '{"days":{},"totalFocusMinutes":999,"totalSessions":999,"completions":[]}'::jsonb,
+        99,
+        99,
+        current_date,
+        'migration-zero-claim',
+        200,
+        current_date
+    );
+    if first_completion.duplicate or first_completion.accepted_minutes <> 0
+       or not replayed_completion.duplicate or replayed_completion.accepted_minutes <> 0 then
+        raise exception 'focus completion claim/replay contract failed';
+    end if;
+
+    perform public.delete_profile_with_tombstone(
+        '00000000-0000-4000-8000-000000000001',
+        now()
+    );
+    if exists (
+        select 1 from public.profiles
+        where id = '00000000-0000-4000-8000-000000000001'
+    ) then
+        raise exception 'durable deletion left the profile live';
+    end if;
+    begin
+        insert into public.profiles (
+            id, email, password_hash, password_enabled, display_name
+        ) values (
+            '00000000-0000-4000-8000-000000000001',
+            'migration-gate@example.invalid',
+            'test-only:hash',
+            true,
+            'Migration Gate'
+        );
+    exception when others then
+        blocked := true;
+    end;
+    if not blocked then
+        raise exception 'current tombstone allowed profile resurrection';
+    end if;
+
+    update public.deletion_tombstones
+    set deleted_at = now() - interval '31 days',
+        expires_at = now() - interval '1 day'
+    where user_id = '00000000-0000-4000-8000-000000000001';
+    insert into public.profiles (
+        id, email, password_hash, password_enabled, display_name
+    ) values (
+        '00000000-0000-4000-8000-000000000001',
+        'migration-gate@example.invalid',
+        'test-only:hash',
+        true,
+        'Migration Gate'
+    );
+end
+$assertions$;
+`;
+}
+
 function psqlArguments(containerName) {
     return [
         'exec',
@@ -171,6 +289,10 @@ function verifyPostgresMigrationsApply({
             }
         }
 
+        executeDocker(psqlArguments(containerName), {
+            input: Buffer.from(createPostMigrationAssertionSql(), 'utf8')
+        });
+
         const report = {
             files: migrations.length,
             image: POSTGRES_IMAGE,
@@ -202,6 +324,7 @@ module.exports = {
     POSTGRES_IMAGE,
     REQUIRED_SUPABASE_ROLES,
     createSupabaseRoleSql,
+    createPostMigrationAssertionSql,
     executeDockerCommand,
     listMigrationFiles,
     verifyPostgresMigrationsApply

@@ -8,6 +8,7 @@ const {
     MIGRATION_PASSES,
     POSTGRES_IMAGE,
     REQUIRED_SUPABASE_ROLES,
+    createPostMigrationAssertionSql,
     createSupabaseRoleSql,
     listMigrationFiles,
     verifyPostgresMigrationsApply
@@ -23,6 +24,12 @@ test('PostgreSQL migration validation uses a pinned Postgres 16 Alpine image and
         assert.match(roleSql, new RegExp(`create role ${role}\\b`, 'i'));
     }
     assert.match(roleSql, /alter role service_role bypassrls/i);
+
+    const assertionSql = createPostMigrationAssertionSql();
+    assert.match(assertionSql, /relrowsecurity and relforcerowsecurity/i);
+    assert.match(assertionSql, /record_focus_completion_v2/i);
+    assert.match(assertionSql, /delete_profile_with_tombstone/i);
+    assert.match(assertionSql, /current tombstone allowed profile resurrection/i);
 });
 
 test('migration discovery is lexical, SQL-only, and rejects an empty directory', () => {
@@ -101,10 +108,12 @@ test('successful migration validation makes two ordered passes', () => {
 
     const applied = [];
     let readinessProbes = 0;
+    let assertionRuns = 0;
     const executeDocker = (args, options = {}) => {
         const input = options.input?.toString('utf8') || '';
         if (args.includes('pg_isready')) readinessProbes += 1;
         if (/select [12];/.test(input)) applied.push(input.trim());
+        if (input.includes('focus completion claim/replay contract failed')) assertionRuns += 1;
         return { status: 0, stderr: '', stdout: '' };
     };
 
@@ -117,6 +126,7 @@ test('successful migration validation makes two ordered passes', () => {
         });
 
         assert.deepEqual(applied, ['select 1;', 'select 2;', 'select 1;', 'select 2;']);
+        assert.equal(assertionRuns, 1);
         assert.ok(readinessProbes >= 2, 'PostgreSQL readiness must be stable across multiple probes');
         assert.equal(report.files, 2);
         assert.equal(report.passes, 2);
