@@ -35,7 +35,7 @@ test('R2 upload selection fails closed when no encrypted artifact exists', (t) =
 function encryptedObject(day, time = '021500', nonce = 'run') {
     return {
         key: `encrypted/halastudy-2026-07-${String(day).padStart(2, '0')}T${time}Z-${nonce}.hsbackup`,
-        lastModified: `2026-07-${String(day).padStart(2, '0')}T02:15:00.000Z`
+        lastModified: `2026-07-${String(day).padStart(2, '0')}T${time.slice(0, 2)}:${time.slice(2, 4)}:${time.slice(4, 6)}.000Z`
     };
 }
 
@@ -88,4 +88,33 @@ test('R2 retention dry-run cannot delete and apply requires the fixed automated 
     assert.equal(applied.mode, 'applied');
     assert.equal(calls.filter(([name]) => name === 'delete').length, 1);
     assert.ok(calls.at(-1)[2].startsWith('encrypted/halastudy-'));
+});
+
+test('R2 retention rejects future-dated keys before deleting any valid artifact', async () => {
+    const calls = [];
+    const objects = Array.from({ length: 8 }, (_, index) => encryptedObject(index + 1));
+    objects.push({
+        key: 'encrypted/halastudy-2099-01-01T021500Z-clock-skew.hsbackup',
+        lastModified: '2026-07-15T02:15:00.000Z'
+    });
+    const client = {
+        async listObjectsDetailed() {
+            calls.push(['list']);
+            return objects;
+        },
+        async deleteObject(_bucket, key) {
+            calls.push(['delete', key]);
+        }
+    };
+
+    await assert.rejects(
+        executeR2Retention({
+            client,
+            bucket: 'backups',
+            apply: true,
+            scope: R2_RETENTION_SCOPE
+        }),
+        /future-dated artifact timestamp/i
+    );
+    assert.deepEqual(calls, [['list']]);
 });

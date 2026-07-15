@@ -12,6 +12,15 @@ const R2_ENCRYPTED_PREFIX = 'encrypted/';
 const R2_ARTIFACT_PATTERN = /^encrypted\/halastudy-(\d{4}-\d{2}-\d{2})T(\d{2})(\d{2})(\d{2})Z-[A-Za-z0-9-]+\.hsbackup$/;
 const R2_RETENTION_DAYS = 7;
 const R2_RETENTION_SCOPE = 'encrypted-daily-backups';
+const R2_TIMESTAMP_FUTURE_SKEW_MS = 5 * 60 * 1000;
+const REQUIRED_R2_BACKUP_SOURCES = [
+    'profiles',
+    'deletion_tombstones',
+    'focus_completion_claims',
+    'focus_sessions',
+    'room_events',
+    'rooms'
+];
 
 /** @param {any} client @param {string} bucket @param {{log(...args: any[]): void}} logger */
 async function runCheck(client, bucket, logger = console) {
@@ -45,6 +54,15 @@ function planR2Retention(objects) {
         const parsedTimestamp = new Date(timestamp);
         if (!Number.isFinite(parsedTimestamp.getTime()) || parsedTimestamp.toISOString() !== timestamp) {
             throw new Error(`R2 retention found an invalid artifact timestamp: ${object.key}.`);
+        }
+        const lastModified = typeof object.lastModified === 'string'
+            ? Date.parse(object.lastModified)
+            : Number.NaN;
+        if (!Number.isFinite(lastModified)) {
+            throw new Error(`R2 retention found invalid LastModified metadata: ${object.key}.`);
+        }
+        if (parsedTimestamp.getTime() > lastModified + R2_TIMESTAMP_FUTURE_SKEW_MS) {
+            throw new Error(`R2 retention found a future-dated artifact timestamp: ${object.key}.`);
         }
         matching.push({ key: object.key, day: match[1] });
     }
@@ -113,6 +131,18 @@ function findLatestEncryptedArtifact(backupDir) {
     return path.join(resolvedDir, latest);
 }
 
+function assertCompleteR2Backup(bundle) {
+    const missingOrFailed = [...new Set([
+        ...REQUIRED_R2_BACKUP_SOURCES.filter((name) => !Object.hasOwn(bundle.datasets, name)),
+        ...bundle.manifest.failedSources
+    ])];
+    if (missingOrFailed.length > 0) {
+        throw new Error(
+            `R2 backup artifact is incomplete; missing or failed sources: ${missingOrFailed.join(', ')}.`
+        );
+    }
+}
+
 /**
  * @param {{
  *   args?: string[],
@@ -154,7 +184,8 @@ async function main({
     const body = fs.readFileSync(artifactPath);
     const encryptionKey = parseBackupEncryptionKey(env.BACKUP_ENCRYPTION_KEY);
     try {
-        decryptBackupArtifact({ artifact: body, encryptionKey });
+        const bundle = decryptBackupArtifact({ artifact: body, encryptionKey });
+        assertCompleteR2Backup(bundle);
     } finally {
         encryptionKey.fill(0);
     }
