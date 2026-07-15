@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { createTestContext, gotoTestPage, test, expect } = require('../helpers/playwright-test');
 
 const { startServer } = require('../helpers/server-control');
 
@@ -7,7 +7,7 @@ let smokeIpCounter = 10;
 async function createSmokePage(browser) {
     const forwardedIp = `203.0.113.${smokeIpCounter}`;
     smokeIpCounter += 1;
-    const context = await browser.newContext({
+    const context = await createTestContext(browser, {
         permissions: [],
         extraHTTPHeaders: {
             'x-forwarded-for': forwardedIp
@@ -60,7 +60,7 @@ async function createRoomFromLanding(page, options = {}) {
     } = options;
 
     // /open.html holds the create/join forms; / is editorial marketing only as of 2026-05-17.
-    await page.goto('/open.html');
+    await gotoTestPage(page, '/open.html');
     await expect(page.locator('#create-form')).toBeVisible();
 
     await page.fill('#room-name', roomName);
@@ -186,7 +186,7 @@ test('landing creates a protected room and join flow enforces passwords', async 
             password: 'smoke123'
         });
 
-        await guest.page.goto(`/index.html?room=${roomCode}`);
+        await gotoTestPage(guest.page, `/index.html?room=${roomCode}`);
         await expect(guest.page.locator('#join-room')).toHaveValue(roomCode);
 
         await joinRoom(guest.page, { name: 'Guest', roomCode });
@@ -227,7 +227,7 @@ test('chat and shared board stay in sync across two participants', async ({ brow
             wrap: 'wrap'
         });
 
-        await peer.page.goto(`/index.html?room=${roomCode}`);
+        await gotoTestPage(peer.page, `/index.html?room=${roomCode}`);
         await joinRoom(peer.page, {
             name: 'Peer',
             roomCode
@@ -300,7 +300,7 @@ test('timer preset chips apply durations and session goal syncs to peers', async
         await expect(owner.page.locator('#btn-toggle')).toHaveText('▶');
 
         // Session goal propagates to the peer's participant list.
-        await peer.page.goto(`/index.html?room=${roomCode}`);
+        await gotoTestPage(peer.page, `/index.html?room=${roomCode}`);
         await joinRoom(peer.page, { name: 'Peer', roomCode });
         await expectJoined(peer.page);
 
@@ -321,7 +321,7 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
     const browser = await playwright.chromium.launch({
         args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
     });
-    const context = await browser.newContext({
+    const context = await createTestContext(browser, {
         baseURL: server.baseUrl,
         permissions: ['camera']
     });
@@ -515,7 +515,7 @@ test('five participants can join a default RealtimeKit room shell', async ({ bro
             if (index === 0) {
                 await actor.page.click('#btn-enter-room');
             } else {
-                await actor.page.goto(`/index.html?room=${roomCode}`);
+                await gotoTestPage(actor.page, `/index.html?room=${roomCode}`);
             }
             await joinRoom(actor.page, {
                 name: `User ${index + 1}`,
@@ -524,7 +524,7 @@ test('five participants can join a default RealtimeKit room shell', async ({ bro
             await expectJoined(actor.page);
         }
 
-        await users[4].page.goto(`/index.html?room=${roomCode}`);
+        await gotoTestPage(users[4].page, `/index.html?room=${roomCode}`);
         await joinRoom(users[4].page, {
             name: 'User 5',
             roomCode

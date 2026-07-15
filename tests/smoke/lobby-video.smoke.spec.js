@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { createTestContext, gotoTestPage, test, expect } = require('../helpers/playwright-test');
 
 const { startServer } = require('../helpers/server-control');
 
@@ -127,7 +127,7 @@ function captureBrowserErrors(page) {
 
 test('Lobby binds its shared video lifecycle to the socket membership and server session', async ({ browser }) => {
     const server = await startServer({ withFakeRealtimeKit: true });
-    const context = await browser.newContext({ permissions: [] });
+    const context = await createTestContext(browser, { permissions: [] });
     const page = await context.newPage();
     const membershipToken = 'membership-lobby-smoke';
     const videoSessionId = 'video-session-lobby-smoke';
@@ -145,7 +145,7 @@ test('Lobby binds its shared video lifecycle to the socket membership and server
         const videoRequests = await installVideoContract(page, videoSessionId);
         const browserErrors = captureBrowserErrors(page);
 
-        await page.goto(`${server.baseUrl}/lobby`);
+        await gotoTestPage(page, `${server.baseUrl}/lobby`);
         await expect.poll(() => page.evaluate(
             () => (/** @type {any} */ (window)).__fakeMedia?.joins || 0
         )).toBe(1);
@@ -156,7 +156,7 @@ test('Lobby binds its shared video lifecycle to the socket membership and server
             role: 'viewer'
         });
 
-        await page.goto('about:blank');
+        await gotoTestPage(page, 'about:blank');
         await expect.poll(
             () => videoRequests.filter((request) => request.pathname.endsWith('/video-leave')).length
         ).toBe(1);
@@ -171,7 +171,7 @@ test('Lobby binds its shared video lifecycle to the socket membership and server
 
 test('study room binds its shared video lifecycle to the socket membership and server session', async ({ browser }) => {
     const server = await startServer({ withFakeRealtimeKit: true });
-    const context = await browser.newContext({ permissions: [] });
+    const context = await createTestContext(browser, { permissions: [] });
     const page = await context.newPage();
     const membershipToken = 'membership-room-smoke';
     const videoSessionId = 'video-session-room-smoke';
@@ -188,7 +188,7 @@ test('study room binds its shared video lifecycle to the socket membership and s
         const videoRequests = await installVideoContract(page, videoSessionId);
         const browserErrors = captureBrowserErrors(page);
 
-        await page.goto(`${server.baseUrl}/open.html`);
+        await gotoTestPage(page, `${server.baseUrl}/open.html`);
         await page.fill('#room-name', 'Membership Video Smoke');
         await page.click('#create-form button[type="submit"]');
         await expect(page.locator('#create-result')).toBeVisible();
@@ -210,7 +210,7 @@ test('study room binds its shared video lifecycle to the socket membership and s
             role: 'student'
         });
 
-        await page.goto('about:blank');
+        await gotoTestPage(page, 'about:blank');
         await expect.poll(
             () => videoRequests.filter((request) => request.pathname.endsWith('/video-leave')).length
         ).toBe(1);

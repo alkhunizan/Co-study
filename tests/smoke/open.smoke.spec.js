@@ -1,11 +1,11 @@
-const { test, expect } = require('@playwright/test');
+const { createTestContext, gotoTestPage, test, expect, waitForTestUrl } = require('../helpers/playwright-test');
 
 let openIpCounter = 60;
 
 async function createOpenPage(browser) {
     const forwardedIp = `203.0.113.${openIpCounter}`;
     openIpCounter += 1;
-    const context = await browser.newContext({
+    const context = await createTestContext(browser, {
         permissions: [],
         extraHTTPHeaders: {
             'x-forwarded-for': forwardedIp
@@ -39,7 +39,7 @@ test('created room password hands off to the workspace without a re-prompt', asy
 
     try {
         const { page } = creator;
-        await page.goto('/open.html');
+        await gotoTestPage(page, '/open.html');
         await expect(page.locator('#create-form')).toBeVisible();
 
         await page.fill('#room-name', 'Handoff Smoke Room');
@@ -52,7 +52,7 @@ test('created room password hands off to the workspace without a re-prompt', asy
         expect(roomCode).toMatch(/^[A-Z0-9]{6}$/);
 
         await page.click('#btn-enter-room');
-        await page.waitForURL(/\/index\.html\?room=/);
+        await waitForTestUrl(page, /\/index\.html\?room=/);
 
         // The workspace reads the new halastudy* keys — the open page must
         // write them, or every protected-room creator gets re-prompted.
@@ -85,11 +85,11 @@ test('join hash and ?room= deep link open the join form pre-filled', async ({ br
 
     try {
         const { page } = visitor;
-        await page.goto('/open.html#join');
+        await gotoTestPage(page, '/open.html#join');
         await expect(page.locator('#join-form')).toBeVisible();
         await expect(page.locator('#create-form')).toBeHidden();
 
-        await page.goto('/open.html?room=ABC123');
+        await gotoTestPage(page, '/open.html?room=ABC123');
         await expect(page.locator('#join-form')).toBeVisible();
         await expect(page.locator('#join-code')).toHaveValue('ABC123');
     } finally {
