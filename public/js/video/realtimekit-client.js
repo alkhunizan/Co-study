@@ -5,6 +5,33 @@
     const UI_LOADER_URL = `https://cdn.jsdelivr.net/npm/@cloudflare/realtimekit-ui@${REALTIMEKIT_VERSION}/loader/index.es2017.js`;
     const CORE_SDK_URL = `https://cdn.jsdelivr.net/npm/@cloudflare/realtimekit@${REALTIMEKIT_VERSION}/dist/browser.js`;
     const SDK_LOAD_TIMEOUT_MS = 15000;
+    const LOCAL_MEDIA_FIELDS = [
+        'audioTrack',
+        'videoTrack',
+        'screenShareTrack',
+        'screenShareTracks',
+        'screenshareTrack',
+        'screenshareTracks',
+        'screenShareAudioTrack',
+        'screenShareVideoTrack',
+        'mediaStream',
+        'audioStream',
+        'videoStream',
+        'screenShareStream',
+        'screenshareStream',
+        'tracks'
+    ];
+    const NESTED_MEDIA_FIELDS = [
+        'track',
+        'audio',
+        'video',
+        'audioTrack',
+        'videoTrack',
+        'screenShareTrack',
+        'screenShareTracks',
+        'screenshareTrack',
+        'screenshareTracks'
+    ];
     let sdkLoadPromise = null;
     const meetingMountPoints = new WeakMap();
 
@@ -107,6 +134,7 @@
     }
 
     function unmountMeetingElement(meetingElement) {
+        if (!meetingElement) return;
         try {
             meetingElement.meeting = null;
         } catch (_error) {}
@@ -119,21 +147,165 @@
         } catch (_error) {}
     }
 
-    async function disconnectMeeting(meeting) {
-        const methods = ['leaveRoom', 'leave', 'disconnect'];
-        for (const method of methods) {
-            if (meeting && typeof meeting[method] === 'function') {
-                await meeting[method]();
-                return;
-            }
+    function localParticipants(meeting) {
+        const participants = [];
+        for (const participant of [readProperty(meeting, 'self'), readProperty(meeting, 'localUser')]) {
+            if (!participant || (typeof participant !== 'object' && typeof participant !== 'function')) continue;
+            if (!participants.includes(participant)) participants.push(participant);
+        }
+        return participants;
+    }
+
+    function readProperty(target, property) {
+        try {
+            return target?.[property];
+        } catch (_error) {
+            return undefined;
         }
     }
 
-    function createIdempotentLeave(meeting, afterLeave = () => {}) {
+    function collectTracksFromValue(value, tracks, visited) {
+        if (!value || (typeof value !== 'object' && typeof value !== 'function')) return;
+        if (visited.has(value)) return;
+        visited.add(value);
+
+        const kind = readProperty(value, 'kind');
+        if ((kind === 'audio' || kind === 'video') && typeof readProperty(value, 'stop') === 'function') {
+            tracks.add(value);
+            return;
+        }
+
+        const getTracks = readProperty(value, 'getTracks');
+        if (typeof getTracks === 'function') {
+            try {
+                for (const track of getTracks.call(value) || []) {
+                    collectTracksFromValue(track, tracks, visited);
+                }
+            } catch (_error) {}
+        }
+
+        if (Array.isArray(value)) {
+            for (const item of value) collectTracksFromValue(item, tracks, visited);
+            return;
+        }
+
+        for (const field of NESTED_MEDIA_FIELDS) {
+            collectTracksFromValue(readProperty(value, field), tracks, visited);
+        }
+    }
+
+    function collectLocalTracks(meeting) {
+        const tracks = new Set();
+        const visited = new Set();
+        for (const participant of localParticipants(meeting)) {
+            for (const field of LOCAL_MEDIA_FIELDS) {
+                collectTracksFromValue(readProperty(participant, field), tracks, visited);
+            }
+        }
+        return tracks;
+    }
+
+    function stopTracks(tracks, stoppedTracks = new Set()) {
+        for (const track of tracks) {
+            if (stoppedTracks.has(track)) continue;
+            stoppedTracks.add(track);
+            try {
+                track.stop();
+            } catch (_error) {}
+        }
+        return stoppedTracks;
+    }
+
+    function disableLocalMedia(meeting) {
+        const operations = [];
+        for (const participant of localParticipants(meeting)) {
+            for (const method of ['disableScreenShare', 'disableVideo', 'disableAudio']) {
+                const disable = readProperty(participant, method);
+                if (typeof disable !== 'function') continue;
+                try {
+                    operations.push(Promise.resolve(disable.call(participant)));
+                } catch (error) {
+                    operations.push(Promise.reject(error));
+                }
+            }
+        }
+        return Promise.allSettled(operations);
+    }
+
+    async function releaseLocalMedia(meeting) {
+        const tracks = collectLocalTracks(meeting);
+        const disablePromise = disableLocalMedia(meeting);
+        // Stop capture synchronously. Provider RPCs may reject or never settle,
+        // but the camera, microphone, and display capture must still turn off.
+        const stoppedTracks = stopTracks(tracks);
+        await disablePromise;
+        for (const track of collectLocalTracks(meeting)) tracks.add(track);
+        stopTracks(tracks, stoppedTracks);
+    }
+
+    function meetingOwnsFullscreen(meetingElement, fullscreenElement) {
+        if (!meetingElement || !fullscreenElement) return false;
+        if (meetingElement === fullscreenElement) return true;
+        try {
+            return typeof meetingElement.contains === 'function'
+                && meetingElement.contains(fullscreenElement);
+        } catch (_error) {
+            return false;
+        }
+    }
+
+    function clearMeetingFullscreen(meetingElement) {
+        const documentAny = /** @type {any} */ (document);
+        let fullscreenElement = null;
+        try {
+            fullscreenElement = document.fullscreenElement || documentAny.webkitFullscreenElement;
+        } catch (_error) {
+            return Promise.resolve();
+        }
+        if (!meetingOwnsFullscreen(meetingElement, fullscreenElement)) return Promise.resolve();
+        let exitFullscreen = null;
+        try {
+            exitFullscreen = document.exitFullscreen || documentAny.webkitExitFullscreen;
+        } catch (_error) {
+            return Promise.resolve();
+        }
+        if (typeof exitFullscreen !== 'function') return Promise.resolve();
+        try {
+            return Promise.resolve(exitFullscreen.call(document)).catch(() => {});
+        } catch (_error) {
+            return Promise.resolve();
+        }
+    }
+
+    async function disconnectMeeting(meeting) {
+        const methods = ['leaveRoom', 'leave', 'disconnect'];
+        let firstError = null;
+        for (const method of methods) {
+            const disconnect = readProperty(meeting, method);
+            if (typeof disconnect === 'function') {
+                try {
+                    await disconnect.call(meeting);
+                    return;
+                } catch (error) {
+                    firstError ||= error;
+                }
+            }
+        }
+        if (firstError) throw firstError;
+    }
+
+    function createIdempotentLeave(meeting, meetingElement = null) {
         let leavePromise = null;
         return function leaveMeeting() {
             if (!leavePromise) {
-                leavePromise = disconnectMeeting(meeting).finally(afterLeave);
+                // Detach the provider UI immediately so a rejected/hung SDK
+                // leave cannot keep a fullscreen layer intercepting the page.
+                const fullscreenCleanup = clearMeetingFullscreen(meetingElement);
+                unmountMeetingElement(meetingElement);
+                const mediaCleanup = releaseLocalMedia(meeting);
+                leavePromise = disconnectMeeting(meeting).finally(async () => {
+                    await Promise.allSettled([mediaCleanup, fullscreenCleanup]);
+                });
             }
             return leavePromise;
         };
@@ -157,7 +329,7 @@
                     video: true
                 }
             });
-            leaveMeeting = createIdempotentLeave(meeting, () => unmountMeetingElement(meetingElement));
+            leaveMeeting = createIdempotentLeave(meeting, meetingElement);
 
             meetingElement.meeting = meeting;
             if (typeof meeting.join === 'function') {
