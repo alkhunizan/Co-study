@@ -56,8 +56,9 @@ jobs:
         run: |
           docker pull nginx:1.27.5-alpine
           docker pull node:22-alpine
+          docker pull postgres:16.4-alpine3.20
 
-      - name: Validate shell, Docker layers, and Nginx syntax
+      - name: Validate shell, migrations, Docker layers, and Nginx syntax
         run: npm run test:ci:infra
 
   browser-smoke:

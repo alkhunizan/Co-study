@@ -26,7 +26,12 @@ test('npm CI scripts expose the complete code, infrastructure, and browser gates
         assert.match(pkg.scripts['test:ci:quality'], new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
 
-    for (const command of ['npm run lint:shell', 'npm run docker:verify', 'npm run nginx:verify']) {
+    for (const command of [
+        'npm run lint:shell',
+        'npm run supabase:migrations:apply-test',
+        'npm run docker:verify',
+        'npm run nginx:verify'
+    ]) {
         assert.match(pkg.scripts['test:ci:infra'], new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
 
@@ -41,6 +46,7 @@ test('GitHub Actions enforces every gate without production provider credentials
     assert.match(workflow, /NODE_ENV:\s*test/);
     assert.match(workflow, /npm run test:ci:quality/);
     assert.match(workflow, /npm run test:ci:infra/);
+    assert.match(workflow, /docker pull postgres:16\.4-alpine3\.20/);
     assert.match(workflow, /npx playwright install --with-deps chromium webkit/);
     assert.match(workflow, /project:\s*\[chromium-desktop, chromium-mobile, webkit-desktop, webkit-mobile\]/);
     assert.match(workflow, /npm run test:smoke -- --project=\$\{\{ matrix\.project \}\}/);
@@ -85,10 +91,22 @@ test('CI infrastructure validators are syntax-checked and tracked by the test co
         'scripts/ci/run-shellcheck.js',
         'scripts/ci/verify-docker-image.js',
         'scripts/ci/verify-nginx.js',
+        'scripts/ci/verify-postgres-migrations.js',
         'tests/helpers/playwright-test.js',
-        'tests/integration/ci-pipeline.integration.test.js'
+        'tests/integration/ci-pipeline.integration.test.js',
+        'tests/unit/postgres-migration-runner.test.js'
     ]) {
         assert.ok(fs.existsSync(path.join(repoRoot, relativePath)), `${relativePath} must exist`);
         assert.match(check, new RegExp(relativePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
+});
+
+test('PostgreSQL migration apply validation uses argument-array spawning without a shell', () => {
+    const runner = readRepoFile('scripts/ci/verify-postgres-migrations.js');
+
+    assert.match(runner, /spawnSync\('docker', args,/);
+    assert.match(runner, /shell:\s*false/);
+    assert.doesNotMatch(runner, /execSync|shell:\s*true/);
+    assert.match(runner, /ON_ERROR_STOP=1/);
+    assert.match(runner, /finally\s*\{[\s\S]*\['container', 'rm', '--force', containerName\]/);
 });
