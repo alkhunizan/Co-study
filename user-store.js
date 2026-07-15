@@ -11,6 +11,7 @@ const FOCUS_DAY_KEY_LIMIT = 370;
 const FOCUS_MINUTES_DAY_CAP = 1440;
 const MY_ROOMS_LIMIT = 12;
 const GOOGLE_SUB_MAX_LENGTH = 255;
+const USER_ID_MAX_LENGTH = 128;
 const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000; // fixed UTC+3, no DST (same convention as schedule-utils)
 
 function riyadhDayKey(timestamp = Date.now()) {
@@ -43,6 +44,17 @@ function normalizeCompletionId(raw) {
     if (typeof raw !== 'string') return null;
     const value = raw.trim();
     return /^[A-Za-z0-9_-]{8,128}$/.test(value) ? value : null;
+}
+
+function normalizePersistedUserId(raw) {
+    if (typeof raw !== 'string') return null;
+    const value = raw.trim();
+    if (!value || value.length > USER_ID_MAX_LENGTH) return null;
+    for (const character of value) {
+        const codePoint = character.codePointAt(0) || 0;
+        if (codePoint < 32 || codePoint === 127) return null;
+    }
+    return value;
 }
 
 /** @param {Record<string, any>} raw */
@@ -236,7 +248,7 @@ function recordMyRoom(user, { roomId, name, role, now = Date.now() } = /** @type
 function sanitizeUser(raw = {}, options = {}) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
 
-    const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : null;
+    const id = normalizePersistedUserId(raw.id);
     const email = normalizeEmail(raw.email);
     const storedPasswordHash = typeof raw.passwordHash === 'string' && raw.passwordHash.includes(':')
         ? raw.passwordHash.trim()
@@ -404,6 +416,7 @@ module.exports = {
     createUser,
     applyFocusSession,
     normalizeCompletionId,
+    normalizePersistedUserId,
     recordMyRoom,
     sanitizeFocusStats,
     sanitizeStreak,

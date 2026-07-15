@@ -375,21 +375,10 @@ function createAuthRouter(deps) {
         const userId = user.id;
         let cleanupPending = false;
         try {
-            cleanupPending = await runUserMutation(user, async () => {
+            await runUserMutation(user, async () => {
                 await deleteUser(user);
                 usersByEmail.delete(user.email);
                 users.delete(userId);
-                let pending = false;
-                if (typeof onUserDeleted === 'function') {
-                    try {
-                        const cleanup = await onUserDeleted(userId);
-                        pending = !!cleanup?.cleanupPending;
-                    } catch (error) {
-                        pending = true;
-                        logger.error({ event: 'user_delete_cascade_failed', userId, error: error?.message });
-                    }
-                }
-                return pending;
             });
         } catch (error) {
             if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
@@ -399,6 +388,19 @@ function createAuthRouter(deps) {
             logger.warn({ event: 'user_delete_persist_failed', userId, error: error?.message });
             res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
             return;
+        }
+        // Durable account deletion and removal from the live identity maps are
+        // complete before cascading through room locks. Releasing the per-user
+        // coordinator first prevents a join (room -> user) from deadlocking
+        // against deletion (user -> room).
+        if (typeof onUserDeleted === 'function') {
+            try {
+                const cleanup = await onUserDeleted(userId);
+                cleanupPending = !!cleanup?.cleanupPending;
+            } catch (error) {
+                cleanupPending = true;
+                logger.error({ event: 'user_delete_cascade_failed', userId, error: error?.message });
+            }
         }
         clearAuthCookie(req, res);
         rotateAnonymousIdentity?.(req, res);
