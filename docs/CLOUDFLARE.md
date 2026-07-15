@@ -167,6 +167,11 @@ zero-runtime-dependency rule. The S3 data operations use the Access Key pair; th
 `cfat_` Bearer token (if you saved it as `R2_API_TOKEN`) is only for REST bucket
 management and isn't needed for uploads.
 
+To collect deletion-review evidence for legacy `users/` objects without reading
+their bodies or changing R2, run `npm run inventory:r2-users -- --dry-run`.
+The inventory has no deletion/apply mode; see
+[`CONTAINMENT-EVIDENCE.md`](./CONTAINMENT-EVIDENCE.md).
+
 ## What I can automate once the Cloudflare connector is authorized
 There is currently no Cloudflare MCP connector attached to this session, so the
 steps above are manual (dashboard + one `.env` paste). If you add the **Cloudflare**

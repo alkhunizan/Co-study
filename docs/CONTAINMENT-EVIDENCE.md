@@ -58,3 +58,24 @@ evidence that the local daemon associated the image with a registry digest, not
 proof that the remote image still exists. This metadata-only tool cannot prove
 that a historical layer did or did not contain a file; investigate high-risk
 findings before deciding whether credentials need rotation.
+
+## Legacy R2 user-object inventory
+
+With the protected R2 S3 credentials and `R2_BUCKET` loaded, inventory only the
+locked `users/` prefix:
+
+```bash
+npm run inventory:r2-users -- --dry-run
+npm run inventory:r2-users -- --output /secure/evidence/r2-user-candidates.json
+```
+
+The runtime client is frozen and exposes only paginated object-metadata listing.
+It cannot read object bodies, create buckets, upload, overwrite, or delete. The
+prefix and bucket cannot be changed with CLI arguments. Known aggregate backup
+keys (`users/users.<timestamp>.json`) remain visible; all other keys may contain
+identifiers, so reports retain only a redacted hint and SHA-256 fingerprint.
+ETags are fingerprinted as well.
+
+This command inventories candidates; it does not authorize deletion and there
+is deliberately no `--apply` mode. Any future production deletion must be a
+separately reviewed and explicitly approved action outside this tool.
