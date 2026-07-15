@@ -5,6 +5,7 @@ const port = Number(process.env.PORT || 0);
 const failParticipants = process.env.REALTIMEKIT_FAIL_PARTICIPANT === '1';
 const failReconciliation = process.env.REALTIMEKIT_FAIL_RECONCILIATION === '1';
 const failClose = process.env.REALTIMEKIT_FAIL_CLOSE === '1';
+const meetingDelayMs = Number.parseInt(process.env.REALTIMEKIT_MEETING_DELAY_MS || '0', 10);
 const participantDelayMs = Number.parseInt(process.env.REALTIMEKIT_PARTICIPANT_DELAY_MS || '0', 10);
 const closeDelayMs = Number.parseInt(process.env.REALTIMEKIT_CLOSE_DELAY_MS || '0', 10);
 const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -15,6 +16,7 @@ try {
     initialActiveSessions = {};
 }
 const state = {
+    meetingRequests: 0,
     meetings: [],
     disabledMeetings: [],
     kickAllMeetings: [],
@@ -131,6 +133,10 @@ const server = http.createServer(async (req, res) => {
 
     const meetingMatch = url.pathname.match(/\/accounts\/([^/]+)\/realtime\/kit\/([^/]+)\/meetings$/);
     if (req.method === 'POST' && meetingMatch) {
+        state.meetingRequests += 1;
+        if (meetingDelayMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, meetingDelayMs));
+        }
         const body = await readJson(req);
         const id = `meeting_${state.meetings.length + 1}`;
         state.meetings.push({ id, body });
