@@ -236,7 +236,11 @@ function resolveBackupConfig(env) {
         }
     }
     const retentionCount = parsePositiveInteger(env.BACKUP_RETENTION_COUNT, 'BACKUP_RETENTION_COUNT', 48);
-    return { intervalMinutes, retentionCount };
+    const plaintextSnapshotsAllowed = env.NODE_ENV !== 'production';
+    if (!plaintextSnapshotsAllowed && intervalMinutes !== 0) {
+        throw new Error('The plaintext backup scheduler is disabled in production; use halastudy-backup.timer.');
+    }
+    return { intervalMinutes, retentionCount, plaintextSnapshotsAllowed };
 }
 
 function ensureWritableFileParent(filePath) {
@@ -894,12 +898,13 @@ function createCoStudyServer(options = {}) {
         intervalMinutes: config.backup.intervalMinutes,
         retentionCount: config.backup.retentionCount,
         backupDir: config.roomStateBackupDir,
-        targets: [
-            { label: 'rooms', filePath: config.roomStateFile },
-            // Skip the users.json backup target when Supabase owns accounts —
-            // the file is never written in that mode.
-            ...(config.supabase.enabled ? [] : [{ label: 'users', filePath: config.userStateFile }])
-        ],
+        targets: config.backup.plaintextSnapshotsAllowed
+            ? [
+                { label: 'rooms', filePath: config.roomStateFile },
+                // Skip the users.json snapshot target when Supabase owns accounts.
+                ...(config.supabase.enabled ? [] : [{ label: 'users', filePath: config.userStateFile }])
+            ]
+            : [],
         logger
     });
     /** @type {Map<string, any>} userId -> user record */
@@ -4021,5 +4026,6 @@ function createCoStudyServer(options = {}) {
 
 module.exports = {
     createCoStudyServer,
-    DEFAULT_ICE_SERVERS
+    DEFAULT_ICE_SERVERS,
+    resolveBackupConfig
 };
