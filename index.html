@@ -1336,6 +1336,7 @@
     let socket = null;
     let username = '';
     let roomId = '';
+    let roomMembershipToken = '';
     let presenceCount = 0;
     let presenceCache = [];
     let participantsMap = new Map();
@@ -2390,11 +2391,14 @@
             await videoClient.joinRealtimeKitRoom({
                 roomId: roomCode,
                 displayName,
-                clientSessionId: ensureClientId(),
+                membershipToken: roomMembershipToken,
                 meetingElement: realtimeKitMeeting
             });
             setMediaState('mediaRealtimeKitManaged', { detailKey: 'mediaRealtimeKitDetail', showRetry: false });
         } catch (error) {
+            if (error?.code === 'ROOM_MEMBERSHIP_REQUIRED') {
+                roomMembershipToken = '';
+            }
             const messageKey = SERVER_ERROR_KEYS[error.code] || 'videoProviderUnavailable';
             setMediaState('mediaRealtimeKitUnavailable', { detailKey: messageKey, showRetry: true });
         } finally {
@@ -3756,18 +3760,34 @@
             joinOverlay.classList.remove('hidden');
             return;
         }
+        roomMembershipToken = '';
+        if (isRealtimeKitRoom()) {
+            void videoClient?.leave({ keepalive: true });
+        }
         if (socket) socket.disconnect();
         setBoardEnabled(false);
         socket = io({ auth: { clientId: ensureClientId() } });
+        const activeSocket = socket;
+        let joinGeneration = 0;
         const joinActiveRoom = () => {
-            socket.emit('join-room', { roomId, username, clientId: ensureClientId(), password: getRoomPassword() }, (res = {}) => {
+            const currentJoinGeneration = ++joinGeneration;
+            roomMembershipToken = '';
+            if (isRealtimeKitRoom()) {
+                void videoClient?.leave({ keepalive: true });
+            }
+            activeSocket.emit('join-room', { roomId, username, clientId: ensureClientId(), password: getRoomPassword() }, (res = {}) => {
+                if (socket !== activeSocket || currentJoinGeneration !== joinGeneration) return;
                 if (!res.ok) {
+                    roomMembershipToken = '';
                     setChatEnabled(false);
                     setBoardEnabled(false);
                     showJoinError(getErrorMessage(res.errorCode, 'joinFailed'));
                     joinOverlay.classList.remove('hidden');
                     return;
                 }
+                roomMembershipToken = typeof res.membershipToken === 'string'
+                    ? res.membershipToken.trim()
+                    : '';
                 storeRoomPassword(getRoomPassword());
                 clearStoredRoomCode();
                 showJoinError('');
@@ -3795,7 +3815,8 @@
                 }
             });
         };
-        socket.on('connect', () => {
+        activeSocket.on('connect', () => {
+            if (socket !== activeSocket) return;
             if (isRealtimeKitRoom()) {
                 setMediaState('mediaRealtimeKitLoading', { detailKey: 'mediaRealtimeKitDetail', showRetry: false });
             } else if (isMeshRoom()) {
@@ -3805,38 +3826,49 @@
             }
             joinActiveRoom();
         });
-        socket.on('connect_error', () => {
+        activeSocket.on('connect_error', () => {
+            if (socket !== activeSocket) return;
+            roomMembershipToken = '';
+            if (isRealtimeKitRoom()) {
+                void videoClient?.leave({ keepalive: true });
+            }
             setChatEnabled(false);
             setBoardEnabled(false);
             showJoinError(currentCopy().connectError);
             joinOverlay.classList.remove('hidden');
         });
-        socket.on('chat-message', msg => appendMessage(msg));
-        socket.on('presence', list => updatePresenceList(list || []));
-        socket.on('board-state', (board) => {
+        activeSocket.on('chat-message', msg => appendMessage(msg));
+        activeSocket.on('presence', list => updatePresenceList(list || []));
+        activeSocket.on('board-state', (board) => {
             clearBoardFeedback();
             setBoardState(board, { preserveGoalDraft: isBoardGoalFocused() });
         });
-        socket.on('status-update', handleStatusUpdate);
-        socket.on('camera-status', handleCameraStatusEvent);
-        socket.on('announcement', (announcement) => {
+        activeSocket.on('status-update', handleStatusUpdate);
+        activeSocket.on('camera-status', handleCameraStatusEvent);
+        activeSocket.on('announcement', (announcement) => {
             if (window.HalaCore) window.HalaCore.showAnnouncement(announcement);
         });
-        socket.on('announcement-clear', () => {
+        activeSocket.on('announcement-clear', () => {
             if (window.HalaCore) window.HalaCore.clearAnnouncement();
         });
-        socket.on('kicked', () => {
+        activeSocket.on('kicked', () => {
+            roomMembershipToken = '';
+            void videoClient?.leave({ keepalive: true });
             if (window.HalaUI) window.HalaUI.toast(currentCopy().kickedMsg, { kind: 'error', duration: 6000 });
             setTimeout(() => window.location.assign('/'), 2500);
         });
-        socket.on('room-closed', () => {
+        activeSocket.on('room-closed', () => {
+            roomMembershipToken = '';
+            void videoClient?.leave({ keepalive: true });
             if (window.HalaUI) window.HalaUI.toast(currentCopy().roomClosedMsg, { kind: 'error', duration: 6000 });
             setTimeout(() => window.location.assign('/'), 2500);
         });
-        socket.on('rtc-offer', handleIncomingOffer);
-        socket.on('rtc-answer', handleIncomingAnswer);
-        socket.on('rtc-ice', handleIncomingIce);
-        socket.on('disconnect', () => {
+        activeSocket.on('rtc-offer', handleIncomingOffer);
+        activeSocket.on('rtc-answer', handleIncomingAnswer);
+        activeSocket.on('rtc-ice', handleIncomingIce);
+        activeSocket.on('disconnect', () => {
+            if (socket !== activeSocket) return;
+            roomMembershipToken = '';
             setChatEnabled(false);
             setBoardEnabled(false);
             appendMessage({ type: 'system', text: currentCopy().disconnectMsg });
@@ -4045,6 +4077,7 @@
     }
     window.addEventListener('pagehide', () => {
         if (isRealtimeKitRoom()) {
+            roomMembershipToken = '';
             void videoClient?.leave({ keepalive: true });
         }
     });
