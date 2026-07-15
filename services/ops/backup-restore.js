@@ -14,7 +14,7 @@ const ROOM_USER_REFERENCE_FIELDS = [
     'created_by_user_id',
     'createdByUserId'
 ];
-const LEGACY_BACKUP_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const USER_BEARING_BACKUP_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 function tombstoneIdentity(row) {
     if (!row || typeof row !== 'object') throw new Error('Deletion tombstone row is invalid.');
@@ -54,13 +54,20 @@ function buildRestorePlan({ bundle, deletionTombstones = [], now = Date.now() } 
         && !Object.hasOwn(bundle.datasets, 'deletion_tombstones')) {
         throw new Error('Backup source deletion_tombstones is required beside database datasets.');
     }
-    if (schemaVersion === 1 && requiresDeletionTombstoneFilter(bundle)) {
+    if (requiresDeletionTombstoneFilter(bundle)) {
         const createdAt = Date.parse(bundle.manifest?.createdAt);
         const artifactAge = now - createdAt;
-        if (!Number.isFinite(createdAt)
-            || artifactAge < 0
-            || artifactAge >= LEGACY_BACKUP_MAX_AGE_MS) {
-            throw new Error('Legacy backup schema is too old to restore without embedded deletion tombstones.');
+        if (!Number.isFinite(createdAt)) {
+            throw new Error('Backup artifact creation time is invalid.');
+        }
+        if (artifactAge < 0) {
+            throw new Error('Backup artifact creation time is in the future.');
+        }
+        if (artifactAge >= USER_BEARING_BACKUP_MAX_AGE_MS) {
+            if (schemaVersion === 1) {
+                throw new Error('Legacy backup schema is too old to restore without embedded deletion tombstones.');
+            }
+            throw new Error('Backup artifact is too old to restore safely with expiring deletion tombstones.');
         }
     }
 

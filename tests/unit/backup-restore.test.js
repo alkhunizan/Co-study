@@ -76,10 +76,10 @@ test('expired deletion tombstones no longer suppress a restore', () => {
     assert.equal(plan.filtered.profiles, 0);
 });
 
-test('stale artifacts keep deleted accounts suppressed after their live tombstones expire', () => {
+test('embedded tombstones keep deleted accounts suppressed within the restore safety window', () => {
     const bundle = sampleBundle();
     bundle.manifest.schemaVersion = 2;
-    bundle.manifest.createdAt = '2026-05-01T02:15:00.000Z';
+    bundle.manifest.createdAt = '2026-06-16T02:15:00.000Z';
     bundle.datasets.deletion_tombstones = [{
         user_id: 'deleted-user',
         deleted_at: '2026-05-02T00:00:00.000Z',
@@ -119,6 +119,61 @@ test('stale artifacts keep deleted accounts suppressed after their live tombston
         currentCount: 1,
         protectedUserCount: 2
     });
+});
+
+test('schema-v2 user-bearing artifacts fail closed at the tombstone retention boundary', () => {
+    const bundle = sampleBundle();
+    bundle.manifest.schemaVersion = 2;
+    bundle.manifest.createdAt = '2026-06-15T00:00:00.000Z';
+    bundle.datasets.deletion_tombstones = [];
+
+    assert.throws(
+        () => buildRestorePlan({
+            bundle,
+            deletionTombstones: [],
+            now: Date.parse('2026-07-15T00:00:00.000Z')
+        }),
+        /backup artifact is too old/i
+    );
+});
+
+test('schema-v2 user-bearing artifacts fail closed when creation time is in the future', () => {
+    const bundle = sampleBundle();
+    bundle.manifest.schemaVersion = 2;
+    bundle.manifest.createdAt = '2026-07-15T00:00:00.001Z';
+    bundle.datasets.deletion_tombstones = [];
+
+    assert.throws(
+        () => buildRestorePlan({
+            bundle,
+            deletionTombstones: [],
+            now: Date.parse('2026-07-15T00:00:00.000Z')
+        }),
+        /backup artifact creation time is in the future/i
+    );
+});
+
+test('old schema-v2 owned-room artifacts fail closed even without database datasets', () => {
+    const bundle = {
+        manifest: {
+            schemaVersion: 2,
+            createdAt: '2026-06-15T00:00:00.000Z',
+            sources: {},
+            failedSources: []
+        },
+        datasets: {
+            rooms: [{ id: 'OWNED', ownerUserId: 'deleted-after-backup' }]
+        }
+    };
+
+    assert.throws(
+        () => buildRestorePlan({
+            bundle,
+            deletionTombstones: [],
+            now: Date.parse('2026-07-15T00:00:00.000Z')
+        }),
+        /backup artifact is too old/i
+    );
 });
 
 test('current tombstone rows override artifact rows before an applied restore', () => {

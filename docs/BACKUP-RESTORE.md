@@ -82,7 +82,7 @@ sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh
 
 Restore always validates the envelope authentication tag, supported schema version, dataset shapes, row counts, and every manifest checksum before planning any write. Every artifact tombstone remains authoritative for that artifact even after its 30-day live-database expiry. Restore unions that evidence with current, unexpired Supabase tombstones and removes affected profiles, focus rows, room events, and owned rooms from the plan. If both sources contain the same user, the current Supabase row wins and is the row preserved during apply.
 
-Schema-v1 artifacts remain readable during the migration window, but a v1 database or owned-room artifact 30 days old or older fails closed because it cannot contain embedded deletion evidence. Retained v2 artifacts do not have that limitation.
+Embedded tombstones cover deletions known when an artifact was created, but no schema can contain a deletion that happens afterward. Any database or owned-room artifact whose creation time is in the future, or whose age has reached the 30-day tombstone window, therefore fails closed. Schema-v1 artifacts remain readable only inside the same safety window.
 
 The default is a dry run:
 
@@ -132,7 +132,7 @@ npm --prefix /opt/halastudy run verify:deploy -- https://your-domain.example
 
 ## Optional R2 copy
 
-`npm run backup:r2` authenticates the newest local `.hsbackup` file before upload and copies only those encrypted bytes under the fixed `encrypted/` prefix. It then retains one successful artifact for each of the latest seven UTC days. Automated retention can list and delete only keys matching `encrypted/halastudy-YYYY-MM-DDTHHMMSSZ-*.hsbackup`; unrelated encrypted objects, legacy `users/` objects, and every other prefix are outside its mutation boundary.
+`npm run backup:r2` authenticates the newest local `.hsbackup` file, requires all six production sources with no manifest failures, and only then makes an R2 request. A partial local diagnostic artifact cannot be uploaded or trigger retention. Complete artifacts are copied under the fixed `encrypted/` prefix, after which retention keeps one successful artifact for each of the latest seven UTC days. Automated retention can list and delete only keys matching `encrypted/halastudy-YYYY-MM-DDTHHMMSSZ-*.hsbackup`; unrelated encrypted objects, legacy `users/` objects, and every other prefix are outside its mutation boundary. A matching key whose timestamp is later than R2's server-side `LastModified` (allowing five minutes of clock skew) aborts the pass before any deletion.
 
 The package command and the service-owned `backup.sh --with-r2` path both pass the explicit `--apply-retention` scope. Direct script execution without one recognized mode fails. Preview the exact candidate set without uploading or deleting anything with:
 
