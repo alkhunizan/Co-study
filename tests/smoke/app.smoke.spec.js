@@ -384,8 +384,12 @@ test('Pomodoro reconciles elapsed time after background timer throttling', async
         await visitor.page.clock.fastForward(55_000);
         await expect(visitor.page.locator('#timer-disp')).toHaveText('00:05');
 
-        await visitor.page.clock.fastForward(7_000);
+        // Cross the absolute deadline first, then advance inside the new
+        // phase. Playwright intentionally coalesces throttled interval ticks,
+        // and engines differ in which tick they retain for one large jump.
+        await visitor.page.clock.fastForward(5_000);
         await expect(visitor.page.locator('#tab-break')).toHaveClass(/active/);
+        await visitor.page.clock.fastForward(2_000);
         await expect(visitor.page.locator('#timer-disp')).toHaveText('00:58');
 
         await visitor.page.clock.fastForward(10 * 60 * 1000);

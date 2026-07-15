@@ -43,7 +43,7 @@ test('browser smoke network guard fulfills external requests locally and continu
     };
     const browser = {
         async newContext(options) {
-            assert.deepEqual(options, { locale: 'en' });
+            assert.deepEqual(options, { serviceWorkers: 'block', locale: 'en' });
             return context;
         }
     };
@@ -80,7 +80,25 @@ test('browser smoke network guard fulfills external requests locally and continu
     });
     assert.equal(fulfilled, undefined);
     assert.equal(continued, true);
+});
 
+test('browser smoke contexts allow only the dedicated worker test to opt in', async () => {
+    const observed = [];
+    const context = { async route() {} };
+    const browser = {
+        async newContext(options) {
+            observed.push(options);
+            return context;
+        }
+    };
+
+    await createTestContext(browser);
+    await createTestContext(browser, { serviceWorkers: 'allow', locale: 'en' });
+
+    assert.deepEqual(observed, [
+        { serviceWorkers: 'block' },
+        { serviceWorkers: 'allow', locale: 'en' }
+    ]);
 });
 
 test('browser smoke navigation waits for DOM readiness across engines', async () => {

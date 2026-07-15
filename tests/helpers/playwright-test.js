@@ -47,7 +47,14 @@ const test = base.extend({
 });
 
 async function createTestContext(browser, options) {
-    const context = await browser.newContext(options);
+    // Service-worker initiated requests bypass Playwright routing on some
+    // engines. Block workers by default so the loopback-only guard and any
+    // per-test API fakes remain authoritative. The dedicated service-worker
+    // smoke test opts back in explicitly.
+    const context = await browser.newContext({
+        serviceWorkers: 'block',
+        ...options
+    });
     await installNetworkGuard(context);
     return context;
 }
