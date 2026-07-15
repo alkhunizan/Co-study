@@ -1,76 +1,19 @@
-const http = require('node:http');
-const https = require('node:https');
-
-function requestJson(targetUrl, timeoutMs = 10000) {
-    const url = new URL(targetUrl);
-    const client = url.protocol === 'https:' ? https : http;
-    const allowSelfSigned = url.protocol === 'https:' && ['127.0.0.1', 'localhost'].includes(url.hostname);
-
-    return new Promise((resolve, reject) => {
-        const req = client.request(url, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            rejectUnauthorized: !allowSelfSigned
-        }, (res) => {
-            let raw = '';
-            res.setEncoding('utf8');
-            res.on('data', (chunk) => {
-                raw += chunk;
-            });
-            res.on('end', () => {
-                let body = null;
-                try {
-                    body = raw ? JSON.parse(raw) : null;
-                } catch (error) {
-                    reject(new Error(`Invalid JSON from ${url.pathname}: ${error.message}`));
-                    return;
-                }
-
-                resolve({
-                    status: res.statusCode || 0,
-                    body
-                });
-            });
-        });
-
-        req.setTimeout(timeoutMs, () => {
-            req.destroy(new Error(`Timed out fetching ${targetUrl}`));
-        });
-        req.on('error', reject);
-        req.end();
-    });
-}
+const { verifyDeployment } = require('./deploy-verifier');
 
 async function main() {
-    const baseUrlArg = process.argv[2];
-    if (!baseUrlArg) {
+    const baseUrl = process.argv[2];
+    if (!baseUrl) {
         throw new Error('Usage: npm run verify:deploy -- <baseUrl>');
     }
 
-    const baseUrl = new URL(baseUrlArg);
-    const health = await requestJson(new URL('/api/health', baseUrl));
-    if (health.status !== 200 || !health.body || health.body.status !== 'ok') {
-        throw new Error(`Health check failed with status ${health.status}.`);
-    }
-
-    const ready = await requestJson(new URL('/api/ready', baseUrl));
-    if (ready.status !== 200 || !ready.body || ready.body.status !== 'ready') {
-        throw new Error(`Readiness check failed with status ${ready.status}.`);
-    }
-
-    // Metrics endpoint confirms the accounts/ops build is live and reports
-    // the store/participant counters an uptime monitor can trend.
-    const metrics = await requestJson(new URL('/api/metrics', baseUrl));
-    if (metrics.status !== 200 || !metrics.body || typeof metrics.body.roomCount !== 'number') {
-        throw new Error(`Metrics check failed with status ${metrics.status}.`);
-    }
-
-    console.log(`Health OK: ${health.body.mode}`);
-    console.log(`Readiness OK: ${Object.keys(ready.body.checks || {}).join(', ')}`);
-    console.log(`Metrics OK: ${metrics.body.roomCount} rooms, ${metrics.body.participantCount} participants, rss ${metrics.body.memoryRssMb}MB`);
+    const result = await verifyDeployment(baseUrl);
+    console.log(`Health OK: ${result.mode}, build ${result.version}`);
+    console.log(`Readiness OK: ${result.readinessChecks.join(', ')}`);
+    console.log(`Metrics OK: ${result.roomCount} rooms, ${result.participantCount} participants, rss ${result.memoryRssMb}MB`);
+    console.log(`Runtime OK: ${result.videoProvider}, Socket.IO ${result.socketTransport}`);
 }
 
 main().catch((error) => {
     console.error(error.message);
-    process.exit(1);
+    process.exitCode = 1;
 });
