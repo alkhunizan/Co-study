@@ -27,6 +27,10 @@ const {
 const { createAuthRouter } = require('./services/auth/auth-routes');
 const { createGoogleAuthRouter } = require('./services/auth/google-routes');
 const { createOAuthSecurity } = require('./services/auth/oauth-security');
+const {
+    createKeyedMutationCoordinator,
+    createUserMutationCoordinator
+} = require('./services/auth/user-mutation-coordinator');
 const { createUserStore, recordMyRoom } = require('./user-store');
 const { createSupabaseClient } = require('./services/supabase/client');
 const { createSupabaseUserStore } = require('./supabase-user-store');
@@ -932,10 +936,13 @@ function createCoStudyServer(options = {}) {
     const users = new Map();
     /** @type {Map<string, string>} normalized email -> userId */
     const usersByEmail = new Map();
-
-    function persistUsersSoon() {
-        return userStore.scheduleSave(users);
-    }
+    const userMutationCoordinator = createUserMutationCoordinator({
+        getUser: (userId) => users.get(userId) || null
+    });
+    const googleSubjectMutationCoordinator = createKeyedMutationCoordinator();
+    const runUserMutation = (user, operation) => userMutationCoordinator.run(user, operation);
+    const runGoogleSubjectMutation = (googleSub, operation) =>
+        googleSubjectMutationCoordinator.run(googleSub, operation);
 
     function persistUserImmediate(user) {
         if (typeof userStore.saveUser === 'function') {
@@ -955,8 +962,7 @@ function createCoStudyServer(options = {}) {
 
     async function persistFocusCompletionImmediate(user, payload) {
         if (typeof userStore.persistFocusCompletion === 'function') {
-            await userStore.persistFocusCompletion(user, payload);
-            return;
+            return userStore.persistFocusCompletion(user, payload);
         }
         await persistUserImmediate(user);
         if (typeof userStore.logFocusSession === 'function' && payload.acceptedMinutes > 0) {
@@ -967,6 +973,7 @@ function createCoStudyServer(options = {}) {
                 completionId: payload.completionId
             });
         }
+        return { duplicate: false };
     }
 
     async function loadPersistedUsers() {
@@ -2901,11 +2908,11 @@ function createCoStudyServer(options = {}) {
         appendSetCookie,
         parseCookies,
         oauthSecurity,
-        persistUsersSoon,
         persistUser: persistUserImmediate,
         deleteUser: deleteUserImmediate,
         onUserDeleted: cascadeDeletedUser,
         persistFocusCompletion: persistFocusCompletionImmediate,
+        runUserMutation,
         flushUsers: () => userStore.flush(users),
         requireUser,
         // Analytics event log (Supabase only) — powers user + admin dashboards.
@@ -2927,8 +2934,9 @@ function createCoStudyServer(options = {}) {
         setAuthCookie,
         appendSetCookie,
         parseCookies,
-        persistUsersSoon,
         persistUser: persistUserImmediate,
+        runUserMutation,
+        runGoogleSubjectMutation,
         sessionSecret: config.sessionSecret,
         oauthSecurity,
         logger
@@ -3285,7 +3293,8 @@ function createCoStudyServer(options = {}) {
             buildScheduleSummary,
             closeRoom: closeRoomLifecycle,
             revokeSocketVideoSessions,
-            persistUsersSoon,
+            persistUser: persistUserImmediate,
+            runUserMutation,
             persistRoomsSoon,
             dashboard: typeof userStore.readAdminOverview === 'function'
                 ? {
@@ -3485,8 +3494,34 @@ function createCoStudyServer(options = {}) {
             persistRoomsSoon();
 
             if (creator) {
-                recordMyRoom(creator, { roomId: roomCode, name: cleanName, role: 'created' });
-                persistUsersSoon();
+                try {
+                    await runUserMutation(creator, async () => {
+                        const previousMyRooms = structuredClone(creator.myRooms);
+                        recordMyRoom(creator, { roomId: roomCode, name: cleanName, role: 'created' });
+                        try {
+                            await persistUserImmediate(creator);
+                        } catch (error) {
+                            creator.myRooms = previousMyRooms;
+                            throw error;
+                        }
+                    });
+                } catch (error) {
+                    try {
+                        await closeRoomLifecycle(roomCode, { reason: 'creator_persistence_failed' });
+                    } catch (cleanupError) {
+                        logger.error({
+                            event: 'room_create_rollback_failed',
+                            roomId: roomCode,
+                            error: cleanupError?.message
+                        });
+                    }
+                    return ackError(
+                        ack,
+                        error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED'
+                            ? 'AUTH_REQUIRED'
+                            : 'PERSISTENCE_UNAVAILABLE'
+                    );
+                }
             }
 
             const snapshot = roomSnapshot(roomCode);
@@ -3694,8 +3729,25 @@ function createCoStudyServer(options = {}) {
             };
 
             if (joiningUser) {
-                recordMyRoom(joiningUser, { roomId: normalizedRoom, name: room.name, role: 'joined' });
-                persistUsersSoon();
+                try {
+                    await runUserMutation(joiningUser, async () => {
+                        const previousMyRooms = structuredClone(joiningUser.myRooms);
+                        recordMyRoom(joiningUser, { roomId: normalizedRoom, name: room.name, role: 'joined' });
+                        try {
+                            await persistUserImmediate(joiningUser);
+                        } catch (error) {
+                            joiningUser.myRooms = previousMyRooms;
+                            throw error;
+                        }
+                    });
+                } catch (error) {
+                    return ackError(
+                        ack,
+                        error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED'
+                            ? 'AUTH_REQUIRED'
+                            : 'PERSISTENCE_UNAVAILABLE'
+                    );
+                }
             }
 
             room.users.set(socket.id, userRecord);

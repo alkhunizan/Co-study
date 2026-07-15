@@ -46,6 +46,7 @@ test('backup collection covers rooms plus injectable Supabase profiles and event
     });
 
     assert.deepEqual(Object.keys(result.datasets).sort(), [
+        'focus_completion_claims',
         'focus_sessions',
         'profiles',
         'room_events',
@@ -65,7 +66,12 @@ test('backup collection records partial source failures but rejects zero readabl
     });
 
     assert.deepEqual(partial.datasets, { rooms: [] });
-    assert.deepEqual(partial.failedSources, ['focus_sessions', 'profiles', 'room_events']);
+    assert.deepEqual(partial.failedSources, [
+        'focus_completion_claims',
+        'focus_sessions',
+        'profiles',
+        'room_events'
+    ]);
 
     await assert.rejects(
         collectBackupDatasets({

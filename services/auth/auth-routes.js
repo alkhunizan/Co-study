@@ -49,9 +49,14 @@ function createAuthRouter(deps) {
         deleteUser,
         onUserDeleted,
         persistFocusCompletion,
+        runUserMutation,
         requireUser,
         logger
     } = deps;
+
+    if (typeof runUserMutation !== 'function') {
+        throw new TypeError('createAuthRouter requires runUserMutation.');
+    }
 
     const router = express.Router();
 
@@ -166,43 +171,49 @@ function createAuthRouter(deps) {
         if (!applyHttpRateLimit(req, res, rateLimiters.profileMutation, req.user.id)) return;
 
         const body = req.body || {};
-        const nextProfile = {
-            displayName: req.user.displayName,
-            avatarColor: req.user.avatarColor,
-            bio: req.user.bio
-        };
+        const profilePatch = {};
         if (body.displayName !== undefined) {
             const displayName = sanitizeUserText(body.displayName, DISPLAY_NAME_MAX_LENGTH);
             if (!displayName) {
                 res.status(400).json({ errorCode: 'DISPLAY_NAME_REQUIRED' });
                 return;
             }
-            nextProfile.displayName = displayName;
+            profilePatch.displayName = displayName;
         }
         if (body.avatarColor !== undefined) {
             if (normalizeAvatarColor(body.avatarColor) !== body.avatarColor) {
                 res.status(400).json({ errorCode: 'AVATAR_COLOR_INVALID' });
                 return;
             }
-            nextProfile.avatarColor = body.avatarColor;
+            profilePatch.avatarColor = body.avatarColor;
         }
         if (body.bio !== undefined) {
             if (typeof body.bio !== 'string' || Array.from(body.bio).length > BIO_MAX_LENGTH) {
                 res.status(400).json({ errorCode: 'BIO_TOO_LONG' });
                 return;
             }
-            nextProfile.bio = sanitizeUserText(body.bio, BIO_MAX_LENGTH);
+            profilePatch.bio = sanitizeUserText(body.bio, BIO_MAX_LENGTH);
         }
-        const previousProfile = {
-            displayName: req.user.displayName,
-            avatarColor: req.user.avatarColor,
-            bio: req.user.bio
-        };
-        Object.assign(req.user, nextProfile);
         try {
-            await persistUser(req.user);
+            await runUserMutation(req.user, async () => {
+                const previousProfile = {
+                    displayName: req.user.displayName,
+                    avatarColor: req.user.avatarColor,
+                    bio: req.user.bio
+                };
+                Object.assign(req.user, profilePatch);
+                try {
+                    await persistUser(req.user);
+                } catch (error) {
+                    Object.assign(req.user, previousProfile);
+                    throw error;
+                }
+            });
         } catch (error) {
-            Object.assign(req.user, previousProfile);
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
+            }
             logger.warn({ event: 'profile_persist_failed', userId: req.user.id, error: error?.message });
             res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
             return;
@@ -223,19 +234,44 @@ function createAuthRouter(deps) {
             res.status(400).json({ errorCode: 'FOCUS_COMPLETION_ID_INVALID' });
             return;
         }
-        const previousFocusStats = structuredClone(req.user.focusStats);
-        const previousStreak = structuredClone(req.user.streak);
-        const result = applyFocusSession(req.user, { minutes, completionId });
-        if (!result.duplicate) {
-            try {
-                await persistFocusCompletion(req.user, result);
-            } catch (error) {
-                req.user.focusStats = previousFocusStats;
-                req.user.streak = previousStreak;
-                logger.warn({ event: 'focus_persist_failed', userId: req.user.id, error: error?.message });
-                res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+        let result;
+        try {
+            result = await runUserMutation(req.user, async () => {
+                const previousFocusStats = structuredClone(req.user.focusStats);
+                const previousStreak = structuredClone(req.user.streak);
+                const applied = applyFocusSession(req.user, { minutes, completionId });
+                if (applied.duplicate) return applied;
+
+                try {
+                    const persisted = await persistFocusCompletion(req.user, applied);
+                    if (persisted?.duplicate) {
+                        req.user.focusStats = persisted.focusStats || previousFocusStats;
+                        req.user.streak = persisted.streak || previousStreak;
+                        return {
+                            ...applied,
+                            duplicate: true,
+                            acceptedMinutes: persisted.acceptedMinutes,
+                            minutes: persisted.acceptedMinutes,
+                            dayKey: persisted.dayKey,
+                            focusStats: req.user.focusStats,
+                            streak: req.user.streak
+                        };
+                    }
+                    return applied;
+                } catch (error) {
+                    req.user.focusStats = previousFocusStats;
+                    req.user.streak = previousStreak;
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
                 return;
             }
+            logger.warn({ event: 'focus_persist_failed', userId: req.user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
         }
         res.json({
             ok: true,
@@ -252,29 +288,41 @@ function createAuthRouter(deps) {
         if (!applyHttpRateLimit(req, res, rateLimiters.profileMutation, req.user.id)) return;
 
         const imported = sanitizeFocusStats({ days: req.body?.days });
-        const previousFocusStats = structuredClone(req.user.focusStats);
-        const stats = req.user.focusStats;
-        for (const [dayKey, day] of Object.entries(imported.days)) {
-            const existing = stats.days[dayKey];
-            if (!existing) {
-                stats.days[dayKey] = day;
-            } else {
-                existing.focusMinutes = Math.max(existing.focusMinutes, day.focusMinutes);
-                existing.sessions = Math.max(existing.sessions, day.sessions);
-            }
-        }
-        let totalFocusMinutes = 0;
-        let totalSessions = 0;
-        for (const day of Object.values(stats.days)) {
-            totalFocusMinutes += day.focusMinutes;
-            totalSessions += day.sessions;
-        }
-        stats.totalFocusMinutes = Math.max(stats.totalFocusMinutes, totalFocusMinutes);
-        stats.totalSessions = Math.max(stats.totalSessions, totalSessions);
+        let stats;
         try {
-            await persistUser(req.user);
+            stats = await runUserMutation(req.user, async () => {
+                const previousFocusStats = structuredClone(req.user.focusStats);
+                const nextStats = req.user.focusStats;
+                for (const [dayKey, day] of Object.entries(imported.days)) {
+                    const existing = nextStats.days[dayKey];
+                    if (!existing) {
+                        nextStats.days[dayKey] = day;
+                    } else {
+                        existing.focusMinutes = Math.max(existing.focusMinutes, day.focusMinutes);
+                        existing.sessions = Math.max(existing.sessions, day.sessions);
+                    }
+                }
+                let totalFocusMinutes = 0;
+                let totalSessions = 0;
+                for (const day of Object.values(nextStats.days)) {
+                    totalFocusMinutes += day.focusMinutes;
+                    totalSessions += day.sessions;
+                }
+                nextStats.totalFocusMinutes = Math.max(nextStats.totalFocusMinutes, totalFocusMinutes);
+                nextStats.totalSessions = Math.max(nextStats.totalSessions, totalSessions);
+                try {
+                    await persistUser(req.user);
+                    return nextStats;
+                } catch (error) {
+                    req.user.focusStats = previousFocusStats;
+                    throw error;
+                }
+            });
         } catch (error) {
-            req.user.focusStats = previousFocusStats;
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
+            }
             logger.warn({ event: 'stats_import_persist_failed', userId: req.user.id, error: error?.message });
             res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
             return;
@@ -315,25 +363,34 @@ function createAuthRouter(deps) {
             return;
         }
 
-        const userId = req.user.id;
+        const user = req.user;
+        const userId = user.id;
+        let cleanupPending = false;
         try {
-            await deleteUser(req.user);
+            cleanupPending = await runUserMutation(user, async () => {
+                await deleteUser(user);
+                usersByEmail.delete(user.email);
+                users.delete(userId);
+                let pending = false;
+                if (typeof onUserDeleted === 'function') {
+                    try {
+                        const cleanup = await onUserDeleted(userId);
+                        pending = !!cleanup?.cleanupPending;
+                    } catch (error) {
+                        pending = true;
+                        logger.error({ event: 'user_delete_cascade_failed', userId, error: error?.message });
+                    }
+                }
+                return pending;
+            });
         } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
+            }
             logger.warn({ event: 'user_delete_persist_failed', userId, error: error?.message });
             res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
             return;
-        }
-        usersByEmail.delete(req.user.email);
-        users.delete(userId);
-        let cleanupPending = false;
-        if (typeof onUserDeleted === 'function') {
-            try {
-                const cleanup = await onUserDeleted(userId);
-                cleanupPending = !!cleanup?.cleanupPending;
-            } catch (error) {
-                cleanupPending = true;
-                logger.error({ event: 'user_delete_cascade_failed', userId, error: error?.message });
-            }
         }
         clearAuthCookie(req, res);
         rotateAnonymousIdentity?.(req, res);

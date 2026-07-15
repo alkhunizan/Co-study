@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const REQUIRED_TABLES = [
     'deletion_tombstones',
+    'focus_completion_claims',
     'focus_sessions',
     'profiles',
     'room_events'

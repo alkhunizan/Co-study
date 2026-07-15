@@ -9,7 +9,6 @@ const DISPLAY_NAME_MAX_LENGTH = 20;
 const BIO_MAX_LENGTH = 160;
 const FOCUS_DAY_KEY_LIMIT = 370;
 const FOCUS_MINUTES_DAY_CAP = 1440;
-const FOCUS_COMPLETION_LIMIT = 1000;
 const MY_ROOMS_LIMIT = 12;
 const GOOGLE_SUB_MAX_LENGTH = 255;
 const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000; // fixed UTC+3, no DST (same convention as schedule-utils)
@@ -98,8 +97,7 @@ function sanitizeFocusStats(raw = {}) {
             seenCompletionIds.add(completion.completionId);
             return true;
         })
-        .sort((a, b) => a.completedAt - b.completedAt)
-        .slice(-FOCUS_COMPLETION_LIMIT);
+        .sort((a, b) => a.completedAt - b.completedAt);
     return { days, totalFocusMinutes, totalSessions, completions };
 }
 
@@ -174,10 +172,6 @@ function applyFocusSession(user, { minutes, completionId, now = Date.now() } = /
         dayKey,
         completedAt: now
     });
-    if (stats.completions.length > FOCUS_COMPLETION_LIMIT) {
-        stats.completions.splice(0, stats.completions.length - FOCUS_COMPLETION_LIMIT);
-    }
-
     const dayKeys = Object.keys(stats.days).sort();
     if (dayKeys.length > FOCUS_DAY_KEY_LIMIT) {
         for (const staleKey of dayKeys.slice(0, dayKeys.length - FOCUS_DAY_KEY_LIMIT)) {
@@ -193,11 +187,13 @@ function applyFocusSession(user, { minutes, completionId, now = Date.now() } = /
         // Already counted today.
     } else if (streak.lastActiveDay === previousRiyadhDayKey(dayKey)) {
         streak.current += 1;
+        streak.lastActiveDay = dayKey;
+        streak.best = Math.max(streak.best, streak.current);
     } else {
         streak.current = 1;
+        streak.lastActiveDay = dayKey;
+        streak.best = Math.max(streak.best, streak.current);
     }
-    streak.lastActiveDay = dayKey;
-    streak.best = Math.max(streak.best, streak.current);
     return {
         focusStats: stats,
         streak,
@@ -404,5 +400,6 @@ module.exports = {
     normalizeCompletionId,
     recordMyRoom,
     sanitizeFocusStats,
+    sanitizeStreak,
     sanitizeUser
 };

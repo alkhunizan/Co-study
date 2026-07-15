@@ -4,7 +4,13 @@ const BACKUP_FORMAT = 'halastudy-encrypted-backup';
 const BACKUP_ARTIFACT_VERSION = 1;
 const BACKUP_SCHEMA_VERSION = 1;
 const BACKUP_ALGORITHM = 'AES-256-GCM';
-const BACKUP_DATASETS = ['profiles', 'focus_sessions', 'room_events', 'rooms'];
+const BACKUP_DATASETS = [
+    'profiles',
+    'focus_completion_claims',
+    'focus_sessions',
+    'room_events',
+    'rooms'
+];
 const AUTH_TAG_BYTES = 16;
 const IV_BYTES = 12;
 const AAD = Buffer.from(`${BACKUP_FORMAT}:${BACKUP_ARTIFACT_VERSION}`, 'utf8');

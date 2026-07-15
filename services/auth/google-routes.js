@@ -39,6 +39,8 @@ function createGoogleAuthRouter(deps = {}) {
         appendSetCookie,
         parseCookies,
         persistUser,
+        runUserMutation,
+        runGoogleSubjectMutation,
         sessionSecret,
         logger = console,
         fetchImpl = globalThis.fetch
@@ -47,6 +49,12 @@ function createGoogleAuthRouter(deps = {}) {
     const router = express.Router();
     if (!config.enabled) {
         return router; // no handlers — all /auth/google/* fall through to 404
+    }
+    if (typeof runUserMutation !== 'function') {
+        throw new TypeError('createGoogleAuthRouter requires runUserMutation.');
+    }
+    if (typeof runGoogleSubjectMutation !== 'function') {
+        throw new TypeError('createGoogleAuthRouter requires runGoogleSubjectMutation.');
     }
     const oauthSecurity = deps.oauthSecurity || createOAuthSecurity({ secret: sessionSecret });
 
@@ -273,29 +281,42 @@ function createGoogleAuthRouter(deps = {}) {
 
         if (state.intent === 'link') {
             const user = req.user;
-            if (user.passwordEnabled === false || !user.passwordHash || user.googleSub) {
-                return failRedirect('link_unavailable');
-            }
-            if (normalizeEmail(user.email) !== email) {
-                logger.warn({ event: 'google_link_email_mismatch', userId: user.id });
-                return res.redirect('/account?auth=link_email_mismatch');
-            }
-            if (subjectMatches.length > 0) {
-                logger.warn({ event: 'google_link_subject_in_use', userId: user.id });
-                return res.redirect('/account?auth=google_subject_in_use');
-            }
-
-            const previousGoogleSub = user.googleSub;
-            user.googleSub = googleSub;
             try {
-                await persistUser(user);
+                return await runUserMutation(user, async () => {
+                    if (user.passwordEnabled === false || !user.passwordHash || user.googleSub) {
+                        return failRedirect('link_unavailable');
+                    }
+                    if (normalizeEmail(user.email) !== email) {
+                        logger.warn({ event: 'google_link_email_mismatch', userId: user.id });
+                        return res.redirect('/account?auth=link_email_mismatch');
+                    }
+                    return runGoogleSubjectMutation(googleSub, async () => {
+                        const currentSubjectMatches = Array.from(users.values())
+                            .filter((candidate) => candidate.googleSub === googleSub);
+                        if (currentSubjectMatches.length > 0) {
+                            logger.warn({ event: 'google_link_subject_in_use', userId: user.id });
+                            return res.redirect('/account?auth=google_subject_in_use');
+                        }
+
+                        const previousGoogleSub = user.googleSub;
+                        user.googleSub = googleSub;
+                        try {
+                            await persistUser(user);
+                        } catch (error) {
+                            user.googleSub = previousGoogleSub;
+                            throw error;
+                        }
+                        logger.info({ event: 'google_linked', userId: user.id });
+                        return res.redirect(state.next);
+                    });
+                });
             } catch (error) {
-                user.googleSub = previousGoogleSub;
+                if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                    return failRedirect('identity_mismatch');
+                }
                 logger.error({ event: 'google_link_persist_failed', userId: user.id, error: error?.message });
                 return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
             }
-            logger.info({ event: 'google_linked', userId: user.id });
-            return res.redirect(state.next);
         }
 
         // Subject is the identity boundary. Fail closed if corrupt persisted

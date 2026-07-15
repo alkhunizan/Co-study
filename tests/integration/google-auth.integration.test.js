@@ -7,8 +7,22 @@ const express = require('express');
 const { createAuthRouter } = require('../../services/auth/auth-routes');
 const { createGoogleAuthRouter } = require('../../services/auth/google-routes');
 const { createOAuthSecurity } = require('../../services/auth/oauth-security');
+const {
+    createKeyedMutationCoordinator,
+    createUserMutationCoordinator
+} = require('../../services/auth/user-mutation-coordinator');
 const { hashPassword } = require('../../services/auth/password');
 const { createUser } = require('../../user-store');
+
+function deferred() {
+    /** @type {() => void} */
+    let resolve = () => {};
+    /** @type {Promise<void>} */
+    const promise = new Promise((resolvePromise) => {
+        resolve = resolvePromise;
+    });
+    return { promise, resolve };
+}
 
 function appendSetCookie(res, value) {
     const existing = res.getHeader('Set-Cookie');
@@ -63,7 +77,12 @@ async function startHarness(t, {
     users: initialUsers = [],
     profile,
     persistError = null,
-    deleteError = null
+    deleteError = null,
+    persistProfile = null,
+    persistFocus = null,
+    deleteUserImpl = null,
+    beforeUserInfo = null,
+    onAuthenticatedRequest = null
 }) {
     const users = new Map(initialUsers.map((user) => [user.id, user]));
     const usersByEmail = new Map(initialUsers.map((user) => [user.email, user.id]));
@@ -78,12 +97,22 @@ async function startHarness(t, {
     const oauthSecurity = createOAuthSecurity({
         secret: 'google-harness-session-secret-at-least-32-bytes'
     });
+    const userMutationCoordinator = createUserMutationCoordinator({
+        getUser: (userId) => users.get(userId) || null
+    });
+    const googleSubjectMutationCoordinator = createKeyedMutationCoordinator();
+    const runUserMutation = (user, operation) => userMutationCoordinator.run(user, operation);
+    const runGoogleSubjectMutation = (googleSub, operation) =>
+        googleSubjectMutationCoordinator.run(googleSub, operation);
 
     const app = express();
     app.use(express.json());
     app.use((req, _res, next) => {
         const testUserId = parseCookies(req.headers.cookie || '').testAuth;
-        if (testUserId && users.has(testUserId)) req.user = users.get(testUserId);
+        if (testUserId && users.has(testUserId)) {
+            req.user = users.get(testUserId);
+            onAuthenticatedRequest?.(req);
+        }
         next();
     });
     app.use('/api', createAuthRouter({
@@ -109,12 +138,14 @@ async function startHarness(t, {
         appendSetCookie,
         parseCookies,
         oauthSecurity,
-        persistUser: async () => {},
-        deleteUser: async () => {
+        persistUser: async (user) => persistProfile?.(user),
+        deleteUser: async (user) => {
             deleteCount += 1;
             if (deleteError) throw deleteError;
+            return deleteUserImpl?.(user);
         },
-        persistFocusCompletion: async () => {},
+        persistFocusCompletion: persistFocus || (async () => {}),
+        runUserMutation,
         requireUser: (req, res, next) => {
             if (!req.user) {
                 res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
@@ -143,13 +174,12 @@ async function startHarness(t, {
         },
         appendSetCookie,
         parseCookies,
-        persistUsersSoon: () => {
-            persistCount += 1;
-        },
         persistUser: async () => {
             persistCount += 1;
             if (persistError) throw persistError;
         },
+        runUserMutation,
+        runGoogleSubjectMutation,
         sessionSecret: 'google-harness-session-secret-at-least-32-bytes',
         oauthSecurity,
         logger: { info() {}, warn() {}, error() {} },
@@ -159,6 +189,7 @@ async function startHarness(t, {
                 return { ok: true, json: async () => ({ access_token: 'test-access-token' }) };
             }
             if (url === 'https://www.googleapis.com/oauth2/v3/userinfo') {
+                await beforeUserInfo?.();
                 return { ok: true, json: async () => profile };
             }
             throw new Error(`Unexpected Google test URL: ${url}`);
@@ -697,4 +728,137 @@ test('failed durable deletion with a Google grant leaves the account and auth id
     assert.equal(harness.anonymousRotationCount, 0);
     assert.equal(getSetCookies(failed.headers)
         .some((cookie) => cookie.startsWith('coStudyAuth=')), false);
+});
+
+test('a profile request authenticated before deletion cannot persist after deletion wins', async (t) => {
+    const existing = await makeAuthenticatedPasswordUser('profile-race@example.com');
+    const deletionStarted = deferred();
+    const releaseDeletion = deferred();
+    const staleRequestAuthenticated = deferred();
+    let profilePersistCount = 0;
+    const harness = await startHarness(t, {
+        users: [existing],
+        profile: {},
+        deleteUserImpl: async () => {
+            deletionStarted.resolve();
+            await releaseDeletion.promise;
+        },
+        persistProfile: async () => {
+            profilePersistCount += 1;
+        },
+        onAuthenticatedRequest: (req) => {
+            if (req.method === 'PATCH') staleRequestAuthenticated.resolve();
+        }
+    });
+    const authCookie = harness.authCookie(existing);
+
+    const deletion = harness.request('/api/me', {
+        method: 'DELETE',
+        headers: { Cookie: authCookie },
+        body: { password: 'correct-password' }
+    });
+    await deletionStarted.promise;
+    const staleMutation = harness.request('/api/me/profile', {
+        method: 'PATCH',
+        headers: { Cookie: authCookie },
+        body: { bio: 'must not survive deletion' }
+    });
+    await staleRequestAuthenticated.promise;
+    releaseDeletion.resolve();
+
+    const [deleted, stale] = await Promise.all([deletion, staleMutation]);
+    assert.equal(deleted.status, 200);
+    assert.equal(stale.status, 401);
+    assert.deepEqual(await stale.json(), { errorCode: 'AUTH_REQUIRED' });
+    assert.equal(profilePersistCount, 0);
+    assert.equal(harness.users.has(existing.id), false);
+});
+
+test('a provider-reported focus replay replaces the optimistic projection with the durable aggregate', async (t) => {
+    const existing = await makeAuthenticatedPasswordUser('focus-replay@example.com');
+    const dayKey = '2026-07-15';
+    const completionId = 'completion_rpc_0001';
+    const durableFocusStats = {
+        days: { [dayKey]: { focusMinutes: 20, sessions: 1 } },
+        totalFocusMinutes: 20,
+        totalSessions: 1,
+        completions: [{ completionId, acceptedMinutes: 20, dayKey, completedAt: Date.now() }]
+    };
+    const durableStreak = { current: 1, best: 1, lastActiveDay: dayKey };
+    const harness = await startHarness(t, {
+        users: [existing],
+        profile: {},
+        persistFocus: async () => ({
+            duplicate: true,
+            acceptedMinutes: 20,
+            dayKey,
+            focusStats: structuredClone(durableFocusStats),
+            streak: structuredClone(durableStreak)
+        })
+    });
+
+    const response = await harness.request('/api/me/focus-session', {
+        method: 'POST',
+        headers: { Cookie: harness.authCookie(existing) },
+        body: { minutes: 25, completionId }
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.duplicate, true);
+    assert.equal(payload.acceptedMinutes, 20);
+    assert.deepEqual(payload.focusStats, durableFocusStats);
+    assert.deepEqual(payload.streak, durableStreak);
+    assert.deepEqual(existing.focusStats, durableFocusStats);
+});
+
+test('a Google link callback cannot attach identity after the account is deleted', async (t) => {
+    const existing = await makeAuthenticatedPasswordUser('google-race@example.com');
+    const userInfoStarted = deferred();
+    const releaseUserInfo = deferred();
+    const harness = await startHarness(t, {
+        users: [existing],
+        profile: {
+            sub: 'stale-link-subject',
+            email: existing.email,
+            email_verified: true,
+            name: 'Stale Link'
+        },
+        beforeUserInfo: async () => {
+            userInfoStarted.resolve();
+            await releaseUserInfo.promise;
+        }
+    });
+    const authCookie = harness.authCookie(existing);
+    const prepared = await harness.request('/api/auth/google/link', {
+        method: 'POST',
+        headers: { Cookie: authCookie },
+        body: { password: 'correct-password' }
+    });
+    const preparedBody = await prepared.json();
+    const linkCookie = getSetCookies(prepared.headers)[0].split(';')[0];
+    const flow = await harness.startGoogleFlow(
+        preparedBody.redirectTo,
+        `${authCookie}; ${linkCookie}`
+    );
+    const callback = harness.request(
+        `/auth/google/callback?code=test-code&state=${encodeURIComponent(flow.state)}`,
+        { headers: { Cookie: `${authCookie}; ${flow.stateCookie}` } }
+    );
+    await userInfoStarted.promise;
+
+    const deleted = await harness.request('/api/me', {
+        method: 'DELETE',
+        headers: { Cookie: authCookie },
+        body: { password: 'correct-password' }
+    });
+    assert.equal(deleted.status, 200);
+    releaseUserInfo.resolve();
+
+    const staleCallback = await callback;
+    assert.equal(staleCallback.status, 302);
+    assert.equal(staleCallback.headers.get('location'), '/account?auth=google_failed');
+    assert.equal(existing.googleSub, null);
+    assert.equal(harness.persistCount, 0);
+    assert.equal(harness.users.has(existing.id), false);
 });

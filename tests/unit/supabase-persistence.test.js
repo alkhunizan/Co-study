@@ -3,7 +3,7 @@ const test = require('node:test');
 
 const { createSupabaseClient } = require('../../services/supabase/client');
 const { createSupabaseUserStore } = require('../../supabase-user-store');
-const { createUser } = require('../../user-store');
+const { applyFocusSession, createUser } = require('../../user-store');
 
 function profileRow(index) {
     return {
@@ -29,7 +29,8 @@ test('Supabase hydration paginates beyond the PostgREST 1000-row default', async
     const queries = [];
     const firstPage = Array.from({ length: 1000 }, (_, index) => profileRow(index));
     const client = {
-        async select(_table, query) {
+        async select(table, query) {
+            if (table === 'deletion_tombstones') return [];
             queries.push(query);
             return queries.length === 1 ? firstPage : [profileRow(1000)];
         }
@@ -53,6 +54,107 @@ test('Supabase hydration rejects malformed response bodies', async () => {
     await assert.rejects(store.hydrate(), /invalid profiles response/i);
 });
 
+test('Supabase hydration excludes profiles protected by deletion tombstones', async () => {
+    const store = createSupabaseUserStore({
+        client: {
+            async select(table) {
+                if (table === 'profiles') return [profileRow(1)];
+                if (table === 'deletion_tombstones') {
+                    return [{ user_id: profileRow(1).id, expires_at: '2026-08-14T00:00:00.000Z' }];
+                }
+                throw new Error(`Unexpected table ${table}`);
+            }
+        },
+        logger: { warn() {} },
+        now: () => Date.parse('2026-07-15T00:00:00.000Z')
+    });
+
+    assert.deepEqual(await store.hydrate(), []);
+});
+
+test('Supabase hydration ignores expired deletion tombstones', async () => {
+    const store = createSupabaseUserStore({
+        client: {
+            async select(table) {
+                if (table === 'profiles') return [profileRow(1)];
+                if (table === 'deletion_tombstones') {
+                    return [{ user_id: profileRow(1).id, expires_at: '2026-07-14T23:59:59.000Z' }];
+                }
+                throw new Error(`Unexpected table ${table}`);
+            }
+        },
+        logger: { warn() {} },
+        now: () => Date.parse('2026-07-15T00:00:00.000Z')
+    });
+
+    assert.equal((await store.hydrate()).length, 1);
+});
+
+test('a Supabase write queued during deletion cannot upsert the tombstoned profile', async () => {
+    /** @type {() => void} */
+    let releaseDeletion = () => {};
+    /** @type {() => void} */
+    let signalDeletionStarted = () => {};
+    /** @type {Promise<void>} */
+    const deletionGate = new Promise((resolve) => {
+        releaseDeletion = resolve;
+    });
+    /** @type {Promise<void>} */
+    const deletionStarted = new Promise((resolve) => {
+        signalDeletionStarted = resolve;
+    });
+    const upserts = [];
+    const client = {
+        async select() { return []; },
+        async rpc(functionName) {
+            assert.equal(functionName, 'delete_profile_with_tombstone');
+            signalDeletionStarted();
+            await deletionGate;
+        },
+        async upsert(_table, rows) {
+            upserts.push(rows);
+        }
+    };
+    const store = createSupabaseUserStore({ client, logger: { warn() {} } });
+    await store.hydrate();
+    const user = createUser({
+        email: 'supabase-delete-race@example.com',
+        passwordHash: '0123456789abcdef:0123456789abcdef',
+        displayName: 'Supabase Race'
+    });
+
+    const deletion = store.deleteUser(user);
+    await deletionStarted;
+    const staleSave = store.saveUser(user);
+    releaseDeletion();
+
+    await deletion;
+    await assert.rejects(staleSave, /tombstoned/i);
+    assert.deepEqual(upserts, []);
+});
+
+test('the in-memory Supabase write barrier expires after the 30-day tombstone window', async () => {
+    let now = Date.parse('2026-07-15T00:00:00.000Z');
+    let upsertCount = 0;
+    const client = {
+        async rpc() {},
+        async upsert() { upsertCount += 1; }
+    };
+    const store = createSupabaseUserStore({ client, logger: { warn() {} }, now: () => now });
+    const user = createUser({
+        email: 'tombstone-expiry@example.com',
+        passwordHash: '0123456789abcdef:0123456789abcdef',
+        displayName: 'Tombstone Expiry'
+    });
+
+    await store.deleteUser(user);
+    await assert.rejects(store.saveUser(user), /tombstoned/i);
+    now += (30 * 24 * 60 * 60 * 1000) + 1;
+    await store.saveUser(user);
+
+    assert.equal(upsertCount, 1);
+});
+
 test('an immediate Supabase row failure rejects without poisoning the next mutation', async () => {
     let attempts = 0;
     const client = {
@@ -71,6 +173,83 @@ test('an immediate Supabase row failure rejects without poisoning the next mutat
     await assert.rejects(store.saveUser(user), /injected Supabase failure/);
     await store.saveUser(user);
     assert.equal(attempts, 2);
+});
+
+test('Supabase focus persistence reports a durable duplicate and its canonical aggregate', async () => {
+    const user = createUser({
+        email: 'focus-rpc@example.com',
+        passwordHash: '0123456789abcdef:0123456789abcdef',
+        displayName: 'Focus RPC'
+    });
+    const payload = applyFocusSession(user, {
+        minutes: 25,
+        completionId: 'completion_rpc_0001',
+        now: Date.parse('2026-07-15T08:00:00.000Z')
+    });
+    let calledFunction;
+    const client = {
+        async rpc(functionName) {
+            calledFunction = functionName;
+            return [{
+                duplicate: true,
+                accepted_minutes: 20,
+                completion_day: payload.dayKey,
+                persisted_focus_stats: {
+                    days: { [payload.dayKey]: { focusMinutes: 20, sessions: 1 } },
+                    totalFocusMinutes: 20,
+                    totalSessions: 1,
+                    completions: [{
+                        completionId: payload.completionId,
+                        acceptedMinutes: 20,
+                        dayKey: payload.dayKey,
+                        completedAt: Date.parse('2026-07-15T08:00:00.000Z')
+                    }]
+                },
+                persisted_current_streak: 1,
+                persisted_best_streak: 1,
+                persisted_last_active_day: payload.dayKey
+            }];
+        }
+    };
+    const store = createSupabaseUserStore({ client, logger: { warn() {} } });
+
+    const result = await store.persistFocusCompletion(user, payload);
+
+    assert.equal(calledFunction, 'record_focus_completion_v2');
+    assert.equal(result.duplicate, true);
+    assert.equal(result.acceptedMinutes, 20);
+    assert.equal(result.focusStats.totalFocusMinutes, 20);
+    assert.equal(result.streak.current, 1);
+});
+
+test('Supabase focus persistence rejects malformed canonical aggregates', async () => {
+    const user = createUser({
+        email: 'focus-malformed@example.com',
+        passwordHash: '0123456789abcdef:0123456789abcdef',
+        displayName: 'Focus Malformed'
+    });
+    const payload = applyFocusSession(user, {
+        minutes: 5,
+        completionId: 'completion_bad_0001'
+    });
+    const store = createSupabaseUserStore({
+        client: {
+            async rpc() {
+                return [{
+                    duplicate: true,
+                    accepted_minutes: 5,
+                    completion_day: payload.dayKey,
+                    persisted_focus_stats: [],
+                    persisted_current_streak: 0,
+                    persisted_best_streak: 0,
+                    persisted_last_active_day: null
+                }];
+            }
+        },
+        logger: { warn() {} }
+    });
+
+    await assert.rejects(store.persistFocusCompletion(user, payload), /invalid record_focus_completion_v2/i);
 });
 
 test('Supabase request deadline covers reading the full response body', async () => {
