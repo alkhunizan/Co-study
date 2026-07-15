@@ -31,3 +31,30 @@ Rows returned outside the locked window are excluded and counted as provider
 anomalies. A report with candidates is not proof that the rows are synthetic
 and is not authorization to delete them. Review it against deployment/test logs
 and obtain separate explicit approval before any production action.
+
+## Local container-image risk inventory
+
+Inventory locally available Halastudy/Co-Study images without contacting a
+registry:
+
+```bash
+npm run inventory:images -- --dry-run
+# Inspect exact images already present locally:
+npm run inventory:images -- --image ghcr.io/example/co-study@sha256:<digest>
+# Broaden explicitly to every local image:
+npm run inventory:images -- --all-local
+```
+
+The command allowlist contains only `docker image ls`, `docker image inspect`,
+and `docker image history`. Image references are passed as arguments without a
+shell. There is no build, registry login, pull, push, removal, prune, or
+credential-rotation path.
+
+Reports include local tags/digests, build time, size, platform, layer counts,
+and risk findings from image configuration, labels, and history. Sensitive
+values and history commands are never copied into the report; only indicator
+names, lengths, and SHA-256 fingerprints are retained. A repository digest is
+evidence that the local daemon associated the image with a registry digest, not
+proof that the remote image still exists. This metadata-only tool cannot prove
+that a historical layer did or did not contain a file; investigate high-risk
+findings before deciding whether credentials need rotation.
