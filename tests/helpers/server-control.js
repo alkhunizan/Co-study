@@ -314,6 +314,7 @@ async function startFakeRealtimeKit(options = {}) {
             REALTIMEKIT_FAIL_PARTICIPANT: options.failParticipants ? '1' : '0',
             REALTIMEKIT_FAIL_RECONCILIATION: options.failReconciliation ? '1' : '0',
             REALTIMEKIT_FAIL_CLOSE: options.failClose ? '1' : '0',
+            REALTIMEKIT_MEETING_DELAY_MS: String(options.meetingDelayMs || 0),
             REALTIMEKIT_PARTICIPANT_DELAY_MS: String(options.participantDelayMs || 0),
             REALTIMEKIT_CLOSE_DELAY_MS: String(options.closeDelayMs || 0),
             REALTIMEKIT_INITIAL_ACTIVE_SESSIONS_JSON: JSON.stringify(options.activeSessions || {})

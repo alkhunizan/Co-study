@@ -102,6 +102,16 @@ async function waitForRealtimeKitMeeting(server, timeoutMs = 2000) {
     throw new Error('Timed out waiting for the fake RealtimeKit meeting.');
 }
 
+async function waitForRealtimeKitMeetingRequest(server, timeoutMs = 2000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const state = await server.realtimeKitState();
+        if (state.meetingRequests > 0) return;
+        await delay(20);
+    }
+    throw new Error('Timed out waiting for the fake RealtimeKit meeting request.');
+}
+
 test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
@@ -1232,6 +1242,55 @@ test('room closure during in-flight RealtimeKit token issuance rejects the token
         meetingId === 'meeting_1'
         && customParticipantIds.includes(providerState.participants[0].body.custom_participant_id)
     )));
+});
+
+test('room closure during provider meeting creation closes the meeting and retires any late identity', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { meetingDelayMs: 500 }
+    });
+    await cleanupServer(t, server);
+    const account = await signupUser(server, { displayName: 'Late meeting owner' });
+    const socket = await connectSocket(server.baseUrl, {
+        clientId: 'rtk-late-meeting-race',
+        extraHeaders: { Cookie: account.cookie }
+    });
+    t.after(async () => closeSocket(socket));
+
+    const created = await emitAck(socket, 'create-room', { roomName: 'Late Meeting Race Room' });
+    const roomId = created.room.roomId;
+    const joined = await emitAck(socket, 'join-room', {
+        roomId,
+        username: 'Late meeting owner',
+        clientId: 'rtk-late-meeting-race'
+    });
+    const tokenPromise = issueVideoToken(server, roomId, {
+        displayName: 'Late meeting owner',
+        role: 'student',
+        membershipToken: joined.membershipToken
+    }, { Cookie: account.cookie });
+    await waitForRealtimeKitMeetingRequest(server);
+
+    const closePromise = server.request(`/api/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { Cookie: account.cookie }
+    });
+    const closed = await closePromise;
+    const token = await tokenPromise;
+
+    assert.equal(closed.status, 200);
+    assert.equal(token.status, 403);
+    assert.equal(token.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+    assert.equal((await server.request(`/api/rooms/${roomId}`)).status, 404);
+    const providerState = await server.realtimeKitState();
+    assert.equal(providerState.meetings.length, 1);
+    assert.deepEqual(providerState.closedMeetings, ['meeting_1']);
+    assert.deepEqual(providerState.disabledMeetings, ['meeting_1']);
+    assert.deepEqual(providerState.kickAllMeetings, ['meeting_1']);
+    assert.deepEqual(
+        providerState.participants.filter((participant) => !participant.deletedAt),
+        []
+    );
 });
 
 test('room switching during provider token creation revokes the pending response', async (t) => {
