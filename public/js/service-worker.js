@@ -23,6 +23,7 @@ const PRECACHE_PATHS = Object.freeze([
     '/design-system/colors_and_type.css',
     '/manifest.webmanifest',
     '/js/halastudy-core.js',
+    '/js/index-app.js',
     '/js/ui.js',
     '/js/video/realtimekit-client.js',
     '/js/video/video-client.js'

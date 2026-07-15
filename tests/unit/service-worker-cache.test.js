@@ -156,7 +156,7 @@ test('install and activate replace stale Halastudy caches with a versioned legal
 
     await api.install();
     const staticCache = await cacheStorage.open(api.STATIC_CACHE_NAME);
-    for (const assetPath of ['/privacy', '/terms', '/js/halastudy-core.js', '/js/ui.js']) {
+    for (const assetPath of ['/privacy', '/terms', '/js/halastudy-core.js', '/js/index-app.js', '/js/ui.js']) {
         assert.ok(await staticCache.match(`${ORIGIN}${assetPath}`), `${assetPath} should be precached`);
     }
     assert.ok(harness.networkRequests.every((request) => request.options?.cache === 'reload'));
@@ -348,17 +348,21 @@ test('ambient WAV request map points at browser-compatible compressed MP3 assets
     assert.equal(api.AMBIENT_SOURCE_MAP['/audio/waves.wav'], '/audio/waves.mp3');
 });
 
-test('compressed ambient targets are valid MP3 payloads and materially smaller than their WAV sources', () => {
+test('compressed ambient targets are valid bounded MP3 payloads and WAV sources are not shipped', () => {
+    const MiB = 1024 * 1024;
+    let totalBytes = 0;
     for (const baseName of ['chimney-fire', 'cafe', 'waves']) {
         const wavPath = path.join(__dirname, '..', '..', 'audio', `${baseName}.wav`);
         const mp3Path = path.join(__dirname, '..', '..', 'audio', `${baseName}.mp3`);
-        const wavSize = fs.statSync(wavPath).size;
         const mp3Size = fs.statSync(mp3Path).size;
         const header = fs.readFileSync(mp3Path).subarray(0, 3);
         const hasId3Header = header.toString('ascii') === 'ID3';
         const hasMpegFrameSync = header[0] === 0xff && (header[1] & 0xe0) === 0xe0;
 
         assert.ok(hasId3Header || hasMpegFrameSync, `${baseName}.mp3 must contain MPEG audio`);
-        assert.ok(mp3Size < (wavSize * 0.1), `${baseName}.mp3 must be at least 90% smaller`);
+        assert.ok(mp3Size < (2 * MiB), `${baseName}.mp3 must remain below 2 MiB`);
+        assert.equal(fs.existsSync(wavPath), false, `${baseName}.wav must not ship`);
+        totalBytes += mp3Size;
     }
+    assert.ok(totalBytes < (5 * MiB), 'compressed ambient bundle must remain below 5 MiB');
 });
