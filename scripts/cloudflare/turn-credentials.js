@@ -66,7 +66,7 @@ async function main() {
 
     // Cloudflare returns { iceServers: { urls: [...], username, credential } }.
     const ice = payload.iceServers || payload;
-    if (!ice || !ice.urls || !ice.username || !ice.credential) {
+    if (!ice?.urls || !ice.username || !ice.credential) {
         throw new Error('Unexpected Cloudflare TURN response shape (no iceServers.urls/username/credential).');
     }
 

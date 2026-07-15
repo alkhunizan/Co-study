@@ -223,12 +223,12 @@
 
     function showAnnouncement(announcement) {
         clearAnnouncement();
-        if (!announcement || !announcement.id) return;
+        if (!announcement?.id) return;
         var message = announcementMessage(announcement);
         if (!message) return;
         try {
             if (localStorage.getItem(ANNOUNCE_DISMISS_KEY) === announcement.id) return;
-        } catch (e) { /* storage unavailable */ }
+        } catch { /* storage unavailable */ }
 
         var banner = document.createElement('div');
         banner.id = 'announce-banner';
@@ -247,7 +247,7 @@
             + 'font-size:16px;line-height:1;min-inline-size:32px;min-block-size:32px;border-radius:50%;';
         dismiss.addEventListener('click', () => {
             banner.remove();
-            try { localStorage.setItem(ANNOUNCE_DISMISS_KEY, announcement.id); } catch (e) {}
+            try { localStorage.setItem(ANNOUNCE_DISMISS_KEY, announcement.id); } catch {}
         });
         banner.appendChild(text);
         banner.appendChild(dismiss);

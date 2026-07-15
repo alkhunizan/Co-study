@@ -122,7 +122,7 @@ function createGoogleAuthRouter(deps = {}) {
             if (!infoRes.ok) return failRedirect(`userinfo_${infoRes.status}`);
             profile = await infoRes.json();
         } catch (error) {
-            logger.error({ event: 'google_auth_error', error: error && error.message });
+            logger.error({ event: 'google_auth_error', error: error?.message });
             return failRedirect('exchange_error');
         }
 

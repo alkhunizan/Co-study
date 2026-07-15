@@ -191,7 +191,7 @@ function createAdminRouter(deps) {
                 dailyActive: Array.isArray(dailyActive) ? dailyActive : []
             });
         } catch (error) {
-            logger.warn({ event: 'admin_dashboard_failed', error: error && error.message });
+            logger.warn({ event: 'admin_dashboard_failed', error: error?.message });
             res.status(502).json({ errorCode: 'DASHBOARD_UNAVAILABLE' });
         }
     });
@@ -271,7 +271,7 @@ function createAdminRouter(deps) {
             return;
         }
         const socketId = typeof req.body?.socketId === 'string' ? req.body.socketId : '';
-        if (!socketId || !room.users || !room.users.has(socketId)) {
+        if (!socketId || !room.users?.has(socketId)) {
             res.status(404).json({ errorCode: 'PARTICIPANT_NOT_FOUND' });
             return;
         }

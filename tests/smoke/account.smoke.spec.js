@@ -155,7 +155,7 @@ test('guest focus-sync nudge appears after a focus session and dismissal sticks 
         // Drive the completion hook directly — waiting out a real Pomodoro
         // is not smoke-test material.
         await guest.page.evaluate(() => {
-            // @ts-ignore page-scope function
+            // @ts-expect-error page-scope function
             onFocusSessionComplete(25);
         });
         await expect(guest.page.locator('#focus-sync-hint')).toBeVisible();
@@ -166,7 +166,7 @@ test('guest focus-sync nudge appears after a focus session and dismissal sticks 
 
         await guest.page.reload();
         await guest.page.evaluate(() => {
-            // @ts-ignore page-scope function
+            // @ts-expect-error page-scope function
             onFocusSessionComplete(25);
         });
         await expect(guest.page.locator('#focus-sync-hint')).toBeHidden();
