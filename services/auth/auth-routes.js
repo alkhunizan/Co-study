@@ -48,6 +48,7 @@ function createAuthRouter(deps) {
         persistUser,
         deleteUser,
         onUserDeleted,
+        onSessionLogout,
         persistFocusCompletion,
         runUserMutation,
         requireUser,
@@ -156,6 +157,12 @@ function createAuthRouter(deps) {
     });
 
     router.post('/auth/logout', (req, res) => {
+        // A stateless account cookie can be present on several browsers. Revoke
+        // only sockets that share this request's signed anonymous browser
+        // session; password changes, bans, and deletion remain account-wide.
+        onSessionLogout?.({
+            sessionId: req.sessionId || null
+        });
         clearAuthCookie(req, res);
         rotateAnonymousIdentity?.(req, res);
         res.json({ ok: true });

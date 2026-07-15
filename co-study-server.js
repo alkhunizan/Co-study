@@ -2067,6 +2067,35 @@ function createCoStudyServer(options = {}) {
         socketRef.data.membershipToken = null;
     }
 
+    function invalidateSocketConnection(socketRef) {
+        if (!socketRef) return;
+        socketRef.data.connectionGeneration = Number.isInteger(socketRef.data.connectionGeneration)
+            ? socketRef.data.connectionGeneration + 1
+            : 1;
+        invalidateSocketMembership(socketRef);
+    }
+
+    /** @param {{ sessionId?: string|null }} [browserSession] */
+    function disconnectAuthenticatedBrowserSessionSockets(browserSession = {}) {
+        const { sessionId } = browserSession;
+        if (typeof sessionId !== 'string' || !sessionId) {
+            return 0;
+        }
+        const matchingSockets = Array.from(io.sockets.sockets.values()).filter((socketRef) => (
+            typeof socketRef.data.userId === 'string'
+            && !!socketRef.data.userId
+            && socketRef.data.sessionId === sessionId
+        ));
+        for (const socketRef of matchingSockets) {
+            // Bump liveness before disconnecting so an already-running async
+            // join observes revocation even if its next continuation runs in
+            // the same event-loop turn as Socket.IO's disconnect callback.
+            invalidateSocketConnection(socketRef);
+            socketRef.disconnect(true);
+        }
+        return matchingSockets.length;
+    }
+
     function issueMembershipToken(socketRef, roomId) {
         invalidateSocketMembership(socketRef);
         const token = crypto.randomBytes(32).toString('base64url');
@@ -3187,6 +3216,7 @@ function createCoStudyServer(options = {}) {
         persistUser: persistUserImmediate,
         deleteUser: deleteUserImmediate,
         onUserDeleted: cascadeDeletedUser,
+        onSessionLogout: disconnectAuthenticatedBrowserSessionSockets,
         persistFocusCompletion: persistFocusCompletionImmediate,
         runUserMutation,
         flushUsers: () => userStore.flush(users),
@@ -3659,13 +3689,20 @@ function createCoStudyServer(options = {}) {
     io.on('connection', (socket) => {
         const auth = socket.handshake?.auth;
         const handshakeClientId = normalizeClientId(auth?.clientId);
-        const sessionId = getSessionIdFromSocket(socket) || crypto.randomUUID();
+        const signedSessionId = getSessionIdFromSocket(socket);
+        const sessionId = signedSessionId || crypto.randomUUID();
         const ip = getSocketRequestIp(socket.request, config.trustProxy);
 
         // Same-origin pages send cookies on the Socket.IO handshake, so a
         // signed-in browser gets its account attached to the socket.
         const handshakeCookies = parseCookies(socket.handshake?.headers?.cookie || '');
-        const authedUser = resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME]);
+        // Account-authorized sockets must be bound to a server-signed browser
+        // session. An auth cookie copied without that companion cookie remains
+        // usable for HTTP reauthentication but cannot create an unrevokable
+        // long-lived socket.
+        const authedUser = signedSessionId
+            ? resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME])
+            : null;
 
         socket.data.sessionId = sessionId;
         socket.data.clientId = handshakeClientId || sessionId;
@@ -3673,6 +3710,7 @@ function createCoStudyServer(options = {}) {
         socket.data.userId = authedUser ? authedUser.id : null;
         socket.data.identityId = authedUser ? `user:${authedUser.id}` : `anon:${sessionId}`;
         socket.data.membershipToken = null;
+        socket.data.connectionGeneration = 0;
 
         // Late joiners still see an active admin broadcast.
         const currentAnnouncement = getActiveAnnouncement();
@@ -3916,8 +3954,17 @@ function createCoStudyServer(options = {}) {
 
         onRequest('join-room', async (payload, ack) => {
             const { roomId, username, clientId: payloadClientId, password } = payload;
+            const joinConnectionGeneration = socket.data.connectionGeneration;
+            const joinIsLive = () => (
+                socket.connected
+                && socket.data.connectionGeneration === joinConnectionGeneration
+            );
             const cleanName = sanitizeNickname(username);
             const normalizedRoom = normalizeRoom(roomId);
+
+            // A queued membership operation can begin after its socket has
+            // already disconnected. Do not perform even its first mutation.
+            if (!joinIsLive()) return;
             const clientId = resolveClientId(socket, payloadClientId);
 
             if (!cleanName) {
@@ -3964,12 +4011,14 @@ function createCoStudyServer(options = {}) {
                 }
                 try {
                     const isValid = await verifyPassword(providedPassword, room.passwordHash);
+                    if (!joinIsLive()) return;
                     if (!isValid) {
                         rateLimiters.passwordFailures.consume(passwordFailureKey);
                         return ackError(ack, 'ROOM_PASSWORD_INVALID');
                     }
                     rateLimiters.passwordFailures.reset(passwordFailureKey);
                 } catch (err) {
+                    if (!joinIsLive()) return;
                     console.error('Password verification failed:', err);
                     return ackError(ack, 'ROOM_PASSWORD_VERIFICATION_FAILED');
                 }
@@ -4031,38 +4080,40 @@ function createCoStudyServer(options = {}) {
 
             const joiningUser = getSocketUser();
             let previousMyRooms = null;
-            if (joiningUser) {
-                try {
-                    await runUserMutation(joiningUser, async () => {
-                        previousMyRooms = structuredClone(joiningUser.myRooms);
-                        recordMyRoom(joiningUser, { roomId: normalizedRoom, name: room.name, role: 'joined' });
-                        try {
-                            // Persist account metadata before invalidating the
-                            // source membership or any provider credential. A
-                            // rejected write therefore leaves both rooms and
-                            // the old membership token exactly untouched.
-                            await persistUserImmediate(joiningUser);
-                        } catch (error) {
-                            joiningUser.myRooms = previousMyRooms;
-                            throw error;
-                        }
-                    });
-                } catch (error) {
-                    return ackError(
-                        ack,
-                        error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED'
-                            ? 'AUTH_REQUIRED'
-                            : 'PERSISTENCE_UNAVAILABLE'
-                    );
+            let joinedRoomMetadataPersisted = false;
+
+            const restorePreviousMyRooms = () => {
+                if (!joiningUser || !previousMyRooms) return false;
+                const currentRooms = Array.isArray(joiningUser.myRooms)
+                    ? joiningUser.myRooms.map((entry) => ({ ...entry }))
+                    : [];
+                const targetIndex = currentRooms.findIndex((entry) => entry.roomId === normalizedRoom);
+                const targetEntry = targetIndex >= 0 ? currentRooms[targetIndex] : null;
+
+                // A newer mutation from another live browser session owns the
+                // target entry now. Do not erase or rewind that legitimate join.
+                if (!targetEntry || targetEntry.lastJoinedAt !== joinNow) return false;
+
+                const rollbackCapacity = Math.max(previousMyRooms.length, currentRooms.length);
+                currentRooms.splice(targetIndex, 1);
+                for (const previousEntry of previousMyRooms) {
+                    if (!currentRooms.some((entry) => entry.roomId === previousEntry.roomId)) {
+                        currentRooms.push({ ...previousEntry });
+                    }
                 }
-            }
+                currentRooms.sort((left, right) => right.lastJoinedAt - left.lastJoinedAt);
+                currentRooms.length = Math.min(currentRooms.length, rollbackCapacity);
+                joiningUser.myRooms = currentRooms;
+                return true;
+            };
 
             const rollbackUserRoomMetadata = async () => {
-                if (!joiningUser || !previousMyRooms) return true;
+                if (!joiningUser || !previousMyRooms || !joinedRoomMetadataPersisted) return true;
                 try {
                     await runUserMutation(joiningUser, async () => {
-                        joiningUser.myRooms = structuredClone(previousMyRooms);
-                        await persistUserImmediate(joiningUser);
+                        const changed = restorePreviousMyRooms();
+                        if (changed) await persistUserImmediate(joiningUser);
+                        joinedRoomMetadataPersisted = false;
                     });
                     return true;
                 } catch (error) {
@@ -4076,6 +4127,46 @@ function createCoStudyServer(options = {}) {
                 }
             };
 
+            if (joiningUser) {
+                try {
+                    await runUserMutation(joiningUser, async () => {
+                        previousMyRooms = structuredClone(joiningUser.myRooms);
+                        recordMyRoom(joiningUser, {
+                            roomId: normalizedRoom,
+                            name: room.name,
+                            role: 'joined',
+                            now: joinNow
+                        });
+                        try {
+                            // Persist account metadata before invalidating the
+                            // source membership or any provider credential. A
+                            // rejected write therefore leaves both rooms and
+                            // the old membership token exactly untouched.
+                            await persistUserImmediate(joiningUser);
+                            joinedRoomMetadataPersisted = true;
+                        } catch (error) {
+                            joiningUser.myRooms = previousMyRooms;
+                            throw error;
+                        }
+                    });
+                } catch (error) {
+                    if (!joinIsLive()) {
+                        await rollbackUserRoomMetadata();
+                        return;
+                    }
+                    return ackError(
+                        ack,
+                        error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED'
+                            ? 'AUTH_REQUIRED'
+                            : 'PERSISTENCE_UNAVAILABLE'
+                    );
+                }
+                if (!joinIsLive()) {
+                    await rollbackUserRoomMetadata();
+                    return;
+                }
+            }
+
             // Provider credentials are socket-bound just like membership.
             // Revoke them durably before mutating either room so a successful
             // switch/reconnect can never leave a cached provider token usable.
@@ -4088,18 +4179,23 @@ function createCoStudyServer(options = {}) {
                     socketId,
                     'room_membership_revoked'
                 );
-                if (revoked.persistenceUnavailable) {
+                if (!joinIsLive()) {
                     await rollbackUserRoomMetadata();
+                    return;
+                }
+                if (revoked.persistenceUnavailable) {
+                    const rolledBack = await rollbackUserRoomMetadata();
+                    if (!joinIsLive()) return;
+                    if (!rolledBack) return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
                     return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
                 }
                 if (!revoked.providerIdentityRevoked) {
                     realtimeKitProviderAvailable = false;
-                    return ackError(
-                        ack,
-                        await rollbackUserRoomMetadata()
-                            ? 'VIDEO_PROVIDER_UNAVAILABLE'
-                            : 'PERSISTENCE_UNAVAILABLE'
-                    );
+                    const rolledBack = await rollbackUserRoomMetadata();
+                    if (!joinIsLive()) return;
+                    return ackError(ack, rolledBack
+                        ? 'VIDEO_PROVIDER_UNAVAILABLE'
+                        : 'PERSISTENCE_UNAVAILABLE');
                 }
             }
 
@@ -4130,8 +4226,30 @@ function createCoStudyServer(options = {}) {
                 }
             } catch (_error) {
                 unstageRoomLifecycleEvents(stagedMembershipEvents);
-                await rollbackUserRoomMetadata();
+                const rolledBack = await rollbackUserRoomMetadata();
+                if (!joinIsLive()) return;
+                if (!rolledBack) return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
                 return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
+            }
+
+            if (!joinIsLive()) {
+                // The durable outbox snapshot may have completed just before
+                // disconnect. Remove its uncommitted join/leave intent and
+                // persist that compensation before releasing the room locks.
+                unstageRoomLifecycleEvents(stagedMembershipEvents);
+                if (stagedMembershipEvents.length > 0) {
+                    try {
+                        await roomStore.flush(rooms);
+                    } catch (error) {
+                        logger.error({
+                            event: 'room_join_outbox_rollback_failed',
+                            roomId: normalizedRoom,
+                            error: error?.message
+                        });
+                    }
+                }
+                await rollbackUserRoomMetadata();
+                return;
             }
 
             if (!roomHasSchedule(room)) {
@@ -4189,6 +4307,13 @@ function createCoStudyServer(options = {}) {
                 avatarColor: joiningUser ? joiningUser.avatarColor : null,
                 streakCurrent: joiningUser ? joiningUser.streak.current : null
             };
+
+            // No await is allowed between this final liveness check and the
+            // synchronous membership/token commit below.
+            if (!joinIsLive()) {
+                await rollbackUserRoomMetadata();
+                return;
+            }
 
             room.users.set(socket.id, userRecord);
             if (identityKey) {
@@ -4532,7 +4657,7 @@ function createCoStudyServer(options = {}) {
         });
 
         socket.on('disconnect', () => {
-            invalidateSocketMembership(socket);
+            invalidateSocketConnection(socket);
             if (skippedDisconnects.has(socket.id)) {
                 skippedDisconnects.delete(socket.id);
                 return;
