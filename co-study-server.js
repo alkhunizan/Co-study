@@ -38,6 +38,7 @@ const {
     recordScheduleJoin,
     rollScheduleAttendance
 } = require('./schedule-utils');
+const { version: APP_VERSION } = require('./package.json');
 
 const ROOM_HISTORY_LIMIT = 80;
 const ROOM_TTL_MS = 1000 * 60 * 30;
@@ -1810,7 +1811,8 @@ function createCoStudyServer(options = {}) {
             status: 'ok',
             uptimeSeconds: Math.round(process.uptime()),
             timestamp: new Date().toISOString(),
-            mode: config.mode
+            mode: config.mode,
+            version: APP_VERSION
         });
     });
 

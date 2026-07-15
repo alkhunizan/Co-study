@@ -8,6 +8,7 @@ const { repoRoot, resetStateFile, makeTempStateFile } = require('../helpers/test
 const { delay, startServer } = require('../helpers/server-control');
 const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
 const { signupUser } = require('../helpers/auth-helpers');
+const { version: APP_VERSION } = require('../../package.json');
 
 const DEFAULT_ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
@@ -93,6 +94,7 @@ test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     assert.equal(health.status, 200);
     assert.equal(health.body.status, 'ok');
     assert.equal(health.body.mode, 'http');
+    assert.equal(health.body.version, APP_VERSION);
     assert.equal(typeof health.body.uptimeSeconds, 'number');
 
     assert.equal(ready.status, 200);
