@@ -494,15 +494,16 @@ test('account deletion returns after durable local closure without waiting on pr
     const created = await emitAck(ownerSocket, 'create-room', { roomName: 'Deferred cleanup room' });
     const joined = await emitAck(ownerSocket, 'join-room', {
         roomId: created.room.roomId,
-        username: 'Delayed Cleanup Owner'
+        username: 'Deferred Owner'
     });
+    assert.equal(joined.ok, true);
     const token = await server.request(`/api/rooms/${created.room.roomId}/video-token`, {
         method: 'POST',
         headers: {
             Cookie: cookie,
             'X-Halastudy-Membership': joined.membershipToken
         },
-        body: { displayName: 'Delayed Cleanup Owner', role: 'student' }
+        body: { displayName: 'Deferred Owner', role: 'student' }
     });
     assert.equal(token.status, 200);
 
