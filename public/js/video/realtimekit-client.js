@@ -382,6 +382,24 @@
         };
     }
 
+    async function joinMeetingOrCancellation(meeting, signal, leaveMeeting) {
+        const joining = Promise.resolve(meeting.join());
+        let joiningAccepted = false;
+        void joining.then(async () => {
+            if (joiningAccepted || !signal?.aborted) return;
+            // The first leave raced the provider join. Once that join finishes,
+            // disconnect it again without owning any possibly reused UI mount.
+            try {
+                await leaveMeeting();
+            } catch (_error) {}
+            try {
+                await createIdempotentLeave(meeting)();
+            } catch (_error) {}
+        }, () => {});
+        await waitForOperationOrCancellation(joining, signal, leaveMeeting);
+        joiningAccepted = true;
+    }
+
     async function join(options = {}) {
         const { authToken, meetingElement, policy = {}, signal = null } = options;
         if (!meetingElement) throw new Error('RealtimeKit meeting element missing.');
@@ -402,7 +420,9 @@
                 authToken,
                 defaults: {
                     audio: !!policy.micDefaultEnabled,
-                    video: true
+                    // Do not acquire camera media before cancellation owns a meeting handle.
+                    // The accepted provider UI enables camera under the participant preset.
+                    video: false
                 }
             }));
             let initializationAccepted = false;
@@ -422,7 +442,7 @@
 
             meetingElement.meeting = meeting;
             if (typeof meeting.join === 'function') {
-                await waitForOperationOrCancellation(meeting.join(), signal, leaveMeeting);
+                await joinMeetingOrCancellation(meeting, signal, leaveMeeting);
             }
             throwIfJoinCancelled(signal);
             if (!policy.micDefaultEnabled && meeting.self && typeof meeting.self.disableAudio === 'function') {
@@ -474,7 +494,7 @@
 
         try {
             if (typeof meeting.join === 'function') {
-                await waitForOperationOrCancellation(meeting.join(), signal, leaveMeeting);
+                await joinMeetingOrCancellation(meeting, signal, leaveMeeting);
             }
             throwIfJoinCancelled(signal);
             // Belt-and-braces: never emit audio from the Lobby.

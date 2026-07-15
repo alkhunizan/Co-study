@@ -147,6 +147,36 @@ test('RealtimeKit initialization failure removes the custom meeting element', as
     assert.equal(element.meeting, null);
 });
 
+test('mounted initialization leaves camera capture disabled for the accepted provider UI', async () => {
+    /** @type {any} */
+    let initializationDefaults = null;
+    const client = loadClient({
+        async init(options) {
+            initializationDefaults = options.defaults;
+            return {
+                self: {
+                    async disableAudio() {},
+                    async disableVideo() {},
+                    async disableScreenShare() {}
+                },
+                async join() {},
+                async leaveRoom() {}
+            };
+        }
+    });
+    const { element } = createMeetingElement();
+
+    const joined = await client.join({
+        authToken: 'token',
+        meetingElement: element,
+        policy: { micDefaultEnabled: true }
+    });
+
+    assert.equal(initializationDefaults.audio, true);
+    assert.equal(initializationDefaults.video, false);
+    await joined.leave();
+});
+
 test('custom element meeting interception disconnects media and removes the element', async () => {
     let disconnects = 0;
     const client = loadClient({
@@ -275,6 +305,85 @@ test('cancelling a never-settling join releases local media and UI before a late
     assert.equal(fullscreenExits, 1);
 });
 
+test('a mounted join that fulfills after cancellation is disconnected again without touching a reused mount', async () => {
+    const staleJoinStarted = deferred();
+    const staleJoinOperation = deferred();
+    let initCalls = 0;
+    let staleConnected = false;
+    let staleLeaves = 0;
+    let latestConnected = false;
+    let latestLeaves = 0;
+    const staleMeeting = {
+        self: {
+            async disableAudio() {},
+            async disableVideo() {},
+            async disableScreenShare() {}
+        },
+        join() {
+            staleJoinStarted.resolve();
+            return staleJoinOperation.promise.then(() => {
+                staleConnected = true;
+            });
+        },
+        async leaveRoom() {
+            staleConnected = false;
+            staleLeaves += 1;
+        }
+    };
+    const latestMeeting = {
+        self: {
+            async disableAudio() {},
+            async disableVideo() {},
+            async disableScreenShare() {}
+        },
+        async join() {
+            latestConnected = true;
+        },
+        async leaveRoom() {
+            latestConnected = false;
+            latestLeaves += 1;
+        }
+    };
+    const client = loadClient({
+        async init() {
+            initCalls += 1;
+            return initCalls === 1 ? staleMeeting : latestMeeting;
+        }
+    });
+    const { element, parent } = createMeetingElement();
+    const controller = new AbortController();
+    const staleJoin = client.join({
+        authToken: 'stale-token',
+        meetingElement: element,
+        signal: controller.signal
+    });
+    await staleJoinStarted.promise;
+
+    controller.abort();
+    await assert.rejects(
+        staleJoin,
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_CANCELLED'
+    );
+    const latestJoin = await client.join({
+        authToken: 'latest-token',
+        meetingElement: element
+    });
+    assert.equal(staleLeaves, 1);
+    assert.equal(element.meeting, latestMeeting);
+    assert.equal(parent.children.includes(element), true);
+
+    staleJoinOperation.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(staleConnected, false);
+    assert.equal(staleLeaves, 2);
+    assert.equal(latestConnected, true);
+    assert.equal(latestLeaves, 0);
+    assert.equal(element.meeting, latestMeeting);
+    assert.equal(parent.children.includes(element), true);
+    await latestJoin.leave();
+});
+
 test('late cancelled initialization cannot clear a newer meeting mounted on the same element', async () => {
     const firstInitStarted = deferred();
     const firstInitialization = deferred();
@@ -356,6 +465,76 @@ test('headless join failure disconnects the initialized meeting', async () => {
 
     await assert.rejects(client.joinHeadless({ authToken: 'token' }), /headless join failed/);
     assert.equal(disconnects, 1);
+});
+
+test('a headless join that fulfills after cancellation is disconnected again without touching a newer join', async () => {
+    const staleJoinStarted = deferred();
+    const staleJoinOperation = deferred();
+    let initCalls = 0;
+    let staleConnected = false;
+    let staleLeaves = 0;
+    let latestConnected = false;
+    let latestLeaves = 0;
+    const staleMeeting = {
+        self: {
+            async disableAudio() {},
+            async disableVideo() {},
+            async disableScreenShare() {}
+        },
+        join() {
+            staleJoinStarted.resolve();
+            return staleJoinOperation.promise.then(() => {
+                staleConnected = true;
+            });
+        },
+        async leaveRoom() {
+            staleConnected = false;
+            staleLeaves += 1;
+        }
+    };
+    const latestMeeting = {
+        self: {
+            async disableAudio() {},
+            async disableVideo() {},
+            async disableScreenShare() {}
+        },
+        async join() {
+            latestConnected = true;
+        },
+        async leaveRoom() {
+            latestConnected = false;
+            latestLeaves += 1;
+        }
+    };
+    const client = loadClient({
+        async init() {
+            initCalls += 1;
+            return initCalls === 1 ? staleMeeting : latestMeeting;
+        }
+    });
+    const controller = new AbortController();
+    const staleJoin = client.joinHeadless({
+        authToken: 'stale-token',
+        signal: controller.signal
+    });
+    await staleJoinStarted.promise;
+
+    controller.abort();
+    await assert.rejects(
+        staleJoin,
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_CANCELLED'
+    );
+    const latestJoin = await client.joinHeadless({ authToken: 'latest-token' });
+    assert.equal(staleLeaves, 1);
+
+    staleJoinOperation.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(staleConnected, false);
+    assert.equal(staleLeaves, 2);
+    assert.equal(latestConnected, true);
+    assert.equal(latestLeaves, 0);
+    await latestJoin.leave();
 });
 
 test('leave rejection still disables every local producer, stops tracks, exits fullscreen, and unmounts UI', async () => {
