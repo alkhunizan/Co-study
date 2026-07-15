@@ -131,7 +131,8 @@
     }
 
     /* ---------- fetch helper (same contract as video-client postJson) ---------- */
-    function requestJson(method, url, body) {
+    /** @param {{ signal?: AbortSignal }} [requestOptions] */
+    function requestJson(method, url, body, requestOptions = {}) {
         /** @type {RequestInit & { headers: Record<string, string> }} */
         const options = {
             method: method,
@@ -142,8 +143,15 @@
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body || {});
         }
+        if (requestOptions.signal) options.signal = requestOptions.signal;
         return fetch(url, options).then((response) => response.json().catch(() => ({})).then((payload) => {
+                if (requestOptions.signal?.aborted) {
+                    const error = new Error('Request aborted');
+                    error.name = 'AbortError';
+                    throw error;
+                }
                 if (!response.ok) {
+                    if (response.status === 401) invalidateAuthCache(true);
                     /** @type {Error & { status?: number, code?: string, payload?: any }} */
                     const error = new Error(`Request failed: ${response.status}`);
                     error.status = response.status;
@@ -151,31 +159,55 @@
                     error.payload = payload;
                     throw error;
                 }
+                if (String(method).toUpperCase() === 'DELETE' && String(url).split(/[?#]/)[0] === '/api/me') {
+                    invalidateAuthCache(true);
+                }
                 return payload;
             }));
     }
 
     /* ---------- auth session cache ---------- */
     var userPromise = null;
+    var authGeneration = 0;
+    var authController = null;
+
+    function invalidateAuthCache(cacheGuest = false) {
+        authGeneration += 1;
+        if (authController) {
+            authController.abort();
+            authController = null;
+        }
+        userPromise = cacheGuest ? Promise.resolve(null) : null;
+    }
 
     function getUser() {
         if (!userPromise) {
-            userPromise = requestJson('GET', '/api/auth/me')
-                .then((payload) => payload?.user ? payload.user : null)
-                .catch(() => null);
+            const generation = authGeneration;
+            const controller = new AbortController();
+            authController = controller;
+            userPromise = requestJson('GET', '/api/auth/me', undefined, { signal: controller.signal })
+                .then((payload) => {
+                    if (generation !== authGeneration || controller.signal.aborted) return null;
+                    return payload?.user ? payload.user : null;
+                })
+                .catch(() => null)
+                .finally(() => {
+                    if (authController === controller) authController = null;
+                });
         }
         return userPromise;
     }
 
     function refreshUser() {
-        userPromise = null;
+        invalidateAuthCache();
         return getUser();
     }
 
     function signout() {
+        invalidateAuthCache(true);
         return requestJson('POST', '/api/auth/logout')
             .catch(() => { /* already signed out */ })
-            .then(() => { userPromise = Promise.resolve(null); return null; });
+            .then(() => null);
     }
 
     /* Swap the quiet "Sign in" topbar link (#auth-entry) for the avatar chip
