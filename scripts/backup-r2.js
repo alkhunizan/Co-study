@@ -1,23 +1,13 @@
-// Off-site backup of Halastudy state to Cloudflare R2.
-//
-// Uploads the current rooms + users state files to an R2 bucket so they survive
-// VM loss. Complements the local snapshots (scripts/backup-rooms.js) — this is
-// the off-box copy. Cron it (e.g. hourly/daily) alongside the app.
-//
-// Usage:
-//   npm run backup:r2            upload rooms.json + users.json snapshots
-//   npm run backup:r2 -- --check verify credentials with a round-trip test object
-//
-// Needs R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET in .env.
+// Off-site copy of the newest client-side encrypted Halastudy artifact.
+// Raw rooms/profile/event sources are never uploaded by this command.
 const fs = require('node:fs');
 const path = require('node:path');
+const { decryptBackupArtifact, parseBackupEncryptionKey } = require('../services/ops/backup-artifact');
 const { loadDotEnv } = require('./cloudflare/realtimekit-common');
 const { createR2Client } = require('./cloudflare/r2-client');
-const { timestampLabel, resolveRoomStateFile } = require('./room-state-utils');
+const { resolveBackupDir, timestampLabel } = require('./room-state-utils');
 
-function resolveUserStateFile(env = process.env) {
-    return path.resolve(env.USER_STATE_FILE || path.join(__dirname, '..', 'data', 'users.json'));
-}
+const ENCRYPTED_ARTIFACT_PATTERN = /^halastudy-\d{4}-\d{2}-\d{2}T\d{6}Z-[A-Za-z0-9-]+\.hsbackup$/;
 
 async function runCheck(client, bucket) {
     console.log(`R2 check → bucket "${bucket}" at ${client.host}`);
@@ -37,16 +27,17 @@ async function runCheck(client, bucket) {
     return true;
 }
 
-async function backupFile(client, bucket, label, filePath) {
-    if (!fs.existsSync(filePath)) {
-        console.log(`  ${label}: no state file at ${filePath} — skipped.`);
-        return null;
+function findLatestEncryptedArtifact(backupDir) {
+    const resolvedDir = path.resolve(backupDir);
+    if (!fs.existsSync(resolvedDir)) {
+        throw new Error(`No encrypted backup artifact exists in ${resolvedDir}.`);
     }
-    const body = fs.readFileSync(filePath);
-    const key = `${label}/${label}.${timestampLabel()}.json`;
-    await client.putObject(bucket, key, body, 'application/json');
-    console.log(`  ${label}: uploaded ${body.length} bytes → ${key}`);
-    return key;
+    const latest = fs.readdirSync(resolvedDir)
+        .filter((name) => ENCRYPTED_ARTIFACT_PATTERN.test(name))
+        .sort()
+        .at(-1);
+    if (!latest) throw new Error(`No encrypted backup artifact exists in ${resolvedDir}.`);
+    return path.join(resolvedDir, latest);
 }
 
 async function main() {
@@ -62,20 +53,38 @@ async function main() {
         return;
     }
 
-    console.log(`R2 backup → bucket "${bucket}"`);
+    const artifactPath = findLatestEncryptedArtifact(resolveBackupDir(process.env));
+    const body = fs.readFileSync(artifactPath);
+    const encryptionKey = parseBackupEncryptionKey(process.env.BACKUP_ENCRYPTION_KEY);
+    try {
+        decryptBackupArtifact({ artifact: body, encryptionKey });
+    } finally {
+        encryptionKey.fill(0);
+    }
+
+    console.log(`R2 encrypted backup → bucket "${bucket}"`);
     if (!(await client.headBucket(bucket))) {
         console.log('  bucket missing — creating…');
         await client.createBucket(bucket);
     }
-    const uploaded = [];
-    const rooms = await backupFile(client, bucket, 'rooms', resolveRoomStateFile());
-    if (rooms) uploaded.push(rooms);
-    const users = await backupFile(client, bucket, 'users', resolveUserStateFile());
-    if (users) uploaded.push(users);
-    console.log(`Done — ${uploaded.length} object(s) uploaded to R2.`);
+    const objectKey = `encrypted/${path.basename(artifactPath)}`;
+    await client.putObject(bucket, objectKey, body, 'application/vnd.halastudy.backup+json');
+    console.log(`  uploaded ${body.length} encrypted bytes → ${objectKey}`);
 }
 
-main().catch((error) => {
-    console.error(error.message || error);
-    process.exitCode = 1;
-});
+async function runCli() {
+    try {
+        await main();
+    } catch (error) {
+        console.error(error?.message || 'R2 backup failed.');
+        process.exitCode = 1;
+    }
+}
+
+if (require.main === module) void runCli();
+
+module.exports = {
+    findLatestEncryptedArtifact,
+    main,
+    runCli
+};

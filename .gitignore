@@ -3,6 +3,7 @@ node_modules/
 .env
 .env.local
 *.log
+*.hsbackup
 .DS_Store
 data/rooms.json
 data/rooms.json.tmp

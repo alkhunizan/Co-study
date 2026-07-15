@@ -24,6 +24,7 @@ const SERVER_OVERRIDE_ALLOWLIST = new Set([
     'ADMIN_PASSWORD_HASH',
     'ADMIN_PATH',
     'ALLOWED_ORIGINS',
+    'BACKUP_ENCRYPTION_KEY',
     'BACKUP_INTERVAL_MINUTES',
     'BACKUP_RETENTION_COUNT',
     'HOST',
@@ -33,6 +34,7 @@ const SERVER_OVERRIDE_ALLOWLIST = new Set([
     'MAX_ROOM_VIDEO_PARTICIPANTS',
     'MESH_PARTICIPANT_LIMIT',
     'PUBLIC_API_BASE_URL',
+    'RESTORE_WRITER_LOCK_FILE',
     'ROOM_STATE_BACKUP_DIR',
     'ROOM_STATE_FILE',
     'SFU_BASE_URL',
@@ -73,8 +75,9 @@ function assertLoopbackProviderUrl(value, envName) {
     }
 }
 
+/** @returns {NodeJS.ProcessEnv} */
 function buildTestEnvironment({ ambientEnv = process.env, overrides = {} } = {}) {
-    const env = {};
+    const env = /** @type {NodeJS.ProcessEnv} */ ({});
     for (const key of AMBIENT_ENV_ALLOWLIST) {
         if (ambientEnv[key] !== undefined) env[key] = ambientEnv[key];
     }

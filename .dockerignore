@@ -46,6 +46,7 @@ videos/hero/source/
 .env.*
 data/
 *.log
+*.hsbackup
 backups/
 credentials/
 *.pem

@@ -73,6 +73,12 @@ if ! command -v pm2 >/dev/null 2>&1; then
 fi
 PM2_HOME="${PM2_HOME}" pm2 startup systemd -u "${SERVICE_USER}" --hp "${STATE_DIR}"
 
+# --- encrypted nightly backup timer (enabled after the env file exists) ---
+echo "-- installing encrypted backup timer"
+install -m 0644 "${APP_DIR}/scripts/deploy/halastudy-backup.service" /etc/systemd/system/halastudy-backup.service
+install -m 0644 "${APP_DIR}/scripts/deploy/halastudy-backup.timer" /etc/systemd/system/halastudy-backup.timer
+systemctl daemon-reload
+
 cat <<NEXT
 
 == Bootstrap done. Remaining steps (need your secrets + DNS) ==
@@ -89,7 +95,8 @@ cat <<NEXT
        ROOM_STATE_FILE=${STATE_DIR}/rooms.json
        USER_STATE_FILE=${STATE_DIR}/users.json
        ROOM_STATE_BACKUP_DIR=${STATE_DIR}/backups
-       BACKUP_INTERVAL_MINUTES=60
+       BACKUP_INTERVAL_MINUTES=0
+       BACKUP_ENCRYPTION_KEY=<32 random bytes as base64; see .env.example>
        SESSION_SECRET=<first value from npm run secret:gen>
        ADMIN_SESSION_SECRET=<second value from npm run secret:gen>
        ADMIN_PATH=/ops-<random>       ADMIN_PASSWORD_HASH=<npm run admin:hash -- "pw">
@@ -100,11 +107,13 @@ cat <<NEXT
 3. TLS certificate (DNS must resolve first):
        sudo certbot --nginx -d ${DOMAIN} -d www.${DOMAIN} --redirect -m you@${DOMAIN} --agree-tos -n
 
-4. Start under PM2:
+4. Start under PM2 and enable the nightly encrypted backup timer:
        sudo chown ${SERVICE_USER}:${SERVICE_USER} ${STATE_DIR}/.env
        sudo chmod 600 ${STATE_DIR}/.env
        sudo -u ${SERVICE_USER} -H env HOME=${STATE_DIR} PM2_HOME=${PM2_HOME} bash ${APP_DIR}/scripts/deploy/start.sh
+       sudo systemctl enable --now halastudy-backup.timer
 
 5. Verify:
        npm --prefix ${APP_DIR} run verify:deploy -- https://${DOMAIN}
+       sudo systemctl list-timers halastudy-backup.timer
 NEXT
