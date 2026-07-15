@@ -43,6 +43,7 @@ const {
     verifyRealtimeKitWebhookSignature
 } = require('./services/video/realtimekit-webhook');
 const { SlidingWindowRateLimiter } = require('./services/security/bounded-rate-limiter');
+const { validateSocketRequest } = require('./services/socket/socket-request-validator');
 const {
     buildScheduleSummary,
     findOpenOccurrence,
@@ -613,12 +614,6 @@ function normalizeOpaqueId(raw = '') {
     if (typeof raw !== 'string') return null;
     const trimmed = raw.trim();
     return /^[A-Za-z0-9_-]{32,128}$/.test(trimmed) ? trimmed : null;
-}
-
-function isPlainObject(value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-    const prototype = Object.getPrototypeOf(value);
-    return prototype === Object.prototype || prototype === null;
 }
 
 function isSameIdentity(record = {}, identityId) {
@@ -3389,7 +3384,7 @@ function createCoStudyServer(options = {}) {
                     else socket.emit('request-error', response);
                 };
 
-                if (!isPlainObject(payload)) {
+                if (!validateSocketRequest(eventName, payload)) {
                     fail('REQUEST_INVALID');
                     return;
                 }

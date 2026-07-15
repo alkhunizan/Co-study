@@ -496,7 +496,7 @@ test('board task count and UTF-8 byte limits reject oversized mutations', async 
 
     const oversized = await emitAck(socket, 'board-add-task', { text: '🙂'.repeat(126) });
     assert.equal(oversized.ok, false);
-    assert.equal(oversized.errorCode, 'BOARD_TASK_TOO_LARGE');
+    assert.equal(oversized.errorCode, 'REQUEST_INVALID');
 });
 
 test('media mode validation persists and SFU rooms fail clearly if the deployment loses SFU support', async (t) => {
@@ -524,7 +524,7 @@ test('media mode validation persists and SFU rooms fail clearly if the deploymen
         mediaMode: 'big-room'
     });
     assert.equal(invalidCreate.ok, false);
-    assert.equal(invalidCreate.errorCode, 'ROOM_MEDIA_MODE_INVALID');
+    assert.equal(invalidCreate.errorCode, 'REQUEST_INVALID');
 
     const sfuCreate = await emitAck(ownerSocket, 'create-room', {
         roomName: 'Large Room',
@@ -1793,15 +1793,23 @@ test('socket payloads are bounded at server boundaries', async (t) => {
     assert.equal(createRoom.ok, true);
     const roomId = createRoom.room.roomId;
 
-    const oversizedName = `  ${'Aziz'.repeat(20)}  `;
-    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
+    const oversizedName = 'Aziz'.repeat(20);
+    const rejectedName = await emitAck(ownerSocket, 'join-room', {
         roomId,
         username: oversizedName,
         clientId: 'bounds-owner'
     });
+    assert.deepEqual(rejectedName, { ok: false, errorCode: 'REQUEST_INVALID' });
+
+    const boundaryName = 'A'.repeat(20);
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: boundaryName,
+        clientId: 'bounds-owner'
+    });
     assert.equal(ownerJoin.ok, true);
     assert.equal(ownerJoin.room.participants[0].name.length, 20);
-    assert.equal(ownerJoin.room.participants[0].name, oversizedName.trim().slice(0, 20));
+    assert.equal(ownerJoin.room.participants[0].name, boundaryName);
 
     const peerJoin = await emitAck(peerSocket, 'join-room', {
         roomId,
@@ -1815,10 +1823,17 @@ test('socket payloads are bounded at server boundaries', async (t) => {
         receivedMessages.push(message);
     });
 
-    const oversizedMessage = `  ${'m'.repeat(600)}  `;
-    const sendMessage = await emitAck(ownerSocket, 'send-message', {
+    const oversizedMessage = 'm'.repeat(501);
+    const rejectedMessage = await emitAck(ownerSocket, 'send-message', {
         roomId,
         text: oversizedMessage
+    });
+    assert.deepEqual(rejectedMessage, { ok: false, errorCode: 'REQUEST_INVALID' });
+
+    const boundaryMessage = 'm'.repeat(500);
+    const sendMessage = await emitAck(ownerSocket, 'send-message', {
+        roomId,
+        text: boundaryMessage
     });
     assert.equal(sendMessage.ok, true);
 
@@ -1829,7 +1844,7 @@ test('socket payloads are bounded at server boundaries', async (t) => {
     const userMessage = receivedMessages.find((message) => message.type === 'user');
     assert.ok(userMessage);
     assert.equal(userMessage.text.length, 500);
-    assert.equal(userMessage.text, oversizedMessage.trim().slice(0, 500));
+    assert.equal(userMessage.text, boundaryMessage);
 
     const snapshot = await server.request(`/api/rooms/${roomId}`);
     assert.equal(snapshot.status, 200);
@@ -1929,7 +1944,7 @@ test('sanitizers strip invisible characters and reject non-string payloads', asy
         clientId: 'invisible-owner'
     });
     assert.equal(numericName.ok, false);
-    assert.equal(numericName.errorCode, 'NICKNAME_REQUIRED');
+    assert.equal(numericName.errorCode, 'REQUEST_INVALID');
 
     const invisibleName = await emitAck(ownerSocket, 'join-room', {
         roomId,
@@ -1952,11 +1967,17 @@ test('sanitizers strip invisible characters and reject non-string payloads', asy
         text: { nested: 'payload' }
     });
     assert.equal(objectMessage.ok, false);
-    assert.equal(objectMessage.errorCode, 'MESSAGE_REQUIRED');
+    assert.equal(objectMessage.errorCode, 'REQUEST_INVALID');
+
+    const rejectedEmojiMessage = await emitAck(ownerSocket, 'send-message', {
+        roomId,
+        text: '\u{1F3AF}'.repeat(600)
+    });
+    assert.deepEqual(rejectedEmojiMessage, { ok: false, errorCode: 'REQUEST_INVALID' });
 
     const emojiMessage = await emitAck(ownerSocket, 'send-message', {
         roomId,
-        text: '\u{1F3AF}'.repeat(600)
+        text: '\u{1F3AF}'.repeat(500)
     });
     assert.equal(emojiMessage.ok, true);
 
@@ -1964,7 +1985,7 @@ test('sanitizers strip invisible characters and reject non-string payloads', asy
     assert.equal(snapshot.status, 200);
     const emojiStored = snapshot.body.messages.find((message) => message.type === 'user');
     assert.ok(emojiStored);
-    // Truncation counts code points and never leaves a lone surrogate.
+    // The exact boundary counts code points and never leaves a lone surrogate.
     assert.equal(Array.from(emojiStored.text).length, 500);
     assert.doesNotMatch(emojiStored.text, /[\uD800-\uDBFF]$/);
 });
@@ -2178,15 +2199,20 @@ test('per-user session goal rides on user-status: sanitized, broadcast, and hidd
     const aliceRecord = carolJoin.room.participants.find((p) => p.name === 'Alice');
     assert.equal(aliceRecord.status.goal, 'Solve 25 quant questions');
 
-    // Over-long goals are truncated to 80 code points at the trust boundary,
+    // Over-long goals are rejected before mutation. Exact-boundary goals pass,
     // and bidi overrides (U+202E) are stripped like other user text.
     const nextStatusUpdate = () => new Promise((resolve) => {
         bobSocket.once('status-update', resolve);
     });
 
+    const oversizedGoal = await emitAck(aliceSocket, 'user-status', {
+        status: { text: '', visible: true, goal: 'g'.repeat(120) }
+    });
+    assert.deepEqual(oversizedGoal, { ok: false, errorCode: 'REQUEST_INVALID' });
+
     let pending = nextStatusUpdate();
     assert.equal((await emitAck(aliceSocket, 'user-status', {
-        status: { text: '', visible: true, goal: 'g'.repeat(120) }
+        status: { text: '', visible: true, goal: 'g'.repeat(80) }
     })).ok, true);
     assert.equal((await pending).status.goal.length, 80);
 
@@ -2242,11 +2268,19 @@ test('report-user validates targets, rate limits, persists sanitized, and never 
     const selfReport = await emitAck(reporterSocket, 'report-user', { targetId: reporterSocket.id });
     assert.equal(selfReport.errorCode, 'CANNOT_REPORT_SELF');
 
-    // Valid report: bad reason falls back to 'other', detail is truncated.
-    const firstReport = await emitAck(reporterSocket, 'report-user', {
+    // Invalid enums and excessive detail fail the request contract.
+    const invalidReport = await emitAck(reporterSocket, 'report-user', {
         targetId: targetSocket.id,
         reason: 'not-a-real-reason',
         detail: 'd'.repeat(300)
+    });
+    assert.deepEqual(invalidReport, { ok: false, errorCode: 'REQUEST_INVALID' });
+
+    // Valid report at the detail boundary is persisted unchanged.
+    const firstReport = await emitAck(reporterSocket, 'report-user', {
+        targetId: targetSocket.id,
+        reason: 'other',
+        detail: 'd'.repeat(200)
     });
     assert.equal(firstReport.ok, true);
     assert.match(firstReport.reportId, /^rpt-/);
@@ -2270,7 +2304,7 @@ test('report-user validates targets, rate limits, persists sanitized, and never 
     assert.equal(rateLimited.ok, false);
     assert.equal(rateLimited.errorCode, 'RATE_LIMITED');
 
-    // Persisted state carries the sanitized report (enum fallback + 200-char cap).
+    // Persisted state carries the validated report.
     await delay(400);
     const persisted = JSON.parse(fs.readFileSync(roomStateFile, 'utf8'));
     const persistedRoom = persisted.find((room) => room.id === roomId);
