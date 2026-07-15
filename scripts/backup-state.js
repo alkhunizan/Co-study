@@ -17,6 +17,9 @@ function createOptionalSupabaseSource(env) {
     if (!!url !== !!serviceKey) {
         throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must either both be set or both be absent.');
     }
+    if (env.NODE_ENV === 'production' && !url) {
+        throw new Error('Complete Supabase configuration is required for production backups.');
+    }
     if (!url) return null;
     return createSupabaseBackupSource({
         client: createSupabaseClient({ url, serviceKey })

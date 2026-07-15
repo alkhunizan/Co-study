@@ -146,7 +146,12 @@ function createBackupFixture(timestamp = '2026-07-15T033000Z', artifactOverride 
     const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-deploy-backup-'));
     const fileName = `halastudy-${timestamp}-fixture.hsbackup`;
     const artifact = artifactOverride || createEncryptedBackupArtifact({
-        datasets: { rooms: [{ id: 'BACKUP-FIXTURE' }] },
+        datasets: {
+            profiles: [],
+            focus_sessions: [],
+            room_events: [],
+            rooms: [{ id: 'BACKUP-FIXTURE' }]
+        },
         encryptionKey: BACKUP_KEY,
         createdAt: new Date(FIXED_NOW - 30 * 60 * 1000),
         randomBytes: () => Buffer.alloc(12, 1)
@@ -358,6 +363,31 @@ test('deployment verification rejects an incomplete encrypted backup artifact', 
             now: () => FIXED_NOW
         }),
         /Last successful backup artifact is incomplete or unsupported/
+    );
+});
+
+test('deployment verification rejects an authenticated but partial production backup', async (t) => {
+    const deployment = await startDeploymentFixture();
+    const realtimeKit = await startRealtimeKitFixture();
+    const partialArtifact = createEncryptedBackupArtifact({
+        datasets: { rooms: [] },
+        failedSources: ['profiles', 'focus_sessions', 'room_events'],
+        encryptionKey: BACKUP_KEY,
+        createdAt: new Date(FIXED_NOW - 30 * 60 * 1000),
+        randomBytes: () => Buffer.alloc(12, 7)
+    });
+    const backup = createBackupFixture('2026-07-15T033000Z', partialArtifact);
+    t.after(deployment.close);
+    t.after(realtimeKit.close);
+    t.after(backup.close);
+
+    await assert.rejects(
+        () => verifyDeployment(deployment.baseUrl, {
+            requireOperationalChecks: true,
+            env: operationalEnv(realtimeKit, backup),
+            now: () => FIXED_NOW
+        }),
+        /backup artifact is missing required sources/i
     );
 });
 

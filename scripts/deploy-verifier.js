@@ -18,6 +18,7 @@ const DEFAULT_MAX_BACKUP_AGE_HOURS = 36;
 const MAX_HTTP_RESPONSE_BYTES = 1024 * 1024;
 const MAX_BACKUP_ARTIFACT_BYTES = 128 * 1024 * 1024;
 const BACKUP_ARTIFACT_PATTERN = /^halastudy-(\d{4}-\d{2}-\d{2})T(\d{2})(\d{2})(\d{2})Z-[A-Za-z0-9-]+\.hsbackup$/;
+const REQUIRED_BACKUP_SOURCES = ['profiles', 'focus_sessions', 'room_events', 'rooms'];
 
 function isLoopbackHost(hostname) {
     return ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(String(hostname).toLowerCase());
@@ -265,7 +266,17 @@ function assertCompletedBackupArtifact(filePath, stat, encryptionKey) {
         || !isCanonicalBase64Text(artifact.ciphertext)) {
         throw new Error('Last successful backup artifact is incomplete or unsupported.');
     }
-    decryptBackupArtifact({ artifact, encryptionKey });
+    const bundle = decryptBackupArtifact({ artifact, encryptionKey });
+    const missingSources = REQUIRED_BACKUP_SOURCES.filter(
+        (name) => !Object.hasOwn(bundle.datasets, name)
+    );
+    if (missingSources.length > 0 || bundle.manifest.failedSources.length > 0) {
+        throw new Error(
+            `Last successful backup artifact is missing required sources: ${[
+                ...new Set([...missingSources, ...bundle.manifest.failedSources])
+            ].join(', ')}.`
+        );
+    }
 }
 
 function parseBackupTimestamp(match) {

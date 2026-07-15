@@ -79,6 +79,25 @@ test('backup CLI fails when every configured source is unreadable', (t) => {
     assert.equal(fs.existsSync(backupDir), false);
 });
 
+test('production backup refuses a room-only snapshot when Supabase is not configured', (t) => {
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-backup-production-'));
+    const roomStateFile = path.join(workDir, 'rooms.json');
+    const backupDir = path.join(workDir, 'backups');
+    fs.writeFileSync(roomStateFile, '[]\n');
+    t.after(() => fs.rmSync(workDir, { recursive: true, force: true }));
+
+    const result = runScript('scripts/backup-state.js', [], {
+        NODE_ENV: 'production',
+        BACKUP_ENCRYPTION_KEY: BACKUP_KEY,
+        ROOM_STATE_FILE: roomStateFile,
+        ROOM_STATE_BACKUP_DIR: backupDir
+    });
+
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Supabase.*required for production backups/i);
+    assert.equal(fs.existsSync(backupDir), false);
+});
+
 test('rooms-only restore fails closed without live tombstones when a room references an account', (t) => {
     const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-backup-owned-room-'));
     const roomStateFile = path.join(workDir, 'rooms.json');
