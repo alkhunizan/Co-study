@@ -374,13 +374,15 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
     } = resolveSessionSecrets(env);
     const admin = resolveAdminConfig(env);
     const backup = resolveBackupConfig(env);
-    const runtimeIce = resolveRuntimeIceServers(env.ICE_SERVERS_JSON);
+    const video = resolveVideoConfig(env);
+    const runtimeIce = video.devMeshEnabled
+        ? resolveRuntimeIceServers(env.ICE_SERVERS_JSON)
+        : { iceServers: [], source: 'disabled' };
     const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS);
     const trustProxy = parseTrustProxy(env.TRUST_PROXY);
     const sfuBaseUrl = parseSfuBaseUrl(env.SFU_BASE_URL);
     const supabase = resolveSupabaseConfig(env);
     const google = resolveGoogleConfig(env, allowedOrigins);
-    const video = resolveVideoConfig(env);
     const meshParticipantLimit = parsePositiveInteger(
         env.MESH_PARTICIPANT_LIMIT,
         'MESH_PARTICIPANT_LIMIT',
@@ -1641,6 +1643,13 @@ function createCoStudyServer(options = {}) {
 
     function roomUsesMesh(room) {
         return getRoomMediaMode(room) === MEDIA_MODE_MESH;
+    }
+
+    function roomSupportsDevMeshSignaling(room) {
+        return config.video.devMeshEnabled === true
+            && config.video.provider === VIDEO_PROVIDER_MESH
+            && getRoomVideoProvider(room) === VIDEO_PROVIDER_MESH
+            && roomUsesMesh(room);
     }
 
     function roomUsesSfu(room) {
@@ -3137,6 +3146,7 @@ function createCoStudyServer(options = {}) {
             supportedMediaModes: [...config.supportedMediaModes],
             meshParticipantLimit: config.meshParticipantLimit,
             videoProvider: config.video.provider,
+            devMeshEnabled: config.video.devMeshEnabled === true,
             videoPolicy: getClientVideoPolicy(null),
             activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
             maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
@@ -3538,6 +3548,51 @@ function createCoStudyServer(options = {}) {
             if (!socket.data.userId) return null;
             const user = users.get(socket.data.userId);
             return user && !user.banned ? user : null;
+        }
+
+        function getAuthenticatedSocketUser(socketRef) {
+            const userId = socketRef?.data?.userId;
+            if (!userId) return null;
+            const user = users.get(userId);
+            return user && !user.banned ? user : null;
+        }
+
+        function resolveMeshSignalRoom(ack) {
+            if (config.video.devMeshEnabled !== true || config.video.provider !== VIDEO_PROVIDER_MESH) {
+                ackError(ack, 'MESH_SIGNALING_DISABLED');
+                return null;
+            }
+            if (!getSocketUser()) {
+                ackError(ack, 'AUTH_REQUIRED');
+                return null;
+            }
+            const roomId = socket.data.roomId;
+            const room = roomId ? rooms.get(roomId) : null;
+            if (!room?.users.has(socket.id)) {
+                ackError(ack, 'ROOM_NOT_JOINED');
+                return null;
+            }
+            if (!roomSupportsDevMeshSignaling(room)) {
+                ackError(ack, 'MESH_SIGNALING_DISABLED');
+                return null;
+            }
+            return room;
+        }
+
+        function resolveAuthenticatedMeshTarget(room, targetId) {
+            if (!targetId || targetId === socket.id || !room.users.has(targetId)) return null;
+            const targetSocket = io.sockets.sockets.get(targetId);
+            if (!targetSocket || targetSocket.data.roomId !== room.id) return null;
+            return getAuthenticatedSocketUser(targetSocket) ? targetSocket : null;
+        }
+
+        function emitToAuthenticatedMeshRoom(room, eventName, payload) {
+            for (const targetId of room.users.keys()) {
+                const targetSocket = io.sockets.sockets.get(targetId);
+                if (targetSocket && getAuthenticatedSocketUser(targetSocket)) {
+                    targetSocket.emit(eventName, payload);
+                }
+            }
         }
 
         function onRequest(eventName, handler) {
@@ -4190,43 +4245,44 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        onRequest('camera-status', (payload) => {
-            const { roomId } = socket.data;
-            if (!roomId) return;
-            const room = rooms.get(roomId);
+        onRequest('camera-status', (payload, ack) => {
+            const room = resolveMeshSignalRoom(ack);
             if (!room) return;
-            if (!roomUsesMesh(room)) return;
             const user = room.users.get(socket.id);
-            if (!user) return;
+            if (!user) return ackError(ack, 'ROOM_NOT_JOINED');
             user.cameraOn = !!payload.camera;
-            io.to(roomId).emit('camera-status', { userId: socket.id, camera: user.cameraOn });
+            emitToAuthenticatedMeshRoom(room, 'camera-status', { userId: socket.id, camera: user.cameraOn });
+            ack({ ok: true });
         });
 
-        onRequest('rtc-offer', (payload) => {
-            const { roomId } = socket.data;
+        onRequest('rtc-offer', (payload, ack) => {
             const { targetId, sdp } = payload;
-            if (!roomId || !targetId || !sdp) return;
-            const room = rooms.get(roomId);
-            if (!room || !roomUsesMesh(room) || !room.users.has(targetId)) return;
-            io.to(targetId).emit('rtc-offer', { from: socket.id, sdp });
+            const room = resolveMeshSignalRoom(ack);
+            if (!room) return;
+            const targetSocket = resolveAuthenticatedMeshTarget(room, targetId);
+            if (!targetSocket) return ackError(ack, 'RTC_TARGET_INVALID');
+            targetSocket.emit('rtc-offer', { from: socket.id, sdp });
+            ack({ ok: true });
         });
 
-        onRequest('rtc-answer', (payload) => {
-            const { roomId } = socket.data;
+        onRequest('rtc-answer', (payload, ack) => {
             const { targetId, sdp } = payload;
-            if (!roomId || !targetId || !sdp) return;
-            const room = rooms.get(roomId);
-            if (!room || !roomUsesMesh(room) || !room.users.has(targetId)) return;
-            io.to(targetId).emit('rtc-answer', { from: socket.id, sdp });
+            const room = resolveMeshSignalRoom(ack);
+            if (!room) return;
+            const targetSocket = resolveAuthenticatedMeshTarget(room, targetId);
+            if (!targetSocket) return ackError(ack, 'RTC_TARGET_INVALID');
+            targetSocket.emit('rtc-answer', { from: socket.id, sdp });
+            ack({ ok: true });
         });
 
-        onRequest('rtc-ice', (payload) => {
-            const { roomId } = socket.data;
+        onRequest('rtc-ice', (payload, ack) => {
             const { targetId, candidate } = payload;
-            if (!roomId || !targetId || !candidate) return;
-            const room = rooms.get(roomId);
-            if (!room || !roomUsesMesh(room) || !room.users.has(targetId)) return;
-            io.to(targetId).emit('rtc-ice', { from: socket.id, candidate });
+            const room = resolveMeshSignalRoom(ack);
+            if (!room) return;
+            const targetSocket = resolveAuthenticatedMeshTarget(room, targetId);
+            if (!targetSocket) return ackError(ack, 'RTC_TARGET_INVALID');
+            targetSocket.emit('rtc-ice', { from: socket.id, candidate });
+            ack({ ok: true });
         });
 
         onRequest('user-status', (payload, ack) => {
@@ -4389,6 +4445,7 @@ function createCoStudyServer(options = {}) {
                 iceMode: config.iceMode,
                 sfuAvailable: config.sfuAvailable,
                 meshParticipantLimit: config.meshParticipantLimit,
+                devMeshEnabled: config.video.devMeshEnabled === true,
                 videoProvider: config.video.provider,
                 maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
                 maxRoomVideoParticipants: config.video.maxRoomParticipants,

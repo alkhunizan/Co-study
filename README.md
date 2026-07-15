@@ -121,18 +121,19 @@ Co-study/
 - `ALLOWED_ORIGINS`: Optional comma-separated allowlist of exact `http(s)://origin` values. If unset, the app allows same-origin browser traffic only.
 - `ICE_SERVERS_JSON`: Development-only JSON array for explicit mesh tests. Never configure static TURN credentials in production.
 - `MESH_PARTICIPANT_LIMIT`: Optional hard cap for mesh rooms. Defaults to `4`.
+- `ENABLE_DEV_MESH`: Must be explicitly `true` together with `VIDEO_PROVIDER=mesh` in development/test. It is forbidden in production.
 - `ROOM_STATE_FILE`: Optional JSON file path for persisted room state. Defaults to `./data/rooms.json`.
 - `ROOM_STATE_BACKUP_DIR`: Optional directory for manual room-state backups. Defaults to `./data/backups`.
 - `SFU_BASE_URL`: Optional absolute `http(s)` base URL for the SFU iframe integration.
-- `VIDEO_PROVIDER`: Defaults to `realtimekit`. `mesh` is accepted only in development/test and is rejected in production.
+- `VIDEO_PROVIDER`: Defaults to `realtimekit`. `mesh` requires `ENABLE_DEV_MESH=true` in development/test and is rejected in production.
 - `VIDEO_JOIN_DISABLED`: Emergency kill switch. Set to `true` to reject new video tokens without stopping chat/rooms.
-- `MAX_GLOBAL_VIDEO_PARTICIPANTS`: Hard global active-video cap. Defaults to `20`.
+- `MAX_GLOBAL_VIDEO_PARTICIPANTS`: Hard global active-video cap. Defaults to `20` and cannot exceed `20`.
 - `REALTIMEKIT_MONTHLY_COST_CAP_USD`: Monthly RealtimeKit cost cap used by `npm run cloudflare:cost-check`. Defaults to `500`.
-- `MAX_ROOM_VIDEO_PARTICIPANTS`: Hard room active-video cap. Defaults to `20`.
+- `MAX_ROOM_VIDEO_PARTICIPANTS`: Hard room active-video cap. Defaults to `20` and cannot exceed `20`.
 - `MAX_ROOM_DURATION_MINUTES`: Video provider meeting age limit. Expired idle meetings are recycled; active expired meetings reject new video tokens. Defaults to `180`.
 - `VIDEO_RECORDING_ENABLED`: Must remain `false` for launch.
-- `VIDEO_SCREENSHARE_ENABLED`: Defaults to `false`.
-- `VIDEO_CHAT_ENABLED`: Defaults to `false`; use Halastudy chat instead of provider chat.
+- `VIDEO_SCREENSHARE_ENABLED`: Must remain `false`; startup rejects `true`.
+- `VIDEO_CHAT_ENABLED`: Must remain `false`; use Halastudy chat instead of provider chat.
 - `VIDEO_DEFAULT_PRESET_NAME`: RealtimeKit participant preset. Defaults to `halastudy_student`.
 - `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_REALTIMEKIT_APP_ID`, `CLOUDFLARE_REALTIMEKIT_API_TOKEN`: Server-only RealtimeKit credentials.
 - `CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL`: Optional verification-key endpoint override for isolated staging tests. Production defaults to Cloudflare's public key endpoint.
@@ -151,6 +152,10 @@ Scheduled-room notes:
 
 Development mesh TURN example:
 
+```bash
+NODE_ENV=development VIDEO_PROVIDER=mesh ENABLE_DEV_MESH=true npm start
+```
+
 ```json
 [
   { "urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
@@ -166,7 +171,7 @@ RealtimeKit launch notes:
 - The browser never receives the Cloudflare API token. The backend creates/reuses one RealtimeKit meeting per Halastudy room and returns only a client participant token.
 - The token endpoint rejects the 21st active video participant before calling Cloudflare.
 - Mic is off by default; recording, screenshare, and provider chat remain off for launch.
-- The legacy mesh path remains available only in development/test with `VIDEO_PROVIDER=mesh`; production rejects it. The iframe SFU path remains legacy-only behind `SFU_BASE_URL`.
+- The legacy mesh path remains available only for authenticated sockets in development/test with both `VIDEO_PROVIDER=mesh` and `ENABLE_DEV_MESH=true`. Production rejects the flag/provider and never relays persisted legacy mesh signaling. The iframe SFU path remains legacy-only behind `SFU_BASE_URL`.
 - AI focus monitoring stays available in legacy mesh rooms only.
 
 Launch cost guardrail:
@@ -197,7 +202,7 @@ This persistence layer is designed for a single app instance. Keep PM2 at one pr
 - 20 active video participants allowed; 21st rejected before provider token creation
 - `VIDEO_JOIN_DISABLED=true` blocks video token issuance without breaking chat/presence
 - Password-protected rooms still require the room password before video token issuance
-- Development-only mesh testing with `VIDEO_PROVIDER=mesh`
+- Development-only authenticated mesh testing with `VIDEO_PROVIDER=mesh` and `ENABLE_DEV_MESH=true`
 - Disconnect and rejoin during an active room
 - Mobile/network pass: iPhone Safari, Android Chrome, Saudi mobile data, weak Wi-Fi, and a 60-minute room test
 

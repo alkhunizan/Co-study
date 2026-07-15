@@ -37,7 +37,7 @@ async function createSmokePage(browser) {
 }
 
 async function createMeshLifecyclePage(browser) {
-    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     const context = await createTestContext(browser, {
         baseURL: server.baseUrl,
         permissions: [],
@@ -77,11 +77,19 @@ async function createMeshLifecyclePage(browser) {
             }
         }
         (/** @type {any} */ (window)).__meshFakePeers = [];
+        if (typeof window.MediaStream !== 'function') {
+            (/** @type {any} */ (window)).MediaStream = class FakeMediaStream {
+                constructor(tracks = []) { this.tracks = [...tracks]; }
+                getTracks() { return [...this.tracks]; }
+                getVideoTracks() { return this.tracks.filter((track) => track.kind === 'video'); }
+            };
+        }
         Object.defineProperty(window, 'RTCPeerConnection', {
             configurable: true,
             value: FakePeerConnection
         });
     });
+    await signupViaApi(page, 'Mesh Smoke Member');
     return { server, context, page };
 }
 
@@ -515,7 +523,7 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
     // video provider, and the blur pipeline is mesh-only. Also launches a
     // dedicated Chromium with a fake camera instead of the shared fixture
     // whose getUserMedia stub always throws.
-    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     const browser = await playwright.chromium.launch({
         args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
     });
@@ -535,6 +543,7 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
         try { delete (/** @type {any} */ (window)).FaceDetector; } catch (_error) {}
         try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
     });
+    await signupViaApi(page, 'Blur Smoke Member');
 
     try {
         const roomCode = await createRoomFromLanding(page, { roomName: 'Blur Smoke Room' });

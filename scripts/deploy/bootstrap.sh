@@ -88,7 +88,7 @@ cat <<NEXT
    Confirm it resolves:  dig +short ${DOMAIN}
 
 2. Create the env file ${STATE_DIR}/.env  — start from ${APP_DIR}/.env.example.
-   Minimum for a mesh beta:
+   Minimum production environment:
        NODE_ENV=production
        HOST=127.0.0.1
        TRUST_PROXY=1
@@ -102,7 +102,7 @@ cat <<NEXT
        ADMIN_SESSION_SECRET=<second value from npm run secret:gen>
        ADMIN_PATH=/ops-<random>       ADMIN_PASSWORD_HASH=<npm run admin:hash -- "pw">
        VIDEO_PROVIDER=realtimekit
-       # ICE_SERVERS_JSON is development-only; production media uses RealtimeKit.
+       # ENABLE_DEV_MESH and ICE_SERVERS_JSON are rejected in production.
        # R2 off-site backups (optional): R2_* from .env.example
 
 3. TLS certificate (DNS must resolve first):

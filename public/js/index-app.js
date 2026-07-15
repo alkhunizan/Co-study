@@ -483,7 +483,8 @@
         sfuAvailable: false,
         supportedMediaModes: [MEDIA_MODE_MESH],
         meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT,
-        videoProvider: VIDEO_PROVIDER_MESH,
+        videoProvider: VIDEO_PROVIDER_REALTIMEKIT,
+        devMeshEnabled: false,
         videoPolicy: null,
         publicApiBaseUrl: ''
     };
@@ -1216,7 +1217,7 @@
     }
 
     function normalizeVideoProvider(provider) {
-        return provider === VIDEO_PROVIDER_REALTIMEKIT ? VIDEO_PROVIDER_REALTIMEKIT : VIDEO_PROVIDER_MESH;
+        return provider === VIDEO_PROVIDER_MESH ? VIDEO_PROVIDER_MESH : VIDEO_PROVIDER_REALTIMEKIT;
     }
 
     function getMeshParticipantLimit(limit = runtimeConfig.meshParticipantLimit) {
@@ -1224,12 +1225,14 @@
     }
 
     function isMeshRoom() {
-        return normalizeVideoProvider(roomVideoProvider) === VIDEO_PROVIDER_MESH
+        return runtimeConfig.devMeshEnabled === true
+            && normalizeVideoProvider(roomVideoProvider) === VIDEO_PROVIDER_MESH
             && normalizeMediaMode(roomMediaMode) === MEDIA_MODE_MESH;
     }
 
     function isSfuRoom() {
-        return normalizeVideoProvider(roomVideoProvider) === VIDEO_PROVIDER_MESH
+        return runtimeConfig.devMeshEnabled === true
+            && normalizeVideoProvider(roomVideoProvider) === VIDEO_PROVIDER_MESH
             && normalizeMediaMode(roomMediaMode) === MEDIA_MODE_SFU;
     }
 
@@ -1642,6 +1645,7 @@
                 : [MEDIA_MODE_MESH],
             meshParticipantLimit: getMeshParticipantLimit(payload.meshParticipantLimit),
             videoProvider: normalizeVideoProvider(payload.videoProvider),
+            devMeshEnabled: payload.devMeshEnabled === true,
             videoPolicy: payload.videoPolicy || null,
             publicApiBaseUrl: typeof payload.publicApiBaseUrl === 'string' ? payload.publicApiBaseUrl : ''
         };

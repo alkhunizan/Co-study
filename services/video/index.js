@@ -11,6 +11,9 @@ const { createRealtimeKitProvider } = require('./realtimekit-provider');
 function createVideoProvider({ config, logger, fetchImpl } = {}) {
     const providerName = config?.provider || VIDEO_PROVIDER_REALTIMEKIT;
     if (providerName === VIDEO_PROVIDER_MESH) {
+        if (config?.devMeshEnabled !== true) {
+            throw new Error('Mesh provider requires the explicit development mesh flag.');
+        }
         return createMeshProvider();
     }
     if (providerName === VIDEO_PROVIDER_REALTIMEKIT) {

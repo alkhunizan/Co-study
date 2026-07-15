@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
+const { signupUser } = require('../helpers/auth-helpers');
 const { delay, startServer } = require('../helpers/server-control');
 const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
 
@@ -70,7 +71,7 @@ test('every malformed event returns REQUEST_INVALID with and without an acknowle
 });
 
 test('malformed SDP and ICE requests never reach the selected peer', async (t) => {
-    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     const sender = await connectSocket(server.baseUrl);
     const peer = await connectSocket(server.baseUrl);
     t.after(async () => {
@@ -106,9 +107,11 @@ test('malformed SDP and ICE requests never reach the selected peer', async (t) =
 });
 
 test('bounded current client payloads still flow through every event handler', async (t) => {
-    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
-    const owner = await connectSocket(server.baseUrl);
-    const peer = await connectSocket(server.baseUrl);
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
+    const ownerAccount = await signupUser(server, { displayName: 'RTC Owner' });
+    const peerAccount = await signupUser(server, { displayName: 'RTC Peer' });
+    const owner = await connectSocket(server.baseUrl, { extraHeaders: { Cookie: ownerAccount.cookie } });
+    const peer = await connectSocket(server.baseUrl, { extraHeaders: { Cookie: peerAccount.cookie } });
     t.after(async () => {
         await closeSocket(owner);
         await closeSocket(peer);

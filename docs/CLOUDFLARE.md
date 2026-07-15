@@ -102,10 +102,11 @@ IP ranges. That stops anyone from bypassing Cloudflare by hitting the VM's raw I
 
 Production uses Cloudflare RealtimeKit and rejects `VIDEO_PROVIDER=mesh`; do not
 put `ICE_SERVERS_JSON` or static TURN credentials in the production environment.
-If an explicit local mesh test needs relay coverage, request short-lived TURN
-credentials, keep them in a developer-only env file, and rotate them before
-expiry. Never copy those credentials into PM2, systemd, a container image, or a
-committed file.
+Production startup also rejects `ENABLE_DEV_MESH=true`. An explicit local mesh
+test must set both `VIDEO_PROVIDER=mesh` and `ENABLE_DEV_MESH=true`; only signed-in
+account sockets may relay camera/RTC signals. Request short-lived TURN credentials,
+keep them in a developer-only env file, and rotate them before expiry. Never copy
+those credentials into PM2, systemd, a container image, or a committed file.
 
 Verify production with `npm run cloudflare:doctor`, signed webhook checks,
 `npm run verify:deploy -- https://halastudy.com`, and a real two-device,

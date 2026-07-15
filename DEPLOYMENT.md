@@ -46,7 +46,8 @@ production-shaped values and inline notes. The critical production settings:
   `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_REALTIMEKIT_APP_ID`, and
   `CLOUDFLARE_REALTIMEKIT_API_TOKEN`. These are server-only secrets.
 - **Video caps** — keep `MAX_GLOBAL_VIDEO_PARTICIPANTS=20` and
-  `MAX_ROOM_VIDEO_PARTICIPANTS=20` for launch cost control.
+  `MAX_ROOM_VIDEO_PARTICIPANTS=20` for launch cost control. Startup rejects
+  values above the hard ceiling.
 - **`SESSION_SECRET`** — REQUIRED in production and must encode exactly 32
   random bytes (the 64-hex output of `npm run secret:gen` is canonical);
   startup fails without it. `ADMIN_SESSION_SECRET` has the same requirement,
@@ -112,8 +113,10 @@ export CLOUDFLARE_REALTIMEKIT_APP_ID='replace_me'
 export CLOUDFLARE_REALTIMEKIT_API_TOKEN='replace_me'
 ```
 
-Do not configure `ICE_SERVERS_JSON`, TURN credentials, or `VIDEO_PROVIDER=mesh`
-in production. Mesh is an explicit local-development mode only. If a local
+Do not configure `ICE_SERVERS_JSON`, TURN credentials, `ENABLE_DEV_MESH`, or
+`VIDEO_PROVIDER=mesh` in production; startup rejects them. Local mesh requires
+`NODE_ENV=development`, `VIDEO_PROVIDER=mesh`, and `ENABLE_DEV_MESH=true`, and
+the signaling server accepts only authenticated account sockets. If a local
 mesh test needs TURN, use short-lived credentials and rotate them before expiry.
 
 RealtimeKit behavior in production:
@@ -122,9 +125,10 @@ RealtimeKit behavior in production:
 - New video token issuance is blocked when the global active video count reaches 20 or the room active video count reaches 20.
 - Expired idle provider meetings are recycled after `MAX_ROOM_DURATION_MINUTES`; active expired meetings reject new video tokens.
 - Set `VIDEO_JOIN_DISABLED=true` as a kill switch if provider errors or costs spike.
-- Recording, screenshare, and provider chat stay disabled for launch.
+- Recording, screenshare, and provider chat stay disabled; startup rejects
+  attempts to enable them.
 - Production rejects `VIDEO_PROVIDER=mesh`; provider outages fail closed for
-  new video joins and use the admin kill switch instead of downgrading media.
+  new video joins, and persisted legacy mesh rooms cannot relay RTC signaling.
 
 Launch budget math:
 
