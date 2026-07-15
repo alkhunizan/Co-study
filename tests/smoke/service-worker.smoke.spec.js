@@ -1,11 +1,11 @@
-const { test, expect } = require('@playwright/test');
+const { createTestContext, gotoTestPage, test, expect } = require('../helpers/playwright-test');
 
 test('service worker installs versioned assets and replays compressed ambient audio offline', async ({ browser }) => {
-    const context = await browser.newContext();
+    const context = await createTestContext(browser);
     const page = await context.newPage();
 
     try {
-        await page.goto('/');
+        await gotoTestPage(page, '/');
         await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
         await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
             .toBe(true);
