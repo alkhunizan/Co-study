@@ -32,6 +32,12 @@ anomalies. A report with candidates is not proof that the rows are synthetic
 and is not authorization to delete them. Review it against deployment/test logs
 and obtain separate explicit approval before any production action.
 
+If any source cannot be read, the tool still preserves a report marked
+`auditComplete: false`, records only the table, HTTP status, and safe provider
+code, and exits nonzero. It never copies a provider response into evidence. An
+incomplete report cannot support a zero-candidate conclusion or authorize any
+action.
+
 ## Local container-image risk inventory
 
 Inventory locally available Halastudy/Co-Study images without contacting a
