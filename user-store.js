@@ -231,8 +231,9 @@ function recordMyRoom(user, { roomId, name, role, now = Date.now() } = /** @type
  *  boundary — everything loaded is re-sanitized, mirroring room-store's
  *  sanitizeRoom. Module-level + pure so both the file store and the Supabase
  *  store share one canonical sanitizer.
- *  @param {Record<string, any>} raw */
-function sanitizeUser(raw = {}) {
+ *  @param {Record<string, any>} raw
+ *  @param {{ onLegacyAuthProvider?: (provider: string) => void }} [options] */
+function sanitizeUser(raw = {}, options = {}) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
 
     const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : null;
@@ -249,7 +250,11 @@ function sanitizeUser(raw = {}) {
     // old Google-only rows carried an inaccessible synthetic password and
     // authProvider="google". Explicit passwordEnabled wins for dual-method
     // accounts; otherwise the legacy provider field determines the migration.
-    const passwordEnabled = typeof raw.passwordEnabled === 'boolean'
+    const hasExplicitPasswordMethod = typeof raw.passwordEnabled === 'boolean';
+    if (!hasExplicitPasswordMethod && ['password', 'google'].includes(raw.authProvider)) {
+        options.onLegacyAuthProvider?.(raw.authProvider);
+    }
+    const passwordEnabled = hasExplicitPasswordMethod
         ? raw.passwordEnabled
         : raw.authProvider === 'google'
             ? false
@@ -286,7 +291,8 @@ function sanitizeUser(raw = {}) {
 function createUserStore(options = {}) {
     const {
         filePath = process.env.USER_STATE_FILE || path.join(__dirname, 'data', 'users.json'),
-        logger = console
+        logger = console,
+        onLegacyAuthProvider
     } = options;
 
     const resolvedFilePath = path.resolve(filePath);
@@ -310,7 +316,7 @@ function createUserStore(options = {}) {
             : Array.isArray(users)
                 ? users
                 : Array.from(users || []);
-        return source.map(sanitizeUser).filter(Boolean);
+        return source.map((user) => sanitizeUser(user)).filter(Boolean);
     }
 
     function toJson(users) {
@@ -337,7 +343,7 @@ function createUserStore(options = {}) {
                 return [];
             }
 
-            const sanitizedUsers = parsed.map(sanitizeUser).filter(Boolean);
+            const sanitizedUsers = parsed.map((raw) => sanitizeUser(raw, { onLegacyAuthProvider })).filter(Boolean);
             atomicStore.setBaseline(`${JSON.stringify(sanitizedUsers, null, 2)}\n`);
             return sanitizedUsers;
         } catch (error) {

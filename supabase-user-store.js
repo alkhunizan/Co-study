@@ -17,7 +17,7 @@ const TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const AUTH_PROVIDERS = new Set(['password', 'google']);
 
 /** DB row (snake_case) -> in-memory user (camelCase), sanitized. */
-function rowToUser(row) {
+function rowToUser(row, options = {}) {
     if (!row || typeof row !== 'object') return null;
     const createdAtMs = row.created_at ? Date.parse(row.created_at) : Date.now();
     const candidate = {
@@ -41,7 +41,7 @@ function rowToUser(row) {
         },
         myRooms: Array.isArray(row.my_rooms) ? row.my_rooms : []
     };
-    const user = sanitizeUser(candidate);
+    const user = sanitizeUser(candidate, options);
     if (!user) return null;
     // Supabase-only authorization field the shared sanitizer doesn't carry.
     user.isAdmin = !!row.is_admin;
@@ -73,10 +73,10 @@ function userToRow(user) {
 }
 
 /**
- * @param {{ client?: any, logger?: any, now?: () => number }} [options]
+ * @param {{ client?: any, logger?: any, now?: () => number, onLegacyAuthProvider?: (provider: string) => void }} [options]
  */
 function createSupabaseUserStore(options = {}) {
-    const { client, logger = console, now = () => Date.now() } = options;
+    const { client, logger = console, now = () => Date.now(), onLegacyAuthProvider } = options;
     if (!client) throw new Error('createSupabaseUserStore requires a Supabase client.');
 
     let knownIds = new Set();
@@ -159,7 +159,7 @@ function createSupabaseUserStore(options = {}) {
             if (tombstoned) warn('tombstoned_profile_ignored', new Error(`Profile ${row.id} is tombstoned.`));
             return !tombstoned;
         });
-        const users = liveRows.map(rowToUser);
+        const users = liveRows.map((row) => rowToUser(row, { onLegacyAuthProvider }));
         if (users.some((user) => !user)) throw new Error('Invalid profiles response: one or more rows failed validation.');
         knownFingerprints.clear();
         const ids = new Set();

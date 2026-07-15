@@ -343,6 +343,10 @@ focus/room events, then the atomic room file replacement. See
 [Encrypted Backup and Restore](docs/BACKUP-RESTORE.md) for artifact details,
 cron alternative, key recovery, R2 behavior, and failure handling.
 
+The exact additive cutover, 24-hour observation, 14-day compatibility telemetry,
+and rollback order are in
+[Rollout Compatibility](docs/ROLLOUT-COMPATIBILITY.md).
+
 ## Maintenance
 
 ```bash

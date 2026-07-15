@@ -98,6 +98,7 @@ test('failed hydration retries three times and leaves the server unlistened', as
 
 test('startup dual-reads legacy rooms without assigning owners or flushing a migration', async (t) => {
     let flushCalls = 0;
+    const compatibilitySignals = [];
     const legacyRoomStore = {
         filePath: 'startup-test-rooms.json',
         loadRooms() {
@@ -123,6 +124,10 @@ test('startup dual-reads legacy rooms without assigning owners or flushing a mig
         createServer: (app) => http.createServer(app),
         roomStore: legacyRoomStore,
         userStore,
+        compatibilityTelemetry: {
+            record(signal) { compatibilitySignals.push(signal); },
+            snapshot() { return {}; }
+        },
         registerSignalHandlers: false,
         startupBackoffMs: [1, 1, 1]
     });
@@ -133,4 +138,5 @@ test('startup dual-reads legacy rooms without assigning owners or flushing a mig
     assert.equal(flushCalls, 0);
     assert.equal(appServer.rooms.get('LEGACY').schemaVersion, 1);
     assert.equal(appServer.rooms.get('LEGACY').ownerUserId, null);
+    assert.deepEqual(compatibilitySignals, ['room_schema_v1_read']);
 });
