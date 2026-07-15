@@ -47,6 +47,7 @@ function createAuthRouter(deps) {
         oauthSecurity,
         persistUser,
         deleteUser,
+        onUserDeleted,
         persistFocusCompletion,
         requireUser,
         logger
@@ -324,10 +325,20 @@ function createAuthRouter(deps) {
         }
         usersByEmail.delete(req.user.email);
         users.delete(userId);
+        let cleanupPending = false;
+        if (typeof onUserDeleted === 'function') {
+            try {
+                const cleanup = await onUserDeleted(userId);
+                cleanupPending = !!cleanup?.cleanupPending;
+            } catch (error) {
+                cleanupPending = true;
+                logger.error({ event: 'user_delete_cascade_failed', userId, error: error?.message });
+            }
+        }
         clearAuthCookie(req, res);
         rotateAnonymousIdentity?.(req, res);
         logger.info({ event: 'user_deleted', userId });
-        res.json({ ok: true });
+        res.json({ ok: true, cleanupPending });
     });
 
     return router;

@@ -412,6 +412,72 @@ test('account deletion re-authenticates, removes the record from disk, and kills
     assert.equal(login.body.errorCode, 'INVALID_CREDENTIALS');
 });
 
+test('account deletion closes owned rooms and revokes live membership identities', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const guestSocket = await connectSocket(server.baseUrl, { clientId: 'delete-cascade-guest' });
+    const { cookie, credentials } = await signupUser(server, {
+        email: 'delete-cascade@example.com',
+        displayName: 'Cascade Owner'
+    });
+    const ownerSocket = await connectSocket(server.baseUrl, {
+        clientId: 'delete-cascade-owner',
+        extraHeaders: { Cookie: cookie }
+    });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(guestSocket);
+    });
+
+    const guestRoom = await emitAck(guestSocket, 'create-room', { roomName: 'Surviving Room' });
+    assert.equal(guestRoom.ok, true);
+    const guestJoined = await emitAck(guestSocket, 'join-room', {
+        roomId: guestRoom.room.code,
+        username: 'Guest'
+    });
+    assert.equal(guestJoined.ok, true);
+
+    const ownedRoom = await emitAck(ownerSocket, 'create-room', { roomName: 'Owned Room' });
+    assert.equal(ownedRoom.ok, true);
+    const ownerJoined = await emitAck(ownerSocket, 'join-room', {
+        roomId: guestRoom.room.code,
+        username: 'Cascade Owner'
+    });
+    assert.equal(ownerJoined.ok, true);
+
+    const disconnected = new Promise((resolve) => ownerSocket.once('disconnect', resolve));
+    const deleted = await authedRequest(server, '/api/me', cookie, {
+        method: 'DELETE',
+        body: { password: credentials.password }
+    });
+    assert.equal(deleted.status, 200);
+    assert.equal(deleted.body.cleanupPending, false);
+    await Promise.race([
+        disconnected,
+        delay(2000).then(() => assert.fail('deleted account socket stayed connected'))
+    ]);
+
+    const deletedOwnedRoom = await server.request(`/api/rooms/${ownedRoom.room.code}`);
+    assert.equal(deletedOwnedRoom.status, 404);
+
+    const survivingRoom = await server.request(`/api/rooms/${guestRoom.room.code}`);
+    assert.equal(survivingRoom.status, 200);
+    assert.deepEqual(survivingRoom.body.participants.map((participant) => participant.name), ['Guest']);
+
+    const staleMembership = await server.request(`/api/rooms/${guestRoom.room.code}/video-token`, {
+        method: 'POST',
+        headers: { 'X-Halastudy-Membership': ownerJoined.membershipToken },
+        body: {
+            displayName: 'Cascade Owner',
+            clientSessionId: 'delete-cascade-owner',
+            role: 'student'
+        }
+    });
+    assert.equal(staleMembership.status, 403);
+    assert.equal(staleMembership.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+});
+
 test('failed durable account deletion returns 503 and leaves the account live', async (t) => {
     const server = await startServer();
     let blockingDirectoryPresent = false;

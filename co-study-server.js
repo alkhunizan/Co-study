@@ -1926,6 +1926,75 @@ function createCoStudyServer(options = {}) {
         return true;
     }
 
+    async function cascadeDeletedUser(userId) {
+        const authenticatedIdentityId = `user:${userId}`;
+        let cleanupPending = false;
+
+        const ownedRoomIds = Array.from(rooms.values())
+            .filter((room) => !isLobbyRoom(room) && room.ownerUserId === userId)
+            .map((room) => room.id);
+        for (const ownedRoomId of ownedRoomIds) {
+            try {
+                const result = await closeRoomLifecycle(ownedRoomId, { reason: 'owner_account_deleted' });
+                cleanupPending = cleanupPending || !!result?.cleanupPending;
+            } catch (error) {
+                cleanupPending = true;
+                logger.error({
+                    event: 'deleted_owner_room_close_failed',
+                    userId,
+                    roomId: ownedRoomId,
+                    error: error?.message
+                });
+                setTimeout(() => {
+                    void closeRoomLifecycle(ownedRoomId, { reason: 'owner_account_deleted_retry' })
+                        .catch((retryError) => logger.error({
+                            event: 'deleted_owner_room_close_retry_failed',
+                            userId,
+                            roomId: ownedRoomId,
+                            error: retryError?.message
+                        }));
+                }, ROOM_CLEANUP_RETRY_MS).unref?.();
+            }
+        }
+
+        const activeUserVideoSessions = videoSessionRegistry.listActive()
+            .filter((session) => session.userId === authenticatedIdentityId);
+        for (const session of activeUserVideoSessions) {
+            const result = await requestProviderSessionEnd(session, 'account_deleted');
+            emitVideoCapacity(session.roomId);
+            cleanupPending = cleanupPending
+                || result.persistenceUnavailable
+                || !result.providerIdentityRevoked;
+        }
+
+        for (const [token, membership] of membershipTokens.entries()) {
+            if (membership.identityId === authenticatedIdentityId) {
+                invalidateMembershipToken(token);
+            }
+        }
+
+        const userSockets = Array.from(io.sockets.sockets.values())
+            .filter((socketRef) => socketRef.data.userId === userId);
+        for (const socketRef of userSockets) {
+            const normalizedRoom = socketRef.data.roomId;
+            const room = normalizedRoom ? rooms.get(normalizedRoom) : null;
+            if (room) {
+                const member = room.users.get(socketRef.id);
+                if (removeUserFromRoom(room, socketRef.id, normalizedRoom, member, { videoAlreadyRevoked: true })) {
+                    io.to(normalizedRoom).emit('camera-status', { userId: socketRef.id, camera: false });
+                    io.to(normalizedRoom).emit('presence', roomSnapshot(normalizedRoom).participants);
+                    scheduleRoomCleanup(normalizedRoom);
+                }
+            } else {
+                invalidateSocketMembership(socketRef);
+            }
+            skippedDisconnects.add(socketRef.id);
+            socketRef.disconnect(true);
+        }
+
+        return { cleanupPending };
+    }
+
     function loadPersistedRooms() {
         const persistedRooms = roomStore.loadRooms({ strict: true });
         persistedRooms.forEach((persistedRoom) => {
@@ -2797,6 +2866,7 @@ function createCoStudyServer(options = {}) {
         persistUsersSoon,
         persistUser: persistUserImmediate,
         deleteUser: deleteUserImmediate,
+        onUserDeleted: cascadeDeletedUser,
         persistFocusCompletion: persistFocusCompletionImmediate,
         flushUsers: () => userStore.flush(users),
         requireUser,
