@@ -84,7 +84,7 @@ async function main({ args = process.argv.slice(2), env = process.env, logger = 
         if (result.mode === 'dry-run') {
             logger.log('DRY RUN: validation passed; no data was written.');
         } else {
-            logger.log('APPLIED: profiles, events, and rooms restored in dependency order.');
+            logger.log('APPLIED: tombstones, profiles, events, and rooms restored in dependency order.');
         }
         return result;
     } finally {

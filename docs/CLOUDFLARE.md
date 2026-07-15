@@ -116,7 +116,7 @@ two-carrier camera test (`LAUNCH.md §5`).
 
 ## 3. R2 — off-site state backups
 
-Local backups die with the VM. R2 can keep a durable off-box copy of the newest
+Local backups die with the VM. R2 can keep seven daily off-box copies of the
 client-side encrypted `.hsbackup` artifact. The uploader refuses to select raw
 room or user JSON files.
 
@@ -142,8 +142,10 @@ room or user JSON files.
 
 The canonical nightly scheduler is `halastudy-backup.timer`; see
 [`BACKUP-RESTORE.md`](BACKUP-RESTORE.md). Do not put secrets directly in a cron
-line, and do not upload raw state files. The current R2 command never deletes
-existing objects.
+line, and do not upload raw state files. The explicitly scoped automated
+retention pass keeps seven daily encrypted artifacts and can delete only
+validated backup keys under the fixed `encrypted/` prefix. Use
+`backup-r2.js --retention-dry-run` to inspect candidates without mutation.
 
 The uploader signs requests with AWS SigV4 using only `node:crypto`
 (`scripts/cloudflare/r2-client.js`) — no aws-sdk, consistent with the app's

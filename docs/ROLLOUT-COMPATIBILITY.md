@@ -180,8 +180,10 @@ log-based 14-day evidence window.
      --apply --writer-stopped
    ```
 
-   Current 30-day deletion tombstones must filter deleted accounts so rollback
-   cannot resurrect them. Restore order remains profiles, events, then rooms.
+   Embedded artifact tombstones and current 30-day deletion tombstones must
+   both filter deleted accounts so rollback cannot resurrect them. The current
+   row wins when both sources contain the same user. Restore writes protective
+   tombstones before profiles, events, and rooms.
 
 6. Restart with video joins disabled, wait for `/api/ready`, run
    `npm run verify:deploy -- https://your-domain.example`, and repeat the live

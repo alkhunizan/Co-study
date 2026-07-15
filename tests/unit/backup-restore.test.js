@@ -15,7 +15,7 @@ function sampleBundle() {
     return {
         manifest: {
             schemaVersion: 1,
-            createdAt: '2026-07-15T02:15:00.000Z',
+            createdAt: '2026-07-14T02:15:00.000Z',
             sources: {},
             failedSources: []
         },
@@ -74,6 +74,95 @@ test('expired deletion tombstones no longer suppress a restore', () => {
 
     assert.equal(plan.datasets.profiles.length, 2);
     assert.equal(plan.filtered.profiles, 0);
+});
+
+test('stale artifacts keep deleted accounts suppressed after their live tombstones expire', () => {
+    const bundle = sampleBundle();
+    bundle.manifest.schemaVersion = 2;
+    bundle.manifest.createdAt = '2026-05-01T02:15:00.000Z';
+    bundle.datasets.deletion_tombstones = [{
+        user_id: 'deleted-user',
+        deleted_at: '2026-05-02T00:00:00.000Z',
+        expires_at: '2026-06-01T00:00:00.000Z',
+        reason: 'user_request'
+    }];
+    bundle.datasets.profiles.push({ id: 'newly-deleted-user' });
+    bundle.datasets.focus_sessions.push({ id: 3, user_id: 'newly-deleted-user' });
+    bundle.datasets.room_events.push({
+        id: 3,
+        user_id: 'newly-deleted-user',
+        owner_user_id: 'newly-deleted-user'
+    });
+    bundle.datasets.rooms.push({ id: 'NEWLY-DELETED', ownerUserId: 'newly-deleted-user' });
+
+    const plan = buildRestorePlan({
+        bundle,
+        deletionTombstones: [{
+            user_id: 'newly-deleted-user',
+            deleted_at: '2026-07-10T00:00:00.000Z',
+            expires_at: '2026-08-09T00:00:00.000Z',
+            reason: 'user_request'
+        }],
+        now: Date.parse('2026-07-15T00:00:00.000Z')
+    });
+
+    assert.deepEqual(plan.datasets.profiles, [{ id: 'active-user' }]);
+    assert.deepEqual(plan.datasets.focus_completion_claims, [{
+        user_id: 'active-user',
+        completion_id: 'active-claim'
+    }]);
+    assert.deepEqual(plan.datasets.focus_sessions, [{ id: 2, user_id: 'active-user' }]);
+    assert.deepEqual(plan.datasets.room_events, [{ id: 2, user_id: 'active-user' }]);
+    assert.deepEqual(plan.datasets.rooms, [{ id: 'LIVE', ownerUserId: 'active-user' }]);
+    assert.deepEqual(plan.tombstoneProtection, {
+        artifactCount: 1,
+        currentCount: 1,
+        protectedUserCount: 2
+    });
+});
+
+test('current tombstone rows override artifact rows before an applied restore', () => {
+    const bundle = sampleBundle();
+    bundle.manifest.schemaVersion = 2;
+    bundle.datasets.deletion_tombstones = [{
+        user_id: 'deleted-user',
+        deleted_at: '2026-07-01T00:00:00.000Z',
+        expires_at: '2026-07-31T00:00:00.000Z',
+        reason: 'artifact'
+    }];
+    const current = {
+        user_id: 'deleted-user',
+        deleted_at: '2026-07-10T00:00:00.000Z',
+        expires_at: '2026-08-09T00:00:00.000Z',
+        reason: 'user_request'
+    };
+
+    const plan = buildRestorePlan({
+        bundle,
+        deletionTombstones: [current],
+        now: Date.parse('2026-07-15T00:00:00.000Z')
+    });
+
+    assert.deepEqual(plan.datasets.deletion_tombstones, [current]);
+    assert.deepEqual(plan.tombstoneProtection, {
+        artifactCount: 1,
+        currentCount: 1,
+        protectedUserCount: 1
+    });
+});
+
+test('legacy database artifacts at the tombstone expiry boundary fail closed', () => {
+    const bundle = sampleBundle();
+    bundle.manifest.createdAt = '2026-06-15T00:00:00.000Z';
+
+    assert.throws(
+        () => buildRestorePlan({
+            bundle,
+            deletionTombstones: [],
+            now: Date.parse('2026-07-15T00:00:00.000Z')
+        }),
+        /legacy backup schema is too old/i
+    );
 });
 
 test('rooms-only restore artifacts still require current tombstones when ownership can resurrect a user', () => {
@@ -144,6 +233,45 @@ test('restore applies profiles, event tables, then rooms in dependency order', a
 
     assert.equal(result.mode, 'applied');
     assert.deepEqual(calls.map(([name]) => name), [
+        'profiles',
+        'focus_completion_claims',
+        'focus_sessions',
+        'room_events',
+        'rooms'
+    ]);
+});
+
+test('schema-v2 restore writes protective tombstones before profiles and rooms', async () => {
+    const bundle = sampleBundle();
+    bundle.manifest.schemaVersion = 2;
+    bundle.datasets.deletion_tombstones = [{
+        user_id: 'deleted-user',
+        deleted_at: '2026-07-01T00:00:00.000Z',
+        expires_at: '2026-07-31T00:00:00.000Z',
+        reason: 'user_request'
+    }];
+    const calls = [];
+    const plan = buildRestorePlan({
+        bundle,
+        now: Date.parse('2026-07-15T00:00:00.000Z')
+    });
+
+    await applyRestorePlan({
+        plan,
+        apply: true,
+        writerStopped: true,
+        target: {
+            async restoreDeletionTombstones() { calls.push('deletion_tombstones'); },
+            async restoreProfiles() { calls.push('profiles'); },
+            async restoreFocusCompletionClaims() { calls.push('focus_completion_claims'); },
+            async restoreFocusSessions() { calls.push('focus_sessions'); },
+            async restoreRoomEvents() { calls.push('room_events'); },
+            async restoreRooms() { calls.push('rooms'); }
+        }
+    });
+
+    assert.deepEqual(calls, [
+        'deletion_tombstones',
         'profiles',
         'focus_completion_claims',
         'focus_sessions',

@@ -135,7 +135,7 @@ test('nightly templates run as the service account and load only its protected e
     assert.match(wrapper, /400\|600/);
     assert.match(wrapper, /umask 077/);
     assert.match(wrapper, /--with-r2/);
-    assert.match(wrapper, /scripts\/backup-r2\.js/);
+    assert.match(wrapper, /scripts\/backup-r2\.js --apply-retention/);
     assert.match(restoreWrapper, /SERVICE_USER="halastudy"/);
     assert.match(restoreWrapper, /ENV_FILE="\/var\/lib\/halastudy\/\.env"/);
     assert.match(restoreWrapper, /400\|600/);

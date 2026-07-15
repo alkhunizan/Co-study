@@ -1,6 +1,6 @@
 # Encrypted Backup and Restore
 
-Halastudy creates one authenticated, client-side encrypted artifact each night. Encryption happens in the Node process before bytes are written locally or copied to R2. Raw room, profile, focus, and room-event data must never be uploaded as backup objects.
+Halastudy creates one authenticated, client-side encrypted artifact each night. Encryption happens in the Node process before bytes are written locally or copied to R2. Raw room, profile, deletion-tombstone, focus, and room-event data must never be uploaded as backup objects.
 
 ## Artifact contract
 
@@ -11,9 +11,9 @@ Each `.hsbackup` file is a JSON envelope containing:
 - an AES-256-GCM authentication tag;
 - encrypted payload bytes.
 
-The encrypted payload contains exactly one manifest and the readable datasets collected during that run. The manifest records schema version `1`, UTC creation time, row count and SHA-256 checksum for each dataset, and the names of configured sources that could not be read. Supported datasets are `profiles`, `focus_sessions`, `room_events`, and `rooms`.
+The encrypted payload contains exactly one manifest and the readable datasets collected during that run. The manifest records schema version `2`, UTC creation time, row count and SHA-256 checksum for each dataset, and the names of configured sources that could not be read. Supported datasets are `profiles`, `deletion_tombstones`, `focus_completion_claims`, `focus_sessions`, `room_events`, and `rooms`.
 
-An empty array is a readable source. If no source is readable, the command fails and creates no artifact. A partial artifact is marked in its encrypted manifest and the CLI emits a warning naming the unavailable sources.
+An empty array is a readable source. If no source is readable, the command fails and creates no artifact. A partial artifact is marked in its encrypted manifest and the CLI emits a warning naming the unavailable sources. Deletion tombstones are a critical source: when Supabase is configured, failure to read them fails the whole backup so an unsafe database artifact cannot displace a complete daily snapshot.
 
 Artifacts are written by same-directory atomic rename with mode `0600`. Retention keeps one successful artifact for each of the latest seven UTC days. A second successful run on the same day replaces that day's older artifact only after the new file exists.
 
@@ -80,7 +80,9 @@ sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh
 
 ## Dry-run restore
 
-Restore always validates the envelope authentication tag, supported schema version, dataset shapes, row counts, and every manifest checksum before planning any write. It reads current Supabase deletion tombstones and removes affected profiles, focus rows, room events, and owned rooms from the plan.
+Restore always validates the envelope authentication tag, supported schema version, dataset shapes, row counts, and every manifest checksum before planning any write. Every artifact tombstone remains authoritative for that artifact even after its 30-day live-database expiry. Restore unions that evidence with current, unexpired Supabase tombstones and removes affected profiles, focus rows, room events, and owned rooms from the plan. If both sources contain the same user, the current Supabase row wins and is the row preserved during apply.
+
+Schema-v1 artifacts remain readable during the migration window, but a v1 database or owned-room artifact 30 days old or older fails closed because it cannot contain embedded deletion evidence. Retained v2 artifacts do not have that limitation.
 
 The default is a dry run:
 
@@ -112,9 +114,12 @@ If `RESTORE_WRITER_LOCK_FILE` is configured and that path exists, apply fails ev
 
 Restore order is fixed:
 
-1. Supabase profiles;
-2. Supabase focus sessions and room events;
-3. the atomic room-state replacement.
+1. current, unexpired protective Supabase deletion tombstones from the artifact/current union;
+2. Supabase profiles;
+3. Supabase focus claims, focus sessions, and room events;
+4. the atomic room-state replacement.
+
+Expired artifact tombstones still filter the artifact, but are not written back into the live 30-day tombstone table.
 
 A failed phase exits nonzero and prevents later phases from running. Restart and verify only after the apply command succeeds:
 
@@ -127,6 +132,14 @@ npm --prefix /opt/halastudy run verify:deploy -- https://your-domain.example
 
 ## Optional R2 copy
 
-`npm run backup:r2` authenticates the newest local `.hsbackup` file before upload and copies only those encrypted bytes under the `encrypted/` prefix. It no longer uploads `rooms.json` or `users.json`. The service-owned manual path is `backup.sh --with-r2`, which creates the local artifact first and loads R2 credentials from the same protected env file; `backup.sh --check-r2` performs the credential round-trip. These commands do not delete stored backup objects.
+`npm run backup:r2` authenticates the newest local `.hsbackup` file before upload and copies only those encrypted bytes under the fixed `encrypted/` prefix. It then retains one successful artifact for each of the latest seven UTC days. Automated retention can list and delete only keys matching `encrypted/halastudy-YYYY-MM-DDTHHMMSSZ-*.hsbackup`; unrelated encrypted objects, legacy `users/` objects, and every other prefix are outside its mutation boundary.
+
+The package command and the service-owned `backup.sh --with-r2` path both pass the explicit `--apply-retention` scope. Direct script execution without one recognized mode fails. Preview the exact candidate set without uploading or deleting anything with:
+
+```bash
+sudo -u halastudy -H /usr/bin/node /opt/halastudy/scripts/backup-r2.js --retention-dry-run
+```
+
+`backup.sh --check-r2` performs the isolated credential round-trip. It creates and removes only its timestamped `healthcheck/` marker.
 
 Never use an automated test or local development shell with production R2 or Supabase credentials. Provider tests must inject fakes or use designated staging projects.

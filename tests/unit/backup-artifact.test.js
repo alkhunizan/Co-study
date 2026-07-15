@@ -23,7 +23,13 @@ test('AES-256-GCM artifacts hide source data and round-trip a checksummed manife
     const artifact = createEncryptedBackupArtifact({
         datasets: {
             rooms: [{ id: 'ROOM1', name: 'Private Study Room' }],
-            profiles: [{ id: 'user-1', email: 'student@example.com' }]
+            profiles: [{ id: 'user-1', email: 'student@example.com' }],
+            deletion_tombstones: [{
+                user_id: 'user-1',
+                deleted_at: '2026-07-01T00:00:00.000Z',
+                expires_at: '2026-07-31T00:00:00.000Z',
+                reason: 'user_request'
+            }]
         },
         failedSources: ['focus_sessions'],
         encryptionKey: key,
@@ -42,6 +48,7 @@ test('AES-256-GCM artifacts hide source data and round-trip a checksummed manife
     assert.equal(bundle.manifest.sources.rooms.rowCount, 1);
     assert.match(bundle.manifest.sources.rooms.sha256, /^[a-f0-9]{64}$/);
     assert.deepEqual(bundle.datasets.rooms, [{ id: 'ROOM1', name: 'Private Study Room' }]);
+    assert.equal(bundle.datasets.deletion_tombstones[0].user_id, 'user-1');
 });
 
 test('artifact authentication rejects ciphertext tampering without exposing crypto internals', () => {
@@ -92,5 +99,34 @@ test('bundle validation rejects unsupported schemas and source checksum mismatch
             }
         }),
         /checksum mismatch/i
+    );
+});
+
+test('current backup schema requires deletion tombstones beside database datasets', () => {
+    assert.ok(BACKUP_SCHEMA_VERSION >= 2);
+    assert.throws(
+        () => createEncryptedBackupArtifact({
+            datasets: { profiles: [{ id: 'user-1' }], rooms: [] },
+            encryptionKey: KEY_TEXT
+        }),
+        /deletion_tombstones.*required/i
+    );
+});
+
+test('deletion tombstone datasets reject malformed or inverted retention rows', () => {
+    assert.throws(
+        () => createEncryptedBackupArtifact({
+            datasets: {
+                deletion_tombstones: [{
+                    user_id: 'user-1',
+                    deleted_at: '2026-07-31T00:00:00.000Z',
+                    expires_at: '2026-07-01T00:00:00.000Z',
+                    reason: 'user_request'
+                }],
+                rooms: []
+            },
+            encryptionKey: KEY_TEXT
+        }),
+        /deletion_tombstones contains an invalid row/i
     );
 });

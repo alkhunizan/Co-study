@@ -46,6 +46,7 @@ test('backup collection covers rooms plus injectable Supabase profiles and event
     });
 
     assert.deepEqual(Object.keys(result.datasets).sort(), [
+        'deletion_tombstones',
         'focus_completion_claims',
         'focus_sessions',
         'profiles',
@@ -59,13 +60,14 @@ test('backup collection records partial source failures but rejects zero readabl
     const partial = await collectBackupDatasets({
         readRooms: async () => [],
         supabaseSource: {
-            async readDataset() {
+            async readDataset(name) {
+                if (name === 'deletion_tombstones') return [];
                 throw new Error('injected provider failure');
             }
         }
     });
 
-    assert.deepEqual(partial.datasets, { rooms: [] });
+    assert.deepEqual(partial.datasets, { rooms: [], deletion_tombstones: [] });
     assert.deepEqual(partial.failedSources, [
         'focus_completion_claims',
         'focus_sessions',
@@ -81,6 +83,21 @@ test('backup collection records partial source failures but rejects zero readabl
             }
         }),
         /no readable backup sources/i
+    );
+});
+
+test('backup collection fails closed when deletion tombstones cannot be captured', async () => {
+    await assert.rejects(
+        collectBackupDatasets({
+            readRooms: async () => [{ id: 'ROOM1' }],
+            supabaseSource: {
+                async readDataset(name) {
+                    if (name === 'deletion_tombstones') throw new Error('injected tombstone failure');
+                    return [];
+                }
+            }
+        }),
+        /deletion tombstones.*required/i
     );
 });
 
