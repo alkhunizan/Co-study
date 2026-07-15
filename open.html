@@ -443,6 +443,8 @@
             videoPolicy: null
         };
         let joinPreviewRoom = null;
+        let joinPreviewGeneration = 0;
+        let joinPreviewController = null;
         let landingScheduleRefreshTimer = null;
         let isDark = false;
         try { isDark = localStorage.getItem('halastudyTheme') === 'dark'; document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } catch (e) {}
@@ -1130,7 +1132,16 @@
             syncMediaModeUi();
         }
 
-        function clearJoinPreview() {
+        function invalidateJoinPreviewRequest() {
+            joinPreviewGeneration += 1;
+            if (joinPreviewController) {
+                joinPreviewController.abort();
+                joinPreviewController = null;
+            }
+        }
+
+        function clearJoinPreview({ invalidateRequest = true } = {}) {
+            if (invalidateRequest) invalidateJoinPreviewRequest();
             joinPreviewRoom = null;
             if (joinRoomPreview) {
                 joinRoomPreview.hidden = true;
@@ -1222,12 +1233,22 @@
         }
 
         async function fetchRoomDetails(code) {
+            invalidateJoinPreviewRequest();
+            const generation = joinPreviewGeneration;
+            const controller = new AbortController();
+            joinPreviewController = controller;
+            const isCurrentRequest = () => generation === joinPreviewGeneration
+                && joinPreviewController === controller
+                && !controller.signal.aborted;
+
             try {
                 const response = await fetch(`/api/rooms/${encodeURIComponent(code)}`, {
-                    headers: { Accept: 'application/json' }
+                    headers: { Accept: 'application/json' },
+                    signal: controller.signal
                 });
+                if (!isCurrentRequest()) return { status: 'stale' };
                 if (response.status === 404) {
-                    clearJoinPreview();
+                    clearJoinPreview({ invalidateRequest: false });
                     return { status: 'not_found' };
                 }
                 if (response.status === 429) {
@@ -1237,10 +1258,18 @@
                     return { status: 'error' };
                 }
                 const room = await response.json();
+                if (!isCurrentRequest()) return { status: 'stale' };
                 renderJoinPreview(room);
                 return { status: 'ok', room };
-            } catch (_error) {
+            } catch (error) {
+                if (error?.name === 'AbortError' || !isCurrentRequest()) {
+                    return { status: 'stale' };
+                }
                 return { status: 'error' };
+            } finally {
+                if (joinPreviewController === controller) {
+                    joinPreviewController = null;
+                }
             }
         }
 
@@ -1309,6 +1338,8 @@
                 if (code) {
                     void fetchRoomDetails(code);
                 }
+            } else {
+                clearJoinPreview();
             }
             // Desktop only — focusing on touch devices pops the keyboard over the form.
             if (window.matchMedia('(pointer: fine)').matches) {
@@ -1323,7 +1354,6 @@
             if (roomCode) {
                 joinCodeInput.value = roomCode.toUpperCase();
                 setMode('join');
-                void fetchRoomDetails(joinCodeInput.value);
             }
         }
 
@@ -1393,11 +1423,18 @@
             // Codes are 6 chars — preview the room as soon as one is typed/pasted.
             const code = joinCodeInput.value;
             if (code.length >= 6) {
-                joinLookupTimer = setTimeout(() => { void fetchRoomDetails(code); }, 350);
+                joinLookupTimer = setTimeout(() => {
+                    joinLookupTimer = null;
+                    void fetchRoomDetails(code);
+                }, 350);
             }
         });
 
         joinCodeInput.addEventListener('blur', () => {
+            if (joinLookupTimer) {
+                clearTimeout(joinLookupTimer);
+                joinLookupTimer = null;
+            }
             const code = joinCodeInput.value.trim().toUpperCase();
             if (!code) {
                 clearJoinPreview();
@@ -1539,6 +1576,13 @@
             if (joinSubmitBtn) joinSubmitBtn.disabled = true;
             try {
                 const lookup = await fetchRoomDetails(code);
+                if (lookup.status === 'stale') {
+                    if (joinCodeInput.value.trim().toUpperCase() !== code) {
+                        feedback.textContent = '';
+                        feedback.className = 'form-feedback';
+                    }
+                    return;
+                }
                 if (lookup.status === 'not_found') {
                     feedback.textContent = copy().errorRoomNotFound;
                     feedback.className = 'form-feedback error';
