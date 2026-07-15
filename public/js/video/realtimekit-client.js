@@ -6,6 +6,7 @@
     const CORE_SDK_URL = `https://cdn.jsdelivr.net/npm/@cloudflare/realtimekit@${REALTIMEKIT_VERSION}/dist/browser.js`;
     const SDK_LOAD_TIMEOUT_MS = 15000;
     let sdkLoadPromise = null;
+    const meetingMountPoints = new WeakMap();
 
     function withTimeout(promise, timeoutMs, message) {
         let timeoutId = null;
@@ -86,33 +87,79 @@
         return sdkLoadPromise;
     }
 
+    function rememberMeetingMount(meetingElement) {
+        if (!meetingElement?.parentNode) return;
+        meetingMountPoints.set(meetingElement, {
+            parent: meetingElement.parentNode,
+            nextSibling: meetingElement.nextSibling
+        });
+    }
+
+    function ensureMeetingElementMounted(meetingElement) {
+        if (meetingElement.parentNode) return;
+        const mountPoint = meetingMountPoints.get(meetingElement);
+        if (!mountPoint?.parent) return;
+        if (mountPoint.nextSibling && mountPoint.nextSibling.parentNode === mountPoint.parent) {
+            mountPoint.parent.insertBefore(meetingElement, mountPoint.nextSibling);
+            return;
+        }
+        mountPoint.parent.appendChild(meetingElement);
+    }
+
+    function unmountMeetingElement(meetingElement) {
+        try {
+            meetingElement.meeting = null;
+        } catch (_error) {}
+        try {
+            if (typeof meetingElement.remove === 'function') {
+                meetingElement.remove();
+            } else if (meetingElement.parentNode) {
+                meetingElement.parentNode.removeChild(meetingElement);
+            }
+        } catch (_error) {}
+    }
+
+    async function disconnectMeeting(meeting) {
+        const methods = ['leaveRoom', 'leave', 'disconnect'];
+        for (const method of methods) {
+            if (meeting && typeof meeting[method] === 'function') {
+                await meeting[method]();
+                return;
+            }
+        }
+    }
+
+    function createIdempotentLeave(meeting, afterLeave = () => {}) {
+        let leavePromise = null;
+        return function leaveMeeting() {
+            if (!leavePromise) {
+                leavePromise = disconnectMeeting(meeting).finally(afterLeave);
+            }
+            return leavePromise;
+        };
+    }
+
     async function join(options = {}) {
         const { authToken, meetingElement, policy = {} } = options;
-        if (!authToken) throw new Error('RealtimeKit auth token missing.');
         if (!meetingElement) throw new Error('RealtimeKit meeting element missing.');
+        rememberMeetingMount(meetingElement);
+        ensureMeetingElementMounted(meetingElement);
 
-        const RealtimeKitClient = await loadSdk();
-        const meeting = await RealtimeKitClient.init({
-            authToken,
-            defaults: {
-                audio: !!policy.micDefaultEnabled,
-                video: true
-            }
-        });
-
-        async function leaveMeeting() {
-            const methods = ['leaveRoom', 'leave', 'disconnect'];
-            for (const method of methods) {
-                if (meeting && typeof meeting[method] === 'function') {
-                    await meeting[method]();
-                    break;
-                }
-            }
-            meetingElement.meeting = null;
-        }
-
-        meetingElement.meeting = meeting;
+        let meeting = null;
+        let leaveMeeting = null;
         try {
+            if (!authToken) throw new Error('RealtimeKit auth token missing.');
+            const RealtimeKitClient = await loadSdk();
+            meeting = await RealtimeKitClient.init({
+                authToken,
+                defaults: {
+                    audio: !!policy.micDefaultEnabled,
+                    video: true
+                }
+            });
+            leaveMeeting = createIdempotentLeave(meeting, () => unmountMeetingElement(meetingElement));
+
+            meetingElement.meeting = meeting;
             if (typeof meeting.join === 'function') {
                 await meeting.join();
             }
@@ -122,7 +169,11 @@
                 } catch (_error) {}
             }
         } catch (error) {
-            await leaveMeeting().catch(() => {});
+            if (leaveMeeting) {
+                await leaveMeeting().catch(() => {});
+            } else {
+                unmountMeetingElement(meetingElement);
+            }
             throw error;
         }
 
@@ -147,23 +198,19 @@
             authToken,
             defaults: { audio: false, video: false }
         });
+        const leaveMeeting = createIdempotentLeave(meeting);
 
-        async function leaveMeeting() {
-            const methods = ['leaveRoom', 'leave', 'disconnect'];
-            for (const method of methods) {
-                if (meeting && typeof meeting[method] === 'function') {
-                    try { await meeting[method](); } catch (_error) {}
-                    break;
-                }
+        try {
+            if (typeof meeting.join === 'function') {
+                await meeting.join();
             }
-        }
-
-        if (typeof meeting.join === 'function') {
-            await meeting.join();
-        }
-        // Belt-and-braces: never emit audio from the Lobby.
-        if (meeting.self && typeof meeting.self.disableAudio === 'function') {
-            try { await meeting.self.disableAudio(); } catch (_error) {}
+            // Belt-and-braces: never emit audio from the Lobby.
+            if (meeting.self && typeof meeting.self.disableAudio === 'function') {
+                try { await meeting.self.disableAudio(); } catch (_error) {}
+            }
+        } catch (error) {
+            await leaveMeeting().catch(() => {});
+            throw error;
         }
         return { meeting, leave: leaveMeeting };
     }
