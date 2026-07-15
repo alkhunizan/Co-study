@@ -239,7 +239,7 @@ test('media leave failure still clears heartbeat and prevents duplicate teardown
             return jsonResponse({ ok: true });
         },
         join: async () => ({
-            leave: async () => {
+            leave: () => {
                 mediaLeaveAttempts += 1;
                 throw new Error('media leave failed');
             }
