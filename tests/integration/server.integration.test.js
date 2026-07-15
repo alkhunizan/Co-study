@@ -1138,7 +1138,7 @@ test('RealtimeKit reconciliation failure keeps readiness live but fails closed f
     assert.equal(token.body.errorCode, 'VIDEO_PROVIDER_UNAVAILABLE');
 });
 
-test('room closure serializes with in-flight RealtimeKit token issuance and closes the created meeting', async (t) => {
+test('room closure during in-flight RealtimeKit token issuance rejects the token and cleans the late identity', async (t) => {
     const server = await startServer({
         withFakeRealtimeKit: true,
         fakeRealtimeKitOptions: { participantDelayMs: 250 }
@@ -1170,14 +1170,25 @@ test('room closure serializes with in-flight RealtimeKit token issuance and clos
     });
     const [token, closed] = await Promise.all([tokenPromise, closePromise]);
 
-    assert.equal(token.status, 200);
+    assert.equal(token.status, 403);
+    assert.equal(token.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
     assert.equal(closed.status, 200);
     assert.equal(closed.body.cleanupPending, false);
     assert.equal((await server.request(`/api/rooms/${roomId}`)).status, 404);
     const providerState = await server.realtimeKitState();
-    assert.deepEqual(providerState.closedMeetings, [token.body.meetingId]);
-    assert.deepEqual(providerState.disabledMeetings, [token.body.meetingId]);
-    assert.deepEqual(providerState.kickAllMeetings, [token.body.meetingId]);
+    assert.deepEqual(providerState.closedMeetings, ['meeting_1']);
+    assert.deepEqual(providerState.disabledMeetings, ['meeting_1']);
+    assert.deepEqual(providerState.kickAllMeetings, ['meeting_1']);
+    assert.equal(providerState.participants.length, 1);
+    assert.ok(providerState.participants[0].deletedAt);
+    assert.deepEqual(
+        providerState.deletedParticipants.map(({ meetingId, participantId }) => ({ meetingId, participantId })),
+        [{ meetingId: 'meeting_1', participantId: 'participant_1' }]
+    );
+    assert.ok(providerState.exactKicks.some(({ meetingId, customParticipantIds }) => (
+        meetingId === 'meeting_1'
+        && customParticipantIds.includes(providerState.participants[0].body.custom_participant_id)
+    )));
 });
 
 test('room switching during provider token creation revokes the pending response', async (t) => {
@@ -1216,6 +1227,10 @@ test('room switching during provider token creation revokes the pending response
     const providerState = await server.realtimeKitState();
     assert.equal(providerState.deletedParticipants.length, 1);
     assert.equal(providerState.deletedParticipants[0].participantId, 'participant_1');
+    assert.ok(providerState.exactKicks.some(({ meetingId, customParticipantIds }) => (
+        meetingId === 'meeting_1'
+        && customParticipantIds.includes(providerState.participants[0].body.custom_participant_id)
+    )));
 });
 
 test('RealtimeKit expired idle meeting metadata is recycled for reusable rooms', async (t) => {
