@@ -4,7 +4,7 @@ This guide assumes the hardened launch setup:
 - `server.js` runs the app on local HTTP
 - Nginx terminates public TLS and proxies to `http://127.0.0.1:3000`
 - `server-https.js` is kept only for local secure-context testing
-- PM2 runs a single application instance
+- PM2 runs one application instance as the dedicated `halastudy` service user
 
 ## 1. Prepare the Server
 
@@ -18,10 +18,13 @@ sudo npm install -g pm2
 ## 2. Clone and Install
 
 ```bash
-cd /var/www
-sudo git clone https://github.com/alkhunizan/Co-study.git
-cd Co-study
-sudo npm ci
+sudo useradd --system --user-group --home-dir /var/lib/halastudy \
+  --no-create-home --shell /bin/bash halastudy
+sudo install -d -m 0700 -o halastudy -g halastudy \
+  /var/lib/halastudy /var/lib/halastudy/backups /var/lib/halastudy/.pm2
+sudo git clone https://github.com/alkhunizan/Co-study.git /opt/halastudy
+sudo chown -R halastudy:halastudy /opt/halastudy
+sudo -u halastudy -H bash -lc 'cd /opt/halastudy && npm ci --omit=dev'
 ```
 
 ## 3. Configure the App Environment
@@ -44,8 +47,9 @@ production-shaped values and inline notes. The critical production settings:
 - **Video caps** — keep `MAX_GLOBAL_VIDEO_PARTICIPANTS=20` and
   `MAX_ROOM_VIDEO_PARTICIPANTS=20` for launch cost control.
 - **`SESSION_SECRET`** — REQUIRED in production (min 32 chars); startup fails
-  without it. HMAC key for user/admin auth cookies. Rotating it signs everyone
-  out. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+  without it. `ADMIN_SESSION_SECRET` is also required and must be different.
+  Generate both with `npm run secret:gen`; rotating either invalidates its
+  corresponding cookies.
 - **`USER_STATE_FILE`** — point it outside the repo like the room state
   (e.g. `/var/lib/halastudy/users.json`).
 - **`BACKUP_INTERVAL_MINUTES` / `BACKUP_RETENTION_COUNT`** — automated
@@ -72,13 +76,16 @@ history), rotate `ADMIN_PATH` — the password remains the real gate.
 
 `ecosystem.config.js` already targets:
 - `PORT=3000`
+- `HOST=127.0.0.1`
 - `TRUST_PROXY=1`
 - one PM2 instance
+- a 20-second graceful-shutdown window
 
 If you want explicit shell exports instead:
 
 ```bash
 export PORT=3000
+export HOST=127.0.0.1
 export TRUST_PROXY=1
 export ROOM_STATE_FILE='/var/lib/halastudy/rooms.json'
 export ROOM_STATE_BACKUP_DIR='/var/lib/halastudy/backups'
@@ -131,13 +138,17 @@ screenshare, transcription, and AI extras off.
 ## 4. Start the App with PM2
 
 ```bash
-sudo pm2 start ecosystem.config.js
-sudo pm2 save
-sudo pm2 startup
-pm2 status
+sudo chown halastudy:halastudy /var/lib/halastudy/.env
+sudo chmod 600 /var/lib/halastudy/.env
+sudo -u halastudy -H env HOME=/var/lib/halastudy \
+  PM2_HOME=/var/lib/halastudy/.pm2 \
+  bash /opt/halastudy/scripts/deploy/start.sh
+sudo -u halastudy -H env PM2_HOME=/var/lib/halastudy/.pm2 pm2 status
 ```
 
-Keep the app on a single PM2 instance. Room persistence uses one JSON state file and is not intended for clustered or multi-writer deployments in this v1 setup.
+The bootstrap script installs the systemd resurrection unit for this same
+service user. Never start a second root-owned PM2 daemon. Keep the app on one
+instance: room persistence is not a clustered or multi-writer store.
 
 ## 5. Configure Nginx
 
