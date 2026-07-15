@@ -1,6 +1,5 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const { normalizeSchedule } = require('./schedule-utils');
 const { createDebouncedAtomicJsonStore } = require('./services/persistence/debounced-atomic-json-store');
 
@@ -139,37 +138,6 @@ function createRoomStore(options = {}) {
             safeBoard.tasks.pop();
         }
         return safeBoard;
-    }
-
-    function archiveLegacyBoardOverflow(parsedRooms) {
-        const candidates = parsedRooms
-            .filter((room) => room && typeof room === 'object' && boardExceedsLimits(room.board))
-            .map((room) => ({
-                roomId: normalizeRoom(room.id || room.roomId || room.code || ''),
-                board: room.board
-            }));
-        if (candidates.length === 0) return null;
-
-        const digest = crypto.createHash('sha256').update(JSON.stringify(candidates)).digest('hex').slice(0, 16);
-        const archive = {
-            schemaVersion: 1,
-            archivedAt: new Date().toISOString(),
-            reason: 'legacy_board_overflow',
-            sourceFile: resolvedFilePath,
-            rooms: candidates
-        };
-        const serialized = `${JSON.stringify(archive, null, 2)}\n`;
-        const backupPath = `${resolvedFilePath}.board-overflow-${digest}.json`;
-        if (!fs.existsSync(backupPath)) {
-            fs.writeFileSync(backupPath, serialized, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
-        } else {
-            const existingArchive = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
-            if (JSON.stringify(existingArchive.rooms) !== JSON.stringify(candidates)) {
-                throw new Error(`Board overflow backup collision at ${backupPath}.`);
-            }
-        }
-        migrationRequired = true;
-        return backupPath;
     }
 
     const REPORT_REASONS = ['spam', 'harassment', 'inappropriate', 'other'];
@@ -350,7 +318,9 @@ function createRoomStore(options = {}) {
                 return [];
             }
 
-            archiveLegacyBoardOverflow(parsed);
+            migrationRequired = parsed.some((room) => (
+                room?.schemaVersion !== 2 || boardExceedsLimits(room?.board)
+            ));
             const sanitizedRooms = parsed.map(sanitizeRoom).filter(Boolean);
             atomicStore.setBaseline(`${JSON.stringify(sanitizedRooms, null, 2)}\n`);
             return sanitizedRooms;

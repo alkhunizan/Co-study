@@ -25,7 +25,7 @@ function makeStore(filePath) {
     });
 }
 
-test('legacy board overflow is archived before active state is trimmed', (t) => {
+test('legacy board overflow is detected and trimmed in memory without startup writes', (t) => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-room-store-'));
     const filePath = path.join(directory, 'rooms.json');
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -37,12 +37,14 @@ test('legacy board overflow is archived before active state is trimmed', (t) => 
     }));
     fs.writeFileSync(filePath, `${JSON.stringify([{ id: 'ABC123', board: { goal: '', tasks } }])}\n`);
 
-    const [room] = makeStore(filePath).loadRooms({ strict: true });
+    const store = makeStore(filePath);
+    const before = fs.readFileSync(filePath, 'utf8');
+    const [room] = store.loadRooms({ strict: true });
     const backupName = fs.readdirSync(directory).find((name) => name.includes('.board-overflow-'));
 
     assert.equal(room.board.tasks.length, 100);
-    assert.ok(backupName);
-    const backup = JSON.parse(fs.readFileSync(path.join(directory, backupName), 'utf8'));
-    assert.equal(backup.rooms[0].board.tasks.length, 101);
+    assert.equal(backupName, undefined);
+    assert.equal(fs.readFileSync(filePath, 'utf8'), before);
+    assert.equal(store.needsMigration(), true);
     assert.ok(Buffer.byteLength(JSON.stringify(room.board), 'utf8') <= 64 * 1024);
 });

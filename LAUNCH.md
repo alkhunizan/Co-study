@@ -114,7 +114,9 @@ Ship to your first ~5 real Saudi students only when: verify:deploy is green,
 two-carrier camera QA passed, and the admin console works end-to-end. Everything
 else (such as admin 2FA and email verification) can follow product signal. The
 additive Supabase migrations are a launch requirement and must pass their
-dry-run before this gate.
+dry-run before this gate. The room-v2 rollout also requires a clean
+`npm run migration:rooms` report, followed by an offline
+`npm run migration:rooms -- --apply --writer-stopped` before readiness checks.
 
 ## 7. First-week ops
 

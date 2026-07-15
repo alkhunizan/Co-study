@@ -95,3 +95,42 @@ test('failed hydration retries three times and leaves the server unlistened', as
     assert.equal(hydrateCalls, 4);
     assert.equal(appServer.server.listening, false);
 });
+
+test('startup dual-reads legacy rooms without assigning owners or flushing a migration', async (t) => {
+    let flushCalls = 0;
+    const legacyRoomStore = {
+        filePath: 'startup-test-rooms.json',
+        loadRooms() {
+            return [{ id: 'LEGACY', schemaVersion: 1, ownerUserId: null }];
+        },
+        scheduleSave() { return Promise.resolve(); },
+        flush() {
+            flushCalls += 1;
+            return Promise.resolve();
+        }
+    };
+    const userStore = {
+        filePath: 'startup-test-users.json',
+        async hydrate() {
+            return [{ id: 'candidate-owner', myRooms: [{ roomId: 'LEGACY', role: 'created' }] }];
+        },
+        scheduleSave() { return Promise.resolve(); },
+        flush() { return Promise.resolve(); }
+    };
+    const appServer = createCoStudyServer({
+        env: testEnv(),
+        mode: 'http',
+        createServer: (app) => http.createServer(app),
+        roomStore: legacyRoomStore,
+        userStore,
+        registerSignalHandlers: false,
+        startupBackoffMs: [1, 1, 1]
+    });
+    t.after(() => appServer.io.close());
+
+    await appServer.initialize();
+
+    assert.equal(flushCalls, 0);
+    assert.equal(appServer.rooms.get('LEGACY').schemaVersion, 1);
+    assert.equal(appServer.rooms.get('LEGACY').ownerUserId, null);
+});
