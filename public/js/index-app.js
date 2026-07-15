@@ -503,6 +503,16 @@
             apiBaseUrl: window.HALASTUDY_CONFIG?.API_BASE_URL || ''
         })
         : null;
+    const meshPeerRecoveryController = window.HalastudyVideoClient
+        && typeof window.HalastudyVideoClient.createMeshPeerRecoveryController === 'function'
+        ? window.HalastudyVideoClient.createMeshPeerRecoveryController({
+            isCurrentPeer: isCurrentKnownMeshPeer,
+            restartPeer: restartMeshPeerIce,
+            teardownPeer: teardownMeshPeer,
+            setTimeout: (callback, delay) => setTimeout(callback, delay),
+            clearTimeout: (timerId) => clearTimeout(timerId)
+        })
+        : null;
     let sfuFrameLoadTimer = null;
     let sfuFrameLoaded = false;
     let realtimeKitJoining = false;
@@ -1268,9 +1278,48 @@
         sfuFrameLoadTimer = null;
     }
 
+    function isKnownMeshPeer(peerId) {
+        return typeof peerId === 'string'
+            && peerId.length > 0
+            && peerId !== socket?.id
+            && participantsMap.has(peerId);
+    }
+
+    function isCurrentKnownMeshPeer(peerId, peerConnection) {
+        return isMeshRoom()
+            && isKnownMeshPeer(peerId)
+            && peerConnections.get(peerId) === peerConnection;
+    }
+
+    function stopUntrustedTrackEvent(event) {
+        const tracks = new Set();
+        if (event?.track) tracks.add(event.track);
+        for (const stream of event?.streams || []) {
+            if (stream && typeof stream.getTracks === 'function') {
+                for (const track of stream.getTracks()) tracks.add(track);
+            }
+        }
+        tracks.forEach((track) => {
+            try { track.stop(); } catch (_error) {}
+        });
+    }
+
+    function teardownMeshPeer(peerId, expectedPeerConnection) {
+        const peerConnection = peerConnections.get(peerId);
+        if (!peerConnection || peerConnection !== expectedPeerConnection) return;
+        meshPeerRecoveryController?.forget(peerConnection);
+        try { peerConnection.close(); } catch (_error) {}
+        peerConnections.delete(peerId);
+        remoteCameraStates.delete(peerId);
+        pendingIceCandidates.delete(peerId);
+        clearRemoteStream(peerId);
+        updateMeshConnectionState();
+    }
+
     function closeAllPeerConnections() {
         peerConnections.forEach((pc) => {
-            pc.close();
+            meshPeerRecoveryController?.forget(pc);
+            try { pc.close(); } catch (_error) {}
         });
         peerConnections.clear();
         pendingIceCandidates.clear();
@@ -2740,11 +2789,7 @@
         const activeSet = new Set(activeIds);
         peerConnections.forEach((pc, id) => {
             if (!activeSet.has(id)) {
-                pc.close();
-                peerConnections.delete(id);
-                remoteCameraStates.delete(id);
-                pendingIceCandidates.delete(id);
-                clearRemoteStream(id);
+                teardownMeshPeer(id, pc);
             }
         });
         updateMeshConnectionState();
@@ -3369,6 +3414,10 @@
         if (!isMeshRoom()) {
             return null;
         }
+        if (!isKnownMeshPeer(targetId)) {
+            debugLog('PEER', `Ignoring signaling from unknown peer ${String(targetId || '')}`);
+            return null;
+        }
         if (peerConnections.has(targetId)) {
             debugLog('PEER', `Reusing existing connection for ${targetId}`);
             return peerConnections.get(targetId);
@@ -3394,6 +3443,11 @@
         };
 
         pc.ontrack = event => {
+            if (!isCurrentKnownMeshPeer(targetId, pc)) {
+                debugLog('TRACK', `Discarding track from unknown or stale peer ${targetId}`);
+                stopUntrustedTrackEvent(event);
+                return;
+            }
             debugLog('TRACK', `Received remote track from ${targetId}`, {
                 kind: event.track.kind,
                 streams: event.streams.length,
@@ -3407,14 +3461,13 @@
 
         pc.onconnectionstatechange = () => {
             debugLog('STATE', `Connection state for ${targetId}: ${pc.connectionState}`);
-            if (['failed', 'disconnected'].includes(pc.connectionState)) {
-                clearRemoteStream(targetId);
-            }
+            meshPeerRecoveryController?.observe(targetId, pc);
             updateMeshConnectionState();
         };
 
         pc.oniceconnectionstatechange = () => {
             debugLog('ICE-STATE', `ICE connection state for ${targetId}: ${pc.iceConnectionState}`);
+            meshPeerRecoveryController?.observe(targetId, pc);
             updateMeshConnectionState();
         };
 
@@ -3558,7 +3611,7 @@
         debugLog('ICE-FLUSH', `Completed flushing candidates for ${peerId}`);
     }
 
-    async function createOffer(targetId) {
+    async function createOffer(targetId, offerOptions) {
         if (!isMeshRoom()) return;
         await ensureRtcConfigurationReady();
         const pc = ensurePeerConnection(targetId);
@@ -3570,8 +3623,8 @@
         }
         try {
             meta.makingOffer = true;
-            const offer = await pc.createOffer();
-            if (pc.signalingState !== 'stable') {
+            const offer = await pc.createOffer(offerOptions);
+            if (!isCurrentKnownMeshPeer(targetId, pc) || pc.signalingState !== 'stable') {
                 debugLog('OFFER', `Signaling state changed during manual offer creation for ${targetId}, aborting`);
                 meta.makingOffer = false;
                 return;
@@ -3585,11 +3638,28 @@
         }
     }
 
-    async function handleIncomingOffer({ from, sdp }) {
+    async function restartMeshPeerIce(targetId, peerConnection) {
+        if (!isCurrentKnownMeshPeer(targetId, peerConnection)) return;
+        debugLog('ICE-RECOVERY', `Attempting one ICE restart for ${targetId}`);
+        try {
+            if (typeof peerConnection.restartIce === 'function') peerConnection.restartIce();
+        } catch (error) {
+            debugLog('ICE-RECOVERY', `restartIce failed for ${targetId}`, error?.message || 'unknown error');
+        }
+        await createOffer(targetId, { iceRestart: true });
+    }
+
+    async function handleIncomingOffer(payload = {}) {
         if (!isMeshRoom()) return;
+        const { from, sdp } = payload;
+        if (!isKnownMeshPeer(from)) {
+            debugLog('OFFER', `Ignoring offer from unknown peer ${String(from || '')}`);
+            return;
+        }
         debugLog('OFFER', `Received offer from ${from}`);
         await ensureRtcConfigurationReady();
         const pc = ensurePeerConnection(from);
+        if (!pc) return;
         const meta = pc.__meta || { polite: true };
         const offer = new RTCSessionDescription(sdp);
         const offerCollision = meta.makingOffer || pc.signalingState !== 'stable';
@@ -3624,8 +3694,13 @@
         }
     }
 
-    async function handleIncomingAnswer({ from, sdp }) {
+    async function handleIncomingAnswer(payload = {}) {
         if (!isMeshRoom()) return;
+        const { from, sdp } = payload;
+        if (!isKnownMeshPeer(from)) {
+            debugLog('ANSWER', `Ignoring answer from unknown peer ${String(from || '')}`);
+            return;
+        }
         debugLog('ANSWER', `Received answer from ${from}`);
         await ensureRtcConfigurationReady();
         const pc = ensurePeerConnection(from);
@@ -3649,8 +3724,13 @@
         }
     }
 
-    async function handleIncomingIce({ from, candidate }) {
+    async function handleIncomingIce(payload = {}) {
         if (!isMeshRoom()) return;
+        const { from, candidate } = payload;
+        if (!isKnownMeshPeer(from)) {
+            debugLog('ICE', `Ignoring ICE from unknown peer ${String(from || '')}`);
+            return;
+        }
         await ensureRtcConfigurationReady();
         const pc = ensurePeerConnection(from);
         if (!candidate || !pc) {

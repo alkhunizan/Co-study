@@ -36,6 +36,55 @@ async function createSmokePage(browser) {
     return { context, page };
 }
 
+async function createMeshLifecyclePage(browser) {
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
+    const context = await browser.newContext({
+        baseURL: server.baseUrl,
+        permissions: [],
+        serviceWorkers: 'block'
+    });
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+        try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
+        class FakePeerConnection {
+            constructor() {
+                this.connectionState = 'new';
+                this.iceConnectionState = 'new';
+                this.iceGatheringState = 'new';
+                this.signalingState = 'stable';
+                this.localDescription = null;
+                this.remoteDescription = null;
+                this.restartCount = 0;
+                this.closeCount = 0;
+                this.offerOptions = [];
+                (/** @type {any} */ (window)).__meshFakePeers.push(this);
+            }
+            addTrack() {}
+            getSenders() { return []; }
+            async addIceCandidate() {}
+            async createAnswer() { return { type: 'answer', sdp: 'fake-answer' }; }
+            async createOffer(options) {
+                this.offerOptions.push(options || null);
+                return { type: 'offer', sdp: 'fake-offer' };
+            }
+            async setLocalDescription(description) { this.localDescription = description; }
+            async setRemoteDescription(description) { this.remoteDescription = description; }
+            restartIce() { this.restartCount += 1; }
+            close() {
+                this.closeCount += 1;
+                this.connectionState = 'closed';
+                this.iceConnectionState = 'closed';
+            }
+        }
+        (/** @type {any} */ (window)).__meshFakePeers = [];
+        Object.defineProperty(window, 'RTCPeerConnection', {
+            configurable: true,
+            value: FakePeerConnection
+        });
+    });
+    return { server, context, page };
+}
+
 // Scheduled rooms require an account — sign up via the API using the page's
 // own cookie jar so the browser (and its socket) is authenticated after.
 async function signupViaApi(page, displayName = 'Smoke Owner') {
@@ -336,6 +385,128 @@ test('Pomodoro reconciles elapsed time after background timer throttling', async
         await expect(visitor.page.locator('#timer-disp')).toHaveText('01:00');
     } finally {
         await visitor.context.close();
+    }
+});
+
+test('mesh signaling and late tracks from peers outside the room snapshot are ignored', async ({ browser }) => {
+    const visitor = await createMeshLifecyclePage(browser);
+
+    try {
+        const roomCode = await createRoomFromLanding(visitor.page, { roomName: 'Mesh Peer Guard Room' });
+        await visitor.page.click('#btn-enter-room');
+        await joinRoom(visitor.page, { name: 'Guarded', roomCode });
+        await expectJoined(visitor.page);
+
+        const outcome = await visitor.page.evaluate(async () => {
+            const app = /** @type {any} */ (window);
+            const beforeSignals = app.__meshFakePeers.length;
+            await app.handleIncomingOffer({
+                from: 'unknown-offerer',
+                sdp: { type: 'offer', sdp: 'forged-offer' }
+            });
+            await app.handleIncomingAnswer({
+                from: 'unknown-answerer',
+                sdp: { type: 'answer', sdp: 'forged-answer' }
+            });
+            await app.handleIncomingIce({
+                from: 'unknown-ice',
+                candidate: {
+                    candidate: 'candidate:0 1 UDP 2122252543 192.0.2.1 3478 typ host',
+                    sdpMid: '0',
+                    sdpMLineIndex: 0,
+                    usernameFragment: 'forged'
+                }
+            });
+
+            const knownPeerId = 'zzzz-known-peer';
+            app.updatePresenceList([{ id: knownPeerId, name: 'Known peer' }]);
+            const knownConnection = app.ensurePeerConnection(knownPeerId);
+            app.updatePresenceList([]);
+            let stoppedTracks = 0;
+            const lateTrack = {
+                enabled: true,
+                kind: 'video',
+                readyState: 'live',
+                stop() { stoppedTracks += 1; }
+            };
+            knownConnection.ontrack({ track: lateTrack, streams: [new MediaStream()] });
+
+            return {
+                peerConnectionsCreatedByUnknownSignals: app.__meshFakePeers.length - beforeSignals - 1,
+                stoppedTracks,
+                lateTiles: document.querySelectorAll(`[data-peer-id="${knownPeerId}"]`).length
+            };
+        });
+
+        expect(outcome.peerConnectionsCreatedByUnknownSignals).toBe(0);
+        expect(outcome.stoppedTracks).toBe(1);
+        expect(outcome.lateTiles).toBe(0);
+    } finally {
+        await visitor.context.close();
+        await visitor.server.stop();
+    }
+});
+
+test('mesh disconnect restarts ICE once and waits ten seconds before teardown', async ({ browser }) => {
+    const visitor = await createMeshLifecyclePage(browser);
+
+    try {
+        const roomCode = await createRoomFromLanding(visitor.page, { roomName: 'Mesh Recovery Room' });
+        await visitor.page.click('#btn-enter-room');
+        await joinRoom(visitor.page, { name: 'Recovering', roomCode });
+        await expectJoined(visitor.page);
+
+        const outcome = await visitor.page.evaluate(async () => {
+            const app = /** @type {any} */ (window);
+            const originalSetTimeout = window.setTimeout;
+            const originalClearTimeout = window.clearTimeout;
+            const timers = new Map();
+            app.setTimeout = (callback, delay, ...args) => {
+                if (delay !== 10_000) return originalSetTimeout(callback, delay, ...args);
+                const token = {};
+                timers.set(token, { callback, delay });
+                return /** @type {any} */ (token);
+            };
+            app.clearTimeout = (id) => {
+                if (!timers.delete(id)) originalClearTimeout(id);
+            };
+
+            try {
+                const peerId = 'zzzz-recovery-peer';
+                app.updatePresenceList([{ id: peerId, name: 'Recovering peer' }]);
+                const peer = app.ensurePeerConnection(peerId);
+                peer.connectionState = 'disconnected';
+                peer.iceConnectionState = 'disconnected';
+                peer.onconnectionstatechange();
+                peer.oniceconnectionstatechange();
+
+                const first = timers.entries().next().value;
+                const firstDelay = first?.[1]?.delay ?? null;
+                peer.onconnectionstatechange();
+                if (first) {
+                    timers.delete(first[0]);
+                    await first[1].callback();
+                    await Promise.resolve();
+                }
+                return {
+                    firstDelay,
+                    restartCount: peer.restartCount,
+                    closeCount: peer.closeCount
+                };
+            } finally {
+                app.setTimeout = originalSetTimeout;
+                app.clearTimeout = originalClearTimeout;
+            }
+        });
+
+        expect(outcome).toEqual({
+            firstDelay: 10_000,
+            restartCount: 1,
+            closeCount: 1
+        });
+    } finally {
+        await visitor.context.close();
+        await visitor.server.stop();
     }
 });
 

@@ -79,9 +79,35 @@ function createHarness(options = {}) {
     });
 
     return {
+        api: window.HalastudyVideoClient,
         client: window.HalastudyVideoClient.createVideoClient(),
         requests,
         timers
+    };
+}
+
+function createManualTimeoutScheduler() {
+    let nextId = 1;
+    const pending = new Map();
+    return {
+        set(callback, delay) {
+            const id = nextId;
+            nextId += 1;
+            pending.set(id, { callback, delay });
+            return id;
+        },
+        clear(id) {
+            pending.delete(id);
+        },
+        delays() {
+            return [...pending.values()].map(({ delay }) => delay);
+        },
+        async runNext() {
+            const [id, timer] = pending.entries().next().value || [];
+            assert.ok(timer, 'expected a pending timeout');
+            pending.delete(id);
+            await timer.callback();
+        }
     };
 }
 
@@ -96,6 +122,73 @@ function requestBody(request) {
 function membershipHeader(request) {
     return request.options.headers['X-Halastudy-Membership'];
 }
+
+test('disconnected mesh ICE attempts one restart and waits ten seconds before teardown', async () => {
+    const { api } = createHarness();
+    const scheduler = createManualTimeoutScheduler();
+    const peer = { connectionState: 'connected', iceConnectionState: 'disconnected' };
+    let restarts = 0;
+    let teardowns = 0;
+    const controller = api.createMeshPeerRecoveryController({
+        isCurrentPeer: () => true,
+        restartPeer: () => { restarts += 1; },
+        teardownPeer: () => { teardowns += 1; },
+        setTimeout: scheduler.set,
+        clearTimeout: scheduler.clear
+    });
+
+    controller.observe('peer-a', peer);
+    controller.observe('peer-a', peer);
+
+    assert.deepEqual(scheduler.delays(), [10_000]);
+    assert.equal(restarts, 1);
+    assert.equal(teardowns, 0);
+
+    peer.connectionState = 'failed';
+    peer.iceConnectionState = 'failed';
+    controller.observe('peer-a', peer);
+
+    assert.equal(restarts, 1);
+    assert.equal(teardowns, 0);
+    assert.deepEqual(scheduler.delays(), [10_000]);
+
+    await scheduler.runNext();
+    assert.equal(restarts, 1);
+    assert.equal(teardowns, 1);
+    assert.deepEqual(scheduler.delays(), []);
+});
+
+test('mesh ICE recovery is cancelled on reconnect and resets for a later disconnect', async () => {
+    const { api } = createHarness();
+    const scheduler = createManualTimeoutScheduler();
+    const peer = { connectionState: 'disconnected', iceConnectionState: 'disconnected' };
+    let restarts = 0;
+    let teardowns = 0;
+    const controller = api.createMeshPeerRecoveryController({
+        isCurrentPeer: () => true,
+        restartPeer: () => { restarts += 1; },
+        teardownPeer: () => { teardowns += 1; },
+        setTimeout: scheduler.set,
+        clearTimeout: scheduler.clear
+    });
+
+    controller.observe('peer-a', peer);
+    peer.connectionState = 'connected';
+    peer.iceConnectionState = 'connected';
+    controller.observe('peer-a', peer);
+
+    assert.deepEqual(scheduler.delays(), []);
+    assert.equal(restarts, 1);
+    assert.equal(teardowns, 0);
+
+    peer.connectionState = 'disconnected';
+    peer.iceConnectionState = 'disconnected';
+    controller.observe('peer-a', peer);
+
+    assert.equal(restarts, 2);
+    assert.equal(teardowns, 0);
+    assert.deepEqual(scheduler.delays(), [10_000]);
+});
 
 test('rapid join, leave, and rejoin disposes the stale join and leaves the latest session active', async () => {
     const firstJoin = deferred();
