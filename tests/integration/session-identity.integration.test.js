@@ -192,11 +192,19 @@ test('malformed socket payloads return REQUEST_INVALID without terminating the s
         'board-toggle-task',
         'board-delete-task',
         'board-reorder-tasks',
+        'camera-status',
+        'rtc-answer',
+        'rtc-ice',
         'user-status',
         'report-user'
     ]) {
         const result = await emitAck(socket, eventName, null, 1000);
         assert.deepEqual(result, { ok: false, errorCode: 'REQUEST_INVALID' }, eventName);
+    }
+
+    for (const primitive of [false, 42, 'payload', []]) {
+        const result = await emitAck(socket, 'create-room', primitive, 1000);
+        assert.deepEqual(result, { ok: false, errorCode: 'REQUEST_INVALID' });
     }
 
     const requestError = new Promise((resolve) => socket.once('request-error', resolve));
@@ -205,6 +213,30 @@ test('malformed socket payloads return REQUEST_INVALID without terminating the s
 
     const health = await server.request('/api/health');
     assert.equal(health.status, 200);
+});
+
+test('oversized socket frames are rejected at the transport boundary without terminating the server', async (t) => {
+    const server = await startServer();
+    t.after(() => server.stop());
+
+    const socket = await connectSocket(server.baseUrl);
+    t.after(() => closeSocket(socket));
+
+    const disconnected = new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => reject(new Error('Oversized socket frame was not rejected.')), 3000);
+        socket.once('disconnect', (reason) => {
+            clearTimeout(timeoutId);
+            resolve(reason);
+        });
+    });
+    socket.emit('send-message', { text: 'x'.repeat((128 * 1024) + 1) });
+    await disconnected;
+
+    const health = await server.request('/api/health');
+    assert.equal(health.status, 200);
+
+    const replacement = await connectSocket(server.baseUrl);
+    await closeSocket(replacement);
 });
 
 test('caller-selected clientId cannot take over another anonymous room identity', async (t) => {
@@ -318,9 +350,11 @@ test('hidden status broadcasts only visibility and update time', async (t) => {
 
     const owner = await connectSocket(server.baseUrl);
     const peer = await connectSocket(server.baseUrl);
+    const latePeer = await connectSocket(server.baseUrl);
     t.after(async () => {
         await closeSocket(owner);
         await closeSocket(peer);
+        await closeSocket(latePeer);
     });
 
     const roomId = (await emitAck(owner, 'create-room', { roomName: 'Private status' })).room.code;
@@ -345,6 +379,11 @@ test('hidden status broadcasts only visibility and update time', async (t) => {
     const update = await updatePromise;
     assert.deepEqual(Object.keys(update.status).sort(), ['updatedAt', 'visible']);
     assert.equal(update.status.visible, false);
+
+    const lateSnapshot = await emitAck(latePeer, 'join-room', { roomId, username: 'Late peer' });
+    const hiddenOwner = lateSnapshot.room.participants.find((participant) => participant.name === 'Owner');
+    assert.deepEqual(Object.keys(hiddenOwner.status).sort(), ['updatedAt', 'visible']);
+    assert.equal(hiddenOwner.status.visible, false);
 });
 
 test('video endpoints require the server-issued room membership and video session ids', async (t) => {
