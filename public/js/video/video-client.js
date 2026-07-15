@@ -1,5 +1,7 @@
 (function attachVideoClient(global) {
     const HEARTBEAT_INTERVAL_MS = 45000;
+    const VIDEO_REQUEST_TIMEOUT_MS = 15000;
+    const VIDEO_TEARDOWN_REQUEST_TIMEOUT_MS = 2000;
     const MEMBERSHIP_HEADER = 'X-Halastudy-Membership';
     const MAX_MEMBERSHIP_TOKEN_LENGTH = 4096;
     const MAX_VIDEO_SESSION_ID_LENGTH = 256;
@@ -19,8 +21,70 @@
         return `${base}${path}`;
     }
 
+    function createRequestGuard(signal, timeoutMs) {
+        const NativeAbortController = (/** @type {any} */ (global)).AbortController;
+        let requestController = null;
+        if (typeof NativeAbortController === 'function') {
+            try {
+                requestController = new NativeAbortController();
+            } catch (_error) {}
+        }
+
+        let closed = false;
+        let cancelled = false;
+        let timeoutId = null;
+        let abortHandler = null;
+        /** @type {(reason?: any) => void} */
+        let rejectCancellation = () => {};
+        const cancellation = new Promise((_, reject) => {
+            rejectCancellation = reject;
+        });
+
+        const cancel = (error) => {
+            if (closed || cancelled) return;
+            cancelled = true;
+            // Settle our typed cancellation first so a native fetch AbortError
+            // cannot win the same microtask race and erase the video error code.
+            rejectCancellation(error);
+            try {
+                requestController?.abort();
+            } catch (_error) {}
+        };
+
+        if (signal?.aborted) {
+            cancel(createVideoError('VIDEO_REQUEST_CANCELLED', 'Video request was cancelled.'));
+        } else if (signal && typeof signal.addEventListener === 'function') {
+            abortHandler = () => {
+                cancel(createVideoError('VIDEO_REQUEST_CANCELLED', 'Video request was cancelled.'));
+            };
+            signal.addEventListener('abort', abortHandler, { once: true });
+        }
+
+        if (!cancelled && Number.isFinite(timeoutMs) && timeoutMs >= 0) {
+            timeoutId = setTimeout(() => {
+                cancel(createVideoError('VIDEO_REQUEST_TIMEOUT', 'Video request timed out.'));
+            }, timeoutMs);
+        }
+
+        return {
+            cancellation,
+            fetchSignal: requestController?.signal || null,
+            close() {
+                if (closed) return;
+                closed = true;
+                if (timeoutId !== null) clearTimeout(timeoutId);
+                if (abortHandler) signal.removeEventListener('abort', abortHandler);
+            }
+        };
+    }
+
     async function postJson(url, body, options = {}) {
-        const response = await fetch(url, {
+        const requestGuard = createRequestGuard(
+            options.signal,
+            options.timeoutMs ?? VIDEO_REQUEST_TIMEOUT_MS
+        );
+        /** @type {RequestInit} */
+        const fetchOptions = {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -30,16 +94,31 @@
             credentials: 'include',
             body: JSON.stringify(body),
             keepalive: !!options.keepalive
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || payload.ok === false) {
-            /** @type {Error & { code?: string, payload?: any }} */
-            const error = new Error(payload.errorCode || payload.error || `HTTP_${response.status}`);
-            error.code = payload.errorCode || payload.error || `HTTP_${response.status}`;
-            error.payload = payload;
-            throw error;
+        };
+        if (requestGuard.fetchSignal) {
+            fetchOptions.signal = requestGuard.fetchSignal;
         }
-        return payload;
+
+        try {
+            const response = await Promise.race([
+                requestGuard.cancellation,
+                Promise.resolve(fetch(url, fetchOptions))
+            ]);
+            const payloadOperation = Promise.resolve()
+                .then(() => response.json())
+                .catch(() => ({}));
+            const payload = await Promise.race([requestGuard.cancellation, payloadOperation]);
+            if (!response.ok || payload.ok === false) {
+                /** @type {Error & { code?: string, payload?: any }} */
+                const error = new Error(payload.errorCode || payload.error || `HTTP_${response.status}`);
+                error.code = payload.errorCode || payload.error || `HTTP_${response.status}`;
+                error.payload = payload;
+                throw error;
+            }
+            return payload;
+        } finally {
+            requestGuard.close();
+        }
     }
 
     function createVideoError(code, message) {
@@ -292,7 +371,10 @@
                 await postJson(
                     buildApiUrl(apiBaseUrl, `/api/rooms/${encodeURIComponent(session.roomId)}/video-heartbeat`),
                     { videoSessionId: session.videoSessionId },
-                    { headers: membershipHeaders(session.membershipToken) }
+                    {
+                        headers: membershipHeaders(session.membershipToken),
+                        signal: cancellationByGeneration.get(session.generation)?.signal
+                    }
                 );
             } catch (error) {
                 if (!isFatalSessionError(error)) return;
@@ -330,7 +412,8 @@
                             { videoSessionId: session.videoSessionId },
                             {
                                 headers: membershipHeaders(session.membershipToken),
-                                keepalive: !!effectiveOptions.keepalive
+                                keepalive: !!effectiveOptions.keepalive,
+                                timeoutMs: VIDEO_TEARDOWN_REQUEST_TIMEOUT_MS
                             }
                         )
                     );
@@ -420,7 +503,10 @@
                             displayName: session.displayName,
                             role: options.role || 'student'
                         },
-                        { headers: membershipHeaders(session.membershipToken) }
+                        {
+                            headers: membershipHeaders(session.membershipToken),
+                            signal: cancellationController.signal
+                        }
                     );
                     session.videoSessionId = normalizeOpaqueValue(
                         tokenPayload.videoSessionId,

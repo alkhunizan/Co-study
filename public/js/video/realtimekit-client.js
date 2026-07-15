@@ -408,7 +408,9 @@
             let initializationAccepted = false;
             void initialization.then((lateMeeting) => {
                 if (initializationAccepted || !signal?.aborted) return;
-                void createIdempotentLeave(lateMeeting, meetingElement)().catch(() => {});
+                // The cancelled mount may already be reused by a newer join.
+                // Release only the stale meeting; cancellation detached its UI.
+                void createIdempotentLeave(lateMeeting)().catch(() => {});
             }, () => {});
             meeting = await waitForOperationOrCancellation(
                 initialization,
