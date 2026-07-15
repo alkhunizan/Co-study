@@ -49,16 +49,27 @@ function jsonResponse(payload, status = 200) {
  * @param {{
  *   fetchImpl?: (request: { url: string, options: any }) => any,
  *   join?: (options: any) => Promise<any>,
- *   joinHeadless?: (options: any) => Promise<any>
+ *   joinHeadless?: (options: any) => Promise<any>,
+ *   AbortControllerImpl?: any,
+ *   setTimeoutImpl?: (callback: (...args: any[]) => void, delay?: number) => any,
+ *   clearTimeoutImpl?: (handle: any) => void
  * }} [options]
  */
 function createHarness(options = {}) {
-    const { fetchImpl, join, joinHeadless } = options;
+    const {
+        fetchImpl,
+        join,
+        joinHeadless,
+        AbortControllerImpl,
+        setTimeoutImpl = setTimeout,
+        clearTimeoutImpl = clearTimeout
+    } = options;
     const requests = [];
     const timers = new Set();
     let nextTimerId = 1;
 
     const window = {
+        AbortController: AbortControllerImpl,
         HalastudyRealtimeKitClient: {
             join: join || (async () => ({ leave: async () => {} })),
             joinHeadless: joinHeadless || (async () => ({ leave: async () => {} }))
@@ -85,7 +96,9 @@ function createHarness(options = {}) {
         },
         clearInterval(timer) {
             timers.delete(timer);
-        }
+        },
+        setTimeout: setTimeoutImpl,
+        clearTimeout: clearTimeoutImpl
     };
 
     vm.runInNewContext(VIDEO_CLIENT_SOURCE, context, {
@@ -372,6 +385,281 @@ test('leave aborts a pending provider join so a later join is not trapped behind
 
     assert.equal(firstJoinAborted, true);
     assert.equal(next.authToken, 'token-NEXT');
+    await harness.client.leave();
+});
+
+test('a newer join aborts a never-settling token request and reaches the provider', async () => {
+    const staleTokenStarted = deferred();
+    /** @type {AbortSignal | null} */
+    let staleRequestSignal = null;
+    const harness = createHarness({
+        AbortControllerImpl: AbortController,
+        fetchImpl(request) {
+            const pathname = requestPath(request);
+            if (pathname === '/api/rooms/STALE/video-token') {
+                staleRequestSignal = request.options.signal || null;
+                staleTokenStarted.resolve();
+                return new Promise(() => {});
+            }
+            if (pathname.endsWith('/video-token')) {
+                const roomId = pathname.split('/')[3];
+                return jsonResponse({
+                    ok: true,
+                    authToken: `token-${roomId}`,
+                    videoSessionId: `video-session-${roomId}`,
+                    policy: {}
+                });
+            }
+            return jsonResponse({ ok: true });
+        }
+    });
+    const staleJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'STALE',
+        displayName: 'First',
+        membershipToken: 'membership-stale',
+        meetingElement: {}
+    });
+    await staleTokenStarted.promise;
+
+    const latestJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'LATEST',
+        displayName: 'Second',
+        membershipToken: 'membership-latest',
+        meetingElement: {}
+    });
+
+    await assert.rejects(
+        settleWithin(staleJoin, 500, 'superseded token request did not settle'),
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_SUPERSEDED'
+    );
+    const latest = await settleWithin(latestJoin, 500, 'latest join remained queued behind token fetch');
+
+    assert.equal(staleRequestSignal?.aborted, true);
+    assert.equal(latest.authToken, 'token-LATEST');
+    await harness.client.leave();
+});
+
+test('a newer join aborts never-settling token response parsing', async () => {
+    const staleBodyStarted = deferred();
+    /** @type {AbortSignal | null} */
+    let staleRequestSignal = null;
+    const harness = createHarness({
+        AbortControllerImpl: AbortController,
+        fetchImpl(request) {
+            const pathname = requestPath(request);
+            if (pathname === '/api/rooms/STALEBODY/video-token') {
+                staleRequestSignal = request.options.signal || null;
+                return {
+                    ok: true,
+                    status: 200,
+                    json() {
+                        staleBodyStarted.resolve();
+                        return new Promise(() => {});
+                    }
+                };
+            }
+            if (pathname.endsWith('/video-token')) {
+                const roomId = pathname.split('/')[3];
+                return jsonResponse({
+                    ok: true,
+                    authToken: `token-${roomId}`,
+                    videoSessionId: `video-session-${roomId}`,
+                    policy: {}
+                });
+            }
+            return jsonResponse({ ok: true });
+        }
+    });
+    const staleJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'STALEBODY',
+        displayName: 'First',
+        membershipToken: 'membership-stale-body',
+        meetingElement: {}
+    });
+    await staleBodyStarted.promise;
+
+    const latestJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'AFTERBODY',
+        displayName: 'Second',
+        membershipToken: 'membership-after-body',
+        meetingElement: {}
+    });
+
+    await assert.rejects(
+        settleWithin(staleJoin, 500, 'superseded response parser did not settle'),
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_SUPERSEDED'
+    );
+    const latest = await settleWithin(latestJoin, 500, 'latest join remained queued behind response parsing');
+
+    assert.equal(staleRequestSignal?.aborted, true);
+    assert.equal(latest.authToken, 'token-AFTERBODY');
+    await harness.client.leave();
+});
+
+test('a token request deadline releases the queue for a later retry', async () => {
+    const scheduler = createManualTimeoutScheduler();
+    const staleTokenStarted = deferred();
+    const harness = createHarness({
+        AbortControllerImpl: AbortController,
+        setTimeoutImpl: scheduler.set,
+        clearTimeoutImpl: scheduler.clear,
+        fetchImpl(request) {
+            const pathname = requestPath(request);
+            if (pathname === '/api/rooms/TIMEOUT/video-token') {
+                staleTokenStarted.resolve();
+                return new Promise(() => {});
+            }
+            if (pathname.endsWith('/video-token')) {
+                const roomId = pathname.split('/')[3];
+                return jsonResponse({
+                    ok: true,
+                    authToken: `token-${roomId}`,
+                    videoSessionId: `video-session-${roomId}`,
+                    policy: {}
+                });
+            }
+            return jsonResponse({ ok: true });
+        }
+    });
+    const timedOutJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'TIMEOUT',
+        displayName: 'First',
+        membershipToken: 'membership-timeout',
+        meetingElement: {}
+    });
+    await staleTokenStarted.promise;
+
+    assert.equal(scheduler.delays().length, 1);
+    await scheduler.runNext();
+    await assert.rejects(
+        timedOutJoin,
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_REQUEST_TIMEOUT'
+    );
+
+    const retry = await harness.client.joinRealtimeKitRoom({
+        roomId: 'RETRY',
+        displayName: 'Second',
+        membershipToken: 'membership-retry',
+        meetingElement: {}
+    });
+    assert.equal(retry.authToken, 'token-RETRY');
+    await harness.client.leave();
+});
+
+test('a hung keepalive leave is bounded without dropping keepalive or blocking the next join', async () => {
+    const scheduler = createManualTimeoutScheduler();
+    const providerJoinStarted = deferred();
+    const leaveRequestStarted = deferred();
+    /** @type {{ url: string, options: any } | null} */
+    let staleLeaveRequest = null;
+    const harness = createHarness({
+        AbortControllerImpl: AbortController,
+        setTimeoutImpl: scheduler.set,
+        clearTimeoutImpl: scheduler.clear,
+        fetchImpl(request) {
+            const pathname = requestPath(request);
+            if (pathname.endsWith('/video-token')) {
+                const roomId = pathname.split('/')[3];
+                return jsonResponse({
+                    ok: true,
+                    authToken: `token-${roomId}`,
+                    videoSessionId: `video-session-${roomId}`,
+                    policy: {}
+                });
+            }
+            if (pathname === '/api/rooms/STUCKLEAVE/video-leave') {
+                staleLeaveRequest = request;
+                leaveRequestStarted.resolve();
+                return new Promise(() => {});
+            }
+            return jsonResponse({ ok: true });
+        },
+        join: async ({ authToken, signal }) => {
+            if (authToken !== 'token-STUCKLEAVE') return { leave: async () => {} };
+            providerJoinStarted.resolve();
+            return new Promise((_, reject) => {
+                signal.addEventListener('abort', () => {
+                    const error = /** @type {Error & { code?: string }} */ (new Error('join cancelled'));
+                    error.code = 'VIDEO_JOIN_CANCELLED';
+                    reject(error);
+                }, { once: true });
+            });
+        }
+    });
+    const staleJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'STUCKLEAVE',
+        displayName: 'First',
+        membershipToken: 'membership-stuck-leave',
+        meetingElement: {}
+    });
+    await providerJoinStarted.promise;
+
+    const leave = harness.client.leave({ keepalive: true });
+    const latestJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'AFTERLEAVE',
+        displayName: 'Second',
+        membershipToken: 'membership-after-leave',
+        meetingElement: {}
+    });
+    await leaveRequestStarted.promise;
+
+    assert.equal(staleLeaveRequest?.options.keepalive, true);
+    assert.equal(scheduler.delays().length, 1);
+    await scheduler.runNext();
+    await assert.rejects(
+        staleJoin,
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_SUPERSEDED'
+    );
+    await leave;
+    const latest = await settleWithin(latestJoin, 500, 'latest join remained queued behind leave request');
+
+    assert.equal(staleLeaveRequest?.options.signal.aborted, true);
+    assert.equal(latest.authToken, 'token-AFTERLEAVE');
+    await harness.client.leave();
+});
+
+test('a heartbeat request deadline aborts a hung request without tearing down the session', async () => {
+    const scheduler = createManualTimeoutScheduler();
+    const heartbeatStarted = deferred();
+    /** @type {AbortSignal | null} */
+    let heartbeatSignal = null;
+    const harness = createHarness({
+        AbortControllerImpl: AbortController,
+        setTimeoutImpl: scheduler.set,
+        clearTimeoutImpl: scheduler.clear,
+        fetchImpl(request) {
+            const pathname = requestPath(request);
+            if (pathname.endsWith('/video-token')) {
+                return jsonResponse({
+                    ok: true,
+                    authToken: 'heartbeat-token',
+                    videoSessionId: 'heartbeat-session',
+                    policy: {}
+                });
+            }
+            if (pathname.endsWith('/video-heartbeat')) {
+                heartbeatSignal = request.options.signal || null;
+                heartbeatStarted.resolve();
+                return new Promise(() => {});
+            }
+            return jsonResponse({ ok: true });
+        }
+    });
+    await harness.client.joinRealtimeKitRoom({
+        roomId: 'HEARTBEAT',
+        displayName: 'Student',
+        membershipToken: 'membership-heartbeat',
+        meetingElement: {}
+    });
+
+    const heartbeat = harness.client.heartbeat();
+    await heartbeatStarted.promise;
+    assert.equal(scheduler.delays().length, 1);
+    await scheduler.runNext();
+    await settleWithin(heartbeat, 500, 'heartbeat request did not settle at its deadline');
+
+    assert.equal(heartbeatSignal?.aborted, true);
+    assert.equal(harness.timers.size, 1);
     await harness.client.leave();
 });
 

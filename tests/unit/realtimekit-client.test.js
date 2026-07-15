@@ -275,6 +275,70 @@ test('cancelling a never-settling join releases local media and UI before a late
     assert.equal(fullscreenExits, 1);
 });
 
+test('late cancelled initialization cannot clear a newer meeting mounted on the same element', async () => {
+    const firstInitStarted = deferred();
+    const firstInitialization = deferred();
+    let initCalls = 0;
+    let staleLeaves = 0;
+    const latestMeeting = {
+        self: {
+            async disableAudio() {},
+            async disableVideo() {},
+            async disableScreenShare() {}
+        },
+        async join() {},
+        async leaveRoom() {}
+    };
+    const client = loadClient({
+        init() {
+            initCalls += 1;
+            if (initCalls === 1) {
+                firstInitStarted.resolve();
+                return firstInitialization.promise;
+            }
+            return Promise.resolve(latestMeeting);
+        }
+    });
+    const { element, parent } = createMeetingElement();
+    const controller = new AbortController();
+    const staleJoin = client.join({
+        authToken: 'stale-token',
+        meetingElement: element,
+        signal: controller.signal
+    });
+    await firstInitStarted.promise;
+
+    controller.abort();
+    await assert.rejects(
+        staleJoin,
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_CANCELLED'
+    );
+
+    const latestJoin = await client.join({
+        authToken: 'latest-token',
+        meetingElement: element
+    });
+    assert.equal(element.meeting, latestMeeting);
+    assert.equal(parent.children.includes(element), true);
+
+    firstInitialization.resolve({
+        self: {
+            async disableAudio() {},
+            async disableVideo() {},
+            async disableScreenShare() {}
+        },
+        async leaveRoom() {
+            staleLeaves += 1;
+        }
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(staleLeaves, 1);
+    assert.equal(element.meeting, latestMeeting);
+    assert.equal(parent.children.includes(element), true);
+    await latestJoin.leave();
+});
+
 test('headless join failure disconnects the initialized meeting', async () => {
     let disconnects = 0;
     const client = loadClient({
