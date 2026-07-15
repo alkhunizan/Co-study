@@ -656,6 +656,46 @@ test('RealtimeKit video token endpoint issues safe participant tokens after room
     assert.equal(fakeState.participants.length, 1);
     assert.equal(fakeState.participants[0].body.preset_name, 'halastudy_student');
     assert.equal(fakeState.participants[0].body.custom_participant_id, token.body.videoSessionId);
+
+    const unboundLegacyHeartbeat = await server.request(
+        `/api/rooms/${createRoom.room.roomId}/video-heartbeat`,
+        {
+            method: 'POST',
+            body: { displayName: 'Owner', clientSessionId: 'rtk-owner' }
+        }
+    );
+    assert.equal(unboundLegacyHeartbeat.status, 403);
+
+    // The old body remains accepted for 14 days, but its caller-selected
+    // values are ignored. The membership-bound socket and identity select the
+    // server-generated video session.
+    const legacyHeartbeat = await server.request(
+        `/api/rooms/${createRoom.room.roomId}/video-heartbeat`,
+        {
+            method: 'POST',
+            headers: { 'X-Halastudy-Membership': joinOwner.membershipToken },
+            body: { displayName: 'Caller value is ignored', clientSessionId: 'forged-caller-id' }
+        }
+    );
+    assert.equal(legacyHeartbeat.status, 200);
+
+    let metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.compatibilityTelemetry.signals.video_token_client_session_id.count, 1);
+    assert.equal(metrics.body.compatibilityTelemetry.signals.video_token_student_role.count, 1);
+    assert.equal(metrics.body.compatibilityTelemetry.signals.video_heartbeat_legacy_shape.count, 1);
+
+    const legacyLeave = await server.request(`/api/rooms/${createRoom.room.roomId}/video-leave`, {
+        method: 'POST',
+        headers: { 'X-Halastudy-Membership': joinOwner.membershipToken },
+        body: { displayName: 'Another ignored value', clientSessionId: 'another-forged-id' }
+    });
+    assert.equal(legacyLeave.status, 200);
+    metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.compatibilityTelemetry.signals.video_leave_legacy_shape.count, 1);
+    const compatibilityLogs = `${server.logs().stdout}\n${server.logs().stderr}`;
+    assert.match(compatibilityLogs, /"event":"compatibility_path_used"/);
+    assert.match(compatibilityLogs, /"signal":"video_leave_legacy_shape"/);
+    assert.doesNotMatch(compatibilityLogs, /forged-caller-id|Caller value is ignored|Another ignored value/);
 });
 
 test('the Lobby issues viewer tokens to guests but gates camera (publisher) behind an account', async (t) => {

@@ -27,25 +27,32 @@ test('legacy password users default to an enabled password method', () => {
 });
 
 test('legacy Google-only users discard synthetic passwords during sanitization', () => {
+    const legacyReads = [];
     const user = sanitizeUser(baseRawUser({
         authProvider: 'google',
         googleSub: 'google-subject-1'
-    }));
+    }), {
+        onLegacyAuthProvider(provider) {
+            legacyReads.push(provider);
+        }
+    });
 
     assert.ok(user);
     assert.equal(user.passwordEnabled, false);
     assert.equal(user.passwordHash, null);
     assert.equal(user.googleSub, 'google-subject-1');
     assert.equal(user.authProvider, 'google');
+    assert.deepEqual(legacyReads, ['google']);
 });
 
 test('Google-only users are valid without a password hash', () => {
+    const legacyReads = [];
     const user = sanitizeUser(baseRawUser({
         passwordHash: null,
         passwordEnabled: false,
         authProvider: 'google',
         googleSub: 'google-subject-2'
-    }));
+    }), { onLegacyAuthProvider: () => legacyReads.push('unexpected') });
     const created = createUser({
         email: 'created@example.com',
         passwordHash: null,
@@ -59,10 +66,12 @@ test('Google-only users are valid without a password hash', () => {
     assert.equal(created.passwordHash, null);
     assert.equal(created.passwordEnabled, false);
     assert.equal(created.googleSub, 'google-subject-3');
+    assert.deepEqual(legacyReads, []);
 });
 
 test('Supabase adapter hydrates and writes passwordless Google accounts compatibly', async () => {
     const upserts = [];
+    const legacyReads = [];
     const client = {
         async select(table) {
             if (table === 'deletion_tombstones') return [];
@@ -83,13 +92,17 @@ test('Supabase adapter hydrates and writes passwordless Google accounts compatib
     };
     const store = createSupabaseUserStore({
         client,
-        logger: { warn() {} }
+        logger: { warn() {} },
+        onLegacyAuthProvider(provider) {
+            legacyReads.push(provider);
+        }
     });
 
     const [user] = await store.hydrate();
     assert.equal(user.passwordEnabled, false);
     assert.equal(user.passwordHash, null);
     assert.equal(user.googleSub, 'google-subject-4');
+    assert.deepEqual(legacyReads, ['google']);
 
     await store.flush(new Map([[user.id, user]]));
     assert.equal(upserts.length, 1);

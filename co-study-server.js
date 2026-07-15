@@ -12,6 +12,7 @@ const {
     resolveVideoConfig
 } = require('./server-config');
 const { createLogger } = require('./services/logging/logger');
+const { createCompatibilityTelemetry } = require('./services/compatibility/telemetry');
 const { createErrorBuffer } = require('./services/ops/error-buffer');
 const { createBackupScheduler } = require('./services/ops/backup-scheduler');
 const { createAdminRouter } = require('./services/admin/admin-routes');
@@ -767,6 +768,11 @@ function createCoStudyServer(options = {}) {
     const oauthSecurity = createOAuthSecurity({ secret: config.sessionSecret });
     const errorBuffer = createErrorBuffer({ capacity: 200 });
     const logger = createLogger({ service: 'halastudy' }, { onEntry: errorBuffer.push });
+    const compatibilityTelemetry = options.compatibilityTelemetry || createCompatibilityTelemetry({ logger });
+    if (typeof compatibilityTelemetry.record !== 'function'
+        || typeof compatibilityTelemetry.snapshot !== 'function') {
+        throw new TypeError('createCoStudyServer compatibilityTelemetry must expose record() and snapshot().');
+    }
     // Admin-toggleable runtime overrides. In-memory by design: a restart
     // falls back to the env-configured defaults (fail-safe).
     const runtimeFlags = { videoJoinDisabled: null };
@@ -907,10 +913,18 @@ function createCoStudyServer(options = {}) {
             url: config.supabase.url,
             serviceKey: config.supabase.serviceKey
         });
-        userStore = createSupabaseUserStore({ client: supabaseClient, logger });
+        userStore = createSupabaseUserStore({
+            client: supabaseClient,
+            logger,
+            onLegacyAuthProvider: () => compatibilityTelemetry.record('auth_provider_fallback')
+        });
         logger.info({ event: 'user_store_backend', backend: 'supabase' });
     } else {
-        userStore = createUserStore({ filePath: config.userStateFile, logger });
+        userStore = createUserStore({
+            filePath: config.userStateFile,
+            logger,
+            onLegacyAuthProvider: () => compatibilityTelemetry.record('auth_provider_fallback')
+        });
         logger.info({ event: 'user_store_backend', backend: 'file' });
     }
 
@@ -2091,6 +2105,9 @@ function createCoStudyServer(options = {}) {
     function loadPersistedRooms() {
         const persistedRooms = roomStore.loadRooms({ strict: true });
         persistedRooms.forEach((persistedRoom) => {
+            if (persistedRoom.schemaVersion !== ROOM_SCHEMA_VERSION) {
+                compatibilityTelemetry.record('room_schema_v1_read');
+            }
             const runtimeRoom = buildRuntimeRoom(persistedRoom);
             if (!runtimeRoom.id) return;
             rooms.set(runtimeRoom.id, runtimeRoom);
@@ -2175,6 +2192,30 @@ function createCoStudyServer(options = {}) {
             : (req.sessionId ? `anon:${req.sessionId}` : null);
         if (!requestIdentityId || requestIdentityId !== membership.identityId) return null;
         return { membership, member, socketRef };
+    }
+
+    function resolveVideoSessionRequestId(req, roomId, resolvedMembership, legacySignal) {
+        const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+        const legacyShapePresent = Object.hasOwn(body, 'clientSessionId') || Object.hasOwn(body, 'displayName');
+        if (legacyShapePresent) compatibilityTelemetry.record(legacySignal);
+
+        const videoSessionId = normalizeOpaqueId(body.videoSessionId);
+        if (videoSessionId) return videoSessionId;
+        if (!legacyShapePresent
+            || !normalizeClientId(body.clientSessionId)
+            || !sanitizeNickname(body.displayName)) {
+            return null;
+        }
+
+        // Transitional legacy fields are shape-checked only. Authorization and
+        // lookup use the signed membership's room, socket, and identity; caller
+        // IDs and display names never select or replace a video session.
+        const matches = videoSessionRegistry.listActive().filter((session) => (
+            session.roomId === roomId
+            && session.socketId === resolvedMembership.member.socketId
+            && session.userId === resolvedMembership.member.identityId
+        ));
+        return matches.length === 1 ? matches[0].videoSessionId : null;
     }
 
     async function ensureRealtimeKitMeeting(roomId, room) {
@@ -3015,6 +3056,7 @@ function createCoStudyServer(options = {}) {
             videoSessionCounts: videoSessionRegistry.getVideoSessionCounts(),
             realtimeKitProviderAvailable,
             realtimeKitWebhookDedupEntries: realtimeKitWebhookDeduplicator.entries.size,
+            compatibilityTelemetry: compatibilityTelemetry.snapshot(),
             memoryRssMb: Math.round(process.memoryUsage().rss / (1024 * 1024)),
             mode: config.mode
         });
@@ -3053,6 +3095,7 @@ function createCoStudyServer(options = {}) {
 
         const displayName = sanitizeNickname(req.body?.displayName);
         const rawRole = typeof req.body?.role === 'string' ? req.body.role.trim().toLowerCase() : '';
+        const legacyClientSessionIdPresent = Object.hasOwn(req.body || {}, 'clientSessionId');
         // 'student' is the legacy publisher role sent by normal mesh/private rooms
         // and stays a publisher. The Lobby sends explicit 'viewer' | 'publisher'.
         let role;
@@ -3090,6 +3133,12 @@ function createCoStudyServer(options = {}) {
         if (!resolvedMembership || resolvedMembership.member.name !== displayName) {
             sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
             return;
+        }
+        if (legacyClientSessionIdPresent) {
+            compatibilityTelemetry.record('video_token_client_session_id');
+        }
+        if (rawRole === 'student') {
+            compatibilityTelemetry.record('video_token_student_role');
         }
         const { member } = resolvedMembership;
 
@@ -3134,7 +3183,12 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
             return;
         }
-        const videoSessionId = normalizeOpaqueId(req.body?.videoSessionId);
+        const videoSessionId = resolveVideoSessionRequestId(
+            req,
+            normalizedRoom,
+            resolvedMembership,
+            'video_heartbeat_legacy_shape'
+        );
         if (!videoSessionId) {
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
             return;
@@ -3170,7 +3224,12 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
             return;
         }
-        const videoSessionId = normalizeOpaqueId(req.body?.videoSessionId);
+        const videoSessionId = resolveVideoSessionRequestId(
+            req,
+            normalizedRoom,
+            resolvedMembership,
+            'video_leave_legacy_shape'
+        );
         if (!videoSessionId) {
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
             return;
@@ -4232,6 +4291,7 @@ function createCoStudyServer(options = {}) {
         userStore,
         videoSessionStore,
         videoSessionRegistry,
+        compatibilityTelemetry,
         rooms,
         users,
         initialize,
