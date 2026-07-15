@@ -127,6 +127,7 @@ Co-study/
 - `VIDEO_PROVIDER`: Defaults to `realtimekit`. `mesh` is accepted only in development/test and is rejected in production.
 - `VIDEO_JOIN_DISABLED`: Emergency kill switch. Set to `true` to reject new video tokens without stopping chat/rooms.
 - `MAX_GLOBAL_VIDEO_PARTICIPANTS`: Hard global active-video cap. Defaults to `20`.
+- `REALTIMEKIT_MONTHLY_COST_CAP_USD`: Monthly RealtimeKit cost cap used by `npm run cloudflare:cost-check`. Defaults to `500`.
 - `MAX_ROOM_VIDEO_PARTICIPANTS`: Hard room active-video cap. Defaults to `20`.
 - `MAX_ROOM_DURATION_MINUTES`: Video provider meeting age limit. Expired idle meetings are recycled; active expired meetings reject new video tokens. Defaults to `180`.
 - `VIDEO_RECORDING_ENABLED`: Must remain `false` for launch.
@@ -176,6 +177,13 @@ Launch cost guardrail:
 ```
 
 This stays under the $500 launch cap only while the 20-user global cap remains enforced and recording/screenshare/AI/transcription extras stay off.
+
+Run `npm run cloudflare:cost-check` from the deployed service environment. It
+uses the durable video registry, webhook acceptance journal, and optional
+`VIDEO_SESSION_LOG_FILE` locally; it never calls Cloudflare or requires provider
+credentials. Occupancy and estimated USD use the same 70/85/100% bands. Exit 2
+is an early notice/warning and exit 1 is a critical threshold or invalid local
+evidence, which lets cron or the process monitor route alerts by severity.
 
 Room persistence stores room metadata, protected-room password hashes, chat history, shared board state, and scheduled-room metadata/attendance on disk. Live presence, socket IDs, camera state, and other transient participant state remain memory-only.
 
