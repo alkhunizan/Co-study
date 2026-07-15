@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { createTestContext, gotoTestPage, test, expect, waitForTestUrl } = require('../helpers/playwright-test');
 
 const ADMIN_PATH = '/ops-smoke-test-1234';
 const ADMIN_PASSWORD = 'smoke-admin-password';
@@ -8,7 +8,7 @@ let adminIpCounter = 180;
 async function createAdminPage(browser) {
     const forwardedIp = `203.0.113.${adminIpCounter}`;
     adminIpCounter += 1;
-    const context = await browser.newContext({
+    const context = await createTestContext(browser, {
         permissions: [],
         extraHTTPHeaders: {
             'x-forwarded-for': forwardedIp
@@ -21,10 +21,10 @@ async function createAdminPage(browser) {
 test('random ops-like paths 404 while the configured portal serves the login card', async ({ browser }) => {
     const operator = await createAdminPage(browser);
     try {
-        const wrong = await operator.page.goto('/ops-not-the-real-path');
+        const wrong = await gotoTestPage(operator.page, '/ops-not-the-real-path');
         expect(wrong.status()).toBe(404);
 
-        const real = await operator.page.goto(ADMIN_PATH);
+        const real = await gotoTestPage(operator.page, ADMIN_PATH);
         expect(real.status()).toBe(200);
         await expect(operator.page.locator('#login-view')).toBeVisible();
         await expect(operator.page.locator('#ops-shell')).toBeHidden();
@@ -36,7 +36,7 @@ test('random ops-like paths 404 while the configured portal serves the login car
 test('admin login rejects a wrong password, then unlocks the overview tiles', async ({ browser }) => {
     const operator = await createAdminPage(browser);
     try {
-        await operator.page.goto(ADMIN_PATH);
+        await gotoTestPage(operator.page, ADMIN_PATH);
 
         await operator.page.fill('#admin-password', 'wrong-password');
         await operator.page.click('#login-form button[type="submit"]');
@@ -52,7 +52,31 @@ test('admin login rejects a wrong password, then unlocks the overview tiles', as
     }
 });
 
-test('force-close from the console requires typing the room code and kills the live room', async ({ browser }) => {
+test('admin refresh reloads the active panel immediately', async ({ browser }) => {
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, ADMIN_PATH);
+        await page.fill('#admin-password', ADMIN_PASSWORD);
+        await page.click('#login-form button[type="submit"]');
+        await expect(page.locator('#ops-shell')).toBeVisible();
+        await expect(page.locator('#overview-tiles .tile')).toHaveCount(6);
+
+        const refreshRequest = page.waitForRequest((request) => {
+            return request.method() === 'GET'
+                && new URL(request.url()).pathname === `${ADMIN_PATH}/api/overview`;
+        }, { timeout: 2000 });
+
+        await page.click('#btn-refresh');
+        await refreshRequest;
+        await expect(page.locator('#btn-refresh')).toBeEnabled();
+    } finally {
+        await operator.context.close();
+    }
+});
+
+test('force-close from the console requires typing the room code and kills the live room', async ({ browser, isMobile }) => {
+    test.skip(isMobile, 'The dense operations table is intentionally desktop-only.');
     const student = await createAdminPage(browser);
     const operator = await createAdminPage(browser);
     try {
@@ -60,13 +84,13 @@ test('force-close from the console requires typing the room code and kills the l
         await student.page.addInitScript(() => {
             try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
         });
-        await student.page.goto('/open.html');
+        await gotoTestPage(student.page, '/open.html');
         await student.page.fill('#room-name', 'Admin Close Target');
         await student.page.click('#create-form button[type="submit"]');
         await expect(student.page.locator('#create-result')).toBeVisible();
         const roomCode = (await student.page.locator('#result-code').textContent()).trim();
         await student.page.click('#btn-enter-room');
-        await student.page.waitForURL('**/index.html**');
+        await waitForTestUrl(student.page, '**/index.html**');
         await student.page.fill('#join-name', 'Student');
         await student.page.click('#join-form button[type="submit"]');
         // The overlay animates out via a class, not display:none — assert the class.
@@ -75,7 +99,7 @@ test('force-close from the console requires typing the room code and kills the l
         )).toBe(true);
 
         // The operator signs in and force-closes it.
-        await operator.page.goto(ADMIN_PATH);
+        await gotoTestPage(operator.page, ADMIN_PATH);
         await operator.page.fill('#admin-password', ADMIN_PASSWORD);
         await operator.page.click('#login-form button[type="submit"]');
         await expect(operator.page.locator('#ops-shell')).toBeVisible();

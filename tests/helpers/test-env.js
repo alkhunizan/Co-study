@@ -11,6 +11,8 @@ const SMOKE_SERVER_INFO_FILE = path.join(os.tmpdir(), `co-study-smoke-server-${S
 function resetStateFile(filePath) {
     fs.rmSync(filePath, { force: true });
     fs.rmSync(`${filePath}.tmp`, { force: true });
+    fs.rmSync(`${filePath}.realtimekit-webhooks.json`, { force: true });
+    fs.rmSync(`${filePath}.video-sessions.json`, { force: true });
 }
 
 function makeTempStateFile(prefix = 'co-study-test') {

@@ -18,13 +18,13 @@ This release ships with:
 - Optional accounts (email + password, no verification wall): synced focus minutes and day streaks, My Rooms with one-click rejoin, reserved nickname, avatar accent + bio. Instant rooms stay guest-open; scheduled rooms require an account
 - Self-serve, immediate delete-my-data flow on the account page (PDPL)
 - Hidden admin ops console at an env-secret path: live overview, room inspect/force-close/kick, runtime video kill-switch, user ban/unban, site-wide broadcast banner, backup-now, recent errors
-- Cloudflare RealtimeKit video rooms with server-issued participant tokens, plus legacy mesh fallback
+- Cloudflare RealtimeKit video rooms with server-issued participant tokens; mesh is local-development-only
 - Live Socket.IO chat and room presence
 - Pomodoro timer with daily focus tracking
 - Shared room board, room status sharing, and ambient sounds
 - Reusable scheduled rooms with Riyadh-based cadence, countdowns, calendar export, and WhatsApp-ready invites
 - Disk-backed room persistence for chat history and board state
-- TURN-ready runtime ICE config
+- Local-development mesh/ICE diagnostics (disabled in production)
 - Launch guardrails: 20 global active video participants, 20 per room, mic off by default, recording off
 - AI focus monitoring through the browser FaceDetector API
 - Health/readiness/metrics endpoints, abuse controls, automated + manual state backup/restore, bilingual 404, and a PWA manifest
@@ -69,18 +69,22 @@ npm run test:ci
 ## Operator Commands
 
 ```bash
-npm run backup:rooms
-npm run restore:rooms -- /absolute/path/to/backup.json
+npm run backup:state
+npm run restore:state -- /absolute/path/to/artifact.hsbackup
+npm run restore:state -- /absolute/path/to/artifact.hsbackup --apply --writer-stopped
 npm run verify:deploy -- https://your-domain.com
 ```
 
-Room restore is an offline operator action: stop the app first, restore the snapshot, then start the app and run `verify:deploy`.
+Restore defaults to a checksum/schema/tombstone dry run. Applying is an offline
+operator action: stop the single app writer first, supply both apply flags, then
+start the app and run `verify:deploy`. See
+[`docs/BACKUP-RESTORE.md`](docs/BACKUP-RESTORE.md).
 
 ## Stack
 
 - Frontend: Vanilla JavaScript, HTML, CSS
 - Backend: Node.js, Express, Socket.IO
-- Realtime media: Cloudflare RealtimeKit by default, legacy WebRTC mesh fallback
+- Realtime media: Cloudflare RealtimeKit in production, with explicit local-only WebRTC mesh testing
 - Security: PBKDF2 password hashing with timing-safe verification
 - Local secure-context dev: Self-signed HTTPS via `selfsigned`
 - Production transport: Nginx public HTTPS -> local HTTP app
@@ -115,30 +119,42 @@ Co-study/
 - `HTTPS_PORT`: Local HTTPS port for `server-https.js`. Defaults to `3443`.
 - `TRUST_PROXY`: Set to `1` behind Nginx so Express trusts `X-Forwarded-*`. Defaults to `0`.
 - `ALLOWED_ORIGINS`: Optional comma-separated allowlist of exact `http(s)://origin` values. If unset, the app allows same-origin browser traffic only.
-- `ICE_SERVERS_JSON`: Optional JSON array of WebRTC ICE servers. If omitted or invalid, the app falls back to the built-in Google STUN servers.
+- `ICE_SERVERS_JSON`: Development-only JSON array for explicit mesh tests. Never configure static TURN credentials in production.
 - `MESH_PARTICIPANT_LIMIT`: Optional hard cap for mesh rooms. Defaults to `4`.
+- `ENABLE_DEV_MESH`: Must be explicitly `true` together with `VIDEO_PROVIDER=mesh` in development/test. It is forbidden in production.
 - `ROOM_STATE_FILE`: Optional JSON file path for persisted room state. Defaults to `./data/rooms.json`.
 - `ROOM_STATE_BACKUP_DIR`: Optional directory for manual room-state backups. Defaults to `./data/backups`.
 - `SFU_BASE_URL`: Optional absolute `http(s)` base URL for the SFU iframe integration.
-- `VIDEO_PROVIDER`: Defaults to `realtimekit`. Set to `mesh` only for emergency fallback/testing.
+- `VIDEO_PROVIDER`: Defaults to `realtimekit`. `mesh` requires `ENABLE_DEV_MESH=true` in development/test and is rejected in production.
 - `VIDEO_JOIN_DISABLED`: Emergency kill switch. Set to `true` to reject new video tokens without stopping chat/rooms.
-- `MAX_GLOBAL_VIDEO_PARTICIPANTS`: Hard global active-video cap. Defaults to `20`.
-- `MAX_ROOM_VIDEO_PARTICIPANTS`: Hard room active-video cap. Defaults to `20`.
+- `MAX_GLOBAL_VIDEO_PARTICIPANTS`: Hard global active-video cap. Defaults to `20` and cannot exceed `20`.
+- `REALTIMEKIT_MONTHLY_COST_CAP_USD`: Monthly RealtimeKit cost cap used by `npm run cloudflare:cost-check`. Defaults to `500`.
+- `MAX_ROOM_VIDEO_PARTICIPANTS`: Hard room active-video cap. Defaults to `20` and cannot exceed `20`.
 - `MAX_ROOM_DURATION_MINUTES`: Video provider meeting age limit. Expired idle meetings are recycled; active expired meetings reject new video tokens. Defaults to `180`.
 - `VIDEO_RECORDING_ENABLED`: Must remain `false` for launch.
-- `VIDEO_SCREENSHARE_ENABLED`: Defaults to `false`.
-- `VIDEO_CHAT_ENABLED`: Defaults to `false`; use Halastudy chat instead of provider chat.
+- `VIDEO_SCREENSHARE_ENABLED`: Must remain `false`; startup rejects `true`.
+- `VIDEO_CHAT_ENABLED`: Must remain `false`; use Halastudy chat instead of provider chat.
 - `VIDEO_DEFAULT_PRESET_NAME`: RealtimeKit participant preset. Defaults to `halastudy_student`.
 - `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_REALTIMEKIT_APP_ID`, `CLOUDFLARE_REALTIMEKIT_API_TOKEN`: Server-only RealtimeKit credentials.
+- `CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL`: Optional verification-key endpoint override for isolated staging tests. Production defaults to Cloudflare's public key endpoint.
 - `PUBLIC_API_BASE_URL`: Reserved for a future Cloudflare Pages frontend split.
 
+RealtimeKit must deliver signed events to `POST /api/webhooks/realtimekit`. The
+server verifies the exact raw body, deduplicates `rtk-uuid` deliveries for 24
+hours, and treats provider join/left/meeting-ended events as authoritative for
+video capacity. Browser heartbeat and leave calls are advisory only.
+
 Scheduled-room notes:
-- Scheduled rooms reuse the same room code instead of expiring as ad hoc rooms.
+- One-time rooms expire 30 minutes after their occurrence closes. Recurring rooms default to a 90-day horizon and may opt into at most 365 days.
 - Schedule cadence supports `once`, `daily`, `weekdays` (Saudi Sunday-Thursday), and `weekly`.
 - Timer defaults and the starting board goal template are stored with the room schedule.
-- Attendance is room-level only in this v1: on-time count, missed count, and current streak.
+- Only the authenticated room owner receives occurrence-keyed commitment credit; reconnects and other participants cannot alter the owner's streak.
 
-TURN example:
+Development mesh TURN example:
+
+```bash
+NODE_ENV=development VIDEO_PROVIDER=mesh ENABLE_DEV_MESH=true npm start
+```
 
 ```json
 [
@@ -147,13 +163,15 @@ TURN example:
 ]
 ```
 
-WebRTC requires TURN credentials to be delivered to the browser at runtime. That is expected in this v1 setup.
+Production media uses RealtimeKit and must not contain static TURN credentials.
+For development mesh tests, use short-lived TURN credentials and rotate them
+before expiry.
 
 RealtimeKit launch notes:
 - The browser never receives the Cloudflare API token. The backend creates/reuses one RealtimeKit meeting per Halastudy room and returns only a client participant token.
 - The token endpoint rejects the 21st active video participant before calling Cloudflare.
 - Mic is off by default; recording, screenshare, and provider chat remain off for launch.
-- The legacy mesh path remains available with `VIDEO_PROVIDER=mesh`; the iframe SFU path remains legacy-only behind `SFU_BASE_URL`.
+- The legacy mesh path remains available only for authenticated sockets in development/test with both `VIDEO_PROVIDER=mesh` and `ENABLE_DEV_MESH=true`. Production rejects the flag/provider and never relays persisted legacy mesh signaling. The iframe SFU path remains legacy-only behind `SFU_BASE_URL`.
 - AI focus monitoring stays available in legacy mesh rooms only.
 
 Launch cost guardrail:
@@ -164,6 +182,13 @@ Launch cost guardrail:
 ```
 
 This stays under the $500 launch cap only while the 20-user global cap remains enforced and recording/screenshare/AI/transcription extras stay off.
+
+Run `npm run cloudflare:cost-check` from the deployed service environment. It
+uses the durable video registry, webhook acceptance journal, and optional
+`VIDEO_SESSION_LOG_FILE` locally; it never calls Cloudflare or requires provider
+credentials. Occupancy and estimated USD use the same 70/85/100% bands. Exit 2
+is an early notice/warning and exit 1 is a critical threshold or invalid local
+evidence, which lets cron or the process monitor route alerts by severity.
 
 Room persistence stores room metadata, protected-room password hashes, chat history, shared board state, and scheduled-room metadata/attendance on disk. Live presence, socket IDs, camera state, and other transient participant state remain memory-only.
 
@@ -177,7 +202,7 @@ This persistence layer is designed for a single app instance. Keep PM2 at one pr
 - 20 active video participants allowed; 21st rejected before provider token creation
 - `VIDEO_JOIN_DISABLED=true` blocks video token issuance without breaking chat/presence
 - Password-protected rooms still require the room password before video token issuance
-- Legacy mesh fallback with `VIDEO_PROVIDER=mesh`
+- Development-only authenticated mesh testing with `VIDEO_PROVIDER=mesh` and `ENABLE_DEV_MESH=true`
 - Disconnect and rejoin during an active room
 - Mobile/network pass: iPhone Safari, Android Chrome, Saudi mobile data, weak Wi-Fi, and a 60-minute room test
 

@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { createTestContext, gotoTestPage, test, expect } = require('../helpers/playwright-test');
 
 // Third-party font fetches are the only legitimate network-dependent
 // resources on the landing page; don't let an offline runner turn them
@@ -8,6 +8,12 @@ const IGNORED_CONSOLE_PATTERNS = [/fonts\.googleapis\.com/, /fonts\.gstatic\.com
 function collectPageErrors(page) {
     const errors = [];
     page.on('pageerror', (error) => {
+        // Mobile WebKit rejects a pending muted autoplay promise when the
+        // test leaves the hero page. The navigation succeeds and no provider
+        // request escapes the guarded context, so this exact cancellation is
+        // not an application failure.
+        if ((error.name === 'AbortError' && error.message === 'The operation was aborted.')
+            || error.message === 'AbortError: The operation was aborted.') return;
         errors.push(`pageerror: ${error.message}`);
     });
     page.on('console', (message) => {
@@ -25,7 +31,7 @@ function collectPageErrors(page) {
 test('landing page renders the hero and routes to the create form', async ({ page }) => {
     const errors = collectPageErrors(page);
 
-    await page.goto('/');
+    await gotoTestPage(page, '/');
     await expect(page.locator('.hero-title')).toBeVisible();
     await expect(page.locator('.live-pill')).toBeVisible();
 
@@ -37,7 +43,7 @@ test('landing page renders the hero and routes to the create form', async ({ pag
 });
 
 test('coStudy storage keys migrate once and never clobber new values', async ({ browser }) => {
-    const context = await browser.newContext();
+    const context = await createTestContext(browser);
     const page = await context.newPage();
 
     try {
@@ -52,7 +58,7 @@ test('coStudy storage keys migrate once and never clobber new values', async ({ 
             } catch (_error) {}
         });
 
-        await page.goto('/');
+        await gotoTestPage(page, '/');
 
         const migrated = await page.evaluate(() => ({
             lang: localStorage.getItem('halastudyLang'),
@@ -73,16 +79,20 @@ test('coStudy storage keys migrate once and never clobber new values', async ({ 
 });
 
 test('theme and language survive the landing to open handoff', async ({ browser }) => {
-    const context = await browser.newContext();
+    const context = await createTestContext(browser);
     const page = await context.newPage();
 
     try {
-        await page.goto('/');
+        await gotoTestPage(page, '/');
+        if (!await page.locator('#theme-toggle').isVisible()) {
+            await page.click('#nav-burger');
+            await expect(page.locator('#mobile-menu')).toBeVisible();
+        }
         await page.click('#theme-toggle');
         await page.click('.lang-switch button[data-lang-value="en"]');
         await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
 
-        await page.goto('/open.html');
+        await gotoTestPage(page, '/open.html');
         await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
         await expect(page.locator('body')).toHaveAttribute('data-lang', 'en');
     } finally {
@@ -91,11 +101,11 @@ test('theme and language survive the landing to open handoff', async ({ browser 
 });
 
 test('reduced motion keeps every hero clip on its poster frame', async ({ browser }) => {
-    const context = await browser.newContext({ reducedMotion: 'reduce' });
+    const context = await createTestContext(browser, { reducedMotion: 'reduce' });
     const page = await context.newPage();
 
     try {
-        await page.goto('/');
+        await gotoTestPage(page, '/');
         await expect(page.locator('video.tile-photo').first()).toBeVisible();
 
         await expect.poll(async () => {

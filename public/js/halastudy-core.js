@@ -65,6 +65,17 @@
     // Apply persisted theme immediately (pre-paint — this file loads sync).
     applyTheme(getStoredTheme());
 
+    /* ---------- offline worker ---------- */
+    function registerServiceWorker() {
+        const serviceWorker = global.navigator?.serviceWorker;
+        if (!serviceWorker) return;
+        serviceWorker.register('/service-worker.js', {
+            scope: '/',
+            updateViaCache: 'none'
+        }).catch(() => { /* offline support is best-effort */ });
+    }
+    registerServiceWorker();
+
     /* ---------- language ---------- */
     function getLang() {
         try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ar'; } catch (_e) { return 'ar'; }
@@ -131,7 +142,8 @@
     }
 
     /* ---------- fetch helper (same contract as video-client postJson) ---------- */
-    function requestJson(method, url, body) {
+    /** @param {{ signal?: AbortSignal }} [requestOptions] */
+    function requestJson(method, url, body, requestOptions = {}) {
         /** @type {RequestInit & { headers: Record<string, string> }} */
         const options = {
             method: method,
@@ -142,8 +154,15 @@
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body || {});
         }
+        if (requestOptions.signal) options.signal = requestOptions.signal;
         return fetch(url, options).then((response) => response.json().catch(() => ({})).then((payload) => {
+                if (requestOptions.signal?.aborted) {
+                    const error = new Error('Request aborted');
+                    error.name = 'AbortError';
+                    throw error;
+                }
                 if (!response.ok) {
+                    if (response.status === 401) invalidateAuthCache(true);
                     /** @type {Error & { status?: number, code?: string, payload?: any }} */
                     const error = new Error(`Request failed: ${response.status}`);
                     error.status = response.status;
@@ -151,31 +170,55 @@
                     error.payload = payload;
                     throw error;
                 }
+                if (String(method).toUpperCase() === 'DELETE' && String(url).split(/[?#]/)[0] === '/api/me') {
+                    invalidateAuthCache(true);
+                }
                 return payload;
             }));
     }
 
     /* ---------- auth session cache ---------- */
     var userPromise = null;
+    var authGeneration = 0;
+    var authController = null;
+
+    function invalidateAuthCache(cacheGuest = false) {
+        authGeneration += 1;
+        if (authController) {
+            authController.abort();
+            authController = null;
+        }
+        userPromise = cacheGuest ? Promise.resolve(null) : null;
+    }
 
     function getUser() {
         if (!userPromise) {
-            userPromise = requestJson('GET', '/api/auth/me')
-                .then((payload) => payload?.user ? payload.user : null)
-                .catch(() => null);
+            const generation = authGeneration;
+            const controller = new AbortController();
+            authController = controller;
+            userPromise = requestJson('GET', '/api/auth/me', undefined, { signal: controller.signal })
+                .then((payload) => {
+                    if (generation !== authGeneration || controller.signal.aborted) return null;
+                    return payload?.user ? payload.user : null;
+                })
+                .catch(() => null)
+                .finally(() => {
+                    if (authController === controller) authController = null;
+                });
         }
         return userPromise;
     }
 
     function refreshUser() {
-        userPromise = null;
+        invalidateAuthCache();
         return getUser();
     }
 
     function signout() {
+        invalidateAuthCache(true);
         return requestJson('POST', '/api/auth/logout')
             .catch(() => { /* already signed out */ })
-            .then(() => { userPromise = Promise.resolve(null); return null; });
+            .then(() => null);
     }
 
     /* Swap the quiet "Sign in" topbar link (#auth-entry) for the avatar chip
@@ -223,12 +266,12 @@
 
     function showAnnouncement(announcement) {
         clearAnnouncement();
-        if (!announcement || !announcement.id) return;
+        if (!announcement?.id) return;
         var message = announcementMessage(announcement);
         if (!message) return;
         try {
             if (localStorage.getItem(ANNOUNCE_DISMISS_KEY) === announcement.id) return;
-        } catch (e) { /* storage unavailable */ }
+        } catch { /* storage unavailable */ }
 
         var banner = document.createElement('div');
         banner.id = 'announce-banner';
@@ -247,7 +290,7 @@
             + 'font-size:16px;line-height:1;min-inline-size:32px;min-block-size:32px;border-radius:50%;';
         dismiss.addEventListener('click', () => {
             banner.remove();
-            try { localStorage.setItem(ANNOUNCE_DISMISS_KEY, announcement.id); } catch (e) {}
+            try { localStorage.setItem(ANNOUNCE_DISMISS_KEY, announcement.id); } catch {}
         });
         banner.appendChild(text);
         banner.appendChild(dismiss);

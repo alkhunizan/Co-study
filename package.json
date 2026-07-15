@@ -1,57 +1,73 @@
 {
-  "name": "co-study",
-  "version": "1.2.0",
-  "main": "server.js",
-  "engines": {
-    "node": "22.x"
-  },
-  "scripts": {
-    "start": "node server.js",
-    "https": "node server-https.js",
-    "backup:rooms": "node scripts/backup-rooms.js",
-    "backup:r2": "node scripts/backup-r2.js",
-    "restore:rooms": "node scripts/restore-rooms.js",
-    "verify:deploy": "node scripts/verify-deploy.js",
-    "audit:prod": "npm audit --omit=dev",
-    "check": "node --check server.js && node --check server-https.js && node --check co-study-server.js && node --check room-store.js && node --check user-store.js && node --check supabase-user-store.js && node --check services/supabase/client.js && node --check services/auth/google-routes.js && node --check server-config.js && node --check services/logging/logger.js && node --check services/ops/error-buffer.js && node --check services/ops/backup-scheduler.js && node --check services/auth/password.js && node --check services/auth/index.js && node --check services/auth/auth-routes.js && node --check services/admin/admin-routes.js && node --check services/video/index.js && node --check services/video/mesh-provider.js && node --check services/video/realtimekit-provider.js && node --check services/video/video-session-registry.js && node --check public/js/video/realtimekit-client.js && node --check public/js/video/video-client.js && node --check public/js/halastudy-core.js && node --check public/js/ui.js && node --check schedule-utils.js && node --check scripts/room-state-utils.js && node --check scripts/backup-r2.js && node --check scripts/cloudflare/r2-client.js && node --check scripts/backup-rooms.js && node --check scripts/restore-rooms.js && node --check scripts/verify-deploy.js && node --check scripts/hash-admin-password.js && node --check scripts/cloudflare/realtimekit-common.js && node --check scripts/cloudflare/realtimekit-setup.js && node --check scripts/cloudflare/realtimekit-smoke.js && node --check scripts/cloudflare/realtimekit-doctor.js && node --check scripts/cloudflare/realtimekit-cleanup.js && node --check scripts/cloudflare/realtimekit-cost-check.js && node --check scripts/cloudflare/turn-credentials.js && node --check tests/helpers/server-control.js && node --check tests/helpers/auth-helpers.js && node --check tests/helpers/fake-sfu-fixture.js && node --check tests/helpers/fake-realtimekit-fixture.js && node --check tests/integration/server.integration.test.js && node --check tests/integration/auth.integration.test.js && node --check tests/integration/admin.integration.test.js && node --check tests/smoke/app.smoke.spec.js && node --check tests/smoke/account.smoke.spec.js && node --check tests/smoke/admin.smoke.spec.js && node --check tests/smoke/create-timeout.smoke.spec.js && node --check tests/smoke/landing.smoke.spec.js && node --check tests/smoke/open.smoke.spec.js",
-    "typecheck": "tsc -p .",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
-    "deadcode": "knip --no-progress",
-    "test:integration": "node --test \"tests/integration/*.test.js\"",
-    "admin:hash": "node scripts/hash-admin-password.js",
-    "secret:gen": "node -e \"console.log('SESSION_SECRET=' + require('crypto').randomBytes(32).toString('hex'))\"",
-    "test:smoke": "playwright test --config=playwright.config.js",
-    "test:ci": "npm run check && npm run typecheck && npm run lint && npm run deadcode && npm run audit:prod && npm run test:integration && npm run test:smoke",
-    "cloudflare:setup": "node scripts/cloudflare/realtimekit-setup.js",
-    "cloudflare:viewer-preset": "node scripts/cloudflare/create-viewer-preset.js",
-    "cloudflare:smoke": "node scripts/cloudflare/realtimekit-smoke.js",
-    "cloudflare:doctor": "node scripts/cloudflare/realtimekit-doctor.js",
-    "cloudflare:cleanup": "node scripts/cloudflare/realtimekit-cleanup.js",
-    "cloudflare:cost-check": "node scripts/cloudflare/realtimekit-cost-check.js",
-    "cloudflare:turn": "node scripts/cloudflare/turn-credentials.js",
-    "cf:doctor": "npm run cloudflare:doctor"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
-  "description": "",
-  "overrides": {
-    "path-to-regexp": "^8.4.2",
-    "socket.io-parser": "^4.2.6"
-  },
-  "dependencies": {
-    "express": "^5.2.1",
-    "selfsigned": "^5.5.0",
-    "socket.io": "^4.8.3"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.4.15",
-    "@playwright/test": "^1.59.1",
-    "@types/express": "5.0.6",
-    "@types/node": "25.8.0",
-    "knip": "6.13.1",
-    "socket.io-client": "^4.8.3",
-    "typescript": "6.0.3"
-  }
+    "name": "co-study",
+    "version": "1.2.0",
+    "main": "server.js",
+    "engines": {
+        "node": "22.x"
+    },
+    "scripts": {
+        "start": "node server.js",
+        "https": "node server-https.js",
+        "backup:rooms": "node scripts/backup-rooms.js",
+        "backup:state": "node scripts/backup-state.js",
+        "backup:pin-pre-cutover": "node scripts/backup-state.js --pin-pre-cutover",
+        "backup:r2": "node scripts/backup-r2.js --apply-retention",
+        "backup:r2:pin-pre-cutover": "node scripts/backup-r2.js --upload-pinned-pre-cutover",
+        "restore:rooms": "node scripts/restore-rooms.js",
+        "restore:state": "node scripts/restore-state.js",
+        "verify:deploy": "node scripts/verify-deploy.js",
+        "audit:prod": "npm audit --omit=dev",
+        "audit:supabase-synthetic": "node scripts/audit-supabase-synthetic-records.js",
+        "inventory:images": "node scripts/inventory-container-images.js",
+        "inventory:r2-users": "node scripts/inventory-r2-legacy-users.js",
+        "check": "node scripts/ci/check-syntax.js",
+        "typecheck": "tsc -p .",
+        "lint": "biome check --error-on-warnings .",
+        "lint:fix": "biome check --write .",
+        "lint:shell": "node scripts/ci/run-shellcheck.js",
+        "deadcode": "knip --no-progress",
+        "docker:verify": "node scripts/ci/verify-docker-image.js",
+        "nginx:verify": "node scripts/ci/verify-nginx.js",
+        "supabase:migrations:apply-test": "node scripts/ci/verify-postgres-migrations.js",
+        "supabase:migrations:check": "node scripts/verify-supabase-migrations.js",
+        "test:unit": "node --test \"tests/unit/*.test.js\"",
+        "test:integration": "node --test \"tests/integration/*.test.js\"",
+        "admin:hash": "node scripts/hash-admin-password.js",
+        "secret:gen": "node -e \"const c=require('crypto'); console.log('SESSION_SECRET='+c.randomBytes(32).toString('hex')); console.log('ADMIN_SESSION_SECRET='+c.randomBytes(32).toString('hex'))\"",
+        "test:smoke": "playwright test --config=playwright.config.js",
+        "test:ci:quality": "npm run check && npm run supabase:migrations:check && npm run typecheck && npm run lint && npm run deadcode && npm run audit:prod && npm run test:unit && npm run test:integration",
+        "test:ci:infra": "npm run lint:shell && npm run supabase:migrations:apply-test && npm run docker:verify && npm run nginx:verify",
+        "test:ci": "npm run test:ci:quality && npm run test:ci:infra && npm run test:smoke",
+        "cloudflare:setup": "node scripts/cloudflare/realtimekit-setup.js",
+        "cloudflare:viewer-preset": "node scripts/cloudflare/create-viewer-preset.js",
+        "cloudflare:smoke": "node scripts/cloudflare/realtimekit-smoke.js",
+        "cloudflare:doctor": "node scripts/cloudflare/realtimekit-doctor.js",
+        "cloudflare:cleanup": "node scripts/cloudflare/realtimekit-cleanup.js",
+        "cloudflare:cost-check": "node scripts/cloudflare/realtimekit-cost-check.js",
+        "cloudflare:turn": "node scripts/cloudflare/turn-credentials.js",
+        "cf:doctor": "npm run cloudflare:doctor",
+        "migration:rooms": "node scripts/migrate-rooms.js"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "MIT",
+    "description": "",
+    "overrides": {
+        "path-to-regexp": "^8.4.2",
+        "socket.io-parser": "^4.2.6"
+    },
+    "dependencies": {
+        "express": "^5.2.1",
+        "socket.io": "^4.8.3"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "2.4.15",
+        "@playwright/test": "^1.59.1",
+        "@types/express": "5.0.6",
+        "@types/node": "25.8.0",
+        "knip": "6.13.1",
+        "selfsigned": "^5.5.0",
+        "socket.io-client": "^4.8.3",
+        "typescript": "6.0.3"
+    }
 }

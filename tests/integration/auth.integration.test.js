@@ -24,6 +24,17 @@ function authedRequest(server, pathname, cookie, options = {}) {
     });
 }
 
+function currentRiyadhDayKey(now = Date.now()) {
+    return new Date(now + (3 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+}
+
+function cookieValue(cookieHeader, name) {
+    const cookies = extractCookies(cookieHeader);
+    const match = cookies.split('; ')
+        .find((cookie) => cookie.startsWith(`${name}=`));
+    return match ? match.slice(name.length + 1) : null;
+}
+
 test('signup issues an auth cookie and /api/auth/me returns the profile', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
@@ -41,11 +52,12 @@ test('signup issues an auth cookie and /api/auth/me returns the profile', async 
     assert.equal(response.body.user.tokenEpoch, undefined);
 
     const cookie = extractCookies(response.headers['set-cookie']);
-    assert.match(cookie, /coStudyAuth=v1\./);
+    assert.match(cookie, /coStudyAuth=v2\./);
 
     const me = await authedRequest(server, '/api/auth/me', cookie);
     assert.equal(me.status, 200);
     assert.equal(me.body.user.email, 'sara@example.com');
+    assert.deepEqual(me.body.user.authMethods, { password: true, google: false });
 });
 
 test('signup rejects invalid email, short password, missing name, and duplicate email', async (t) => {
@@ -164,15 +176,168 @@ test('logout clears the cookie and /api/auth/me reports a guest after', async (t
     await cleanupServer(t, server);
 
     const { cookie } = await signupUser(server);
+    const originalAnonymousIdentity = cookieValue(cookie, 'coStudySessionId');
+    assert.ok(originalAnonymousIdentity);
     const logout = await authedRequest(server, '/api/auth/logout', cookie, { method: 'POST' });
     assert.equal(logout.status, 200);
     const clearedCookie = extractCookies(logout.headers['set-cookie']);
     assert.match(clearedCookie, /coStudyAuth=/);
+    const rotatedAnonymousIdentity = cookieValue(logout.headers['set-cookie'], 'coStudySessionId');
+    assert.ok(rotatedAnonymousIdentity);
+    assert.notEqual(rotatedAnonymousIdentity, originalAnonymousIdentity);
 
     // 200 + user:null (not 401): this probe runs on every guest page load.
     const me = await authedRequest(server, '/api/auth/me', clearedCookie);
     assert.equal(me.status, 200);
     assert.equal(me.body.user, null);
+});
+
+test('logout disconnects only authenticated sockets from the same signed browser session', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const primary = await signupUser(server, {
+        email: 'session-scoped-logout@example.com',
+        displayName: 'Primary Session'
+    });
+
+    // Log the same account in from a separately minted anonymous browser
+    // session. Ordinary logout must not become a global account-session kill.
+    const anonymousResponse = await server.request('/api/health');
+    const otherAnonymousCookie = extractCookies(anonymousResponse.headers['set-cookie']);
+    assert.match(otherAnonymousCookie, /coStudySessionId=as1\./);
+    const otherLogin = await server.request('/api/auth/login', {
+        method: 'POST',
+        headers: { Cookie: otherAnonymousCookie },
+        body: {
+            email: primary.credentials.email,
+            password: primary.credentials.password
+        }
+    });
+    assert.equal(otherLogin.status, 200);
+    const otherSessionCookie = `${otherAnonymousCookie}; ${extractCookies(otherLogin.headers['set-cookie'])}`;
+
+    const primarySocket = await connectSocket(server.baseUrl, {
+        clientId: 'logout-primary-session',
+        extraHeaders: { Cookie: primary.cookie }
+    });
+    const sameSessionSocket = await connectSocket(server.baseUrl, {
+        clientId: 'logout-primary-session-second-tab',
+        extraHeaders: { Cookie: primary.cookie }
+    });
+    const otherSocket = await connectSocket(server.baseUrl, {
+        clientId: 'logout-other-session',
+        extraHeaders: { Cookie: otherSessionCookie }
+    });
+    t.after(async () => {
+        await closeSocket(primarySocket);
+        await closeSocket(sameSessionSocket);
+        await closeSocket(otherSocket);
+    });
+
+    const created = await emitAck(primarySocket, 'create-room', { roomName: 'Logout membership' });
+    const joined = await emitAck(primarySocket, 'join-room', {
+        roomId: created.room.code,
+        username: 'Primary Session'
+    });
+    assert.equal(joined.ok, true);
+
+    // Possession of the signed anonymous identity alone is insufficient to
+    // revoke an account-authorized socket. The authenticated account and
+    // browser-session bindings must both match.
+    const primaryAnonymousCookie = primary.cookie.split('; ')
+        .find((entry) => entry.startsWith('coStudySessionId='));
+    assert.ok(primaryAnonymousCookie);
+    const anonymousOnlyLogout = await server.request('/api/auth/logout', {
+        method: 'POST',
+        headers: { Cookie: primaryAnonymousCookie }
+    });
+    assert.equal(anonymousOnlyLogout.status, 200);
+    await delay(100);
+    assert.equal(primarySocket.connected, true);
+    assert.equal(sameSessionSocket.connected, true);
+
+    const primaryDisconnected = new Promise((resolve) => primarySocket.once('disconnect', resolve));
+    const sameSessionDisconnected = new Promise((resolve) => sameSessionSocket.once('disconnect', resolve));
+    const logout = await authedRequest(server, '/api/auth/logout', primary.cookie, { method: 'POST' });
+    assert.equal(logout.status, 200);
+    await Promise.all([
+        Promise.race([
+            primaryDisconnected,
+            delay(2000).then(() => assert.fail('same-session authenticated socket stayed connected'))
+        ]),
+        Promise.race([
+            sameSessionDisconnected,
+            delay(2000).then(() => assert.fail('same-session second tab stayed connected'))
+        ])
+    ]);
+    assert.equal(primarySocket.connected, false);
+    assert.equal(sameSessionSocket.connected, false);
+    assert.equal(otherSocket.connected, true);
+
+    const staleMembership = await server.request(`/api/rooms/${created.room.code}/video-token`, {
+        method: 'POST',
+        headers: {
+            Cookie: primary.cookie,
+            'X-Halastudy-Membership': joined.membershipToken
+        },
+        body: { displayName: 'Primary Session', role: 'student' }
+    });
+    assert.equal(staleMembership.status, 403);
+    assert.equal(staleMembership.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+
+    // The second browser session is still account-authorized over its existing
+    // socket, proven by an authenticated-only scheduled-room mutation.
+    const tomorrow = new Date(Date.now() + (27 * 60 * 60 * 1000));
+    const otherSessionMutation = await emitAck(otherSocket, 'create-room', {
+        roomName: 'Other session survives',
+        schedule: {
+            startDate: tomorrow.toISOString().slice(0, 10),
+            startTime: '20:00',
+            cadence: 'once'
+        }
+    });
+    assert.equal(otherSessionMutation.ok, true);
+});
+
+test('a copied auth cookie cannot pair with a freshly minted anonymous session', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const account = await signupUser(server, {
+        email: 'session-binding@example.com',
+        displayName: 'Bound Session'
+    });
+    const copiedAuthCookie = account.cookie.split('; ')
+        .find((entry) => entry.startsWith('coStudyAuth='));
+    assert.ok(copiedAuthCookie);
+
+    const freshAnonymousResponse = await server.request('/api/health');
+    const freshAnonymousCookie = extractCookies(freshAnonymousResponse.headers['set-cookie'])
+        .split('; ')
+        .find((entry) => entry.startsWith('coStudySessionId='));
+    assert.ok(freshAnonymousCookie);
+    const mismatchedCookies = `${copiedAuthCookie}; ${freshAnonymousCookie}`;
+
+    const me = await authedRequest(server, '/api/auth/me', mismatchedCookies);
+    assert.equal(me.status, 200);
+    assert.equal(me.body.user, null);
+
+    const copiedSocket = await connectSocket(server.baseUrl, {
+        extraHeaders: { Cookie: mismatchedCookies }
+    });
+    t.after(() => closeSocket(copiedSocket));
+    const tomorrow = new Date(Date.now() + (27 * 60 * 60 * 1000));
+    const authenticatedMutation = await emitAck(copiedSocket, 'create-room', {
+        roomName: 'Copied cookie room',
+        schedule: {
+            startDate: tomorrow.toISOString().slice(0, 10),
+            startTime: '20:00',
+            cadence: 'once'
+        }
+    });
+    assert.equal(authenticatedMutation.ok, false);
+    assert.equal(authenticatedMutation.errorCode, 'AUTH_REQUIRED_FOR_SCHEDULED');
 });
 
 test('profile updates validate avatar color and bio bounds', async (t) => {
@@ -219,16 +384,18 @@ test('focus sessions accumulate stats and validate minutes', async (t) => {
 
     const first = await authedRequest(server, '/api/me/focus-session', cookie, {
         method: 'POST',
-        body: { minutes: 25 }
+        body: { minutes: 25, completionId: 'focus-completion-0001' }
     });
     assert.equal(first.status, 200);
+    assert.equal(first.body.acceptedMinutes, 25);
+    assert.equal(first.body.duplicate, false);
     assert.equal(first.body.focusStats.totalFocusMinutes, 25);
     assert.equal(first.body.focusStats.totalSessions, 1);
     assert.equal(first.body.streak.current, 1);
 
     const second = await authedRequest(server, '/api/me/focus-session', cookie, {
         method: 'POST',
-        body: { minutes: 50 }
+        body: { minutes: 50, completionId: 'focus-completion-0002' }
     });
     assert.equal(second.body.focusStats.totalFocusMinutes, 75);
     assert.equal(second.body.focusStats.totalSessions, 2);
@@ -237,7 +404,7 @@ test('focus sessions accumulate stats and validate minutes', async (t) => {
 
     const invalid = await authedRequest(server, '/api/me/focus-session', cookie, {
         method: 'POST',
-        body: { minutes: 0 }
+        body: { minutes: 0, completionId: 'focus-completion-invalid-minutes' }
     });
     assert.equal(invalid.status, 400);
     assert.equal(invalid.body.errorCode, 'FOCUS_MINUTES_INVALID');
@@ -245,6 +412,49 @@ test('focus sessions accumulate stats and validate minutes', async (t) => {
     const stats = await authedRequest(server, '/api/me/stats', cookie);
     assert.equal(stats.status, 200);
     assert.equal(stats.body.focusStats.totalFocusMinutes, 75);
+});
+
+test('focus completion ids deduplicate and daily caps use only the accepted delta', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const { cookie } = await signupUser(server, { email: 'focus-cap@example.com' });
+    const dayKey = currentRiyadhDayKey();
+    const imported = await authedRequest(server, '/api/me/stats/import', cookie, {
+        method: 'POST',
+        body: { days: { [dayKey]: { focusMinutes: 1435, sessions: 10 } } }
+    });
+    assert.equal(imported.status, 200);
+
+    const first = await authedRequest(server, '/api/me/focus-session', cookie, {
+        method: 'POST',
+        body: { minutes: 25, completionId: 'daily-cap-completion-0001' }
+    });
+    assert.equal(first.status, 200);
+    assert.equal(first.body.acceptedMinutes, 5);
+    assert.equal(first.body.duplicate, false);
+    assert.equal(first.body.focusStats.days[dayKey].focusMinutes, 1440);
+    assert.equal(first.body.focusStats.totalFocusMinutes, 1440);
+    assert.equal(first.body.focusStats.totalSessions, 11);
+
+    const duplicate = await authedRequest(server, '/api/me/focus-session', cookie, {
+        method: 'POST',
+        body: { minutes: 25, completionId: 'daily-cap-completion-0001' }
+    });
+    assert.equal(duplicate.status, 200);
+    assert.equal(duplicate.body.acceptedMinutes, 5);
+    assert.equal(duplicate.body.duplicate, true);
+    assert.equal(duplicate.body.focusStats.totalFocusMinutes, 1440);
+    assert.equal(duplicate.body.focusStats.totalSessions, 11);
+
+    const capped = await authedRequest(server, '/api/me/focus-session', cookie, {
+        method: 'POST',
+        body: { minutes: 25, completionId: 'daily-cap-completion-0002' }
+    });
+    assert.equal(capped.status, 200);
+    assert.equal(capped.body.acceptedMinutes, 0);
+    assert.equal(capped.body.focusStats.totalFocusMinutes, 1440);
+    assert.equal(capped.body.focusStats.totalSessions, 11);
 });
 
 test('stats import merges by max per day and is idempotent', async (t) => {
@@ -287,12 +497,11 @@ test('accounts persist across server restart with the same state file', async (t
     const { cookie, credentials } = await signupUser(server, { email: 'persist@example.com' });
     await authedRequest(server, '/api/me/focus-session', cookie, {
         method: 'POST',
-        body: { minutes: 40 }
+        body: { minutes: 40, completionId: 'persisted-focus-completion' }
     });
 
-    // Let the debounced user-store write land before stopping (SIGTERM flush
-    // handlers are unreliable on Windows child processes).
-    await delay(400);
+    // The acknowledged focus mutation is an immediate durable write. Stop as
+    // soon as the response arrives so restart coverage cannot pass on debounce.
     await server.stop();
     server = await startServer({ roomStateFile, userStateFile, resetStateFileOnStart: false });
 
@@ -316,6 +525,7 @@ test('account deletion re-authenticates, removes the record from disk, and kills
     await cleanupServer(t, server);
 
     const { cookie, credentials } = await signupUser(server, { email: 'delete-me@example.com' });
+    const originalAnonymousIdentity = cookieValue(cookie, 'coStudySessionId');
 
     const wrongPassword = await authedRequest(server, '/api/me', cookie, {
         method: 'DELETE',
@@ -329,6 +539,9 @@ test('account deletion re-authenticates, removes the record from disk, and kills
         body: { password: credentials.password }
     });
     assert.equal(deleted.status, 200);
+    const rotatedAnonymousIdentity = cookieValue(deleted.headers['set-cookie'], 'coStudySessionId');
+    assert.ok(rotatedAnonymousIdentity);
+    assert.notEqual(rotatedAnonymousIdentity, originalAnonymousIdentity);
 
     // PDPL: the record is gone from disk immediately (flushed, not debounced).
     const onDisk = fs.readFileSync(server.userStateFile, 'utf8');
@@ -344,6 +557,159 @@ test('account deletion re-authenticates, removes the record from disk, and kills
     });
     assert.equal(login.status, 401);
     assert.equal(login.body.errorCode, 'INVALID_CREDENTIALS');
+});
+
+test('account deletion closes owned rooms and revokes live membership identities', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const guestSocket = await connectSocket(server.baseUrl, { clientId: 'delete-cascade-guest' });
+    const { cookie, credentials } = await signupUser(server, {
+        email: 'delete-cascade@example.com',
+        displayName: 'Cascade Owner'
+    });
+    const ownerSocket = await connectSocket(server.baseUrl, {
+        clientId: 'delete-cascade-owner',
+        extraHeaders: { Cookie: cookie }
+    });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(guestSocket);
+    });
+
+    const guestRoom = await emitAck(guestSocket, 'create-room', { roomName: 'Surviving Room' });
+    assert.equal(guestRoom.ok, true);
+    const guestJoined = await emitAck(guestSocket, 'join-room', {
+        roomId: guestRoom.room.code,
+        username: 'Guest'
+    });
+    assert.equal(guestJoined.ok, true);
+
+    const ownedRoom = await emitAck(ownerSocket, 'create-room', { roomName: 'Owned Room' });
+    assert.equal(ownedRoom.ok, true);
+    const ownerJoined = await emitAck(ownerSocket, 'join-room', {
+        roomId: guestRoom.room.code,
+        username: 'Cascade Owner'
+    });
+    assert.equal(ownerJoined.ok, true);
+
+    const disconnected = new Promise((resolve) => ownerSocket.once('disconnect', resolve));
+    const deleted = await authedRequest(server, '/api/me', cookie, {
+        method: 'DELETE',
+        body: { password: credentials.password }
+    });
+    assert.equal(deleted.status, 200);
+    assert.equal(deleted.body.cleanupPending, false);
+    await Promise.race([
+        disconnected,
+        delay(2000).then(() => assert.fail('deleted account socket stayed connected'))
+    ]);
+
+    const deletedOwnedRoom = await server.request(`/api/rooms/${ownedRoom.room.code}`);
+    assert.equal(deletedOwnedRoom.status, 404);
+
+    const survivingRoom = await server.request(`/api/rooms/${guestRoom.room.code}`);
+    assert.equal(survivingRoom.status, 200);
+    assert.deepEqual(survivingRoom.body.participants.map((participant) => participant.name), ['Guest']);
+
+    const staleMembership = await server.request(`/api/rooms/${guestRoom.room.code}/video-token`, {
+        method: 'POST',
+        headers: { 'X-Halastudy-Membership': ownerJoined.membershipToken },
+        body: {
+            displayName: 'Cascade Owner',
+            clientSessionId: 'delete-cascade-owner',
+            role: 'student'
+        }
+    });
+    assert.equal(staleMembership.status, 403);
+    assert.equal(staleMembership.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+});
+
+test('account deletion returns after durable local closure without waiting on provider cleanup', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { closeDelayMs: 2500 }
+    });
+    await cleanupServer(t, server);
+
+    const { cookie, credentials } = await signupUser(server, {
+        email: 'delete-provider-delay@example.com',
+        displayName: 'Delayed Cleanup Owner'
+    });
+    const ownerSocket = await connectSocket(server.baseUrl, { extraHeaders: { Cookie: cookie } });
+    t.after(() => closeSocket(ownerSocket));
+
+    const created = await emitAck(ownerSocket, 'create-room', { roomName: 'Deferred cleanup room' });
+    const joined = await emitAck(ownerSocket, 'join-room', {
+        roomId: created.room.roomId,
+        username: 'Deferred Owner'
+    });
+    assert.equal(joined.ok, true);
+    const token = await server.request(`/api/rooms/${created.room.roomId}/video-token`, {
+        method: 'POST',
+        headers: {
+            Cookie: cookie,
+            'X-Halastudy-Membership': joined.membershipToken
+        },
+        body: { displayName: 'Deferred Owner', role: 'student' }
+    });
+    assert.equal(token.status, 200);
+
+    const startedAt = Date.now();
+    const deleted = await authedRequest(server, '/api/me', cookie, {
+        method: 'DELETE',
+        body: { password: credentials.password }
+    });
+    const responseTimeMs = Date.now() - startedAt;
+    assert.equal(deleted.status, 200);
+    assert.equal(deleted.body.cleanupPending, true);
+    assert.ok(responseTimeMs < 1500, `deletion response waited ${responseTimeMs}ms for provider cleanup`);
+
+    const me = await authedRequest(server, '/api/auth/me', cookie);
+    assert.equal(me.body.user, null);
+    assert.equal((await server.request(`/api/rooms/${created.room.roomId}`)).status, 404);
+
+    let providerState = await server.realtimeKitState();
+    const cleanupDeadline = Date.now() + 5000;
+    while (providerState.disabledMeetings.length === 0 && Date.now() < cleanupDeadline) {
+        await delay(100);
+        providerState = await server.realtimeKitState();
+    }
+    assert.equal(providerState.disabledMeetings.length, 1);
+});
+
+test('failed durable account deletion returns 503 and leaves the account live', async (t) => {
+    const server = await startServer();
+    let blockingDirectoryPresent = false;
+    t.after(async () => {
+        if (blockingDirectoryPresent) {
+            fs.rmSync(server.userStateFile, { recursive: true, force: true });
+        }
+        await server.stop();
+        resetStateFile(server.roomStateFile);
+        resetStateFile(server.userStateFile);
+    });
+
+    const { cookie, credentials } = await signupUser(server, { email: 'durable-delete@example.com' });
+    await delay(300);
+    fs.rmSync(server.userStateFile, { force: true });
+    fs.mkdirSync(server.userStateFile);
+    blockingDirectoryPresent = true;
+
+    const failed = await authedRequest(server, '/api/me', cookie, {
+        method: 'DELETE',
+        body: { password: credentials.password }
+    });
+    assert.equal(failed.status, 503);
+    assert.equal(failed.body.errorCode, 'PERSISTENCE_UNAVAILABLE');
+    assert.equal(cookieValue(failed.headers['set-cookie'], 'coStudySessionId'), null);
+
+    const me = await authedRequest(server, '/api/auth/me', cookie);
+    assert.equal(me.status, 200);
+    assert.equal(me.body.user.email, credentials.email);
+
+    fs.rmSync(server.userStateFile, { recursive: true, force: true });
+    blockingDirectoryPresent = false;
 });
 
 test('scheduled room creation is gated on auth over sockets; instant rooms stay guest-open', async (t) => {
@@ -438,6 +804,6 @@ test('banned semantics: a bad users file entry is dropped, not fatal, in non-str
     const { cookie } = await signupUser(server, { email: 'shape@example.com' });
     const me = await authedRequest(server, '/api/auth/me', cookie);
     assert.deepEqual(Object.keys(me.body.user).sort(), [
-        'avatarColor', 'bio', 'createdAt', 'displayName', 'email', 'id', 'streak'
+        'authMethods', 'avatarColor', 'bio', 'createdAt', 'displayName', 'email', 'id', 'streak'
     ]);
 });

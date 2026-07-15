@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { createTestContext, gotoTestPage, test, expect } = require('../helpers/playwright-test');
 
 const { startServer } = require('../helpers/server-control');
 
@@ -6,7 +6,7 @@ const { startServer } = require('../helpers/server-control');
 // scenario under test is killing the backend mid-create.
 test('create form surfaces a retryable error when the server dies mid-create', async ({ browser }) => {
     const server = await startServer();
-    const context = await browser.newContext({
+    const context = await createTestContext(browser, {
         extraHTTPHeaders: {
             'x-forwarded-for': '203.0.113.90'
         }
@@ -18,7 +18,7 @@ test('create form surfaces a retryable error when the server dies mid-create', a
             try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
         });
 
-        await page.goto(`${server.baseUrl}/open.html`);
+        await gotoTestPage(page, `${server.baseUrl}/open.html`);
         await expect(page.locator('#create-form')).toBeVisible();
         await page.fill('#room-name', 'Timeout Smoke Room');
 

@@ -4,6 +4,108 @@ const https = require('node:https');
 const net = require('node:net');
 
 const { repoRoot, makeTempStateFile, resetStateFile } = require('./test-env');
+const { cookieForMembershipToken } = require('./socket-client');
+
+// Child processes get only operating-system plumbing that Node needs. In
+// particular, service credentials from a developer shell must never cross the
+// integration-test boundary implicitly.
+const AMBIENT_ENV_ALLOWLIST = [
+    'CI',
+    'COMSPEC',
+    'ComSpec',
+    'PATH',
+    'PATHEXT',
+    'SystemRoot',
+    'TEMP',
+    'TMP',
+    'TZ',
+    'WINDIR'
+];
+const SERVER_OVERRIDE_ALLOWLIST = new Set([
+    'ADMIN_PASSWORD_HASH',
+    'ADMIN_PATH',
+    'ALLOWED_ORIGINS',
+    'BACKUP_ENCRYPTION_KEY',
+    'BACKUP_INTERVAL_MINUTES',
+    'BACKUP_RETENTION_COUNT',
+    'ENABLE_DEV_MESH',
+    'HOST',
+    'ICE_SERVERS_JSON',
+    'MAX_GLOBAL_VIDEO_PARTICIPANTS',
+    'MAX_ROOM_DURATION_MINUTES',
+    'MAX_ROOM_VIDEO_PARTICIPANTS',
+    'MESH_PARTICIPANT_LIMIT',
+    'PUBLIC_API_BASE_URL',
+    'RESTORE_WRITER_LOCK_FILE',
+    'ROOM_STATE_BACKUP_DIR',
+    'ROOM_STATE_FILE',
+    'SFU_BASE_URL',
+    'TRUST_PROXY',
+    'USER_STATE_FILE',
+    'VIDEO_CHAT_ENABLED',
+    'VIDEO_DEFAULT_PRESET_NAME',
+    'VIDEO_JOIN_DISABLED',
+    'VIDEO_PROVIDER',
+    'VIDEO_RECORDING_ENABLED',
+    'VIDEO_SCREENSHARE_ENABLED',
+    'VIDEO_VIEWER_PRESET_NAME'
+]);
+
+// Fixed so signed cookies stay valid across restart-persistence tests. These
+// values are deliberately test-only and never inherited from the caller.
+const TEST_SESSION_SECRET = 'halastudy-integration-test-secret-0123456789abcdef';
+const TEST_ADMIN_SESSION_SECRET = 'halastudy-integration-admin-secret-fedcba9876543210';
+
+function isLoopbackHostname(hostname) {
+    const normalized = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+    if (normalized === 'localhost' || normalized === '::1') return true;
+    return /^127(?:\.\d{1,3}){3}$/.test(normalized);
+}
+
+function assertLoopbackProviderUrl(value, envName) {
+    if (value === undefined || value === null || String(value).trim() === '') return;
+
+    let parsed;
+    try {
+        parsed = new URL(String(value));
+    } catch (_error) {
+        throw new Error(`${envName} must be an absolute http(s) loopback URL in tests.`);
+    }
+
+    if (!['http:', 'https:'].includes(parsed.protocol) || !isLoopbackHostname(parsed.hostname)) {
+        throw new Error(`${envName} must use a loopback host in tests.`);
+    }
+}
+
+/** @returns {NodeJS.ProcessEnv} */
+function buildTestEnvironment({ ambientEnv = process.env, overrides = {} } = {}) {
+    const env = /** @type {NodeJS.ProcessEnv} */ ({});
+    for (const key of AMBIENT_ENV_ALLOWLIST) {
+        if (ambientEnv[key] !== undefined) env[key] = ambientEnv[key];
+    }
+
+    for (const [key, value] of Object.entries(overrides || {})) {
+        if (key === 'NODE_ENV') {
+            if (value !== 'test') throw new Error('NODE_ENV is fixed to test for test server processes.');
+            continue;
+        }
+        if (!SERVER_OVERRIDE_ALLOWLIST.has(key)) {
+            throw new Error(`${key} is not allowed in a test server environment.`);
+        }
+        if (value !== undefined && value !== null) env[key] = String(value);
+    }
+
+    env.NODE_ENV = 'test';
+    env.SESSION_SECRET = TEST_SESSION_SECRET;
+    env.ADMIN_SESSION_SECRET = TEST_ADMIN_SESSION_SECRET;
+    assertLoopbackProviderUrl(env.SFU_BASE_URL, 'SFU_BASE_URL');
+    assertLoopbackProviderUrl(env.CLOUDFLARE_REALTIMEKIT_API_BASE_URL, 'CLOUDFLARE_REALTIMEKIT_API_BASE_URL');
+    assertLoopbackProviderUrl(
+        env.CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL,
+        'CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL'
+    );
+    return env;
+}
 
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -93,7 +195,7 @@ async function waitForServer(baseUrl, timeoutMs = 15000) {
 
     while (Date.now() - startedAt < timeoutMs) {
         try {
-            const response = await request(baseUrl, '/api/runtime-config');
+            const response = await request(baseUrl, '/api/ready');
             if (response.status === 200) {
                 return;
             }
@@ -142,6 +244,13 @@ async function stopChild(childProcess, timeoutMs = 10000) {
     await exitPromise;
 }
 
+async function crashChild(childProcess) {
+    if (!childProcess || childProcess.exitCode !== null || childProcess.signalCode !== null) return;
+    const exited = new Promise((resolve) => childProcess.once('exit', resolve));
+    childProcess.kill('SIGKILL');
+    await exited;
+}
+
 async function startFakeSfu(options = {}) {
     const port = options.port || await getFreePort();
     const stdout = [];
@@ -149,7 +258,7 @@ async function startFakeSfu(options = {}) {
     const child = spawn(process.execPath, ['tests/helpers/fake-sfu-fixture.js'], {
         cwd: repoRoot,
         env: {
-            ...process.env,
+            ...buildTestEnvironment(),
             PORT: String(port)
         },
         stdio: ['ignore', 'pipe', 'pipe']
@@ -200,9 +309,15 @@ async function startFakeRealtimeKit(options = {}) {
     const child = spawn(process.execPath, ['tests/helpers/fake-realtimekit-fixture.js'], {
         cwd: repoRoot,
         env: {
-            ...process.env,
+            ...buildTestEnvironment(),
             PORT: String(port),
-            REALTIMEKIT_FAIL_PARTICIPANT: options.failParticipants ? '1' : '0'
+            REALTIMEKIT_FAIL_PARTICIPANT: options.failParticipants ? '1' : '0',
+            REALTIMEKIT_FAIL_RECONCILIATION: options.failReconciliation ? '1' : '0',
+            REALTIMEKIT_FAIL_CLOSE: options.failClose ? '1' : '0',
+            REALTIMEKIT_MEETING_DELAY_MS: String(options.meetingDelayMs || 0),
+            REALTIMEKIT_PARTICIPANT_DELAY_MS: String(options.participantDelayMs || 0),
+            REALTIMEKIT_CLOSE_DELAY_MS: String(options.closeDelayMs || 0),
+            REALTIMEKIT_INITIAL_ACTIVE_SESSIONS_JSON: JSON.stringify(options.activeSessions || {})
         },
         stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -237,6 +352,15 @@ async function startFakeRealtimeKit(options = {}) {
             const response = await request(baseUrl, '/__state');
             return response.body;
         },
+        async sign(event, uuid) {
+            const raw = JSON.stringify(event);
+            const response = await request(baseUrl, '/__sign', {
+                method: 'POST',
+                body: { raw, uuid }
+            });
+            if (response.status !== 200) throw new Error('Fake RealtimeKit could not sign a webhook.');
+            return { raw, signature: response.body.signature, uuid: response.body.uuid };
+        },
         async stop() {
             await stopChild(child);
         },
@@ -249,20 +373,18 @@ async function startFakeRealtimeKit(options = {}) {
     };
 }
 
-// Fixed so signed cookies stay valid across the restart-persistence tests.
-const TEST_SESSION_SECRET = 'halastudy-integration-test-secret-0123456789abcdef';
-
 async function startServer(options = {}) {
     const port = options.port || await getFreePort();
-    const roomStateFile = options.roomStateFile || makeTempStateFile('co-study-integration');
-    const userStateFile = options.userStateFile || makeTempStateFile('co-study-users');
+    const requestedEnv = buildTestEnvironment({ overrides: options.env || {} });
+    const roomStateFile = options.roomStateFile || requestedEnv.ROOM_STATE_FILE || makeTempStateFile('co-study-integration');
+    const userStateFile = options.userStateFile || requestedEnv.USER_STATE_FILE || makeTempStateFile('co-study-users');
     const shouldResetStateFile = options.resetStateFileOnStart !== false;
     if (shouldResetStateFile) {
         resetStateFile(roomStateFile);
         resetStateFile(userStateFile);
     }
 
-    const externalSfuBaseUrl = options.env?.SFU_BASE_URL;
+    const externalSfuBaseUrl = requestedEnv.SFU_BASE_URL;
     const fakeSfu = options.withFakeSfu && !externalSfuBaseUrl
         ? await startFakeSfu(options.fakeSfuOptions || {})
         : null;
@@ -275,21 +397,21 @@ async function startServer(options = {}) {
     const child = spawn(process.execPath, ['server.js'], {
         cwd: repoRoot,
         env: {
-            ...process.env,
-            NODE_ENV: 'test',
+            ...requestedEnv,
             PORT: String(port),
             ROOM_STATE_FILE: roomStateFile,
             USER_STATE_FILE: userStateFile,
             SESSION_SECRET: TEST_SESSION_SECRET,
-            SFU_BASE_URL: fakeSfu ? fakeSfu.baseUrl : '',
+            ADMIN_SESSION_SECRET: TEST_ADMIN_SESSION_SECRET,
+            SFU_BASE_URL: fakeSfu ? fakeSfu.baseUrl : (requestedEnv.SFU_BASE_URL || ''),
             ...(fakeRealtimeKit ? {
                 VIDEO_PROVIDER: 'realtimekit',
                 CLOUDFLARE_ACCOUNT_ID: 'fake-account',
                 CLOUDFLARE_REALTIMEKIT_APP_ID: 'fake-app',
                 CLOUDFLARE_REALTIMEKIT_API_TOKEN: 'fake-secret-token',
-                CLOUDFLARE_REALTIMEKIT_API_BASE_URL: fakeRealtimeKit.baseUrl
-            } : {}),
-            ...options.env
+                CLOUDFLARE_REALTIMEKIT_API_BASE_URL: fakeRealtimeKit.baseUrl,
+                CLOUDFLARE_REALTIMEKIT_WEBHOOK_PUBLIC_KEY_URL: `${fakeRealtimeKit.baseUrl}/.well-known/webhooks.json`
+            } : {})
         },
         stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -341,6 +463,11 @@ async function startServer(options = {}) {
                 await fakeRealtimeKit.stop();
             }
         },
+        async crash() {
+            await crashChild(child);
+            if (fakeSfu) await fakeSfu.stop();
+            if (fakeRealtimeKit) await fakeRealtimeKit.stop();
+        },
         logs() {
             return {
                 stdout: stdout.join(''),
@@ -352,13 +479,32 @@ async function startServer(options = {}) {
         async realtimeKitState() {
             return fakeRealtimeKit ? fakeRealtimeKit.state() : null;
         },
+        async signRealtimeKitWebhook(event, uuid) {
+            if (!fakeRealtimeKit) throw new Error('Fake RealtimeKit is not enabled.');
+            return fakeRealtimeKit.sign(event, uuid);
+        },
         async request(pathname, requestOptions) {
-            return request(baseUrl, pathname, requestOptions);
+            const normalizedOptions = { ...(requestOptions || {}) };
+            const headers = { ...(normalizedOptions.headers || {}) };
+            const membershipHeader = Object.entries(headers).find(
+                ([name]) => name.toLowerCase() === 'x-halastudy-membership'
+            );
+            const hasCookie = Object.keys(headers).some((name) => name.toLowerCase() === 'cookie');
+            const membershipCookie = membershipHeader
+                ? cookieForMembershipToken(Array.isArray(membershipHeader[1])
+                    ? membershipHeader[1][0]
+                    : membershipHeader[1])
+                : '';
+            if (!hasCookie && membershipCookie) headers.Cookie = membershipCookie;
+            normalizedOptions.headers = headers;
+            return request(baseUrl, pathname, normalizedOptions);
         }
     };
 }
 
 module.exports = {
+    buildTestEnvironment,
     delay,
-    startServer
+    startServer,
+    waitForServer
 };
