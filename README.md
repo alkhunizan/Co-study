@@ -24,7 +24,7 @@ This release ships with:
 - Shared room board, room status sharing, and ambient sounds
 - Reusable scheduled rooms with Riyadh-based cadence, countdowns, calendar export, and WhatsApp-ready invites
 - Disk-backed room persistence for chat history and board state
-- TURN-ready runtime ICE config
+- Local-development mesh/ICE diagnostics (disabled in production)
 - Launch guardrails: 20 global active video participants, 20 per room, mic off by default, recording off
 - AI focus monitoring through the browser FaceDetector API
 - Health/readiness/metrics endpoints, abuse controls, automated + manual state backup/restore, bilingual 404, and a PWA manifest

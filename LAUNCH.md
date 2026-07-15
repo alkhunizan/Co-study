@@ -58,7 +58,6 @@ HOST=127.0.0.1
 TRUST_PROXY=1
 ALLOWED_ORIGINS=https://halastudy.com          # your exact origin
 ROOM_STATE_FILE=/var/lib/halastudy/rooms.json
-USER_STATE_FILE=/var/lib/halastudy/users.json
 ROOM_STATE_BACKUP_DIR=/var/lib/halastudy/backups
 BACKUP_INTERVAL_MINUTES=0
 BACKUP_ENCRYPTION_KEY=<32 random bytes as base64>
@@ -113,8 +112,9 @@ Two phones on **two different cellular carriers** (STC + Mobily/Zain), not Wi-Fi
 
 Ship to your first ~5 real Saudi students only when: verify:deploy is green,
 two-carrier camera QA passed, and the admin console works end-to-end. Everything
-else (Supabase migration, admin 2FA, email verification) is a post-signal
-problem — don't gate the beta on it.
+else (such as admin 2FA and email verification) can follow product signal. The
+additive Supabase migrations are a launch requirement and must pass their
+dry-run before this gate.
 
 ## 7. First-week ops
 
