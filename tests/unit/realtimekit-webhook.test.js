@@ -194,6 +194,31 @@ test('webhook UUID deduplication survives restart for 24 hours', async (t) => {
     assert.equal(processed, 2);
 });
 
+test('failed webhook hydration discards every partially parsed delivery', async (t) => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-webhook-retry-'));
+    const filePath = path.join(directory, 'events.jsonl');
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    fs.writeFileSync(filePath, [
+        JSON.stringify({ schemaVersion: 2, type: 'header' }),
+        JSON.stringify({ type: 'accepted', deliveryId: 'stale-delivery', acceptedAt: 1_000 }),
+        JSON.stringify({ type: 'invalid' }),
+        ''
+    ].join('\n'));
+    const deduplicator = createWebhookDeduplicator({ filePath, now: () => 1_001 });
+
+    await assert.rejects(deduplicator.initialize(), /malformed/);
+    assert.equal(deduplicator.entries.size, 0);
+
+    fs.writeFileSync(filePath, [
+        JSON.stringify({ schemaVersion: 2, type: 'header' }),
+        JSON.stringify({ type: 'accepted', deliveryId: 'fresh-delivery', acceptedAt: 1_001 }),
+        ''
+    ].join('\n'));
+    assert.equal(await deduplicator.initialize(), 1);
+    assert.equal(deduplicator.entries.has('stale-delivery'), false);
+    assert.equal(deduplicator.entries.has('fresh-delivery'), true);
+});
+
 test('webhook deduplication appends durable records instead of rewriting the full set', async (t) => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'halastudy-webhook-journal-'));
     const filePath = path.join(directory, 'events.jsonl');

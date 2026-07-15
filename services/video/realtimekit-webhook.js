@@ -136,34 +136,42 @@ function createWebhookDeduplicator(options = {}) {
 
     async function initialize() {
         if (initialized) return entries.size;
-        let raw = '';
+        entries.clear();
         try {
-            raw = await fsImpl.readFile(filePath, 'utf8');
-        } catch (error) {
-            if (error.code !== 'ENOENT') throw error;
-        }
-        if (raw.trim()) {
-            let legacyLoaded = false;
+            let raw = '';
             try {
-                legacyLoaded = loadLegacySnapshot(JSON.parse(raw));
-            } catch (_error) {}
-            if (!legacyLoaded) {
-                loadJournal(raw);
+                raw = await fsImpl.readFile(filePath, 'utf8');
+            } catch (error) {
+                if (error.code !== 'ENOENT') throw error;
             }
+            if (raw.trim()) {
+                let legacyLoaded = false;
+                try {
+                    legacyLoaded = loadLegacySnapshot(JSON.parse(raw));
+                } catch (_error) {}
+                if (!legacyLoaded) {
+                    loadJournal(raw);
+                }
+            }
+            prune();
+            if (entries.size > maxEntries) {
+                throw createWebhookError('WEBHOOK_DEDUP_CAPACITY_EXHAUSTED');
+            }
+            if (raw.trim() || entries.size > 0) {
+                await compactJournal();
+            } else {
+                // Avoid creating runtime state on read-only/empty startup. The
+                // first accepted delivery appends the header and fsynced record.
+                atomicStore.setBaseline(serializeJournal());
+            }
+            initialized = true;
+            return entries.size;
+        } catch (error) {
+            // Startup retries must never inherit a prefix parsed from a
+            // malformed or partially-read journal.
+            entries.clear();
+            throw error;
         }
-        prune();
-        if (entries.size > maxEntries) {
-            throw createWebhookError('WEBHOOK_DEDUP_CAPACITY_EXHAUSTED');
-        }
-        if (raw.trim() || entries.size > 0) {
-            await compactJournal();
-        } else {
-            // Avoid creating runtime state on read-only/empty startup. The
-            // first accepted delivery appends the header and fsynced record.
-            atomicStore.setBaseline(serializeJournal());
-        }
-        initialized = true;
-        return entries.size;
     }
 
     function runOnce(rawDeliveryId, processor) {
