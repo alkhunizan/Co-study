@@ -335,6 +335,12 @@ function resolveRuntimeIceServers(rawValue) {
 function resolveSupabaseConfig(env) {
     const url = typeof env.SUPABASE_URL === 'string' ? env.SUPABASE_URL.trim().replace(/\/+$/, '') : '';
     const serviceKey = typeof env.SUPABASE_SERVICE_ROLE_KEY === 'string' ? env.SUPABASE_SERVICE_ROLE_KEY.trim() : '';
+    if (!!url !== !!serviceKey) {
+        throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured together.');
+    }
+    if (env.NODE_ENV === 'production' && !url) {
+        throw new Error('Complete Supabase persistence is required in production.');
+    }
     return { enabled: !!(url && serviceKey), url, serviceKey };
 }
 
@@ -776,6 +782,7 @@ function createCoStudyServer(options = {}) {
     const rooms = new Map();
     const meetingCreationLocks = new Map();
     const roomLifecycleLocks = new Map();
+    const socketMembershipLocks = new Map();
     const membershipTokens = new Map();
     const rateLimiters = {
         createRoom: new SlidingWindowRateLimiter(CREATE_ROOM_RATE),
@@ -1049,8 +1056,7 @@ function createCoStudyServer(options = {}) {
             `${SESSION_COOKIE_NAME}=${token}`,
             'Path=/',
             'HttpOnly',
-            'SameSite=Lax',
-            `Max-Age=${SESSION_COOKIE_MAX_AGE}`
+            'SameSite=Lax'
         ];
         if (req.secure) {
             cookieParts.push('Secure');
@@ -1649,6 +1655,25 @@ function createCoStudyServer(options = {}) {
         });
     }
 
+    function runRoomLifecycleOperations(roomIds, operation) {
+        const normalizedRooms = [...new Set(roomIds.map((roomId) => normalizeRoom(roomId)).filter(Boolean))].sort();
+        const acquireAt = (index) => index >= normalizedRooms.length
+            ? operation()
+            : runRoomLifecycleOperation(normalizedRooms[index], () => acquireAt(index + 1));
+        return acquireAt(0);
+    }
+
+    function runSocketMembershipOperation(socketId, operation) {
+        const previous = socketMembershipLocks.get(socketId) || Promise.resolve();
+        const attempt = previous.catch(() => {}).then(operation);
+        socketMembershipLocks.set(socketId, attempt);
+        return attempt.finally(() => {
+            if (socketMembershipLocks.get(socketId) === attempt) {
+                socketMembershipLocks.delete(socketId);
+            }
+        });
+    }
+
     async function performCloseRoomLifecycle(roomId, options = {}) {
         const normalizedRoom = normalizeRoom(roomId);
         const room = rooms.get(normalizedRoom);
@@ -2099,6 +2124,10 @@ function createCoStudyServer(options = {}) {
         if (!socketRef || !member) return null;
         if (socketRef.data.membershipToken !== token || member.membershipToken !== token) return null;
         if (socketRef.data.roomId !== roomId || member.identityId !== membership.identityId) return null;
+        const requestIdentityId = req.user
+            ? `user:${req.user.id}`
+            : (req.sessionId ? `anon:${req.sessionId}` : null);
+        if (!requestIdentityId || requestIdentityId !== membership.identityId) return null;
         return { membership, member, socketRef };
     }
 
@@ -3352,9 +3381,22 @@ function createCoStudyServer(options = {}) {
                     return;
                 }
 
+                const runHandler = () => handler(payload, safeAck);
+                const runSerializedHandler = eventName === 'join-room'
+                    ? () => runSocketMembershipOperation(socket.id, () => {
+                        const requestedRoom = typeof payload.roomId === 'string'
+                            ? normalizeRoom(payload.roomId)
+                            : '';
+                        return runRoomLifecycleOperations(
+                            [socket.data.roomId || '', requestedRoom],
+                            runHandler
+                        );
+                    })
+                    : runHandler;
+
                 inFlightMutations += 1;
                 Promise.resolve()
-                    .then(() => handler(payload, safeAck))
+                    .then(runSerializedHandler)
                     .catch((error) => {
                         logger.error({
                             event: 'socket_request_failed',
@@ -4120,5 +4162,6 @@ function createCoStudyServer(options = {}) {
 module.exports = {
     createCoStudyServer,
     DEFAULT_ICE_SERVERS,
-    resolveBackupConfig
+    resolveBackupConfig,
+    resolveSupabaseConfig
 };

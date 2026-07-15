@@ -4,6 +4,7 @@ const https = require('node:https');
 const net = require('node:net');
 
 const { repoRoot, makeTempStateFile, resetStateFile } = require('./test-env');
+const { cookieForMembershipToken } = require('./socket-client');
 
 // Child processes get only operating-system plumbing that Node needs. In
 // particular, service credentials from a developer shell must never cross the
@@ -480,7 +481,20 @@ async function startServer(options = {}) {
             return fakeRealtimeKit.sign(event, uuid);
         },
         async request(pathname, requestOptions) {
-            return request(baseUrl, pathname, requestOptions);
+            const normalizedOptions = { ...(requestOptions || {}) };
+            const headers = { ...(normalizedOptions.headers || {}) };
+            const membershipHeader = Object.entries(headers).find(
+                ([name]) => name.toLowerCase() === 'x-halastudy-membership'
+            );
+            const hasCookie = Object.keys(headers).some((name) => name.toLowerCase() === 'cookie');
+            const membershipCookie = membershipHeader
+                ? cookieForMembershipToken(Array.isArray(membershipHeader[1])
+                    ? membershipHeader[1][0]
+                    : membershipHeader[1])
+                : '';
+            if (!hasCookie && membershipCookie) headers.Cookie = membershipCookie;
+            normalizedOptions.headers = headers;
+            return request(baseUrl, pathname, normalizedOptions);
         }
     };
 }

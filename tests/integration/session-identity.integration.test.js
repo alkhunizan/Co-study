@@ -78,6 +78,8 @@ test('a fresh request receives a signed coStudySessionId cookie', async (t) => {
 
     assert.ok(cookieValue, 'expected a coStudySessionId cookie to be set');
     assert.match(cookieValue, /^as1\./, 'session cookie must be a signed token, not a bare UUID');
+    assert.doesNotMatch(String(res.headers['set-cookie']), /(?:Max-Age|Expires)=/i,
+        'anonymous identity must end with the browser session');
 });
 
 test('a valid signed session cookie is accepted without reissue', async (t) => {
@@ -140,6 +142,38 @@ test('joining a second room removes the socket from the first room', async (t) =
     const names = checkerJoin.room.participants.map((p) => p.name);
     assert.ok(!names.includes('Mover'),
         `Mover must be removed from room A after switching to B; saw ${JSON.stringify(names)}`);
+});
+
+test('concurrent room switches serialize so a socket remains in exactly one target room', async (t) => {
+    const server = await startServer();
+    t.after(() => server.stop());
+
+    const mover = await connectSocket(server.baseUrl);
+    const observerA = await connectSocket(server.baseUrl);
+    const observerB = await connectSocket(server.baseUrl);
+    t.after(async () => {
+        await closeSocket(mover);
+        await closeSocket(observerA);
+        await closeSocket(observerB);
+    });
+
+    const source = (await emitAck(mover, 'create-room', { roomName: 'Concurrent source' })).room.code;
+    const targetA = (await emitAck(mover, 'create-room', { roomName: 'Concurrent A' })).room.code;
+    const targetB = (await emitAck(mover, 'create-room', { roomName: 'Concurrent B' })).room.code;
+    assert.equal((await emitAck(mover, 'join-room', { roomId: source, username: 'Mover' })).ok, true);
+
+    const switches = await Promise.all([
+        emitAck(mover, 'join-room', { roomId: targetA, username: 'Mover' }),
+        emitAck(mover, 'join-room', { roomId: targetB, username: 'Mover' })
+    ]);
+    assert.ok(switches.every((result) => result.ok));
+
+    const snapshotA = await emitAck(observerA, 'join-room', { roomId: targetA, username: 'Observer A' });
+    const snapshotB = await emitAck(observerB, 'join-room', { roomId: targetB, username: 'Observer B' });
+    const targetPresenceCount = [snapshotA, snapshotB].filter((snapshot) => (
+        snapshot.room.participants.some((participant) => participant.name === 'Mover')
+    )).length;
+    assert.equal(targetPresenceCount, 1);
 });
 
 test('malformed socket payloads return REQUEST_INVALID without terminating the server', async (t) => {
@@ -344,6 +378,17 @@ test('video endpoints require the server-issued room membership and video sessio
     });
     assert.equal(forged.status, 403);
     assert.equal(forged.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+
+    const copiedVictimToken = await server.request(`/api/rooms/${roomId}/video-token`, {
+        method: 'POST',
+        headers: {
+            Cookie: /** @type {any} */ (attacker).sessionCookie,
+            'X-Halastudy-Membership': ownerJoin.membershipToken
+        },
+        body: { displayName: 'Owner', role: 'student' }
+    });
+    assert.equal(copiedVictimToken.status, 403);
+    assert.equal(copiedVictimToken.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
 
     const issued = await server.request(`/api/rooms/${roomId}/video-token`, {
         method: 'POST',
