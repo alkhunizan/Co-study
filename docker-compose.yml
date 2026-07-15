@@ -10,6 +10,7 @@ services:
       - ./data:/app/data
     environment:
       PORT: "3000"
+      HOST: "0.0.0.0"
       NODE_ENV: development
       VIDEO_PROVIDER: mesh
     restart: unless-stopped
