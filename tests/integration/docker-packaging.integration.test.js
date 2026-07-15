@@ -31,6 +31,7 @@ test('Docker image copies only runtime paths and drops root before startup', () 
     assert.match(dockerfile, /COPY --chown=node:node package\.json package-lock\.json/);
     assert.match(dockerfile, /COPY --chown=node:node services \.\/services/);
     assert.match(dockerfile, /RUN mkdir -p \/app\/data\/backups/);
+    assert.match(dockerfile, /ENV HOST=0\.0\.0\.0/);
     assert.match(dockerfile, /\nUSER node\s*\n/);
     assert.match(dockerfile, /HEALTHCHECK[\s\S]*\/api\/health/);
 });
@@ -40,5 +41,6 @@ test('Docker Compose is explicitly local development with mesh media', () => {
 
     assert.match(compose, /NODE_ENV:\s*development/);
     assert.match(compose, /VIDEO_PROVIDER:\s*mesh/);
+    assert.match(compose, /HOST:\s*["']?0\.0\.0\.0["']?/);
     assert.doesNotMatch(compose, /NODE_ENV[=:]-?production/);
 });

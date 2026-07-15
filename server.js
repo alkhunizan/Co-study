@@ -7,5 +7,6 @@ const appServer = createCoStudyServer({
 });
 
 appServer.listen(({ config }) => {
-    console.log(`Co-Study backend listening on http://127.0.0.1:${config.port}`);
+    const displayHost = config.host.includes(':') ? `[${config.host}]` : config.host;
+    console.log(`Co-Study backend listening on http://${displayHost}:${config.port}`);
 });

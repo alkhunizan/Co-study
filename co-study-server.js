@@ -15,6 +15,7 @@ const { createLogger } = require('./services/logging/logger');
 const { createErrorBuffer } = require('./services/ops/error-buffer');
 const { createBackupScheduler } = require('./services/ops/backup-scheduler');
 const { createAdminRouter } = require('./services/admin/admin-routes');
+const { resolveListenHost } = require('./services/config/network');
 const { resolveSessionSecrets } = require('./services/config/secrets');
 const { hashPassword, verifyPassword } = require('./services/auth/password');
 const {
@@ -386,6 +387,7 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
     const roomStateFile = path.resolve(env.ROOM_STATE_FILE || path.join(__dirname, 'data', 'rooms.json'));
     const userStateFile = path.resolve(env.USER_STATE_FILE || path.join(__dirname, 'data', 'users.json'));
     const roomStateBackupDir = path.resolve(env.ROOM_STATE_BACKUP_DIR || path.join(__dirname, 'data', 'backups'));
+    const host = resolveListenHost(env);
     const {
         sessionSecret,
         adminSessionSecret,
@@ -414,6 +416,7 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
 
     return {
         mode,
+        host,
         port,
         trustProxy,
         allowedOrigins,
@@ -2720,10 +2723,11 @@ function createCoStudyServer(options = {}) {
     });
 
     function listen(callback) {
-        server.listen(config.port, () => {
+        server.listen(config.port, config.host, () => {
             const startupSummary = {
                 event: 'startup',
                 mode: config.mode,
+                host: config.host,
                 port: config.port,
                 roomStateFile: roomStore.filePath,
                 userStateFile: userStore.filePath,
