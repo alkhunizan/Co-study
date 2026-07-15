@@ -11,6 +11,7 @@
 const express = require('express');
 const { normalizeEmail, sanitizeUserText } = require('./index');
 const {
+    GOOGLE_DELETE_GRANT_COOKIE,
     OAUTH_STATE_MAX_AGE_MS,
     createOAuthSecurity,
     normalizeLocalNext
@@ -91,6 +92,18 @@ function createGoogleAuthRouter(deps = {}) {
         appendSetCookie(res, parts.join('; '));
     }
 
+    function setDeletionGrantCookie(req, res, token) {
+        const parts = [
+            `${GOOGLE_DELETE_GRANT_COOKIE}=${token}`,
+            'Path=/api/me',
+            'HttpOnly',
+            'SameSite=Lax',
+            `Max-Age=${Math.floor(OAUTH_STATE_MAX_AGE_MS / 1000)}`
+        ];
+        if (req.secure) parts.push('Secure');
+        appendSetCookie(res, parts.join('; '));
+    }
+
     // Linking starts with a password recheck. The short-lived HttpOnly proof
     // is consumed by the subsequent browser GET before any Google redirect.
     router.post('/api/auth/google/link', async (req, res) => {
@@ -126,8 +139,8 @@ function createGoogleAuthRouter(deps = {}) {
         const requestIp = getRequestIp(req);
         if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
 
-        const intent = typeof req.query.intent === 'string' ? req.query.intent : 'signin';
-        if (intent !== 'signin' && intent !== 'link') {
+        const intent = req.query.intent === undefined ? 'signin' : req.query.intent;
+        if (intent !== 'signin' && intent !== 'link' && intent !== 'reauth_delete') {
             res.status(400).json({ errorCode: 'OAUTH_INTENT_INVALID' });
             return;
         }
@@ -148,8 +161,19 @@ function createGoogleAuthRouter(deps = {}) {
                 return;
             }
             userId = req.user.id;
+        } else if (intent === 'reauth_delete') {
+            if (!req.user?.googleSub) {
+                res.redirect('/account?auth=reauth_required');
+                return;
+            }
+            userId = req.user.id;
         }
-        const fallback = intent === 'link' ? '/account?auth=google_linked' : '/account?auth=google';
+        const fallbackByIntent = {
+            signin: '/account?auth=google',
+            link: '/account?auth=google_linked',
+            reauth_delete: '/account?auth=delete_granted'
+        };
+        const fallback = fallbackByIntent[intent];
         const next = normalizeLocalNext(req.query.next, fallback);
         const state = oauthSecurity.issueState({ intent, next, userId });
         setStateCookie(req, res, state.nonce);
@@ -233,6 +257,20 @@ function createGoogleAuthRouter(deps = {}) {
         const subjectMatches = Array.from(users.values())
             .filter((candidate) => candidate.googleSub === googleSub);
 
+        if (state.intent === 'reauth_delete') {
+            const user = req.user;
+            if (user.googleSub !== googleSub
+                || subjectMatches.length !== 1
+                || subjectMatches[0].id !== user.id) {
+                logger.warn({ event: 'google_delete_reauth_mismatch', userId: user.id });
+                return res.redirect('/account?auth=google_reauth_failed');
+            }
+            const grant = oauthSecurity.issueProof({ purpose: 'delete_grant', userId: user.id });
+            setDeletionGrantCookie(req, res, grant);
+            logger.info({ event: 'google_delete_reauthenticated', userId: user.id });
+            return res.redirect(state.next);
+        }
+
         if (state.intent === 'link') {
             const user = req.user;
             if (user.passwordEnabled === false || !user.passwordHash || user.googleSub) {
@@ -247,11 +285,12 @@ function createGoogleAuthRouter(deps = {}) {
                 return res.redirect('/account?auth=google_subject_in_use');
             }
 
+            const previousGoogleSub = user.googleSub;
             user.googleSub = googleSub;
             try {
                 await persistUser(user);
             } catch (error) {
-                user.googleSub = null;
+                user.googleSub = previousGoogleSub;
                 logger.error({ event: 'google_link_persist_failed', userId: user.id, error: error?.message });
                 return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
             }

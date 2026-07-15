@@ -4,7 +4,9 @@ const test = require('node:test');
 
 const express = require('express');
 
+const { createAuthRouter } = require('../../services/auth/auth-routes');
 const { createGoogleAuthRouter } = require('../../services/auth/google-routes');
+const { createOAuthSecurity } = require('../../services/auth/oauth-security');
 const { hashPassword } = require('../../services/auth/password');
 const { createUser } = require('../../user-store');
 
@@ -19,6 +21,7 @@ function appendSetCookie(res, value) {
     }
 }
 
+/** @returns {Record<string, string>} */
 function parseCookies(raw) {
     return String(raw || '')
         .split(';')
@@ -56,7 +59,12 @@ async function makeAuthenticatedPasswordUser(email, password = 'correct-password
     });
 }
 
-async function startHarness(t, { users: initialUsers = [], profile, persistError = null }) {
+async function startHarness(t, {
+    users: initialUsers = [],
+    profile,
+    persistError = null,
+    deleteError = null
+}) {
     const users = new Map(initialUsers.map((user) => [user.id, user]));
     const usersByEmail = new Map(initialUsers.map((user) => [user.email, user.id]));
     const usersByGoogleSub = new Map(
@@ -65,6 +73,11 @@ async function startHarness(t, { users: initialUsers = [], profile, persistError
     const authSessions = [];
     let persistCount = 0;
     let providerRequestCount = 0;
+    let deleteCount = 0;
+    let anonymousRotationCount = 0;
+    const oauthSecurity = createOAuthSecurity({
+        secret: 'google-harness-session-secret-at-least-32-bytes'
+    });
 
     const app = express();
     app.use(express.json());
@@ -73,6 +86,44 @@ async function startHarness(t, { users: initialUsers = [], profile, persistError
         if (testUserId && users.has(testUserId)) req.user = users.get(testUserId);
         next();
     });
+    app.use('/api', createAuthRouter({
+        users,
+        usersByEmail,
+        rooms: new Map(),
+        rateLimiters: {
+            authLogin: {},
+            authSignup: {},
+            authFailure: { check: () => ({ allowed: true }), consume() {}, reset() {} },
+            profileMutation: {},
+            focusLog: {}
+        },
+        applyHttpRateLimit: () => true,
+        getRequestIp: () => '127.0.0.1',
+        publicUser: (user) => ({ id: user.id, email: user.email }),
+        setAuthCookie: () => {},
+        clearAuthCookie: (_req, res) => appendSetCookie(res, 'coStudyAuth=; Path=/; Max-Age=0'),
+        rotateAnonymousIdentity: (_req, res) => {
+            anonymousRotationCount += 1;
+            appendSetCookie(res, `coStudySessionId=rotated-${anonymousRotationCount}; Path=/; HttpOnly`);
+        },
+        appendSetCookie,
+        parseCookies,
+        oauthSecurity,
+        persistUser: async () => {},
+        deleteUser: async () => {
+            deleteCount += 1;
+            if (deleteError) throw deleteError;
+        },
+        persistFocusCompletion: async () => {},
+        requireUser: (req, res, next) => {
+            if (!req.user) {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
+            }
+            next();
+        },
+        logger: { info() {}, warn() {}, error() {} }
+    }));
     app.use(createGoogleAuthRouter({
         config: {
             enabled: true,
@@ -100,6 +151,7 @@ async function startHarness(t, { users: initialUsers = [], profile, persistError
             if (persistError) throw persistError;
         },
         sessionSecret: 'google-harness-session-secret-at-least-32-bytes',
+        oauthSecurity,
         logger: { info() {}, warn() {}, error() {} },
         fetchImpl: async (url) => {
             providerRequestCount += 1;
@@ -133,6 +185,12 @@ async function startHarness(t, { users: initialUsers = [], profile, persistError
         },
         get providerRequestCount() {
             return providerRequestCount;
+        },
+        get deleteCount() {
+            return deleteCount;
+        },
+        get anonymousRotationCount() {
+            return anonymousRotationCount;
         },
         authCookie(user) {
             return `testAuth=${user.id}`;
@@ -307,6 +365,10 @@ test('Google OAuth state is opaque, five-minute, single-use, and preserves only 
         pathname: '/auth/google?next=%2F%25255cevil.example%2Faccount'
     });
     assert.equal(unsafe.response.headers.get('location'), '/account?auth=google');
+
+    const invalidIntent = await harness.request('/auth/google?intent=link&intent=signin');
+    assert.equal(invalidIntent.status, 400);
+    assert.deepEqual(await invalidIntent.json(), { errorCode: 'OAUTH_INTENT_INVALID' });
 });
 
 test('Google linking requires an authenticated password recheck and links the same verified email', async (t) => {
@@ -503,4 +565,136 @@ test('failed Google link persistence rolls the in-memory identity back', async (
     assert.deepEqual(await result.response.json(), { errorCode: 'PERSISTENCE_UNAVAILABLE' });
     assert.equal(existing.googleSub, null);
     assert.equal(harness.persistCount, 1);
+});
+
+test('Google reauthentication issues a one-time deletion grant for the exact linked subject', async (t) => {
+    const googleOnly = createUser({
+        email: 'delete-google@example.com',
+        passwordHash: null,
+        passwordEnabled: false,
+        googleSub: 'delete-google-sub',
+        displayName: 'Delete Me'
+    });
+    const harness = await startHarness(t, {
+        users: [googleOnly],
+        profile: {
+            sub: 'delete-google-sub',
+            email: 'changed-provider-email@example.com',
+            email_verified: true,
+            name: 'Delete Me'
+        }
+    });
+    const authCookie = harness.authCookie(googleOnly);
+    const flow = await harness.startGoogleFlow(
+        '/auth/google?intent=reauth_delete&next=%2Faccount%3Fdelete%3Dready',
+        authCookie
+    );
+    const callback = await harness.request(
+        `/auth/google/callback?code=test-code&state=${encodeURIComponent(flow.state)}`,
+        { headers: { Cookie: `${authCookie}; ${flow.stateCookie}` } }
+    );
+
+    assert.equal(callback.status, 302);
+    assert.equal(callback.headers.get('location'), '/account?delete=ready');
+    const grantHeaders = getSetCookies(callback.headers);
+    const grantCookie = grantHeaders
+        .map((cookie) => cookie.split(';')[0])
+        .find((cookie) => cookie.startsWith('hala_delete_grant='));
+    assert.ok(grantCookie);
+    assert.match(grantHeaders.join('\n'), /Path=\/api\/me/);
+    assert.match(grantHeaders.join('\n'), /HttpOnly/);
+    assert.match(grantHeaders.join('\n'), /Max-Age=300/);
+
+    const deleted = await harness.request('/api/me', {
+        method: 'DELETE',
+        headers: { Cookie: `${authCookie}; ${grantCookie}` },
+        body: {}
+    });
+    assert.equal(deleted.status, 200);
+    assert.equal(harness.users.has(googleOnly.id), false);
+    assert.equal(harness.usersByEmail.has(googleOnly.email), false);
+    assert.equal(harness.deleteCount, 1);
+    assert.equal(harness.anonymousRotationCount, 1);
+    const deletionCookies = getSetCookies(deleted.headers).join('\n');
+    assert.match(deletionCookies, /hala_delete_grant=.*Max-Age=0/);
+    assert.match(deletionCookies, /coStudyAuth=.*Max-Age=0/);
+    assert.match(deletionCookies, /coStudySessionId=rotated-1/);
+
+    const replay = await harness.request(
+        `/auth/google/callback?code=test-code&state=${encodeURIComponent(flow.state)}`,
+        { headers: { Cookie: `${authCookie}; ${flow.stateCookie}` } }
+    );
+    assert.equal(replay.headers.get('location'), '/account?auth=google_failed');
+    assert.equal(harness.providerRequestCount, 2);
+});
+
+test('Google deletion reauthentication rejects a different subject and an unauthenticated start', async (t) => {
+    const linked = await makeAuthenticatedPasswordUser('linked@example.com');
+    linked.googleSub = 'expected-sub';
+    const harness = await startHarness(t, {
+        users: [linked],
+        profile: {
+            sub: 'different-sub',
+            email: linked.email,
+            email_verified: true,
+            name: 'Different Google Account'
+        }
+    });
+
+    const unauthenticated = await harness.request('/auth/google?intent=reauth_delete');
+    assert.equal(unauthenticated.status, 302);
+    assert.equal(unauthenticated.headers.get('location'), '/account?auth=reauth_required');
+
+    const result = await harness.completeGoogleFlow({
+        pathname: '/auth/google?intent=reauth_delete',
+        cookie: harness.authCookie(linked),
+        callbackCookie: harness.authCookie(linked)
+    });
+    assert.equal(result.response.headers.get('location'), '/account?auth=google_reauth_failed');
+    assert.equal(getSetCookies(result.response.headers)
+        .some((cookie) => cookie.startsWith('hala_delete_grant=')), false);
+    assert.equal(harness.deleteCount, 0);
+});
+
+test('failed durable deletion with a Google grant leaves the account and auth identity live', async (t) => {
+    const googleOnly = createUser({
+        email: 'durable-google@example.com',
+        passwordHash: null,
+        passwordEnabled: false,
+        googleSub: 'durable-google-sub',
+        displayName: 'Durable User'
+    });
+    const harness = await startHarness(t, {
+        users: [googleOnly],
+        profile: {
+            sub: 'durable-google-sub',
+            email: googleOnly.email,
+            email_verified: true
+        },
+        deleteError: new Error('persistence unavailable')
+    });
+    const authCookie = harness.authCookie(googleOnly);
+    const flow = await harness.startGoogleFlow('/auth/google?intent=reauth_delete', authCookie);
+    const callback = await harness.request(
+        `/auth/google/callback?code=test-code&state=${encodeURIComponent(flow.state)}`,
+        { headers: { Cookie: `${authCookie}; ${flow.stateCookie}` } }
+    );
+    const grantCookie = getSetCookies(callback.headers)
+        .map((cookie) => cookie.split(';')[0])
+        .find((cookie) => cookie.startsWith('hala_delete_grant='));
+    assert.ok(grantCookie);
+
+    const failed = await harness.request('/api/me', {
+        method: 'DELETE',
+        headers: { Cookie: `${authCookie}; ${grantCookie}` },
+        body: {}
+    });
+    assert.equal(failed.status, 503);
+    assert.deepEqual(await failed.json(), { errorCode: 'PERSISTENCE_UNAVAILABLE' });
+    assert.equal(harness.users.get(googleOnly.id), googleOnly);
+    assert.equal(harness.usersByEmail.get(googleOnly.email), googleOnly.id);
+    assert.equal(harness.deleteCount, 1);
+    assert.equal(harness.anonymousRotationCount, 0);
+    assert.equal(getSetCookies(failed.headers)
+        .some((cookie) => cookie.startsWith('coStudyAuth=')), false);
 });

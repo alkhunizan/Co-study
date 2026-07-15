@@ -28,6 +28,13 @@ function currentRiyadhDayKey(now = Date.now()) {
     return new Date(now + (3 * 60 * 60 * 1000)).toISOString().slice(0, 10);
 }
 
+function cookieValue(cookieHeader, name) {
+    const cookies = extractCookies(cookieHeader);
+    const match = cookies.split('; ')
+        .find((cookie) => cookie.startsWith(`${name}=`));
+    return match ? match.slice(name.length + 1) : null;
+}
+
 test('signup issues an auth cookie and /api/auth/me returns the profile', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
@@ -169,10 +176,15 @@ test('logout clears the cookie and /api/auth/me reports a guest after', async (t
     await cleanupServer(t, server);
 
     const { cookie } = await signupUser(server);
+    const originalAnonymousIdentity = cookieValue(cookie, 'coStudySessionId');
+    assert.ok(originalAnonymousIdentity);
     const logout = await authedRequest(server, '/api/auth/logout', cookie, { method: 'POST' });
     assert.equal(logout.status, 200);
     const clearedCookie = extractCookies(logout.headers['set-cookie']);
     assert.match(clearedCookie, /coStudyAuth=/);
+    const rotatedAnonymousIdentity = cookieValue(logout.headers['set-cookie'], 'coStudySessionId');
+    assert.ok(rotatedAnonymousIdentity);
+    assert.notEqual(rotatedAnonymousIdentity, originalAnonymousIdentity);
 
     // 200 + user:null (not 401): this probe runs on every guest page load.
     const me = await authedRequest(server, '/api/auth/me', clearedCookie);
@@ -366,6 +378,7 @@ test('account deletion re-authenticates, removes the record from disk, and kills
     await cleanupServer(t, server);
 
     const { cookie, credentials } = await signupUser(server, { email: 'delete-me@example.com' });
+    const originalAnonymousIdentity = cookieValue(cookie, 'coStudySessionId');
 
     const wrongPassword = await authedRequest(server, '/api/me', cookie, {
         method: 'DELETE',
@@ -379,6 +392,9 @@ test('account deletion re-authenticates, removes the record from disk, and kills
         body: { password: credentials.password }
     });
     assert.equal(deleted.status, 200);
+    const rotatedAnonymousIdentity = cookieValue(deleted.headers['set-cookie'], 'coStudySessionId');
+    assert.ok(rotatedAnonymousIdentity);
+    assert.notEqual(rotatedAnonymousIdentity, originalAnonymousIdentity);
 
     // PDPL: the record is gone from disk immediately (flushed, not debounced).
     const onDisk = fs.readFileSync(server.userStateFile, 'utf8');
@@ -420,6 +436,7 @@ test('failed durable account deletion returns 503 and leaves the account live', 
     });
     assert.equal(failed.status, 503);
     assert.equal(failed.body.errorCode, 'PERSISTENCE_UNAVAILABLE');
+    assert.equal(cookieValue(failed.headers['set-cookie'], 'coStudySessionId'), null);
 
     const me = await authedRequest(server, '/api/auth/me', cookie);
     assert.equal(me.status, 200);

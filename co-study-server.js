@@ -1032,6 +1032,24 @@ function createCoStudyServer(options = {}) {
         appendSetCookie(res, cookieParts.join('; '));
     }
 
+    function rotateAnonymousIdentity(req, res) {
+        const sessionId = crypto.randomUUID();
+        const token = createAnonSessionToken({ sessionId, secret: config.sessionSecret });
+        const cookieParts = [
+            `${SESSION_COOKIE_NAME}=${token}`,
+            'Path=/',
+            'HttpOnly',
+            'SameSite=Lax',
+            `Max-Age=${SESSION_COOKIE_MAX_AGE}`
+        ];
+        if (req.secure) {
+            cookieParts.push('Secure');
+        }
+        appendSetCookie(res, cookieParts.join('; '));
+        req.sessionId = sessionId;
+        return sessionId;
+    }
+
     /** Resolves a verified, live (not banned, epoch-current) user from an
      *  auth token string, or null. Shared by HTTP middleware and sockets. */
     function resolveUserFromToken(token) {
@@ -2401,19 +2419,7 @@ function createCoStudyServer(options = {}) {
         // verifies to null and we mint a fresh signed one.
         let sessionId = verifyAnonSessionToken(cookies[SESSION_COOKIE_NAME], { secret: config.sessionSecret });
         if (!sessionId) {
-            sessionId = crypto.randomUUID();
-            const token = createAnonSessionToken({ sessionId, secret: config.sessionSecret });
-            const cookieParts = [
-                `${SESSION_COOKIE_NAME}=${token}`,
-                'Path=/',
-                'HttpOnly',
-                'SameSite=Lax',
-                `Max-Age=${SESSION_COOKIE_MAX_AGE}`
-            ];
-            if (req.secure) {
-                cookieParts.push('Secure');
-            }
-            appendSetCookie(res, cookieParts.join('; '));
+            sessionId = rotateAnonymousIdentity(req, res);
         }
         req.sessionId = sessionId;
         next();
@@ -2763,6 +2769,10 @@ function createCoStudyServer(options = {}) {
         publicUser,
         setAuthCookie,
         clearAuthCookie,
+        rotateAnonymousIdentity,
+        appendSetCookie,
+        parseCookies,
+        oauthSecurity,
         persistUsersSoon,
         persistUser: persistUserImmediate,
         deleteUser: deleteUserImmediate,
