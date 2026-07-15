@@ -385,6 +385,98 @@ test('scheduled rooms validate create payloads and expose schedule summaries', a
     assert.equal(snapshot.body.schedule.breakMinutes, 15);
 });
 
+test('only the authenticated room owner receives commitment credit and may delete the room', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+    const owner = await signupUser(server, { displayName: 'Commitment Owner' });
+    const peer = await signupUser(server, { displayName: 'Commitment Peer' });
+    const ownerSocket = await connectSocket(server.baseUrl, {
+        extraHeaders: { Cookie: owner.cookie }
+    });
+    const peerSocket = await connectSocket(server.baseUrl, {
+        extraHeaders: { Cookie: peer.cookie }
+    });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(peerSocket);
+    });
+
+    const created = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'Owned Commitment',
+        schedule: buildFutureRiyadhSchedule()
+    });
+    assert.equal(created.ok, true);
+    assert.equal(JSON.stringify(created.room).includes('ownerUserId'), false);
+    const roomId = created.room.roomId;
+
+    const peerJoin = await emitAck(peerSocket, 'join-room', {
+        roomId,
+        username: 'Commitment Peer'
+    });
+    assert.equal(peerJoin.ok, true);
+    assert.equal(peerJoin.room.schedule.attendance.totalSessions, 0);
+
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Commitment Owner'
+    });
+    assert.equal(ownerJoin.ok, true);
+    assert.equal(ownerJoin.room.schedule.attendance.joinedOnTimeCount, 1);
+    const reconnect = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Commitment Owner'
+    });
+    assert.equal(reconnect.room.schedule.attendance.totalSessions, 1);
+
+    const forbidden = await server.request(`/api/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { Cookie: peer.cookie }
+    });
+    assert.equal(forbidden.status, 403);
+    assert.equal(forbidden.body.errorCode, 'ROOM_OWNER_REQUIRED');
+
+    const deleted = await server.request(`/api/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { Cookie: owner.cookie }
+    });
+    assert.equal(deleted.status, 200);
+    assert.equal(deleted.body.ok, true);
+    assert.equal(deleted.body.cleanupPending, false);
+    assert.equal((await server.request(`/api/rooms/${roomId}`)).status, 404);
+});
+
+test('board task count and UTF-8 byte limits reject oversized mutations', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-board-limits');
+    const tasks = Array.from({ length: 100 }, (_, index) => ({
+        id: `task-${index}`,
+        text: `Task ${index}`,
+        priority: 2,
+        done: false
+    }));
+    fs.writeFileSync(roomStateFile, `${JSON.stringify([{
+        schemaVersion: 2,
+        id: 'LIM123',
+        name: 'Board Limits',
+        board: { goal: '', tasks }
+    }])}\n`);
+    const server = await startServer({ roomStateFile, resetStateFileOnStart: false });
+    await cleanupServer(t, server);
+    const socket = await connectSocket(server.baseUrl);
+    t.after(async () => closeSocket(socket));
+    assert.equal((await emitAck(socket, 'join-room', {
+        roomId: 'LIM123',
+        username: 'Limiter'
+    })).ok, true);
+
+    const countRejected = await emitAck(socket, 'board-add-task', { text: 'Task 101' });
+    assert.equal(countRejected.ok, false);
+    assert.equal(countRejected.errorCode, 'BOARD_TASK_LIMIT_REACHED');
+
+    const oversized = await emitAck(socket, 'board-add-task', { text: '🙂'.repeat(126) });
+    assert.equal(oversized.ok, false);
+    assert.equal(oversized.errorCode, 'BOARD_TASK_TOO_LARGE');
+});
+
 test('media mode validation persists and SFU rooms fail clearly if the deployment loses SFU support', async (t) => {
     const roomStateFile = makeTempStateFile('co-study-media-mode');
     let server = await startServer({

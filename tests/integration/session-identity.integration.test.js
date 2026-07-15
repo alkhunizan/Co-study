@@ -3,6 +3,7 @@ const test = require('node:test');
 
 const { createAnonSessionToken, verifyAnonSessionToken } = require('../../services/auth');
 const { startServer } = require('../helpers/server-control');
+const { signupUser } = require('../helpers/auth-helpers');
 const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
 
 const SECRET = 'anon-session-unit-secret-0123456789abcdef';
@@ -215,6 +216,50 @@ test('a failed room switch preserves membership in the source room', async (t) =
     assert.equal(failedSwitch.errorCode, 'USERNAME_TAKEN');
 
     const checkerJoin = await emitAck(checker, 'join-room', { roomId: roomA, username: 'Checker' });
+    assert.ok(checkerJoin.room.participants.some((participant) => participant.name === 'Mover'));
+});
+
+test('a switch to a scheduled room outside its occurrence window preserves the source membership', async (t) => {
+    const server = await startServer();
+    t.after(() => server.stop());
+    const creator = await signupUser(server, { displayName: 'Scheduler' });
+    const mover = await connectSocket(server.baseUrl);
+    const scheduler = await connectSocket(server.baseUrl, {
+        extraHeaders: { Cookie: creator.cookie }
+    });
+    const checker = await connectSocket(server.baseUrl);
+    t.after(async () => {
+        await closeSocket(mover);
+        await closeSocket(scheduler);
+        await closeSocket(checker);
+    });
+
+    const sourceRoom = (await emitAck(mover, 'create-room', { roomName: 'Safe Source' })).room.code;
+    assert.equal((await emitAck(mover, 'join-room', {
+        roomId: sourceRoom,
+        username: 'Mover'
+    })).ok, true);
+    const future = new Date(Date.now() + (3 * 60 * 60 * 1000) + (2 * 60 * 60 * 1000));
+    const scheduled = await emitAck(scheduler, 'create-room', {
+        roomName: 'Later Target',
+        schedule: {
+            startDate: future.toISOString().slice(0, 10),
+            startTime: `${String(future.getUTCHours()).padStart(2, '0')}:${String(future.getUTCMinutes()).padStart(2, '0')}`,
+            cadence: 'once'
+        }
+    });
+    assert.equal(scheduled.ok, true);
+
+    const failedSwitch = await emitAck(mover, 'join-room', {
+        roomId: scheduled.room.code,
+        username: 'Mover'
+    });
+    assert.equal(failedSwitch.ok, false);
+    assert.equal(failedSwitch.errorCode, 'ROOM_SCHEDULE_NOT_OPEN');
+    const checkerJoin = await emitAck(checker, 'join-room', {
+        roomId: sourceRoom,
+        username: 'Checker'
+    });
     assert.ok(checkerJoin.room.participants.some((participant) => participant.name === 'Mover'));
 });
 

@@ -1,9 +1,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { normalizeSchedule } = require('./schedule-utils');
 const { createDebouncedAtomicJsonStore } = require('./services/persistence/debounced-atomic-json-store');
 
 const SAVE_DEBOUNCE_MS = 250;
+const BOARD_TASK_LIMIT = 100;
+const BOARD_TASK_MAX_BYTES = 500;
+const BOARD_TASK_ID_MAX_LENGTH = 128;
+const BOARD_SERIALIZED_MAX_BYTES = 64 * 1024;
 
 function createRoomStore(options = {}) {
     const {
@@ -46,6 +51,7 @@ function createRoomStore(options = {}) {
     }
 
     const resolvedFilePath = path.resolve(filePath);
+    let migrationRequired = false;
     const atomicStore = createDebouncedAtomicJsonStore({
         filePath: resolvedFilePath,
         debounceMs: SAVE_DEBOUNCE_MS,
@@ -104,11 +110,66 @@ function createRoomStore(options = {}) {
         if (!text) return null;
 
         return {
-            id: typeof task.id === 'string' && task.id.trim() ? task.id.trim() : `task-${Date.now()}-${index}`,
+            id: typeof task.id === 'string' && task.id.trim()
+                ? task.id.trim().slice(0, BOARD_TASK_ID_MAX_LENGTH)
+                : `task-${Date.now()}-${index}`,
             text,
             priority: normalizeBoardPriority(task.priority),
             done: !!task.done
         };
+    }
+
+    function boardExceedsLimits(board = {}) {
+        const tasks = Array.isArray(board?.tasks) ? board.tasks : [];
+        return tasks.length > BOARD_TASK_LIMIT
+            || tasks.some((task) => Buffer.byteLength(String(task?.text || '').trim(), 'utf8') > BOARD_TASK_MAX_BYTES)
+            || tasks.some((task) => typeof task?.id === 'string' && task.id.trim().length > BOARD_TASK_ID_MAX_LENGTH)
+            || Buffer.byteLength(JSON.stringify(board || {}), 'utf8') > BOARD_SERIALIZED_MAX_BYTES;
+    }
+
+    function fitBoardWithinLimits(goal, tasks) {
+        const safeBoard = {
+            goal,
+            tasks: tasks.slice(0, BOARD_TASK_LIMIT)
+        };
+        while (
+            safeBoard.tasks.length > 0
+            && Buffer.byteLength(JSON.stringify(safeBoard), 'utf8') > BOARD_SERIALIZED_MAX_BYTES
+        ) {
+            safeBoard.tasks.pop();
+        }
+        return safeBoard;
+    }
+
+    function archiveLegacyBoardOverflow(parsedRooms) {
+        const candidates = parsedRooms
+            .filter((room) => room && typeof room === 'object' && boardExceedsLimits(room.board))
+            .map((room) => ({
+                roomId: normalizeRoom(room.id || room.roomId || room.code || ''),
+                board: room.board
+            }));
+        if (candidates.length === 0) return null;
+
+        const digest = crypto.createHash('sha256').update(JSON.stringify(candidates)).digest('hex').slice(0, 16);
+        const archive = {
+            schemaVersion: 1,
+            archivedAt: new Date().toISOString(),
+            reason: 'legacy_board_overflow',
+            sourceFile: resolvedFilePath,
+            rooms: candidates
+        };
+        const serialized = `${JSON.stringify(archive, null, 2)}\n`;
+        const backupPath = `${resolvedFilePath}.board-overflow-${digest}.json`;
+        if (!fs.existsSync(backupPath)) {
+            fs.writeFileSync(backupPath, serialized, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+        } else {
+            const existingArchive = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
+            if (JSON.stringify(existingArchive.rooms) !== JSON.stringify(candidates)) {
+                throw new Error(`Board overflow backup collision at ${backupPath}.`);
+            }
+        }
+        migrationRequired = true;
+        return backupPath;
     }
 
     const REPORT_REASONS = ['spam', 'harassment', 'inappropriate', 'other'];
@@ -212,9 +273,27 @@ function createRoomStore(options = {}) {
             strict: false
         });
 
+        const safeBoard = fitBoardWithinLimits(sanitizeBoardGoal(room.board?.goal), safeTasks);
+
         return {
+            schemaVersion: room.schemaVersion === 2 ? 2 : 1,
             id: roomId,
             name: safeName,
+            ownerUserId: typeof room.ownerUserId === 'string' && room.ownerUserId.trim()
+                ? room.ownerUserId.trim().slice(0, 128)
+                : null,
+            expiresAt: Number.isFinite(room.expiresAt) ? room.expiresAt : null,
+            lifecycleEpoch: Number.isInteger(room.lifecycleEpoch) && room.lifecycleEpoch >= 0
+                ? room.lifecycleEpoch
+                : 0,
+            closedAt: Number.isFinite(room.closedAt) ? room.closedAt : null,
+            closureReason: typeof room.closureReason === 'string'
+                ? room.closureReason.trim().slice(0, 64) || null
+                : null,
+            cleanupPending: !!room.cleanupPending,
+            providerCleanupLastError: typeof room.providerCleanupLastError === 'string'
+                ? room.providerCleanupLastError.slice(0, 200)
+                : null,
             requirePassword: room.requirePassword === undefined ? !!passwordHash : !!room.requirePassword,
             passwordHash,
             mediaMode: normalizeMediaMode(room.mediaMode),
@@ -229,10 +308,7 @@ function createRoomStore(options = {}) {
             videoPolicy: sanitizeVideoPolicy(room.videoPolicy),
             createdAt: typeof room.createdAt === 'number' ? room.createdAt : Date.now(),
             messages: safeMessages,
-            board: {
-                goal: sanitizeBoardGoal(room.board?.goal),
-                tasks: safeTasks
-            },
+            board: safeBoard,
             reports: Array.isArray(room.reports)
                 ? room.reports.map(sanitizeReport).filter(Boolean).slice(-ROOM_REPORTS_LIMIT)
                 : [],
@@ -274,6 +350,7 @@ function createRoomStore(options = {}) {
                 return [];
             }
 
+            archiveLegacyBoardOverflow(parsed);
             const sanitizedRooms = parsed.map(sanitizeRoom).filter(Boolean);
             atomicStore.setBaseline(`${JSON.stringify(sanitizedRooms, null, 2)}\n`);
             return sanitizedRooms;
@@ -298,7 +375,10 @@ function createRoomStore(options = {}) {
         filePath: resolvedFilePath,
         loadRooms,
         scheduleSave,
-        flush
+        flush,
+        needsMigration() {
+            return migrationRequired;
+        }
     };
 }
 

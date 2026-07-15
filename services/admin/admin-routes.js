@@ -34,7 +34,7 @@ function createAdminRouter(deps) {
         videoSessionRegistry,
         announcementState,
         buildScheduleSummary,
-        deleteRoom,
+        closeRoom,
         persistUsersSoon,
         persistRoomsSoon,
         dashboard,
@@ -245,22 +245,25 @@ function createAdminRouter(deps) {
         });
     });
 
-    router.post('/api/rooms/:roomId/close', requireAdmin, (req, res) => {
+    router.post('/api/rooms/:roomId/close', requireAdmin, async (req, res) => {
         const roomId = (req.params.roomId || '').trim().toUpperCase();
         const room = rooms.get(roomId);
         if (!room) {
             res.status(404).json({ errorCode: 'ROOM_NOT_FOUND' });
             return;
         }
-        io.to(roomId).emit('room-closed', { reason: 'admin' });
-        const memberSocketIds = Array.from(room.users ? room.users.keys() : []);
-        for (const socketId of memberSocketIds) {
-            const socket = io.sockets.sockets.get(socketId);
-            if (socket) socket.disconnect(true);
+        try {
+            const result = await closeRoom(roomId, { reason: 'admin' });
+            logger.warn({ event: 'admin_room_closed', roomId, kicked: result?.kicked || 0 });
+            res.json(result || { ok: false, errorCode: 'ROOM_NOT_FOUND' });
+        } catch (error) {
+            if (error?.code === 'PERSISTENCE_UNAVAILABLE') {
+                res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+                return;
+            }
+            logger.error({ event: 'admin_room_close_failed', roomId, error: error?.message });
+            res.status(500).json({ errorCode: 'ROOM_CLOSE_FAILED' });
         }
-        deleteRoom(roomId);
-        logger.warn({ event: 'admin_room_closed', roomId, kicked: memberSocketIds.length });
-        res.json({ ok: true, kicked: memberSocketIds.length });
     });
 
     router.post('/api/rooms/:roomId/kick', requireAdmin, (req, res) => {

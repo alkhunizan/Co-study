@@ -34,6 +34,8 @@ const { createVideoSessionRegistry } = require('./services/video/video-session-r
 const { SlidingWindowRateLimiter } = require('./services/security/bounded-rate-limiter');
 const {
     buildScheduleSummary,
+    findOpenOccurrence,
+    getScheduleExpiryAt,
     normalizeSchedule,
     recordScheduleJoin,
     rollScheduleAttendance
@@ -42,6 +44,9 @@ const { version: APP_VERSION } = require('./package.json');
 
 const ROOM_HISTORY_LIMIT = 80;
 const ROOM_TTL_MS = 1000 * 60 * 30;
+const ROOM_SCHEMA_VERSION = 2;
+const MAX_LIFECYCLE_TIMER_MS = 2_147_000_000;
+const ROOM_CLEANUP_RETRY_MS = 5 * 60 * 1000;
 // The Lobby: one reserved, always-available public room. Fixed code so /lobby
 // always resolves to the same room; seeded at startup and exempt from the
 // empty-room TTL cleanup so it never disappears.
@@ -62,7 +67,10 @@ const ROOM_PASSWORD_MAX_LENGTH = 64;
 const NICKNAME_MAX_LENGTH = 20;
 const CHAT_MESSAGE_MAX_LENGTH = 500;
 const BOARD_GOAL_MAX_LENGTH = 80;
-const BOARD_TASK_MAX_LENGTH = 120;
+const BOARD_TASK_MAX_BYTES = 500;
+const BOARD_TASK_LIMIT = 100;
+const BOARD_TASK_ID_MAX_LENGTH = 128;
+const BOARD_SERIALIZED_MAX_BYTES = 64 * 1024;
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const MEDIA_MODE_MESH = 'mesh';
 const MEDIA_MODE_SFU = 'sfu';
@@ -440,7 +448,26 @@ function sanitizeBoardGoal(raw = '') {
 
 function sanitizeBoardTaskText(raw = '') {
     if (typeof raw !== 'string') return '';
-    return raw.trim().slice(0, BOARD_TASK_MAX_LENGTH);
+    const visible = raw.replace(INVISIBLE_TEXT_PATTERN, '').trim();
+    let result = '';
+    let usedBytes = 0;
+    for (const character of visible) {
+        const characterBytes = Buffer.byteLength(character, 'utf8');
+        if (usedBytes + characterBytes > BOARD_TASK_MAX_BYTES) break;
+        result += character;
+        usedBytes += characterBytes;
+    }
+    return result;
+}
+
+function boardTaskTextExceedsLimit(raw = '') {
+    if (typeof raw !== 'string') return false;
+    const visible = raw.replace(INVISIBLE_TEXT_PATTERN, '').trim();
+    return Buffer.byteLength(visible, 'utf8') > BOARD_TASK_MAX_BYTES;
+}
+
+function boardFitsSerializedLimit(board) {
+    return Buffer.byteLength(JSON.stringify(board), 'utf8') <= BOARD_SERIALIZED_MAX_BYTES;
 }
 
 function normalizeBoardPriority(raw) {
@@ -455,7 +482,9 @@ function normalizeBoardTask(raw = {}) {
     const text = sanitizeBoardTaskText(raw.text);
     if (!text) return null;
     return {
-        id: typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : crypto.randomUUID(),
+        id: typeof raw.id === 'string' && raw.id.trim()
+            ? raw.id.trim().slice(0, BOARD_TASK_ID_MAX_LENGTH)
+            : crypto.randomUUID(),
         text,
         priority: normalizeBoardPriority(raw.priority),
         done: !!raw.done
@@ -473,7 +502,10 @@ function ensureRoomBoard(room) {
     if (!Array.isArray(room.board.tasks)) {
         room.board.tasks = [];
     }
-    room.board.tasks = room.board.tasks.map(normalizeBoardTask).filter(Boolean);
+    room.board.tasks = room.board.tasks.map(normalizeBoardTask).filter(Boolean).slice(0, BOARD_TASK_LIMIT);
+    while (room.board.tasks.length > 0 && !boardFitsSerializedLimit(room.board)) {
+        room.board.tasks.pop();
+    }
     return room.board;
 }
 
@@ -1167,8 +1199,24 @@ function createCoStudyServer(options = {}) {
             strict: false
         });
         return applyRoomVideoDefaults({
+            schemaVersion: room.schemaVersion === ROOM_SCHEMA_VERSION ? ROOM_SCHEMA_VERSION : 1,
             id: normalizeRoom(room.id || room.roomId || room.code || ''),
             name: sanitizeRoomName(room.name || room.id || '') || normalizeRoom(room.id || room.roomId || room.code || ''),
+            ownerUserId: typeof room.ownerUserId === 'string' && room.ownerUserId.trim()
+                ? room.ownerUserId.trim()
+                : null,
+            expiresAt: Number.isFinite(room.expiresAt)
+                ? room.expiresAt
+                : (schedule ? getScheduleExpiryAt(schedule) : null),
+            lifecycleEpoch: Number.isInteger(room.lifecycleEpoch) && room.lifecycleEpoch >= 0
+                ? room.lifecycleEpoch
+                : 0,
+            closedAt: Number.isFinite(room.closedAt) ? room.closedAt : null,
+            closureReason: typeof room.closureReason === 'string' ? room.closureReason : null,
+            cleanupPending: !!room.cleanupPending,
+            providerCleanupLastError: typeof room.providerCleanupLastError === 'string'
+                ? room.providerCleanupLastError
+                : null,
             requirePassword: !!room.requirePassword,
             passwordHash: room.passwordHash || null,
             mediaMode: normalizeMediaMode(room.mediaMode),
@@ -1194,6 +1242,10 @@ function createCoStudyServer(options = {}) {
 
     function roomHasSchedule(room) {
         return !!(room?.schedule);
+    }
+
+    function roomIsClosed(room) {
+        return !!(room?.closedAt);
     }
 
     function isLobbyRoom(room) {
@@ -1225,23 +1277,116 @@ function createCoStudyServer(options = {}) {
         room.cleanupTimer = null;
     }
 
-    function deleteRoom(roomId) {
+    async function closeRoomLifecycle(roomId, options = {}) {
         const normalizedRoom = normalizeRoom(roomId);
         const room = rooms.get(normalizedRoom);
-        if (!room) return false;
-        // The Lobby is permanent — never auto-delete or admin-close it out of
-        // existence. It is re-seeded at startup regardless, but guarding here
-        // keeps it alive within a running process.
-        if (isLobbyRoom(room)) return false;
+        if (!room || isLobbyRoom(room)) return null;
+        const reason = typeof options.reason === 'string' ? options.reason : 'closed';
+
+        if (!roomIsClosed(room)) {
+            const previousLifecycle = {
+                lifecycleEpoch: room.lifecycleEpoch,
+                closedAt: room.closedAt,
+                closureReason: room.closureReason,
+                cleanupPending: room.cleanupPending,
+                providerCleanupLastError: room.providerCleanupLastError
+            };
+            room.lifecycleEpoch = (Number.isInteger(room.lifecycleEpoch) ? room.lifecycleEpoch : 0) + 1;
+            room.closedAt = Date.now();
+            room.closureReason = reason;
+            room.cleanupPending = !!(
+                room.videoProviderMeetingId
+                && typeof videoProvider.closeRoomMeeting === 'function'
+            );
+            room.providerCleanupLastError = null;
+            try {
+                // The closure epoch must be durable before identities are
+                // revoked or a provider participant is kicked.
+                await roomStore.flush(rooms);
+            } catch (error) {
+                Object.assign(room, previousLifecycle);
+                const persistenceError = new Error('Room closure could not be persisted.');
+                /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
+                persistenceError.cause = error;
+                throw persistenceError;
+            }
+        }
+
         clearRoomCleanupTimer(room);
+        for (const [pendingKey, pendingRecord] of pendingLeaveTimers.entries()) {
+            if (!pendingKey.startsWith(`${normalizedRoom}:`)) continue;
+            clearTimeout(pendingRecord.timeoutId);
+            pendingLeaveTimers.delete(pendingKey);
+        }
+        io.to(normalizedRoom).emit('room-closed', {
+            reason: room.closureReason,
+            lifecycleEpoch: room.lifecycleEpoch
+        });
+        const memberSocketIds = Array.from(room.users.keys());
         for (const [socketId, record] of room.users.entries()) {
             invalidateMembershipToken(record.membershipToken);
             const socketRef = io.sockets.sockets.get(socketId);
-            if (socketRef) invalidateSocketMembership(socketRef);
+            if (socketRef) {
+                invalidateSocketMembership(socketRef);
+                skippedDisconnects.add(socketId);
+                socketRef.disconnect(true);
+            }
+            emitEndedVideoSessions(videoSessionRegistry.markSocketSessionsLeft(socketId, 'room_closed'));
         }
+        room.users.clear();
+        room.identities.clear();
+
+        if (room.cleanupPending) {
+            try {
+                await videoProvider.closeRoomMeeting({
+                    meetingId: room.videoProviderMeetingId
+                });
+                room.cleanupPending = false;
+                room.providerCleanupLastError = null;
+                room.videoProviderStatus = 'closed';
+            } catch (error) {
+                room.cleanupPending = true;
+                room.providerCleanupLastError = String(error?.message || 'provider cleanup failed').slice(0, 200);
+                try {
+                    await roomStore.flush(rooms);
+                } catch (persistError) {
+                    logger.error({
+                        event: 'room_cleanup_tombstone_persist_failed',
+                        roomId: normalizedRoom,
+                        error: persistError?.message
+                    });
+                }
+                return {
+                    ok: true,
+                    roomId: normalizedRoom,
+                    kicked: memberSocketIds.length,
+                    cleanupPending: true,
+                    lifecycleEpoch: room.lifecycleEpoch
+                };
+            }
+        }
+
         rooms.delete(normalizedRoom);
-        persistRoomsSoon();
-        return true;
+        try {
+            await roomStore.flush(rooms);
+        } catch (error) {
+            // The first flush left a durable closed record. Keep the same
+            // tombstone in memory so no request can resurrect the room.
+            room.cleanupPending = true;
+            room.providerCleanupLastError = 'final room deletion persistence failed';
+            rooms.set(normalizedRoom, room);
+            const persistenceError = new Error('Room deletion could not be persisted.');
+            /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
+            persistenceError.cause = error;
+            throw persistenceError;
+        }
+        return {
+            ok: true,
+            roomId: normalizedRoom,
+            kicked: memberSocketIds.length,
+            cleanupPending: false,
+            lifecycleEpoch: room.lifecycleEpoch
+        };
     }
 
     function ensureRoom(roomId, meta = {}) {
@@ -1253,8 +1398,12 @@ function createCoStudyServer(options = {}) {
                 strict: false
             });
             rooms.set(normalized, buildRuntimeRoom({
+                schemaVersion: ROOM_SCHEMA_VERSION,
                 id: normalized,
                 name: meta.name || normalized,
+                ownerUserId: meta.ownerUserId || null,
+                expiresAt: Number.isFinite(meta.expiresAt) ? meta.expiresAt : null,
+                lifecycleEpoch: 0,
                 requirePassword: !!meta.requirePassword,
                 passwordHash: meta.passwordHash || null,
                 mediaMode: normalizeMediaMode(meta.mediaMode),
@@ -1295,8 +1444,32 @@ function createCoStudyServer(options = {}) {
 
     function scheduleRoomCleanup(roomId) {
         const room = rooms.get(roomId);
-        if (!room || room.users.size > 0 || room.cleanupTimer || roomHasSchedule(room) || isLobbyRoom(room)) return;
-        room.cleanupTimer = setTimeout(() => deleteRoom(roomId), ROOM_TTL_MS);
+        if (!room || room.cleanupTimer || isLobbyRoom(room) || roomIsClosed(room)) return;
+
+        if (roomHasSchedule(room)) {
+            room.expiresAt = Number.isFinite(room.expiresAt)
+                ? room.expiresAt
+                : getScheduleExpiryAt(room.schedule);
+        } else if (room.users.size > 0) {
+            room.expiresAt = null;
+            return;
+        } else if (!Number.isFinite(room.expiresAt)) {
+            room.expiresAt = Date.now() + ROOM_TTL_MS;
+        }
+
+        if (!Number.isFinite(room.expiresAt)) return;
+        const delayMs = Math.max(0, Math.min(room.expiresAt - Date.now(), MAX_LIFECYCLE_TIMER_MS));
+        room.cleanupTimer = setTimeout(() => {
+            room.cleanupTimer = null;
+            if (room.expiresAt > Date.now()) {
+                scheduleRoomCleanup(roomId);
+                return;
+            }
+            void closeRoomLifecycle(roomId, { reason: 'expired' }).catch((error) => {
+                logger.error({ event: 'room_expiry_failed', roomId, error: error?.message });
+                setTimeout(() => scheduleRoomCleanup(roomId), ROOM_CLEANUP_RETRY_MS).unref?.();
+            });
+        }, delayMs);
         room.cleanupTimer.unref?.();
     }
 
@@ -1361,6 +1534,28 @@ function createCoStudyServer(options = {}) {
         });
         readinessState.roomStore = true;
         return persistedRooms.length;
+    }
+
+    async function migrateLegacyRoomOwnership() {
+        let changed = false;
+        for (const room of rooms.values()) {
+            if (room.schemaVersion === ROOM_SCHEMA_VERSION) continue;
+            const creators = Array.from(users.values()).filter((user) => {
+                return Array.isArray(user.myRooms) && user.myRooms.some((entry) => (
+                    entry.roomId === room.id && entry.role === 'created'
+                ));
+            });
+            // Ambiguous or absent legacy ownership stays deliberately null and
+            // therefore admin-managed. Never guess between accounts.
+            room.ownerUserId = creators.length === 1 ? creators[0].id : null;
+            room.schemaVersion = ROOM_SCHEMA_VERSION;
+            if (roomHasSchedule(room) && !Number.isFinite(room.expiresAt)) {
+                room.expiresAt = getScheduleExpiryAt(room.schedule);
+            }
+            changed = true;
+        }
+        if (changed) await roomStore.flush(rooms);
+        return changed;
     }
 
     function resolveClientId(socket, candidate) {
@@ -1535,7 +1730,7 @@ function createCoStudyServer(options = {}) {
                 res.setHeader('Access-Control-Allow-Origin', origin);
                 res.setHeader('Access-Control-Allow-Credentials', 'true');
                 res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Halastudy-Membership');
-                res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+                res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
             }
             if (req.method === 'OPTIONS') {
                 res.status(204).end();
@@ -1623,6 +1818,7 @@ function createCoStudyServer(options = {}) {
     let initialized = false;
     let initializationPromise = null;
     let videoSweepTimer = null;
+    let roomCleanupRetryTimer = null;
     let runtimeWorkersStarted = false;
 
     function initialize() {
@@ -1631,6 +1827,10 @@ function createCoStudyServer(options = {}) {
                 loadedRoomCount = loadPersistedRooms();
                 seedLobbyRoom();
                 loadedUserCount = await loadPersistedUsers();
+                const migratedRooms = await migrateLegacyRoomOwnership();
+                if (!migratedRooms && roomStore.needsMigration?.()) {
+                    await roomStore.flush(rooms);
+                }
                 initialized = true;
                 return { loadedRoomCount, loadedUserCount };
             })();
@@ -1647,6 +1847,20 @@ function createCoStudyServer(options = {}) {
             emitEndedVideoSessions(ended);
         }, VIDEO_SESSION_SWEEP_MS);
         videoSweepTimer.unref();
+        const retryPendingClosures = () => {
+            for (const room of rooms.values()) {
+                if (!roomIsClosed(room) || !room.cleanupPending) continue;
+                void closeRoomLifecycle(room.id, { reason: room.closureReason || 'cleanup_retry' })
+                    .catch((error) => logger.warn({
+                        event: 'room_cleanup_retry_failed',
+                        roomId: room.id,
+                        error: error?.message
+                    }));
+            }
+        };
+        retryPendingClosures();
+        roomCleanupRetryTimer = setInterval(retryPendingClosures, ROOM_CLEANUP_RETRY_MS);
+        roomCleanupRetryTimer.unref();
     }
 
     let isShuttingDown = false;
@@ -1694,6 +1908,7 @@ function createCoStudyServer(options = {}) {
             process.exit(1);
         }, 15_000);
         if (videoSweepTimer) clearInterval(videoSweepTimer);
+        if (roomCleanupRetryTimer) clearInterval(roomCleanupRetryTimer);
         backupScheduler.stop();
         console.log(`Received ${signal}. Draining mutations and persisting state...`);
         const serverClosed = new Promise((resolve) => {
@@ -1867,7 +2082,7 @@ function createCoStudyServer(options = {}) {
 
         const normalizedRoom = normalizeRoom(roomId);
         const room = rooms.get(normalizedRoom);
-        if (!normalizedRoom || !room) {
+        if (!normalizedRoom || !room || roomIsClosed(room)) {
             sendVideoError(res, 404, 'ROOM_NOT_FOUND');
             return;
         }
@@ -2032,7 +2247,7 @@ function createCoStudyServer(options = {}) {
 
         const normalizedRoom = normalizeRoom(req.params.roomId);
         const room = rooms.get(normalizedRoom);
-        if (!room) {
+        if (!room || roomIsClosed(room)) {
             sendVideoError(res, 404, 'ROOM_NOT_FOUND');
             return;
         }
@@ -2068,7 +2283,7 @@ function createCoStudyServer(options = {}) {
     app.post('/api/rooms/:roomId/video-leave', (req, res) => {
         const normalizedRoom = normalizeRoom(req.params.roomId);
         const room = rooms.get(normalizedRoom);
-        if (!room) {
+        if (!room || roomIsClosed(room)) {
             sendVideoError(res, 404, 'ROOM_NOT_FOUND');
             return;
         }
@@ -2098,6 +2313,34 @@ function createCoStudyServer(options = {}) {
         });
     });
 
+    app.delete('/api/rooms/:roomId', requireUser, async (req, res) => {
+        const normalizedRoom = normalizeRoom(req.params.roomId);
+        const room = rooms.get(normalizedRoom);
+        if (!room || roomIsClosed(room) || isLobbyRoom(room)) {
+            res.status(404).json({ errorCode: 'ROOM_NOT_FOUND' });
+            return;
+        }
+        if (!room.ownerUserId || room.ownerUserId !== req.user.id) {
+            res.status(403).json({ errorCode: 'ROOM_OWNER_REQUIRED' });
+            return;
+        }
+        try {
+            const result = await closeRoomLifecycle(normalizedRoom, { reason: 'owner_delete' });
+            if (!result) {
+                res.status(404).json({ errorCode: 'ROOM_NOT_FOUND' });
+                return;
+            }
+            res.json(result);
+        } catch (error) {
+            if (error?.code === 'PERSISTENCE_UNAVAILABLE') {
+                res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+                return;
+            }
+            logger.error({ event: 'owner_room_delete_failed', roomId: normalizedRoom, error: error?.message });
+            res.status(500).json({ errorCode: 'ROOM_DELETE_FAILED' });
+        }
+    });
+
     app.get('/api/rooms/:roomId', (req, res) => {
         const { roomId } = req.params;
         const requestIp = getRequestIp(req);
@@ -2112,7 +2355,14 @@ function createCoStudyServer(options = {}) {
 
         const normalizedRoom = normalizeRoom(roomId);
         const room = rooms.get(normalizedRoom);
-        if (!room) {
+        if (!room || roomIsClosed(room)) {
+            res.status(404).json({ error: 'Room not found' });
+            return;
+        }
+        if (Number.isFinite(room.expiresAt) && room.expiresAt <= Date.now()) {
+            void closeRoomLifecycle(normalizedRoom, { reason: 'expired' }).catch((error) => {
+                logger.error({ event: 'expired_room_close_failed', roomId: normalizedRoom, error: error?.message });
+            });
             res.status(404).json({ error: 'Room not found' });
             return;
         }
@@ -2183,7 +2433,7 @@ function createCoStudyServer(options = {}) {
             videoSessionRegistry,
             announcementState,
             buildScheduleSummary,
-            deleteRoom,
+            closeRoom: closeRoomLifecycle,
             persistUsersSoon,
             persistRoomsSoon,
             dashboard: typeof userStore.readAdminOverview === 'function'
@@ -2327,6 +2577,7 @@ function createCoStudyServer(options = {}) {
             if (schedule && !getSocketUser()) {
                 return ackError(ack, 'AUTH_REQUIRED_FOR_SCHEDULED');
             }
+            const creator = getSocketUser();
 
             const roomCode = generateRoomCode(rooms);
             if (!roomCode || rooms.has(roomCode)) {
@@ -2348,6 +2599,7 @@ function createCoStudyServer(options = {}) {
 
             ensureRoom(roomCode, {
                 name: cleanName,
+                ownerUserId: creator?.id || null,
                 requirePassword: shouldProtect,
                 passwordHash,
                 mediaMode,
@@ -2359,7 +2611,6 @@ function createCoStudyServer(options = {}) {
             scheduleRoomCleanup(roomCode);
             persistRoomsSoon();
 
-            const creator = getSocketUser();
             if (creator) {
                 recordMyRoom(creator, { roomId: roomCode, name: cleanName, role: 'created' });
                 persistUsersSoon();
@@ -2393,8 +2644,18 @@ function createCoStudyServer(options = {}) {
             }
 
             const room = rooms.get(normalizedRoom);
-            if (!room) {
+            if (!room || roomIsClosed(room)) {
                 return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+            const joinNow = Date.now();
+            if (Number.isFinite(room.expiresAt) && room.expiresAt <= joinNow) {
+                void closeRoomLifecycle(normalizedRoom, { reason: 'expired' }).catch((error) => {
+                    logger.error({ event: 'expired_room_close_failed', roomId: normalizedRoom, error: error?.message });
+                });
+                return ackError(ack, 'ROOM_EXPIRED');
+            }
+            if (roomHasSchedule(room) && findOpenOccurrence(room.schedule, joinNow).currentOccurrenceAt === null) {
+                return ackError(ack, 'ROOM_SCHEDULE_NOT_OPEN');
             }
             if (roomUsesSfu(room) && !config.sfuAvailable) {
                 return ackError(ack, 'ROOM_MEDIA_UNAVAILABLE');
@@ -2481,7 +2742,10 @@ function createCoStudyServer(options = {}) {
                 return ackError(ack, 'ROOM_FULL');
             }
 
-            clearRoomCleanupTimer(room);
+            if (!roomHasSchedule(room)) {
+                clearRoomCleanupTimer(room);
+                room.expiresAt = null;
+            }
 
             if (previousRoomId && previousRoomId !== normalizedRoom) {
                 const previousRoom = rooms.get(previousRoomId);
@@ -2500,8 +2764,13 @@ function createCoStudyServer(options = {}) {
                 removeUserFromRoom(room, oldSocketId, normalizedRoom, userRecord);
             });
 
-            const scheduleChanged = recordScheduleJoin(room.schedule, Date.now());
             const joiningUser = getSocketUser();
+            const scheduleChanged = !!(
+                joiningUser
+                && room.ownerUserId
+                && joiningUser.id === room.ownerUserId
+                && recordScheduleJoin(room.schedule, joinNow)
+            );
             const userRecord = {
                 socketId: socket.id,
                 name: cleanName,
@@ -2509,7 +2778,7 @@ function createCoStudyServer(options = {}) {
                 clientId,
                 identityId,
                 identityKey,
-                joinedAt: Date.now(),
+                joinedAt: joinNow,
                 cameraOn: false,
                 status: null,
                 // Profile perks relayed to peers via presence (user content,
@@ -2621,18 +2890,32 @@ function createCoStudyServer(options = {}) {
                 return ackError(ack, 'ROOM_NOT_FOUND');
             }
 
+            if (boardTaskTextExceedsLimit(payload.text)) {
+                return ackError(ack, 'BOARD_TASK_TOO_LARGE');
+            }
             const cleanText = sanitizeBoardTaskText(payload.text);
             if (!cleanText) {
                 return ackError(ack, 'BOARD_TASK_REQUIRED');
             }
 
             const board = ensureRoomBoard(room);
-            board.tasks.push({
+            if (board.tasks.length >= BOARD_TASK_LIMIT) {
+                return ackError(ack, 'BOARD_TASK_LIMIT_REACHED');
+            }
+            const nextTask = {
                 id: crypto.randomUUID(),
                 text: cleanText,
                 priority: normalizeBoardPriority(payload.priority),
                 done: false
-            });
+            };
+            const prospectiveBoard = {
+                goal: board.goal,
+                tasks: [...board.tasks, nextTask]
+            };
+            if (!boardFitsSerializedLimit(prospectiveBoard)) {
+                return ackError(ack, 'BOARD_STATE_TOO_LARGE');
+            }
+            board.tasks.push(nextTask);
             emitBoardState(currentRoom, room);
             persistRoomsSoon();
             ack({ ok: true, board: cloneBoard(board) });
