@@ -2147,6 +2147,7 @@ function createCoStudyServer(options = {}) {
         const ownedRoomIds = Array.from(rooms.values())
             .filter((room) => !isLobbyRoom(room) && room.ownerUserId === userId)
             .map((room) => room.id);
+        const ownedRoomsWithRevokedVideo = new Set();
         for (const ownedRoomId of ownedRoomIds) {
             try {
                 const result = await closeRoomLifecycle(ownedRoomId, {
@@ -2154,6 +2155,11 @@ function createCoStudyServer(options = {}) {
                     deferProviderCleanup: true,
                     actorUserId: userId
                 });
+                // A resolved close has crossed the durable local video
+                // revocation barrier (or another serialized closer already
+                // completed it). Only those rooms may be excluded from the
+                // exact per-user cleanup pass below.
+                ownedRoomsWithRevokedVideo.add(ownedRoomId);
                 cleanupPending = cleanupPending || !!result?.cleanupPending;
             } catch (error) {
                 cleanupPending = true;
@@ -2175,11 +2181,10 @@ function createCoStudyServer(options = {}) {
             }
         }
 
-        const ownedRoomSet = new Set(ownedRoomIds);
         const activeUserVideoSessions = videoSessionRegistry.listActive()
             .filter((session) => (
                 session.userId === authenticatedIdentityId
-                && !ownedRoomSet.has(session.roomId)
+                && !ownedRoomsWithRevokedVideo.has(session.roomId)
             ));
         for (const session of activeUserVideoSessions) {
             videoSessionRegistry.markVideoSessionEnding(
@@ -2192,6 +2197,7 @@ function createCoStudyServer(options = {}) {
             try {
                 await persistVideoSessionsImmediate();
             } catch (error) {
+                realtimeKitProviderAvailable = false;
                 // The account deletion is already durable at this point. Never
                 // leave its live socket or membership credentials usable just
                 // because the provider-revocation tombstone could not be
@@ -2237,7 +2243,10 @@ function createCoStudyServer(options = {}) {
                         videoSessionId: session.videoSessionId
                     });
                     if (!current) return;
-                    await requestProviderSessionEnd(current, 'account_deleted');
+                    const cleanup = await requestProviderSessionEnd(current, 'account_deleted');
+                    if (cleanup.persistenceUnavailable || !cleanup.providerIdentityRevoked) {
+                        realtimeKitProviderAvailable = false;
+                    }
                     emitVideoCapacity(current.roomId);
                 })).then((results) => {
                     results.forEach((result) => {
@@ -4178,6 +4187,13 @@ function createCoStudyServer(options = {}) {
                     socketId,
                     'room_membership_revoked'
                 );
+                if (revoked.persistenceUnavailable || !revoked.providerIdentityRevoked) {
+                    // This result is authoritative even if the joining socket
+                    // disconnected while cleanup was in flight. Keep token
+                    // issuance closed until reconciliation proves both the
+                    // durable registry and provider identity are healthy.
+                    realtimeKitProviderAvailable = false;
+                }
                 if (!joinIsLive()) {
                     await rollbackUserRoomMetadata();
                     return;
@@ -4189,7 +4205,6 @@ function createCoStudyServer(options = {}) {
                     return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
                 }
                 if (!revoked.providerIdentityRevoked) {
-                    realtimeKitProviderAvailable = false;
                     const rolledBack = await rollbackUserRoomMetadata();
                     if (!joinIsLive()) return;
                     return ackError(ack, rolledBack
