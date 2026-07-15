@@ -69,12 +69,16 @@ npm run test:ci
 ## Operator Commands
 
 ```bash
-npm run backup:rooms
-npm run restore:rooms -- /absolute/path/to/backup.json
+npm run backup:state
+npm run restore:state -- /absolute/path/to/artifact.hsbackup
+npm run restore:state -- /absolute/path/to/artifact.hsbackup --apply --writer-stopped
 npm run verify:deploy -- https://your-domain.com
 ```
 
-Room restore is an offline operator action: stop the app first, restore the snapshot, then start the app and run `verify:deploy`.
+Restore defaults to a checksum/schema/tombstone dry run. Applying is an offline
+operator action: stop the single app writer first, supply both apply flags, then
+start the app and run `verify:deploy`. See
+[`docs/BACKUP-RESTORE.md`](docs/BACKUP-RESTORE.md).
 
 ## Stack
 

@@ -60,7 +60,8 @@ ALLOWED_ORIGINS=https://halastudy.com          # your exact origin
 ROOM_STATE_FILE=/var/lib/halastudy/rooms.json
 USER_STATE_FILE=/var/lib/halastudy/users.json
 ROOM_STATE_BACKUP_DIR=/var/lib/halastudy/backups
-BACKUP_INTERVAL_MINUTES=60
+BACKUP_INTERVAL_MINUTES=0
+BACKUP_ENCRYPTION_KEY=<32 random bytes as base64>
 SESSION_SECRET=<from npm run secret:gen>        # REQUIRED — startup fails without it
 ADMIN_SESSION_SECRET=<second generated value>  # REQUIRED and distinct
 ADMIN_PATH=<your secret slug>                   # both admin vars or neither
@@ -118,8 +119,8 @@ problem — don't gate the beta on it.
 ## 7. First-week ops
 
 - [ ] Point an uptime monitor at `/api/metrics` (or `/api/health`).
-- [ ] `data/backups/` fills hourly (rooms + users) — spot-check after day 1.
-- [ ] Off-site backups to Cloudflare R2 (survives VM loss): set `R2_*` in `.env`, `npm run backup:r2 -- --check`, then cron `npm run backup:r2`. See `docs/CLOUDFLARE.md §3`.
+- [ ] `/var/lib/halastudy/backups/` contains an authenticated `.hsbackup` artifact after the nightly timer; prove its dry-run restore after day 1.
+- [ ] Encrypted nightly backups: set `BACKUP_ENCRYPTION_KEY`, enable `halastudy-backup.timer`, prove a dry-run restore, then optionally set `R2_*` so `npm run backup:r2` copies only the newest authenticated `.hsbackup` artifact off-site. See `docs/BACKUP-RESTORE.md`.
 - [ ] Keep the admin video kill-switch in mind: if RealtimeKit cost spikes, flip it from the console (Video tab) to stop new joins instantly without a redeploy.
 - [ ] `npm run cloudflare:cost-check` to watch participant-minutes vs the $288/mo guardrail.
 
