@@ -369,7 +369,7 @@ test('hidden status broadcasts only visibility and update time', async (t) => {
             text: 'private text',
             goal: 'private goal',
             manual: 'studying',
-            manualPreset: 'deep-work',
+            manualPreset: 'studying',
             autoSync: true,
             ambientType: 'rain',
             timerMode: 'focus'
