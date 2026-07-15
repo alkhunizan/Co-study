@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { normalizeSchedule } = require('./schedule-utils');
+const { normalizePersistedUserId } = require('./user-store');
 const { createDebouncedAtomicJsonStore } = require('./services/persistence/debounced-atomic-json-store');
 
 const SAVE_DEBOUNCE_MS = 250;
@@ -9,6 +10,9 @@ const BOARD_TASK_MAX_BYTES = 500;
 const BOARD_TASK_ID_MAX_LENGTH = 128;
 const BOARD_SERIALIZED_MAX_BYTES = 64 * 1024;
 const ROOM_EVENT_OUTBOX_LIMIT = 10_000;
+const JOIN_COMPENSATION_OUTBOX_LIMIT = 1000;
+const JOIN_COMPENSATION_EVENT_LIMIT = 2;
+const JOIN_COMPENSATION_MY_ROOMS_LIMIT = 12;
 const ROOM_EVENT_TYPES = new Set(['create', 'join', 'leave', 'close']);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -215,12 +219,11 @@ function createRoomStore(options = {}) {
             || event.lifecycleEpoch < 0) {
             return null;
         }
-        const userId = typeof event.userId === 'string' && UUID_PATTERN.test(event.userId.trim())
-            ? event.userId.trim()
-            : null;
-        const ownerUserId = typeof event.ownerUserId === 'string' && UUID_PATTERN.test(event.ownerUserId.trim())
-            ? event.ownerUserId.trim()
-            : null;
+        const hasUserId = event.userId !== null && event.userId !== undefined;
+        const userId = hasUserId ? normalizePersistedUserId(event.userId) : null;
+        const hasOwnerUserId = event.ownerUserId !== null && event.ownerUserId !== undefined;
+        const ownerUserId = hasOwnerUserId ? normalizePersistedUserId(event.ownerUserId) : null;
+        if ((hasUserId && !userId) || (hasOwnerUserId && !ownerUserId)) return null;
         const occurrenceId = event.occurrenceId === null || event.occurrenceId === undefined
             ? null
             : sanitizeIsoTimestamp(event.occurrenceId);
@@ -242,6 +245,88 @@ function createRoomStore(options = {}) {
             lifecycleEpoch: event.lifecycleEpoch,
             occurredAt
         };
+    }
+
+    /** @param {Record<string, any>} entry */
+    function sanitizeCompensationMyRoom(entry = {}) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+        const roomId = normalizeRoom(entry.roomId || '');
+        if (!roomId || roomId.length > 12 || !Number.isFinite(entry.lastJoinedAt)) return null;
+        return {
+            roomId,
+            name: sanitizeRoomName(entry.name || roomId) || roomId,
+            role: entry.role === 'created' ? 'created' : 'joined',
+            lastJoinedAt: entry.lastJoinedAt
+        };
+    }
+
+    /** @param {Record<string, any>} intent */
+    function sanitizeJoinCompensation(intent = {}) {
+        if (!intent || typeof intent !== 'object' || Array.isArray(intent)) return null;
+        const operationId = typeof intent.operationId === 'string' ? intent.operationId.trim() : '';
+        const roomId = normalizeRoom(intent.roomId || '');
+        const hasUserId = Object.hasOwn(intent, 'userId') && intent.userId !== null && intent.userId !== undefined;
+        const userId = hasUserId ? normalizePersistedUserId(intent.userId) : null;
+        if (!UUID_PATTERN.test(operationId)
+            || !roomId
+            || roomId.length > 12
+            || (hasUserId && !userId)
+            || !Number.isFinite(intent.joinedAt)
+            || !Number.isFinite(intent.preparedAt)) {
+            return null;
+        }
+        if (!Array.isArray(intent.events)
+            || intent.events.length === 0
+            || intent.events.length > JOIN_COMPENSATION_EVENT_LIMIT) return null;
+        const events = intent.events.map(sanitizeRoomEvent);
+        if (events.some((event) => !event)) return null;
+        if (events.length === 0
+            || events.some((event) => event.userId !== userId)
+            || !events.some((event) => event.eventType === 'join' && event.roomCode === roomId)) {
+            return null;
+        }
+        if (userId && (!Array.isArray(intent.previousMyRooms)
+            || intent.previousMyRooms.length > JOIN_COMPENSATION_MY_ROOMS_LIMIT)) return null;
+        const previousMyRooms = userId
+            ? intent.previousMyRooms.map(sanitizeCompensationMyRoom)
+            : [];
+        if (previousMyRooms.some((entry) => !entry)) return null;
+        return {
+            operationId,
+            userId,
+            roomId,
+            joinedAt: intent.joinedAt,
+            preparedAt: intent.preparedAt,
+            previousMyRooms,
+            events
+        };
+    }
+
+    function validatePersistedJoinCompensations(parsedRooms) {
+        const roomIds = new Set();
+        for (const room of parsedRooms) {
+            if (!room || typeof room !== 'object') continue;
+            const roomId = normalizeRoom(room.id || room.roomId || room.code || '');
+            if (roomId && roomIds.has(roomId)) {
+                throw new Error(`Persisted room state contains duplicate normalized room id ${roomId}.`);
+            }
+            if (roomId) roomIds.add(roomId);
+            if (!Object.hasOwn(room, 'joinCompensationOutbox')) continue;
+            const journal = room.joinCompensationOutbox;
+            if (roomId !== 'LOBBY'
+                || !Array.isArray(journal)
+                || journal.length > JOIN_COMPENSATION_OUTBOX_LIMIT) {
+                throw new Error('Persisted join compensation journal is malformed.');
+            }
+            const operationIds = new Set();
+            for (const rawIntent of journal) {
+                const intent = sanitizeJoinCompensation(rawIntent);
+                if (!intent || operationIds.has(intent.operationId)) {
+                    throw new Error('Persisted join compensation journal contains an invalid or duplicate intent.');
+                }
+                operationIds.add(intent.operationId);
+            }
+        }
     }
 
     function sanitizeVideoPolicy(policy = {}) {
@@ -302,6 +387,17 @@ function createRoomStore(options = {}) {
                 .filter(Boolean)
                 .slice(0, ROOM_EVENT_OUTBOX_LIMIT)
             : [];
+        const seenJoinCompensations = new Set();
+        const joinCompensationOutbox = roomId === 'LOBBY' && Array.isArray(room.joinCompensationOutbox)
+            ? room.joinCompensationOutbox
+                .slice(0, JOIN_COMPENSATION_OUTBOX_LIMIT)
+                .map(sanitizeJoinCompensation)
+                .filter((intent) => {
+                    if (!intent || seenJoinCompensations.has(intent.operationId)) return false;
+                    seenJoinCompensations.add(intent.operationId);
+                    return true;
+                })
+            : [];
 
         return {
             schemaVersion: room.schemaVersion === 2 ? 2 : 1,
@@ -341,7 +437,8 @@ function createRoomStore(options = {}) {
                 ? room.reports.map(sanitizeReport).filter(Boolean).slice(-ROOM_REPORTS_LIMIT)
                 : [],
             schedule: safeSchedule,
-            ...(roomEventOutbox.length > 0 ? { roomEventOutbox } : {})
+            ...(roomEventOutbox.length > 0 ? { roomEventOutbox } : {}),
+            ...(joinCompensationOutbox.length > 0 ? { joinCompensationOutbox } : {})
         };
     }
 
@@ -379,6 +476,7 @@ function createRoomStore(options = {}) {
                 return [];
             }
 
+            validatePersistedJoinCompensations(parsed);
             migrationRequired = parsed.some((room) => (
                 room?.schemaVersion !== 2 || boardExceedsLimits(room?.board)
             ));

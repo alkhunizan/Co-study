@@ -62,6 +62,11 @@ const MAX_LIFECYCLE_TIMER_MS = 2_147_000_000;
 const ROOM_CLEANUP_RETRY_MS = 5 * 60 * 1000;
 const ROOM_EVENT_DRAIN_RETRY_MS = 10 * 1000;
 const ROOM_EVENT_OUTBOX_LIMIT = 10_000;
+const ROOM_EVENT_DRAIN_BATCH_LIMIT = 100;
+const ROOM_SAVE_DEBOUNCE_MS = 250;
+const JOIN_COMPENSATION_OUTBOX_LIMIT = 1000;
+const JOIN_COMPENSATION_DRAIN_BATCH_LIMIT = 25;
+const ROOM_EVENT_MUTATION_KEY = 'room-event-outbox';
 // The Lobby: one reserved, always-available public room. Fixed code so /lobby
 // always resolves to the same room; seeded at startup and exempt from the
 // empty-room TTL cleanup so it never disappears.
@@ -762,6 +767,9 @@ function getSocketRequestIp(request, trustProxy) {
 
 function createCoStudyServer(options = {}) {
     const { env = process.env, mode = 'http', createServer } = options;
+    const roomSaveDebounceMs = Number.isFinite(options.roomSaveDebounceMs)
+        ? Math.max(0, options.roomSaveDebounceMs)
+        : ROOM_SAVE_DEBOUNCE_MS;
     const startupBackoffMs = Array.isArray(options.startupBackoffMs)
         ? options.startupBackoffMs
         : [1000, 2000, 4000];
@@ -802,6 +810,8 @@ function createCoStudyServer(options = {}) {
     const roomLifecycleLocks = new Map();
     const socketMembershipLocks = new Map();
     const membershipTokens = new Map();
+    const activeJoinCompensationIds = new Set();
+    let roomSaveTimer = null;
     const rateLimiters = {
         createRoom: new SlidingWindowRateLimiter(CREATE_ROOM_RATE),
         joinRoom: new SlidingWindowRateLimiter(JOIN_ATTEMPT_RATE),
@@ -954,6 +964,8 @@ function createCoStudyServer(options = {}) {
         getUser: (userId) => users.get(userId) || null
     });
     const googleSubjectMutationCoordinator = createKeyedMutationCoordinator();
+    const roomEventMutationCoordinator = createKeyedMutationCoordinator();
+    const roomSnapshotWriteCoordinator = createKeyedMutationCoordinator();
     const runUserMutation = (user, operation) => userMutationCoordinator.run(user, operation);
     const runGoogleSubjectMutation = (googleSub, operation) =>
         googleSubjectMutationCoordinator.run(googleSub, operation);
@@ -1627,6 +1639,9 @@ function createCoStudyServer(options = {}) {
             roomEventOutbox: Array.isArray(room.roomEventOutbox)
                 ? room.roomEventOutbox.map((event) => ({ ...event }))
                 : [],
+            joinCompensationOutbox: Array.isArray(room.joinCompensationOutbox)
+                ? room.joinCompensationOutbox.map((intent) => structuredClone(intent))
+                : [],
             identities: new Map(),
             cleanupTimer: null
         });
@@ -1664,7 +1679,40 @@ function createCoStudyServer(options = {}) {
     }
 
     function persistRoomsSoon() {
-        return roomStore.scheduleSave(rooms);
+        if (roomSaveTimer) clearTimeout(roomSaveTimer);
+        roomSaveTimer = setTimeout(() => {
+            roomSaveTimer = null;
+            if (typeof options.onRoomSaveQueued === 'function') options.onRoomSaveQueued();
+            void roomSnapshotWriteCoordinator.run('room-snapshot', () => roomStore.flush(rooms))
+                .catch((error) => logger.error({
+                    event: 'room_snapshot_debounced_write_failed',
+                    error: error?.message
+                }));
+        }, roomSaveDebounceMs);
+        roomSaveTimer.unref?.();
+        return Promise.resolve();
+    }
+
+    function runImmediateRoomMutation(operation) {
+        if (typeof operation !== 'function') {
+            return Promise.reject(new TypeError('A room mutation operation is required.'));
+        }
+        if (roomSaveTimer) {
+            clearTimeout(roomSaveTimer);
+            roomSaveTimer = null;
+        }
+        return roomSnapshotWriteCoordinator.run('room-snapshot', operation);
+    }
+
+    function flushRoomsImmediate(onFailure) {
+        return runImmediateRoomMutation(async () => {
+            try {
+                await roomStore.flush(rooms);
+            } catch (error) {
+                if (typeof onFailure === 'function') onFailure();
+                throw error;
+            }
+        });
     }
 
     function roomEventUserId(identityId) {
@@ -1709,10 +1757,28 @@ function createCoStudyServer(options = {}) {
         return lobby.roomEventOutbox;
     }
 
+    function getJoinCompensationOutbox() {
+        const lobby = rooms.get(LOBBY_ROOM_CODE);
+        if (!lobby) {
+            const error = new Error('The durable join compensation outbox is unavailable.');
+            /** @type {any} */ (error).code = 'PERSISTENCE_UNAVAILABLE';
+            throw error;
+        }
+        if (!Array.isArray(lobby.joinCompensationOutbox)) lobby.joinCompensationOutbox = [];
+        return lobby.joinCompensationOutbox;
+    }
+
+    function reservedJoinEventCount() {
+        return getJoinCompensationOutbox().reduce(
+            (total, intent) => total + (Array.isArray(intent.events) ? intent.events.length : 0),
+            0
+        );
+    }
+
     function stageRoomLifecycleEvents(events) {
         if (typeof userStore.logRoomEvent !== 'function' || events.length === 0) return [];
         const outbox = getRoomEventOutbox();
-        if (outbox.length + events.length > ROOM_EVENT_OUTBOX_LIMIT) {
+        if (outbox.length + reservedJoinEventCount() + events.length > ROOM_EVENT_OUTBOX_LIMIT) {
             const error = new Error('The durable room event outbox is full.');
             /** @type {any} */ (error).code = 'PERSISTENCE_UNAVAILABLE';
             throw error;
@@ -1730,33 +1796,243 @@ function createCoStudyServer(options = {}) {
         }
     }
 
+    async function prepareJoinCompensation(intent) {
+        if (!intent || typeof intent.operationId !== 'string') {
+            throw new TypeError('A valid join compensation intent is required.');
+        }
+        activeJoinCompensationIds.add(intent.operationId);
+        try {
+            await roomEventMutationCoordinator.run(ROOM_EVENT_MUTATION_KEY, async () => {
+                await runImmediateRoomMutation(async () => {
+                    const compensations = getJoinCompensationOutbox();
+                    const outbox = getRoomEventOutbox();
+                    if (compensations.length >= JOIN_COMPENSATION_OUTBOX_LIMIT
+                        || outbox.length + reservedJoinEventCount() + intent.events.length > ROOM_EVENT_OUTBOX_LIMIT) {
+                        const error = new Error('The durable join compensation outbox is full.');
+                        /** @type {any} */ (error).code = 'PERSISTENCE_UNAVAILABLE';
+                        throw error;
+                    }
+                    if (compensations.some((candidate) => candidate.operationId === intent.operationId)) {
+                        throw new Error('The join compensation operation already exists.');
+                    }
+                    compensations.push(intent);
+                    try {
+                        await roomStore.flush(rooms);
+                    } catch (error) {
+                        const index = compensations.findIndex(
+                            (candidate) => candidate.operationId === intent.operationId
+                        );
+                        if (index >= 0) compensations.splice(index, 1);
+                        throw error;
+                    }
+                });
+            });
+        } catch (error) {
+            activeJoinCompensationIds.delete(intent.operationId);
+            throw error;
+        }
+    }
+
+    async function commitJoinCompensation(intent, options = {}) {
+        await roomEventMutationCoordinator.run(ROOM_EVENT_MUTATION_KEY, async () => {
+            await runImmediateRoomMutation(async () => {
+                if (typeof options.validate === 'function') options.validate();
+                const compensations = getJoinCompensationOutbox();
+                const intentIndex = compensations.findIndex(
+                    (candidate) => candidate.operationId === intent.operationId
+                );
+                if (intentIndex < 0) {
+                    const error = new Error('The prepared join compensation intent is missing.');
+                    /** @type {any} */ (error).code = 'PERSISTENCE_UNAVAILABLE';
+                    throw error;
+                }
+                const [preparedIntent] = compensations.splice(intentIndex, 1);
+                let appendedEvents = [];
+                let applied = false;
+                try {
+                    if (typeof options.apply === 'function') {
+                        applied = true;
+                        options.apply();
+                    }
+                    const committedEvents = typeof options.buildEvents === 'function'
+                        ? options.buildEvents()
+                        : Array.isArray(options.events)
+                            ? options.events
+                            : preparedIntent.events;
+                    appendedEvents = stageRoomLifecycleEvents(committedEvents);
+                    await roomStore.flush(rooms);
+                } catch (error) {
+                    unstageRoomLifecycleEvents(appendedEvents);
+                    compensations.splice(intentIndex, 0, preparedIntent);
+                    if (applied && typeof options.rollback === 'function') options.rollback();
+                    throw error;
+                }
+            });
+        });
+        activeJoinCompensationIds.delete(intent.operationId);
+    }
+
+    function restoreMyRoomsForJoinCompensation(user, intent) {
+        const currentRooms = Array.isArray(user.myRooms)
+            ? user.myRooms.map((entry) => ({ ...entry }))
+            : [];
+        const targetIndex = currentRooms.findIndex((entry) => entry.roomId === intent.roomId);
+        const targetEntry = targetIndex >= 0 ? currentRooms[targetIndex] : null;
+        if (!targetEntry || targetEntry.lastJoinedAt !== intent.joinedAt) return false;
+
+        const rollbackCapacity = Math.max(intent.previousMyRooms.length, currentRooms.length);
+        currentRooms.splice(targetIndex, 1);
+        for (const previousEntry of intent.previousMyRooms) {
+            if (!currentRooms.some((entry) => entry.roomId === previousEntry.roomId)) {
+                currentRooms.push({ ...previousEntry });
+            }
+        }
+        currentRooms.sort((left, right) => right.lastJoinedAt - left.lastJoinedAt);
+        currentRooms.length = Math.min(currentRooms.length, rollbackCapacity);
+        user.myRooms = currentRooms;
+        return true;
+    }
+
+    async function removeJoinCompensation(intent) {
+        await roomEventMutationCoordinator.run(ROOM_EVENT_MUTATION_KEY, async () => {
+            await runImmediateRoomMutation(async () => {
+                const compensations = getJoinCompensationOutbox();
+                const intentIndex = compensations.findIndex(
+                    (candidate) => candidate.operationId === intent.operationId
+                );
+                if (intentIndex < 0) return;
+                const [removedIntent] = compensations.splice(intentIndex, 1);
+                try {
+                    await roomStore.flush(rooms);
+                } catch (error) {
+                    compensations.splice(intentIndex, 0, removedIntent);
+                    throw error;
+                }
+            });
+        });
+    }
+
+    async function compensateOneJoinIntent(intent) {
+        const user = intent.userId ? users.get(intent.userId) : null;
+        if (user) {
+            try {
+                await runUserMutation(user, async () => {
+                    const beforeAttempt = structuredClone(user.myRooms);
+                    restoreMyRoomsForJoinCompensation(user, intent);
+                    try {
+                        // Persist even when the runtime CAS is already a no-op:
+                        // an earlier timed-out write may have committed the
+                        // stale target durably.
+                        await persistUserImmediate(user);
+                    } catch (error) {
+                        user.myRooms = beforeAttempt;
+                        throw error;
+                    }
+                });
+            } catch (error) {
+                if (error?.code !== 'AUTH_REQUIRED' && error?.code !== 'ACCOUNT_TOMBSTONED') {
+                    throw error;
+                }
+            }
+        }
+        await removeJoinCompensation(intent);
+    }
+
+    let joinCompensationDrainPromise = null;
+    function drainJoinCompensations({ drainAll = false } = {}) {
+        if (joinCompensationDrainPromise) return joinCompensationDrainPromise;
+        joinCompensationDrainPromise = (async () => {
+            const limit = drainAll ? JOIN_COMPENSATION_OUTBOX_LIMIT : JOIN_COMPENSATION_DRAIN_BATCH_LIMIT;
+            let processed = 0;
+            while (processed < limit) {
+                const intent = getJoinCompensationOutbox().find(
+                    (candidate) => !activeJoinCompensationIds.has(candidate.operationId)
+                );
+                if (!intent) break;
+
+                await compensateOneJoinIntent(intent);
+                processed += 1;
+            }
+            return {
+                processed,
+                pending: getJoinCompensationOutbox().length
+            };
+        })().finally(() => {
+            joinCompensationDrainPromise = null;
+        });
+        return joinCompensationDrainPromise;
+    }
+
+    async function handOffJoinCompensation(intent) {
+        if (!intent) return Promise.resolve({ processed: 0, pending: getJoinCompensationOutbox().length });
+        try {
+            // Keep this operation reserved while directly compensating it. A
+            // concurrent periodic batch cannot claim it or make this handoff
+            // report success before the exact journal row is gone.
+            await compensateOneJoinIntent(intent);
+            activeJoinCompensationIds.delete(intent.operationId);
+            return { processed: 1, pending: getJoinCompensationOutbox().length };
+        } catch (error) {
+            activeJoinCompensationIds.delete(intent.operationId);
+            throw error;
+        }
+    }
+
     let roomEventDrainPromise = null;
-    function drainRoomEvents() {
+    function drainRoomEvents({ drainAll = false } = {}) {
         if (roomEventDrainPromise) return roomEventDrainPromise;
         roomEventDrainPromise = (async () => {
             if (typeof userStore.logRoomEvent !== 'function') return { delivered: 0, pending: 0 };
-            const outbox = getRoomEventOutbox();
+            const limit = drainAll ? ROOM_EVENT_OUTBOX_LIMIT : ROOM_EVENT_DRAIN_BATCH_LIMIT;
             let delivered = 0;
-            while (outbox.length > 0) {
-                const event = outbox[0];
+            while (delivered < limit) {
+                const event = await roomEventMutationCoordinator.run(
+                    ROOM_EVENT_MUTATION_KEY,
+                    () => getRoomEventOutbox()[0] || null
+                );
+                if (!event) break;
+
+                // External delivery can stall. Keep both room gates free while
+                // it runs so joins can still durably prepare in parallel.
                 await userStore.logRoomEvent(event);
-                outbox.shift();
-                try {
-                    // Removing an event is durable before the next one is sent.
-                    // A failed removal is restored in memory; replay uses the
-                    // same eventId and is therefore harmless at Supabase.
-                    await roomStore.flush(rooms);
-                } catch (error) {
-                    outbox.unshift(event);
-                    throw error;
-                }
-                delivered += 1;
+                const removed = await roomEventMutationCoordinator.run(
+                    ROOM_EVENT_MUTATION_KEY,
+                    () => runImmediateRoomMutation(async () => {
+                        const outbox = getRoomEventOutbox();
+                        if (outbox[0]?.eventId !== event.eventId) return false;
+                        const removedEvent = outbox.shift();
+                        try {
+                            await roomStore.flush(rooms);
+                        } catch (error) {
+                            outbox.unshift(removedEvent);
+                            throw error;
+                        }
+                        return true;
+                    })
+                );
+                if (removed) delivered += 1;
             }
-            return { delivered, pending: outbox.length };
+            return { delivered, pending: getRoomEventOutbox().length };
         })().finally(() => {
             roomEventDrainPromise = null;
         });
         return roomEventDrainPromise;
+    }
+
+    async function drainPersistenceWork({ drainAll = false } = {}) {
+        try {
+            const compensations = await drainJoinCompensations({ drainAll });
+            const events = typeof userStore.logRoomEvent === 'function'
+                ? await drainRoomEvents({ drainAll })
+                : { delivered: 0, pending: getRoomEventOutbox().length };
+            readinessState.roomStore = true;
+            readinessState.userStore = true;
+            return { compensations, events };
+        } catch (error) {
+            readinessState.roomStore = false;
+            readinessState.userStore = false;
+            throw error;
+        }
     }
 
     function syncRoomSchedule(room, now = Date.now()) {
@@ -1809,6 +2085,17 @@ function createCoStudyServer(options = {}) {
         if (!room || isLobbyRoom(room)) return null;
         const reason = typeof options.reason === 'string' ? options.reason : 'closed';
 
+        // An expiry callback can queue behind a join that cancels an empty-room
+        // TTL. Revalidate after acquiring the lifecycle lock so that stale
+        // timer work cannot close the newly occupied instant room.
+        if (reason === 'expired'
+            && ((!Number.isFinite(room.expiresAt) || room.expiresAt > Date.now())
+                || (!roomHasSchedule(room) && room.users.size > 0))) {
+            if (!roomHasSchedule(room) && room.users.size > 0) room.expiresAt = null;
+            scheduleRoomCleanup(normalizedRoom);
+            return null;
+        }
+
         if (!roomIsClosed(room)) {
             let stagedEvents = [];
             const previousLifecycle = {
@@ -1818,29 +2105,36 @@ function createCoStudyServer(options = {}) {
                 cleanupPending: room.cleanupPending,
                 providerCleanupLastError: room.providerCleanupLastError
             };
-            room.lifecycleEpoch = (Number.isInteger(room.lifecycleEpoch) ? room.lifecycleEpoch : 0) + 1;
-            room.closedAt = Date.now();
-            room.closureReason = reason;
-            room.cleanupPending = !!(
-                room.videoProviderMeetingId
-                && typeof videoProvider.closeRoomMeeting === 'function'
-            );
-            room.providerCleanupLastError = null;
             try {
-                stagedEvents = stageRoomLifecycleEvents([
-                    buildRoomLifecycleEvent(room, 'close', {
-                        userId: options.actorUserId || null,
-                        nickname: options.actorNickname || null,
-                        occurredAt: room.closedAt
-                    })
-                ]);
-                // The closure epoch must be durable before identities are
-                // revoked or a provider participant is kicked. The event
-                // outbox shares this same atomic room snapshot.
-                await roomStore.flush(rooms);
+                await roomEventMutationCoordinator.run(ROOM_EVENT_MUTATION_KEY, async () => {
+                    await runImmediateRoomMutation(async () => {
+                        room.lifecycleEpoch = (Number.isInteger(room.lifecycleEpoch) ? room.lifecycleEpoch : 0) + 1;
+                        room.closedAt = Date.now();
+                        room.closureReason = reason;
+                        room.cleanupPending = !!(
+                            room.videoProviderMeetingId
+                            && typeof videoProvider.closeRoomMeeting === 'function'
+                        );
+                        room.providerCleanupLastError = null;
+                        try {
+                            stagedEvents = stageRoomLifecycleEvents([
+                                buildRoomLifecycleEvent(room, 'close', {
+                                    userId: options.actorUserId || null,
+                                    nickname: options.actorNickname || null,
+                                    occurredAt: room.closedAt
+                                })
+                            ]);
+                            // The closure epoch and event share one durable
+                            // snapshot, including failure restoration.
+                            await roomStore.flush(rooms);
+                        } catch (error) {
+                            unstageRoomLifecycleEvents(stagedEvents);
+                            Object.assign(room, previousLifecycle);
+                            throw error;
+                        }
+                    });
+                });
             } catch (error) {
-                unstageRoomLifecycleEvents(stagedEvents);
-                Object.assign(room, previousLifecycle);
                 const persistenceError = new Error('Room closure could not be persisted.');
                 /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
                 persistenceError.cause = error;
@@ -1918,10 +2212,22 @@ function createCoStudyServer(options = {}) {
                 ));
                 await persistVideoSessionsImmediate();
             } catch (error) {
-                room.cleanupPending = true;
-                room.providerCleanupLastError = String(error?.message || 'provider cleanup failed').slice(0, 200);
+                const previousCleanupState = {
+                    cleanupPending: room.cleanupPending,
+                    providerCleanupLastError: room.providerCleanupLastError,
+                    videoProviderStatus: room.videoProviderStatus
+                };
                 try {
-                    await roomStore.flush(rooms);
+                    await runImmediateRoomMutation(async () => {
+                        room.cleanupPending = true;
+                        room.providerCleanupLastError = String(error?.message || 'provider cleanup failed').slice(0, 200);
+                        try {
+                            await roomStore.flush(rooms);
+                        } catch (persistError) {
+                            Object.assign(room, previousCleanupState);
+                            throw persistError;
+                        }
+                    });
                 } catch (persistError) {
                     logger.error({
                         event: 'room_cleanup_tombstone_persist_failed',
@@ -1947,15 +2253,21 @@ function createCoStudyServer(options = {}) {
             await persistVideoSessionsImmediate();
         }
 
-        rooms.delete(normalizedRoom);
         try {
-            await roomStore.flush(rooms);
+            await runImmediateRoomMutation(async () => {
+                rooms.delete(normalizedRoom);
+                try {
+                    await roomStore.flush(rooms);
+                } catch (error) {
+                    // The first flush left a durable closed record. Keep the
+                    // same tombstone in memory so no request can resurrect it.
+                    room.cleanupPending = true;
+                    room.providerCleanupLastError = 'final room deletion persistence failed';
+                    rooms.set(normalizedRoom, room);
+                    throw error;
+                }
+            });
         } catch (error) {
-            // The first flush left a durable closed record. Keep the same
-            // tombstone in memory so no request can resurrect the room.
-            room.cleanupPending = true;
-            room.providerCleanupLastError = 'final room deletion persistence failed';
-            rooms.set(normalizedRoom, room);
             const persistenceError = new Error('Room deletion could not be persisted.');
             /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
             persistenceError.cause = error;
@@ -2046,6 +2358,7 @@ function createCoStudyServer(options = {}) {
         const delayMs = Math.max(0, Math.min(room.expiresAt - Date.now(), MAX_LIFECYCLE_TIMER_MS));
         room.cleanupTimer = setTimeout(() => {
             room.cleanupTimer = null;
+            if (!Number.isFinite(room.expiresAt)) return;
             if (room.expiresAt > Date.now()) {
                 scheduleRoomCleanup(roomId);
                 return;
@@ -2056,6 +2369,95 @@ function createCoStudyServer(options = {}) {
             });
         }, delayMs);
         room.cleanupTimer.unref?.();
+    }
+
+    function schedulePendingRoomLeave(roomId, user, context = {}) {
+        if (!roomId || !user) return null;
+        const userKey = `${roomId}:${user.name}`;
+        const existingPending = pendingLeaveTimers.get(userKey);
+        if (existingPending) clearTimeout(existingPending.timeoutId);
+
+        const timerRecord = {
+            identityId: user.identityId || context.identityId || null,
+            sessionId: user.sessionId || context.sessionId || null,
+            clientId: user.clientId || context.clientId || null,
+            joinOperationId: user.joinOperationId || null,
+            disconnectedAt: Number.isFinite(context.disconnectedAt)
+                ? context.disconnectedAt
+                : Date.now(),
+            event: null,
+            systemMessage: null,
+            timeoutId: null,
+            reschedule: null
+        };
+
+        const finalizeLeave = () => {
+            inFlightMutations += 1;
+            void runRoomLifecycleOperation(roomId, async () => {
+                const activeRecord = pendingLeaveTimers.get(userKey);
+                if (activeRecord !== timerRecord) return;
+
+                const currentRoom = rooms.get(roomId);
+                if (!currentRoom || roomIsClosed(currentRoom)) {
+                    pendingLeaveTimers.delete(userKey);
+                    return;
+                }
+                timerRecord.event ||= buildRoomLifecycleEvent(currentRoom, 'leave', {
+                    userId: roomEventUserId(timerRecord.identityId),
+                    nickname: user.name,
+                    occurredAt: timerRecord.disconnectedAt
+                });
+                timerRecord.systemMessage ||= createSystemMessage(
+                    `${user.name} left the room`,
+                    user.name,
+                    'leave'
+                );
+                const previousMessages = currentRoom.messages.map((message) => ({ ...message }));
+                let stagedEvents = [];
+                try {
+                    await roomEventMutationCoordinator.run(ROOM_EVENT_MUTATION_KEY, async () => {
+                        await runImmediateRoomMutation(async () => {
+                            try {
+                                stagedEvents = stageRoomLifecycleEvents([timerRecord.event]);
+                                currentRoom.messages.push(timerRecord.systemMessage);
+                                if (currentRoom.messages.length > ROOM_HISTORY_LIMIT) {
+                                    currentRoom.messages.shift();
+                                }
+                                await roomStore.flush(rooms);
+                            } catch (error) {
+                                currentRoom.messages = previousMessages;
+                                unstageRoomLifecycleEvents(stagedEvents);
+                                throw error;
+                            }
+                        });
+                    });
+                } catch (error) {
+                    logger.warn({
+                        event: 'room_leave_outbox_persist_failed',
+                        roomId,
+                        error: error?.message
+                    });
+                    timerRecord.timeoutId = setTimeout(finalizeLeave, 3000);
+                    timerRecord.timeoutId.unref?.();
+                    return;
+                }
+                pendingLeaveTimers.delete(userKey);
+                io.to(roomId).emit('chat-message', timerRecord.systemMessage);
+            }).catch((error) => logger.error({
+                event: 'room_leave_finalize_failed',
+                roomId,
+                error: error?.message
+            })).finally(finishMutation);
+        };
+
+        timerRecord.reschedule = () => {
+            clearTimeout(timerRecord.timeoutId);
+            timerRecord.timeoutId = setTimeout(finalizeLeave, 3000);
+            timerRecord.timeoutId.unref?.();
+            pendingLeaveTimers.set(userKey, timerRecord);
+        };
+        timerRecord.reschedule();
+        return timerRecord;
     }
 
     function invalidateMembershipToken(token) {
@@ -2222,20 +2624,32 @@ function createCoStudyServer(options = {}) {
         const userSockets = Array.from(io.sockets.sockets.values())
             .filter((socketRef) => socketRef.data.userId === userId);
         for (const socketRef of userSockets) {
-            const normalizedRoom = socketRef.data.roomId;
-            const room = normalizedRoom ? rooms.get(normalizedRoom) : null;
-            if (room) {
-                const member = room.users.get(socketRef.id);
-                if (removeUserFromRoom(room, socketRef.id, normalizedRoom, member, { videoAlreadyRevoked: true })) {
-                    io.to(normalizedRoom).emit('camera-status', { userId: socketRef.id, camera: false });
-                    io.to(normalizedRoom).emit('presence', roomSnapshot(normalizedRoom).participants);
-                    scheduleRoomCleanup(normalizedRoom);
+            // Revoke liveness immediately, then let any active membership
+            // transaction finish before removing its exact resulting record.
+            invalidateSocketConnection(socketRef);
+            await runSocketMembershipOperation(socketRef.id, async () => {
+                const normalizedRoom = socketRef.data.roomId;
+                if (normalizedRoom) {
+                    await runRoomLifecycleOperation(normalizedRoom, async () => {
+                        const room = rooms.get(normalizedRoom);
+                        const member = room?.users.get(socketRef.id);
+                        if (room && removeUserFromRoom(
+                            room,
+                            socketRef.id,
+                            normalizedRoom,
+                            member,
+                            { videoAlreadyRevoked: true }
+                        )) {
+                            io.to(normalizedRoom).emit('camera-status', { userId: socketRef.id, camera: false });
+                            io.to(normalizedRoom).emit('presence', roomSnapshot(normalizedRoom).participants);
+                            scheduleRoomCleanup(normalizedRoom);
+                        }
+                    });
                 }
-            } else {
                 invalidateSocketMembership(socketRef);
-            }
-            skippedDisconnects.add(socketRef.id);
-            socketRef.disconnect(true);
+                skippedDisconnects.add(socketRef.id);
+                socketRef.disconnect(true);
+            });
         }
 
         if (activeUserVideoSessions.length > 0) {
@@ -2406,15 +2820,21 @@ function createCoStudyServer(options = {}) {
                 roomId,
                 roomName: room.name || roomId
             });
-            room.videoProviderMeetingId = meeting.meetingId;
-            room.videoProviderMeetingCreatedAt = Date.now();
-            room.videoProviderStatus = 'active';
             try {
-                // The meeting identifier must survive a process crash before
-                // any reusable participant credential is created.
-                await roomStore.flush(rooms);
+                await runImmediateRoomMutation(async () => {
+                    room.videoProviderMeetingId = meeting.meetingId;
+                    room.videoProviderMeetingCreatedAt = Date.now();
+                    room.videoProviderStatus = 'active';
+                    try {
+                        // The meeting identifier must survive a process crash
+                        // before any reusable credential is created.
+                        await roomStore.flush(rooms);
+                    } catch (error) {
+                        Object.assign(room, previousMeetingState);
+                        throw error;
+                    }
+                });
             } catch (error) {
-                Object.assign(room, previousMeetingState);
                 try {
                     await videoProvider.closeRoomMeeting({ meetingId: meeting.meetingId });
                 } catch (cleanupError) {
@@ -2474,11 +2894,22 @@ function createCoStudyServer(options = {}) {
                 );
                 await persistVideoSessionsImmediate();
             } catch (error) {
-                room.videoProviderStatus = 'error';
-                room.providerCleanupLastError = String(error?.message || 'provider cleanup failed').slice(0, 200);
                 realtimeKitProviderAvailable = false;
+                const previousCleanupState = {
+                    videoProviderStatus: room.videoProviderStatus,
+                    providerCleanupLastError: room.providerCleanupLastError
+                };
                 try {
-                    await roomStore.flush(rooms);
+                    await runImmediateRoomMutation(async () => {
+                        room.videoProviderStatus = 'error';
+                        room.providerCleanupLastError = String(error?.message || 'provider cleanup failed').slice(0, 200);
+                        try {
+                            await roomStore.flush(rooms);
+                        } catch (persistError) {
+                            Object.assign(room, previousCleanupState);
+                            throw persistError;
+                        }
+                    });
                 } catch (persistError) {
                     const persistenceError = new Error('Meeting cleanup retry state could not be persisted.');
                     /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
@@ -2496,17 +2927,25 @@ function createCoStudyServer(options = {}) {
         }
 
         const previousMeetingCreatedAt = room.videoProviderMeetingCreatedAt;
-        room.videoProviderMeetingId = null;
-        room.videoProviderMeetingCreatedAt = null;
-        room.videoProviderStatus = 'closed';
-        room.providerCleanupLastError = null;
+        const previousMeetingStatus = room.videoProviderStatus;
+        const previousCleanupError = room.providerCleanupLastError;
         try {
-            await roomStore.flush(rooms);
+            await runImmediateRoomMutation(async () => {
+                room.videoProviderMeetingId = null;
+                room.videoProviderMeetingCreatedAt = null;
+                room.videoProviderStatus = 'closed';
+                room.providerCleanupLastError = null;
+                try {
+                    await roomStore.flush(rooms);
+                } catch (error) {
+                    room.videoProviderMeetingId = oldMeetingId;
+                    room.videoProviderMeetingCreatedAt = previousMeetingCreatedAt;
+                    room.videoProviderStatus = previousMeetingStatus;
+                    room.providerCleanupLastError = previousCleanupError;
+                    throw error;
+                }
+            });
         } catch (error) {
-            room.videoProviderMeetingId = oldMeetingId;
-            room.videoProviderMeetingCreatedAt = previousMeetingCreatedAt;
-            room.videoProviderStatus = 'error';
-            room.providerCleanupLastError = 'meeting recycle state persistence failed';
             const persistenceError = new Error('Meeting recycle state could not be persisted.');
             /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
             persistenceError.cause = error;
@@ -2871,6 +3310,7 @@ function createCoStudyServer(options = {}) {
         rooms.clear();
         users.clear();
         usersByEmail.clear();
+        activeJoinCompensationIds.clear();
         videoSessionRegistry.hydratePersistentState({ schemaVersion: 1, sessions: [] });
         loadedRoomCount = 0;
         loadedUserCount = 0;
@@ -2910,6 +3350,7 @@ function createCoStudyServer(options = {}) {
                     resetHydratedRuntimeState();
                     try {
                         await hydratePersistenceState();
+                        await drainPersistenceWork({ drainAll: true });
                         break;
                     } catch (error) {
                         resetHydratedRuntimeState();
@@ -2978,16 +3419,15 @@ function createCoStudyServer(options = {}) {
         retryPendingClosures();
         roomCleanupRetryTimer = setInterval(retryPendingClosures, ROOM_CLEANUP_RETRY_MS);
         roomCleanupRetryTimer.unref();
-        if (typeof userStore.logRoomEvent === 'function') {
-            roomEventDrainTimer = setInterval(() => {
-                void drainRoomEvents().catch((error) => logger.warn({
-                    event: 'room_event_outbox_drain_failed',
-                    pending: getRoomEventOutbox().length,
-                    error: error?.message
-                }));
-            }, ROOM_EVENT_DRAIN_RETRY_MS);
-            roomEventDrainTimer.unref();
-        }
+        roomEventDrainTimer = setInterval(() => {
+            void drainPersistenceWork().catch((error) => logger.warn({
+                event: 'persistence_outbox_drain_failed',
+                pendingEvents: getRoomEventOutbox().length,
+                pendingJoinCompensations: getJoinCompensationOutbox().length,
+                error: error?.message
+            }));
+        }, ROOM_EVENT_DRAIN_RETRY_MS);
+        roomEventDrainTimer.unref();
     }
 
     let isShuttingDown = false;
@@ -3045,6 +3485,10 @@ function createCoStudyServer(options = {}) {
         if (videoCleanupRetryTimer) clearInterval(videoCleanupRetryTimer);
         if (roomCleanupRetryTimer) clearInterval(roomCleanupRetryTimer);
         if (roomEventDrainTimer) clearInterval(roomEventDrainTimer);
+        if (roomSaveTimer) {
+            clearTimeout(roomSaveTimer);
+            roomSaveTimer = null;
+        }
         backupScheduler.stop();
         console.log(`Received ${signal}. Draining mutations and persisting state...`);
         const serverClosed = new Promise((resolve) => {
@@ -3056,6 +3500,7 @@ function createCoStudyServer(options = {}) {
         });
         await waitForMutationDrain();
         await new Promise((resolve) => io.close(() => resolve()));
+        await waitForMutationDrain();
         await waitForVideoCleanupDrain();
         if (typeof videoProvider.close === 'function') {
             try {
@@ -3064,8 +3509,16 @@ function createCoStudyServer(options = {}) {
                 logger.warn({ event: 'video_provider_shutdown_failed', error: error?.message });
             }
         }
+        // Prepared compensations and lifecycle events are already durable.
+        // Do not let an external event sink or retry backlog consume the hard
+        // shutdown budget ahead of the authoritative final snapshots.
+        logger.info({
+            event: 'shutdown_persistence_backlog_preserved',
+            pendingEvents: getRoomEventOutbox().length,
+            pendingJoinCompensations: getJoinCompensationOutbox().length
+        });
         const flushResults = await Promise.allSettled([
-            roomStore.flush(rooms),
+            flushRoomsImmediate(),
             userStore.flush(users),
             videoSessionStore.flush(videoSessionRegistry.exportPersistentState())
         ]);
@@ -3886,34 +4339,46 @@ function createCoStudyServer(options = {}) {
                 }
             }
 
-            const createdRoom = ensureRoom(roomCode, {
-                name: cleanName,
-                ownerUserId: creator?.id || null,
-                requirePassword: shouldProtect,
-                passwordHash,
-                mediaMode,
-                videoProvider: config.video.provider,
-                createdAt: Date.now(),
-                schedule
-            });
-
-            scheduleRoomCleanup(roomCode);
+            let createdRoom = null;
             let stagedCreateEvents = [];
             try {
-                stagedCreateEvents = stageRoomLifecycleEvents([
-                    buildRoomLifecycleEvent(createdRoom, 'create', {
-                        userId: creator?.id || null,
-                        occurredAt: createdRoom.createdAt
-                    })
-                ]);
-                // A room code is not usable until the complete room record,
-                // including its expiry and lifecycle-event outbox entry, has
-                // reached the immediate store.
-                await roomStore.flush(rooms);
+                await roomEventMutationCoordinator.run(ROOM_EVENT_MUTATION_KEY, async () => {
+                    await runImmediateRoomMutation(async () => {
+                        if (rooms.has(roomCode)) {
+                            const error = new Error('The generated room code is already in use.');
+                            /** @type {any} */ (error).code = 'ROOM_CODE_GENERATION_FAILED';
+                            throw error;
+                        }
+                        createdRoom = ensureRoom(roomCode, {
+                            name: cleanName,
+                            ownerUserId: creator?.id || null,
+                            requirePassword: shouldProtect,
+                            passwordHash,
+                            mediaMode,
+                            videoProvider: config.video.provider,
+                            createdAt: Date.now(),
+                            schedule
+                        });
+                        scheduleRoomCleanup(roomCode);
+                        try {
+                            stagedCreateEvents = stageRoomLifecycleEvents([
+                                buildRoomLifecycleEvent(createdRoom, 'create', {
+                                    userId: creator?.id || null,
+                                    occurredAt: createdRoom.createdAt
+                                })
+                            ]);
+                            // The room insertion and event share one durable
+                            // transaction and rollback boundary.
+                            await roomStore.flush(rooms);
+                        } catch (error) {
+                            unstageRoomLifecycleEvents(stagedCreateEvents);
+                            clearRoomCleanupTimer(createdRoom);
+                            rooms.delete(roomCode);
+                            throw error;
+                        }
+                    });
+                });
             } catch (error) {
-                unstageRoomLifecycleEvents(stagedCreateEvents);
-                clearRoomCleanupTimer(createdRoom);
-                rooms.delete(roomCode);
                 logger.error({
                     event: 'room_create_persist_failed',
                     roomId: roomCode,
@@ -3967,16 +4432,27 @@ function createCoStudyServer(options = {}) {
         onRequest('join-room', async (payload, ack) => {
             const { roomId, username, clientId: payloadClientId, password } = payload;
             const joinConnectionGeneration = socket.data.connectionGeneration;
-            const joinIsLive = () => (
+            const authenticatedUserIdAtStart = socket.data.userId || null;
+            const joiningUser = authenticatedUserIdAtStart ? getSocketUser() : null;
+            const joinSocketIsLive = () => (
                 socket.connected
                 && socket.data.connectionGeneration === joinConnectionGeneration
+            );
+            const joinIsLive = () => (
+                joinSocketIsLive()
+                && (!authenticatedUserIdAtStart
+                    || (socket.data.userId === authenticatedUserIdAtStart
+                        && getSocketUser() === joiningUser))
             );
             const cleanName = sanitizeNickname(username);
             const normalizedRoom = normalizeRoom(roomId);
 
             // A queued membership operation can begin after its socket has
             // already disconnected. Do not perform even its first mutation.
-            if (!joinIsLive()) return;
+            if (!joinSocketIsLive()) return;
+            if (authenticatedUserIdAtStart && !joiningUser) {
+                return ackError(ack, 'AUTH_REQUIRED');
+            }
             const clientId = resolveClientId(socket, payloadClientId);
 
             if (!cleanName) {
@@ -4000,7 +4476,10 @@ function createCoStudyServer(options = {}) {
                 });
                 return ackError(ack, 'ROOM_EXPIRED');
             }
-            if (roomHasSchedule(room) && findOpenOccurrence(room.schedule, joinNow).currentOccurrenceAt === null) {
+            const initialScheduleOccurrenceAt = roomHasSchedule(room)
+                ? findOpenOccurrence(room.schedule, joinNow).currentOccurrenceAt
+                : null;
+            if (roomHasSchedule(room) && initialScheduleOccurrenceAt === null) {
                 return ackError(ack, 'ROOM_SCHEDULE_NOT_OPEN');
             }
             if (roomUsesSfu(room) && !config.sfuAvailable) {
@@ -4090,49 +4569,47 @@ function createCoStudyServer(options = {}) {
                 return ackError(ack, 'ROOM_FULL');
             }
 
-            const joiningUser = getSocketUser();
-            let previousMyRooms = null;
-            let joinedRoomMetadataPersisted = false;
-
-            const restorePreviousMyRooms = () => {
-                if (!joiningUser || !previousMyRooms) return false;
-                const currentRooms = Array.isArray(joiningUser.myRooms)
-                    ? joiningUser.myRooms.map((entry) => ({ ...entry }))
-                    : [];
-                const targetIndex = currentRooms.findIndex((entry) => entry.roomId === normalizedRoom);
-                const targetEntry = targetIndex >= 0 ? currentRooms[targetIndex] : null;
-
-                // A newer mutation from another live browser session owns the
-                // target entry now. Do not erase or rewind that legitimate join.
-                if (!targetEntry || targetEntry.lastJoinedAt !== joinNow) return false;
-
-                const rollbackCapacity = Math.max(previousMyRooms.length, currentRooms.length);
-                currentRooms.splice(targetIndex, 1);
-                for (const previousEntry of previousMyRooms) {
-                    if (!currentRooms.some((entry) => entry.roomId === previousEntry.roomId)) {
-                        currentRooms.push({ ...previousEntry });
-                    }
+            const membershipEvents = [];
+            if (previousRoomId && previousRoomId !== normalizedRoom) {
+                const previousRoom = rooms.get(previousRoomId);
+                const previousRecord = previousRoom?.users.get(socket.id);
+                if (previousRoom && previousRecord) {
+                    membershipEvents.push(buildRoomLifecycleEvent(previousRoom, 'leave', {
+                        userId: roomEventUserId(previousRecord.identityId),
+                        nickname: previousRecord.name,
+                        occurredAt: joinNow
+                    }));
                 }
-                currentRooms.sort((left, right) => right.lastJoinedAt - left.lastJoinedAt);
-                currentRooms.length = Math.min(currentRooms.length, rollbackCapacity);
-                joiningUser.myRooms = currentRooms;
-                return true;
-            };
+            }
+            membershipEvents.push(buildRoomLifecycleEvent(room, 'join', {
+                userId: joiningUser?.id || null,
+                nickname: cleanName,
+                occurredAt: joinNow
+            }));
 
-            const rollbackUserRoomMetadata = async () => {
-                if (!joiningUser || !previousMyRooms || !joinedRoomMetadataPersisted) return true;
+            let joinCompensation = null;
+            let joinCompensationPrepared = false;
+            const buildJoinCompensation = (previousMyRooms, metadataJoinedAt) => ({
+                operationId: crypto.randomUUID(),
+                userId: joiningUser?.id || null,
+                roomId: normalizedRoom,
+                joinedAt: metadataJoinedAt,
+                preparedAt: Date.now(),
+                previousMyRooms,
+                events: membershipEvents
+            });
+            const abortPreparedJoin = async () => {
+                if (!joinCompensation || !joinCompensationPrepared) return true;
                 try {
-                    await runUserMutation(joiningUser, async () => {
-                        const changed = restorePreviousMyRooms();
-                        if (changed) await persistUserImmediate(joiningUser);
-                        joinedRoomMetadataPersisted = false;
-                    });
+                    await handOffJoinCompensation(joinCompensation);
+                    joinCompensationPrepared = false;
                     return true;
                 } catch (error) {
                     logger.error({
-                        event: 'room_join_user_rollback_failed',
+                        event: 'room_join_compensation_failed',
+                        operationId: joinCompensation.operationId,
                         roomId: normalizedRoom,
-                        userId: joiningUser.id,
+                        userId: joiningUser?.id || null,
                         error: error?.message
                     });
                     return false;
@@ -4141,13 +4618,28 @@ function createCoStudyServer(options = {}) {
 
             if (joiningUser) {
                 try {
+                    if (typeof options.onJoinUserMutationQueued === 'function') {
+                        options.onJoinUserMutationQueued({
+                            socketId: socket.id,
+                            roomId: normalizedRoom,
+                            userId: joiningUser.id
+                        });
+                    }
                     await runUserMutation(joiningUser, async () => {
-                        previousMyRooms = structuredClone(joiningUser.myRooms);
+                        const previousMyRooms = structuredClone(joiningUser.myRooms);
+                        const newestMetadataTimestamp = previousMyRooms.reduce(
+                            (latest, entry) => Math.max(latest, entry.lastJoinedAt || 0),
+                            0
+                        );
+                        const metadataJoinedAt = Math.max(joinNow, newestMetadataTimestamp + 1);
+                        joinCompensation = buildJoinCompensation(previousMyRooms, metadataJoinedAt);
+                        await prepareJoinCompensation(joinCompensation);
+                        joinCompensationPrepared = true;
                         recordMyRoom(joiningUser, {
                             roomId: normalizedRoom,
                             name: room.name,
                             role: 'joined',
-                            now: joinNow
+                            now: metadataJoinedAt
                         });
                         try {
                             // Persist account metadata before invalidating the
@@ -4155,26 +4647,38 @@ function createCoStudyServer(options = {}) {
                             // rejected write therefore leaves both rooms and
                             // the old membership token exactly untouched.
                             await persistUserImmediate(joiningUser);
-                            joinedRoomMetadataPersisted = true;
                         } catch (error) {
                             joiningUser.myRooms = previousMyRooms;
                             throw error;
                         }
                     });
                 } catch (error) {
-                    if (!joinIsLive()) {
-                        await rollbackUserRoomMetadata();
-                        return;
-                    }
+                    const compensated = await abortPreparedJoin();
+                    if (!joinIsLive()) return;
                     return ackError(
                         ack,
-                        error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED'
+                        !compensated
+                            ? 'PERSISTENCE_UNAVAILABLE'
+                            : error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED'
                             ? 'AUTH_REQUIRED'
                             : 'PERSISTENCE_UNAVAILABLE'
                     );
                 }
                 if (!joinIsLive()) {
-                    await rollbackUserRoomMetadata();
+                    await abortPreparedJoin();
+                    return;
+                }
+            } else {
+                joinCompensation = buildJoinCompensation([], joinNow);
+                try {
+                    await prepareJoinCompensation(joinCompensation);
+                    joinCompensationPrepared = true;
+                } catch (_error) {
+                    if (!joinIsLive()) return;
+                    return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
+                }
+                if (!joinIsLive()) {
+                    await abortPreparedJoin();
                     return;
                 }
             }
@@ -4199,17 +4703,17 @@ function createCoStudyServer(options = {}) {
                     realtimeKitProviderAvailable = false;
                 }
                 if (!joinIsLive()) {
-                    await rollbackUserRoomMetadata();
+                    await abortPreparedJoin();
                     return;
                 }
                 if (revoked.persistenceUnavailable) {
-                    const rolledBack = await rollbackUserRoomMetadata();
+                    const rolledBack = await abortPreparedJoin();
                     if (!joinIsLive()) return;
                     if (!rolledBack) return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
                     return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
                 }
                 if (!revoked.providerIdentityRevoked) {
-                    const rolledBack = await rollbackUserRoomMetadata();
+                    const rolledBack = await abortPreparedJoin();
                     if (!joinIsLive()) return;
                     return ackError(ack, rolledBack
                         ? 'VIDEO_PROVIDER_UNAVAILABLE'
@@ -4217,99 +4721,96 @@ function createCoStudyServer(options = {}) {
                 }
             }
 
-            let stagedMembershipEvents = [];
-            try {
-                const membershipEvents = [];
-                if (previousRoomId && previousRoomId !== normalizedRoom) {
-                    const previousRoom = rooms.get(previousRoomId);
-                    const previousRecord = previousRoom?.users.get(socket.id);
-                    if (previousRoom && previousRecord) {
-                        membershipEvents.push(buildRoomLifecycleEvent(previousRoom, 'leave', {
-                            userId: roomEventUserId(previousRecord.identityId),
-                            nickname: previousRecord.name,
-                            occurredAt: joinNow
-                        }));
-                    }
-                }
-                membershipEvents.push(buildRoomLifecycleEvent(room, 'join', {
-                    userId: joiningUser?.id || null,
-                    nickname: cleanName,
-                    occurredAt: joinNow
-                }));
-                stagedMembershipEvents = stageRoomLifecycleEvents(membershipEvents);
-                if (stagedMembershipEvents.length > 0) {
-                    // The source leave and target join are one durable outbox
-                    // snapshot. No source membership changes until it lands.
-                    await roomStore.flush(rooms);
-                }
-            } catch (_error) {
-                unstageRoomLifecycleEvents(stagedMembershipEvents);
-                const rolledBack = await rollbackUserRoomMetadata();
-                if (!joinIsLive()) return;
-                if (!rolledBack) return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
-                return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
-            }
-
             if (!joinIsLive()) {
-                // The durable outbox snapshot may have completed just before
-                // disconnect. Remove its uncommitted join/leave intent and
-                // persist that compensation before releasing the room locks.
-                unstageRoomLifecycleEvents(stagedMembershipEvents);
-                if (stagedMembershipEvents.length > 0) {
-                    try {
-                        await roomStore.flush(rooms);
-                    } catch (error) {
-                        logger.error({
-                            event: 'room_join_outbox_rollback_failed',
-                            roomId: normalizedRoom,
-                            error: error?.message
-                        });
-                    }
-                }
-                await rollbackUserRoomMetadata();
+                await abortPreparedJoin();
                 return;
             }
 
-            if (!roomHasSchedule(room)) {
-                clearRoomCleanupTimer(room);
-                room.expiresAt = null;
+            // Password checks, user persistence, and provider revocation can
+            // span an occurrence boundary or an account deletion. Revalidate
+            // the exact live principals and room at the real commit edge.
+            let acceptedJoinAt = Date.now();
+            if (rooms.get(normalizedRoom) !== room || roomIsClosed(room)) {
+                await abortPreparedJoin();
+                if (joinIsLive()) return ackError(ack, 'ROOM_NOT_FOUND');
+                return;
+            }
+            if (Number.isFinite(room.expiresAt) && room.expiresAt <= acceptedJoinAt) {
+                await abortPreparedJoin();
+                if (joinIsLive()) {
+                    void closeRoomLifecycle(normalizedRoom, { reason: 'expired' }).catch((error) => {
+                        logger.error({ event: 'expired_room_close_failed', roomId: normalizedRoom, error: error?.message });
+                    });
+                    return ackError(ack, 'ROOM_EXPIRED');
+                }
+                return;
+            }
+            if (roomHasSchedule(room)
+                && findOpenOccurrence(room.schedule, acceptedJoinAt).currentOccurrenceAt === null) {
+                await abortPreparedJoin();
+                if (joinIsLive()) return ackError(ack, 'ROOM_SCHEDULE_NOT_OPEN');
+                return;
             }
 
-            if (previousRoomId && previousRoomId !== normalizedRoom) {
-                const previousRoom = rooms.get(previousRoomId);
-                if (previousRoom && removeUserFromRoom(
-                    previousRoom,
-                    socket.id,
-                    previousRoomId,
-                    null,
-                    { videoAlreadyRevoked: true }
-                )) {
-                    io.to(previousRoomId).emit('presence', roomSnapshot(previousRoomId).participants);
-                    scheduleRoomCleanup(previousRoomId);
+            const sourceRoom = previousRoomId && previousRoomId !== normalizedRoom
+                ? rooms.get(previousRoomId)
+                : null;
+            const sourceRecord = sourceRoom?.users.get(socket.id) || null;
+            const sourceIdentityKey = sourceRecord
+                ? sourceRecord.identityKey || buildIdentityKey(previousRoomId, sourceRecord.identityId)
+                : null;
+            const sourceIdentityOwner = sourceIdentityKey
+                ? sourceRoom?.identities.get(sourceIdentityKey) || null
+                : null;
+            const buildCommittedMembershipEvents = () => {
+                const events = [];
+                if (sourceRoom && sourceRecord) {
+                    events.push(buildRoomLifecycleEvent(sourceRoom, 'leave', {
+                        userId: roomEventUserId(sourceRecord.identityId),
+                        nickname: sourceRecord.name,
+                        occurredAt: acceptedJoinAt
+                    }));
+                }
+                events.push(buildRoomLifecycleEvent(room, 'join', {
+                    userId: joiningUser?.id || null,
+                    nickname: cleanName,
+                    occurredAt: acceptedJoinAt
+                }));
+                return events;
+            };
+            const previousSchedule = structuredClone(room.schedule);
+            const previousExpiresAt = room.expiresAt;
+            const targetHadCleanupTimer = !!room.cleanupTimer;
+            const sourceExpiresAtBefore = sourceRoom?.expiresAt ?? null;
+            const sourceHadCleanupTimer = !!sourceRoom?.cleanupTimer;
+            const socketStateBefore = {
+                username: socket.data.username,
+                roomId: socket.data.roomId,
+                membershipToken: socket.data.membershipToken,
+                wasInSource: !!(previousRoomId && socket.rooms.has(previousRoomId)),
+                wasInTarget: socket.rooms.has(normalizedRoom)
+            };
+            const targetIdentityOwners = new Map();
+            for (const [oldSocketId, oldRecord] of releasableUsers) {
+                const oldIdentityKey = oldRecord.identityKey
+                    || buildIdentityKey(normalizedRoom, oldRecord.identityId);
+                if (oldIdentityKey && !targetIdentityOwners.has(oldIdentityKey)) {
+                    targetIdentityOwners.set(oldIdentityKey, room.identities.get(oldIdentityKey) || null);
+                }
+                room.users.delete(oldSocketId);
+                if (oldIdentityKey && room.identities.get(oldIdentityKey) === oldSocketId) {
+                    room.identities.delete(oldIdentityKey);
                 }
             }
 
-            if (pendingTimer) {
-                clearTimeout(pendingTimer.timeoutId);
-                pendingLeaveTimers.delete(userKey);
+            if (sourceRoom && sourceRecord) {
+                sourceRoom.users.delete(socket.id);
+                if (sourceIdentityKey && sourceRoom.identities.get(sourceIdentityKey) === socket.id) {
+                    sourceRoom.identities.delete(sourceIdentityKey);
+                }
+                socket.leave(previousRoomId);
             }
 
-            releasableUsers.forEach((userRecord, oldSocketId) => {
-                removeUserFromRoom(
-                    room,
-                    oldSocketId,
-                    normalizedRoom,
-                    userRecord,
-                    { videoAlreadyRevoked: true }
-                );
-            });
-
-            const scheduleChanged = !!(
-                joiningUser
-                && room.ownerUserId
-                && joiningUser.id === room.ownerUserId
-                && recordScheduleJoin(room.schedule, joinNow)
-            );
             const userRecord = {
                 socketId: socket.id,
                 name: cleanName,
@@ -4317,7 +4818,8 @@ function createCoStudyServer(options = {}) {
                 clientId,
                 identityId,
                 identityKey,
-                joinedAt: joinNow,
+                joinedAt: acceptedJoinAt,
+                joinOperationId: joinCompensation.operationId,
                 cameraOn: false,
                 status: null,
                 // Profile perks relayed to peers via presence (user content,
@@ -4326,15 +4828,13 @@ function createCoStudyServer(options = {}) {
                 streakCurrent: joiningUser ? joiningUser.streak.current : null
             };
 
-            // No await is allowed between this final liveness check and the
-            // synchronous membership/token commit below.
-            if (!joinIsLive()) {
-                await rollbackUserRoomMetadata();
-                return;
-            }
-
+            // No await occurs between the liveness check above and this
+            // reversible runtime transition.
             room.users.set(socket.id, userRecord);
             if (identityKey) {
+                if (!targetIdentityOwners.has(identityKey)) {
+                    targetIdentityOwners.set(identityKey, room.identities.get(identityKey) || null);
+                }
                 room.identities.set(identityKey, socket.id);
             }
 
@@ -4342,14 +4842,152 @@ function createCoStudyServer(options = {}) {
             socket.data.roomId = normalizedRoom;
             socket.join(normalizedRoom);
 
+            try {
+                // The durable commit point atomically replaces the private
+                // prepared saga with deliverable lifecycle events. Runtime
+                // membership is already visible to disconnect handling, so a
+                // disconnect during this flush is a real committed join.
+                await commitJoinCompensation(joinCompensation, {
+                    validate: () => {
+                        const rejectJoin = (errorCode) => {
+                            const error = new Error(`Join validation failed: ${errorCode}`);
+                            /** @type {any} */ (error).code = errorCode;
+                            throw error;
+                        };
+                        if (!joinIsLive()) rejectJoin('AUTH_REQUIRED');
+                        if (rooms.get(normalizedRoom) !== room || roomIsClosed(room)) {
+                            rejectJoin('ROOM_NOT_FOUND');
+                        }
+                        const commitAt = Date.now();
+                        if (Number.isFinite(room.expiresAt) && room.expiresAt <= commitAt) {
+                            rejectJoin('ROOM_EXPIRED');
+                        }
+                        if (roomHasSchedule(room)) {
+                            const finalOccurrenceAt = findOpenOccurrence(
+                                room.schedule,
+                                commitAt
+                            ).currentOccurrenceAt;
+                            if (finalOccurrenceAt === null
+                                || finalOccurrenceAt !== initialScheduleOccurrenceAt) {
+                                rejectJoin('ROOM_SCHEDULE_NOT_OPEN');
+                            }
+                        }
+                        acceptedJoinAt = commitAt;
+                    },
+                    buildEvents: buildCommittedMembershipEvents,
+                    apply: () => {
+                        userRecord.joinedAt = acceptedJoinAt;
+                        if (!roomHasSchedule(room)) {
+                            clearRoomCleanupTimer(room);
+                            room.expiresAt = null;
+                        }
+                        if (sourceRoom && sourceRecord) {
+                            scheduleRoomCleanup(previousRoomId);
+                        }
+                        if (joiningUser
+                            && room.ownerUserId
+                            && joiningUser.id === room.ownerUserId
+                        ) {
+                            recordScheduleJoin(room.schedule, acceptedJoinAt);
+                        }
+                    },
+                    rollback: () => {
+                        room.schedule = previousSchedule;
+                        clearRoomCleanupTimer(room);
+                        room.expiresAt = previousExpiresAt;
+                        if (sourceRoom) {
+                            clearRoomCleanupTimer(sourceRoom);
+                            sourceRoom.expiresAt = sourceExpiresAtBefore;
+                        }
+                    }
+                });
+            } catch (error) {
+                if (room.users.get(socket.id) === userRecord) room.users.delete(socket.id);
+                if (identityKey && room.identities.get(identityKey) === socket.id) {
+                    room.identities.delete(identityKey);
+                }
+
+                const abortedLeave = pendingLeaveTimers.get(userKey);
+                if (abortedLeave?.joinOperationId === joinCompensation.operationId) {
+                    clearTimeout(abortedLeave.timeoutId);
+                    pendingLeaveTimers.delete(userKey);
+                }
+
+                for (const [oldSocketId, oldRecord] of releasableUsers) {
+                    room.users.set(oldSocketId, oldRecord);
+                }
+                for (const [oldIdentityKey, oldOwner] of targetIdentityOwners) {
+                    if (oldOwner && room.users.has(oldOwner)) {
+                        room.identities.set(oldIdentityKey, oldOwner);
+                    }
+                }
+
+                if (joinSocketIsLive() && !socketStateBefore.wasInTarget) {
+                    socket.leave(normalizedRoom);
+                }
+                if (sourceRoom && sourceRecord) {
+                    sourceRoom.users.set(socket.id, sourceRecord);
+                    if (sourceIdentityKey && sourceIdentityOwner) {
+                        sourceRoom.identities.set(sourceIdentityKey, sourceIdentityOwner);
+                    }
+                    if (joinSocketIsLive() && socketStateBefore.wasInSource) {
+                        socket.join(previousRoomId);
+                    }
+                }
+                socket.data.username = socketStateBefore.username;
+                socket.data.roomId = socketStateBefore.roomId;
+                socket.data.membershipToken = joinIsLive()
+                    ? socketStateBefore.membershipToken
+                    : null;
+
+                if (targetHadCleanupTimer && !room.cleanupTimer) {
+                    scheduleRoomCleanup(normalizedRoom);
+                }
+                if (sourceRoom && sourceHadCleanupTimer && !sourceRoom.cleanupTimer) {
+                    scheduleRoomCleanup(previousRoomId);
+                }
+
+                await abortPreparedJoin();
+                if (!joinIsLive()) return;
+                return ackError(
+                    ack,
+                    ['ROOM_NOT_FOUND', 'ROOM_EXPIRED', 'ROOM_SCHEDULE_NOT_OPEN', 'AUTH_REQUIRED']
+                        .includes(error?.code)
+                        ? error.code
+                        : 'PERSISTENCE_UNAVAILABLE'
+                );
+            }
+
+            if (sourceRecord) invalidateMembershipToken(sourceRecord.membershipToken);
+            for (const [oldSocketId, oldRecord] of releasableUsers) {
+                invalidateMembershipToken(oldRecord.membershipToken);
+                const oldSocket = io.sockets.sockets.get(oldSocketId);
+                if (!oldSocket || oldSocket === socket) continue;
+                invalidateSocketMembership(oldSocket);
+                oldSocket.leave(normalizedRoom);
+                if (oldSocket.data.roomId === normalizedRoom) oldSocket.data.roomId = null;
+            }
+            if (pendingTimer && pendingLeaveTimers.get(userKey) === pendingTimer) {
+                clearTimeout(pendingTimer.timeoutId);
+                pendingLeaveTimers.delete(userKey);
+            }
+            if (!roomHasSchedule(room)) {
+                clearRoomCleanupTimer(room);
+            }
+            if (sourceRoom && sourceRecord) {
+                io.to(previousRoomId).emit('presence', roomSnapshot(previousRoomId).participants);
+                scheduleRoomCleanup(previousRoomId);
+            }
+
+            if (!joinIsLive()) {
+                return;
+            }
+
             const membershipToken = issueMembershipToken(socket, normalizedRoom);
             userRecord.membershipToken = membershipToken;
 
             const snapshot = roomSnapshot(normalizedRoom);
             ack({ ok: true, room: snapshot, membershipToken });
-            if (scheduleChanged) {
-                persistRoomsSoon();
-            }
 
             io.to(normalizedRoom).emit('presence', snapshot.participants);
 
@@ -4689,102 +5327,48 @@ function createCoStudyServer(options = {}) {
                 emitVideoCapacity(session.roomId);
                 void requestProviderSessionEnd(session, 'socket_disconnect');
             }
-            const { roomId, sessionId: userSessionId, clientId: userClientId } = socket.data;
-            if (!roomId) return;
-            const room = rooms.get(roomId);
-            if (!room) return;
 
-            const user = room.users.get(socket.id);
-            room.users.delete(socket.id);
+            // Membership state is serialized with join/switch operations. The
+            // queued cleanup therefore observes source after a failed commit
+            // or target after a successful one, never the provisional middle.
+            inFlightMutations += 1;
+            void runSocketMembershipOperation(socket.id, async () => {
+                const {
+                    roomId,
+                    sessionId: userSessionId,
+                    clientId: userClientId
+                } = socket.data;
+                if (!roomId) return;
+                await runRoomLifecycleOperation(roomId, async () => {
+                    const room = rooms.get(roomId);
+                    if (!room) return;
 
-            if (user) {
-                const identityKey = user.identityKey || buildIdentityKey(roomId, user.identityId);
-                if (identityKey && room.identities && room.identities.get(identityKey) === socket.id) {
-                    room.identities.delete(identityKey);
-                }
-            }
-
-            io.to(roomId).emit('camera-status', { userId: socket.id, camera: false });
-            const snapshot = roomSnapshot(roomId);
-            io.to(roomId).emit('presence', snapshot.participants);
-
-            if (user) {
-                const userKey = `${roomId}:${user.name}`;
-                const existingPending = pendingLeaveTimers.get(userKey);
-                if (existingPending) {
-                    clearTimeout(existingPending.timeoutId);
-                }
-
-                const timerRecord = {
-                    identityId: user.identityId || socket.data.identityId,
-                    sessionId: user.sessionId || userSessionId,
-                    clientId: user.clientId || userClientId || socket.data.clientId || null,
-                    disconnectedAt: Date.now(),
-                    event: null,
-                    systemMessage: null,
-                    timeoutId: null
-                };
-
-                const finalizeLeave = () => {
-                    inFlightMutations += 1;
-                    void runRoomLifecycleOperation(roomId, async () => {
-                        const activeRecord = pendingLeaveTimers.get(userKey);
-                        if (activeRecord !== timerRecord) return;
-
-                        const currentRoom = rooms.get(roomId);
-                        if (!currentRoom || roomIsClosed(currentRoom)) {
-                            pendingLeaveTimers.delete(userKey);
-                            return;
+                    const user = room.users.get(socket.id);
+                    room.users.delete(socket.id);
+                    if (user) {
+                        const identityKey = user.identityKey || buildIdentityKey(roomId, user.identityId);
+                        if (identityKey && room.identities?.get(identityKey) === socket.id) {
+                            room.identities.delete(identityKey);
                         }
-                        timerRecord.event ||= buildRoomLifecycleEvent(currentRoom, 'leave', {
-                            userId: roomEventUserId(timerRecord.identityId),
-                            nickname: user.name,
-                            occurredAt: timerRecord.disconnectedAt
+                    }
+
+                    io.to(roomId).emit('camera-status', { userId: socket.id, camera: false });
+                    const snapshot = roomSnapshot(roomId);
+                    io.to(roomId).emit('presence', snapshot.participants);
+                    if (user) {
+                        schedulePendingRoomLeave(roomId, user, {
+                            identityId: socket.data.identityId,
+                            sessionId: userSessionId,
+                            clientId: userClientId || socket.data.clientId || null
                         });
-                        timerRecord.systemMessage ||= createSystemMessage(
-                            `${user.name} left the room`,
-                            user.name,
-                            'leave'
-                        );
-                        const previousMessages = currentRoom.messages.map((message) => ({ ...message }));
-                        let stagedEvents = [];
-                        try {
-                            stagedEvents = stageRoomLifecycleEvents([timerRecord.event]);
-                            currentRoom.messages.push(timerRecord.systemMessage);
-                            if (currentRoom.messages.length > ROOM_HISTORY_LIMIT) currentRoom.messages.shift();
-                            if (stagedEvents.length > 0) {
-                                await roomStore.flush(rooms);
-                            } else {
-                                persistRoomsSoon();
-                            }
-                        } catch (error) {
-                            currentRoom.messages = previousMessages;
-                            unstageRoomLifecycleEvents(stagedEvents);
-                            logger.warn({
-                                event: 'room_leave_outbox_persist_failed',
-                                roomId,
-                                error: error?.message
-                            });
-                            timerRecord.timeoutId = setTimeout(finalizeLeave, 3000);
-                            timerRecord.timeoutId.unref?.();
-                            return;
-                        }
-                        pendingLeaveTimers.delete(userKey);
-                        io.to(roomId).emit('chat-message', timerRecord.systemMessage);
-                    }).catch((error) => logger.error({
-                        event: 'room_leave_finalize_failed',
-                        roomId,
-                        error: error?.message
-                    })).finally(finishMutation);
-                };
-
-                timerRecord.timeoutId = setTimeout(finalizeLeave, 3000);
-                timerRecord.timeoutId.unref?.();
-
-                pendingLeaveTimers.set(userKey, timerRecord);
-            }
-
-            scheduleRoomCleanup(roomId);
+                    }
+                    scheduleRoomCleanup(roomId);
+                });
+            }).catch((error) => logger.error({
+                event: 'socket_disconnect_membership_cleanup_failed',
+                socketId: socket.id,
+                error: error?.message
+            })).finally(finishMutation);
         });
     });
 
@@ -4839,6 +5423,9 @@ function createCoStudyServer(options = {}) {
         rooms,
         users,
         drainRoomEvents,
+        drainJoinCompensations,
+        handOffJoinCompensation,
+        drainPersistenceWork,
         initialize,
         listen,
         evaluateReadiness,
