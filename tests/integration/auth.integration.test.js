@@ -46,6 +46,7 @@ test('signup issues an auth cookie and /api/auth/me returns the profile', async 
     const me = await authedRequest(server, '/api/auth/me', cookie);
     assert.equal(me.status, 200);
     assert.equal(me.body.user.email, 'sara@example.com');
+    assert.deepEqual(me.body.user.authMethods, { password: true, google: false });
 });
 
 test('signup rejects invalid email, short password, missing name, and duplicate email', async (t) => {
@@ -438,6 +439,6 @@ test('banned semantics: a bad users file entry is dropped, not fatal, in non-str
     const { cookie } = await signupUser(server, { email: 'shape@example.com' });
     const me = await authedRequest(server, '/api/auth/me', cookie);
     assert.deepEqual(Object.keys(me.body.user).sort(), [
-        'avatarColor', 'bio', 'createdAt', 'displayName', 'email', 'id', 'streak'
+        'authMethods', 'avatarColor', 'bio', 'createdAt', 'displayName', 'email', 'id', 'streak'
     ]);
 });

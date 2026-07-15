@@ -18,6 +18,12 @@ const DISPLAY_NAME_MAX_LENGTH = 20;
 const BIO_MAX_LENGTH = 160;
 const FOCUS_SESSION_MAX_MINUTES = 240;
 
+async function verifyLoginPassword(user, password, verifier = verifyPassword) {
+    const passwordEnabled = !!user && user.passwordEnabled !== false && !!user.passwordHash;
+    const passwordOk = await verifier(password, passwordEnabled ? user.passwordHash : null);
+    return passwordEnabled && passwordOk;
+}
+
 function createAuthRouter(deps) {
     const {
         users,
@@ -95,7 +101,7 @@ function createAuthRouter(deps) {
 
         const userId = email ? usersByEmail.get(email) : null;
         const user = userId ? users.get(userId) : null;
-        const passwordOk = user ? await verifyPassword(password, user.passwordHash) : false;
+        const passwordOk = await verifyLoginPassword(user, password);
         if (!user || !passwordOk) {
             rateLimiters.authFailure.consume(failureKey);
             res.status(401).json({ errorCode: 'INVALID_CREDENTIALS' });
@@ -237,5 +243,6 @@ function createAuthRouter(deps) {
 }
 
 module.exports = {
-    createAuthRouter
+    createAuthRouter,
+    verifyLoginPassword
 };

@@ -22,6 +22,9 @@ function rowToUser(row) {
         id: row.id,
         email: row.email,
         passwordHash: row.password_hash,
+        passwordEnabled: typeof row.password_enabled === 'boolean' ? row.password_enabled : undefined,
+        googleSub: row.google_sub,
+        authProvider: row.auth_provider,
         displayName: row.display_name,
         avatarColor: row.avatar_color,
         bio: row.bio,
@@ -38,10 +41,8 @@ function rowToUser(row) {
     };
     const user = sanitizeUser(candidate);
     if (!user) return null;
-    // Supabase-only fields the shared sanitizer doesn't carry.
+    // Supabase-only authorization field the shared sanitizer doesn't carry.
     user.isAdmin = !!row.is_admin;
-    user.authProvider = AUTH_PROVIDERS.has(row.auth_provider) ? row.auth_provider : 'password';
-    user.googleSub = typeof row.google_sub === 'string' && row.google_sub ? row.google_sub : null;
     return user;
 }
 
@@ -50,7 +51,8 @@ function userToRow(user) {
     return {
         id: user.id,
         email: user.email,
-        password_hash: user.passwordHash,
+        password_hash: user.passwordEnabled ? user.passwordHash : null,
+        password_enabled: !!user.passwordEnabled,
         display_name: user.displayName,
         avatar_color: user.avatarColor,
         bio: user.bio,
