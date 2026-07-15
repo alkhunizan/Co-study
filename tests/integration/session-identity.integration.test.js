@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const { createAnonSessionToken, verifyAnonSessionToken } = require('../../services/auth');
-const { startServer } = require('../helpers/server-control');
+const { delay, startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
 
@@ -174,6 +174,89 @@ test('concurrent room switches serialize so a socket remains in exactly one targ
         snapshot.room.participants.some((participant) => participant.name === 'Mover')
     )).length;
     assert.equal(targetPresenceCount, 1);
+});
+
+test('disconnect during an authenticated async join cannot create a zombie member or myRooms entry', async (t) => {
+    const server = await startServer();
+    t.after(() => server.stop());
+
+    const creator = await connectSocket(server.baseUrl);
+    const account = await signupUser(server, {
+        email: 'disconnect-during-join@example.com',
+        displayName: 'Interrupted Join'
+    });
+    const joiningSocket = await connectSocket(server.baseUrl, {
+        extraHeaders: { Cookie: account.cookie }
+    });
+    t.after(async () => {
+        await closeSocket(creator);
+        await closeSocket(joiningSocket);
+    });
+
+    const created = await emitAck(creator, 'create-room', { roomName: 'Async join target' });
+    assert.equal(created.ok, true);
+
+    // Socket.IO preserves packet order: the server starts join-room, reaches
+    // the asynchronous immediate user write, then processes this disconnect.
+    // The old handler resumed afterwards and inserted a zombie room member.
+    joiningSocket.emit('join-room', {
+        roomId: created.room.code,
+        username: 'Interrupted Join'
+    }, () => {});
+    joiningSocket.disconnect();
+    await delay(750);
+
+    const room = await server.request(`/api/rooms/${created.room.code}`);
+    assert.equal(room.status, 200);
+    assert.deepEqual(room.body.participants, []);
+
+    const myRooms = await server.request('/api/me/rooms', {
+        headers: { Cookie: account.cookie }
+    });
+    assert.equal(myRooms.status, 200);
+    assert.equal(
+        myRooms.body.rooms.some((entry) => entry.roomId === created.room.code),
+        false,
+        'a disconnected join must compensate already-persisted account metadata'
+    );
+});
+
+test('disconnect during protected-room password verification cannot resume into membership', async (t) => {
+    const server = await startServer();
+    t.after(() => server.stop());
+
+    const creator = await connectSocket(server.baseUrl);
+    const joiningSocket = await connectSocket(server.baseUrl);
+    const observer = await connectSocket(server.baseUrl);
+    t.after(async () => {
+        await closeSocket(creator);
+        await closeSocket(joiningSocket);
+        await closeSocket(observer);
+    });
+
+    const created = await emitAck(creator, 'create-room', {
+        roomName: 'Protected async join',
+        requirePassword: true,
+        password: 'correct horse battery staple'
+    });
+    assert.equal(created.ok, true);
+
+    joiningSocket.emit('join-room', {
+        roomId: created.room.code,
+        username: 'Password Zombie',
+        password: 'correct horse battery staple'
+    }, () => {});
+    await delay(10);
+    joiningSocket.disconnect();
+    await delay(750);
+
+    const observed = await emitAck(observer, 'join-room', {
+        roomId: created.room.code,
+        username: 'Observer',
+        password: 'correct horse battery staple'
+    });
+    assert.equal(observed.ok, true);
+    assert.deepEqual(observed.room.participants.map((participant) => participant.name), ['Observer']);
 });
 
 test('malformed socket payloads return REQUEST_INVALID without terminating the server', async (t) => {

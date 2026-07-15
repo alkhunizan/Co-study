@@ -192,6 +192,99 @@ test('logout clears the cookie and /api/auth/me reports a guest after', async (t
     assert.equal(me.body.user, null);
 });
 
+test('logout disconnects only authenticated sockets from the same signed browser session', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const primary = await signupUser(server, {
+        email: 'session-scoped-logout@example.com',
+        displayName: 'Primary Session'
+    });
+
+    // Log the same account in from a separately minted anonymous browser
+    // session. Ordinary logout must not become a global account-session kill.
+    const anonymousResponse = await server.request('/api/health');
+    const otherAnonymousCookie = extractCookies(anonymousResponse.headers['set-cookie']);
+    assert.match(otherAnonymousCookie, /coStudySessionId=as1\./);
+    const otherLogin = await server.request('/api/auth/login', {
+        method: 'POST',
+        headers: { Cookie: otherAnonymousCookie },
+        body: {
+            email: primary.credentials.email,
+            password: primary.credentials.password
+        }
+    });
+    assert.equal(otherLogin.status, 200);
+    const otherSessionCookie = `${otherAnonymousCookie}; ${extractCookies(otherLogin.headers['set-cookie'])}`;
+
+    const primarySocket = await connectSocket(server.baseUrl, {
+        clientId: 'logout-primary-session',
+        extraHeaders: { Cookie: primary.cookie }
+    });
+    const sameSessionSocket = await connectSocket(server.baseUrl, {
+        clientId: 'logout-primary-session-second-tab',
+        extraHeaders: { Cookie: primary.cookie }
+    });
+    const otherSocket = await connectSocket(server.baseUrl, {
+        clientId: 'logout-other-session',
+        extraHeaders: { Cookie: otherSessionCookie }
+    });
+    t.after(async () => {
+        await closeSocket(primarySocket);
+        await closeSocket(sameSessionSocket);
+        await closeSocket(otherSocket);
+    });
+
+    const created = await emitAck(primarySocket, 'create-room', { roomName: 'Logout membership' });
+    const joined = await emitAck(primarySocket, 'join-room', {
+        roomId: created.room.code,
+        username: 'Primary Session'
+    });
+    assert.equal(joined.ok, true);
+
+    const primaryDisconnected = new Promise((resolve) => primarySocket.once('disconnect', resolve));
+    const sameSessionDisconnected = new Promise((resolve) => sameSessionSocket.once('disconnect', resolve));
+    const logout = await authedRequest(server, '/api/auth/logout', primary.cookie, { method: 'POST' });
+    assert.equal(logout.status, 200);
+    await Promise.all([
+        Promise.race([
+            primaryDisconnected,
+            delay(2000).then(() => assert.fail('same-session authenticated socket stayed connected'))
+        ]),
+        Promise.race([
+            sameSessionDisconnected,
+            delay(2000).then(() => assert.fail('same-session second tab stayed connected'))
+        ])
+    ]);
+    assert.equal(primarySocket.connected, false);
+    assert.equal(sameSessionSocket.connected, false);
+    assert.equal(otherSocket.connected, true);
+
+    const staleMembership = await server.request(`/api/rooms/${created.room.code}/video-token`, {
+        method: 'POST',
+        headers: {
+            Cookie: primary.cookie,
+            'X-Halastudy-Membership': joined.membershipToken
+        },
+        body: { displayName: 'Primary Session', role: 'student' }
+    });
+    assert.equal(staleMembership.status, 403);
+    assert.equal(staleMembership.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+
+    // The second browser session is still account-authorized over its existing
+    // socket, proven by an authenticated-only scheduled-room mutation.
+    const tomorrow = new Date(Date.now() + (27 * 60 * 60 * 1000));
+    const otherSessionMutation = await emitAck(otherSocket, 'create-room', {
+        roomName: 'Other session survives',
+        schedule: {
+            startDate: tomorrow.toISOString().slice(0, 10),
+            startTime: '20:00',
+            cadence: 'once'
+        }
+    });
+    assert.equal(otherSessionMutation.ok, true);
+});
+
 test('profile updates validate avatar color and bio bounds', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
