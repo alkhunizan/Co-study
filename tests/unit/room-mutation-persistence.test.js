@@ -27,7 +27,8 @@ function testEnvironment(port) {
         ADMIN_SESSION_SECRET: 'room-mutation-admin-secret-0123456789abcdef',
         ROOM_STATE_FILE: `room-mutation-${port}.rooms.json`,
         USER_STATE_FILE: `room-mutation-${port}.users.json`,
-        VIDEO_PROVIDER: 'mesh'
+        VIDEO_PROVIDER: 'mesh',
+        ENABLE_DEV_MESH: 'true'
     };
 }
 
