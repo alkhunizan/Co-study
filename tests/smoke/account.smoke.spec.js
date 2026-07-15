@@ -143,6 +143,67 @@ test('delete-my-data flow: typed confirmation, then the account is really gone',
     }
 });
 
+test('Google-only account can reauthenticate and finish deletion without a password', async ({ browser }) => {
+    const visitor = await createAccountPage(browser);
+    let deletionRequests = 0;
+    try {
+        await visitor.page.route('**/api/runtime-config', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ googleAuthEnabled: true })
+            });
+        });
+        await visitor.page.route('**/api/auth/me', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    ok: true,
+                    user: {
+                        id: 'google-only-user',
+                        email: 'google-only@example.com',
+                        displayName: 'Google User',
+                        avatarColor: 'amber',
+                        bio: '',
+                        authMethods: { password: false, google: true },
+                        streak: { current: 0, best: 0 }
+                    }
+                })
+            });
+        });
+        await visitor.page.route('**/api/me', async (route) => {
+            if (route.request().method() !== 'DELETE') return route.continue();
+            deletionRequests += 1;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ ok: true })
+            });
+        });
+
+        await visitor.page.goto('/account');
+        await expect(visitor.page.locator('#account-view')).toBeVisible();
+        await expect(visitor.page.locator('#delete-password-group')).toBeHidden();
+        await expect(visitor.page.locator('#btn-delete')).toBeHidden();
+        await expect(visitor.page.locator('#btn-delete-google')).toBeVisible();
+
+        await visitor.page.click('#btn-delete-google');
+        const dialog = visitor.page.locator('dialog.hala-modal');
+        await dialog.locator('input').fill('Google User');
+        await dialog.locator('.hala-modal__btn--danger').click();
+        await visitor.page.waitForURL(/\/auth\/google\?intent=reauth_delete/);
+
+        // Simulate the verified provider callback. The session-scoped pending
+        // marker causes exactly one credential-less DELETE; the HttpOnly grant
+        // itself is exercised by the server integration tests.
+        await visitor.page.goto('/account?auth=delete_granted');
+        await expect.poll(() => deletionRequests).toBe(1);
+    } finally {
+        await visitor.context.close();
+    }
+});
+
 test('guest focus-sync nudge appears after a focus session and dismissal sticks across reloads', async ({ browser }) => {
     const guest = await createAccountPage(browser);
     try {

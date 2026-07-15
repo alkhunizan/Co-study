@@ -6,6 +6,7 @@
 // carry a session.
 const express = require('express');
 const { hashPassword, verifyPassword } = require('./password');
+const { GOOGLE_DELETE_GRANT_COOKIE } = require('./oauth-security');
 const {
     normalizeEmail,
     validatePassword,
@@ -40,6 +41,10 @@ function createAuthRouter(deps) {
         publicUser,
         setAuthCookie,
         clearAuthCookie,
+        rotateAnonymousIdentity,
+        appendSetCookie,
+        parseCookies,
+        oauthSecurity,
         persistUser,
         deleteUser,
         persistFocusCompletion,
@@ -48,6 +53,19 @@ function createAuthRouter(deps) {
     } = deps;
 
     const router = express.Router();
+
+    function clearDeletionGrantCookie(req, res) {
+        if (typeof appendSetCookie !== 'function') return;
+        const parts = [
+            `${GOOGLE_DELETE_GRANT_COOKIE}=`,
+            'Path=/api/me',
+            'HttpOnly',
+            'SameSite=Lax',
+            'Max-Age=0'
+        ];
+        if (req.secure) parts.push('Secure');
+        appendSetCookie(res, parts.join('; '));
+    }
 
     router.post('/auth/signup', async (req, res) => {
         const requestIp = getRequestIp(req);
@@ -133,6 +151,7 @@ function createAuthRouter(deps) {
 
     router.post('/auth/logout', (req, res) => {
         clearAuthCookie(req, res);
+        rotateAnonymousIdentity?.(req, res);
         res.json({ ok: true });
     });
 
@@ -279,8 +298,18 @@ function createAuthRouter(deps) {
         if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
 
         const password = typeof req.body?.password === 'string' ? req.body.password : '';
-        const passwordOk = await verifyPassword(password, req.user.passwordHash);
-        if (!passwordOk) {
+        const passwordEnabled = req.user.passwordEnabled !== false && !!req.user.passwordHash;
+        const passwordOk = await verifyPassword(password, passwordEnabled ? req.user.passwordHash : null);
+        const grantToken = typeof parseCookies === 'function'
+            ? parseCookies(req.headers.cookie || '')[GOOGLE_DELETE_GRANT_COOKIE]
+            : null;
+        const grantOk = !!grantToken && !!oauthSecurity?.consumeProof({
+            purpose: 'delete_grant',
+            token: grantToken,
+            userId: req.user.id
+        });
+        if (grantToken) clearDeletionGrantCookie(req, res);
+        if ((!passwordEnabled || !passwordOk) && !grantOk) {
             res.status(401).json({ errorCode: 'INVALID_CREDENTIALS' });
             return;
         }
@@ -296,6 +325,7 @@ function createAuthRouter(deps) {
         usersByEmail.delete(req.user.email);
         users.delete(userId);
         clearAuthCookie(req, res);
+        rotateAnonymousIdentity?.(req, res);
         logger.info({ event: 'user_deleted', userId });
         res.json({ ok: true });
     });
