@@ -127,7 +127,10 @@ function captureBrowserErrors(page) {
 
 test('Lobby binds its shared video lifecycle to the socket membership and server session', async ({ browser }) => {
     const server = await startServer({ withFakeRealtimeKit: true });
-    const context = await browser.newContext({ permissions: [] });
+    // Playwright page.route cannot intercept requests from a controlling
+    // service worker. This test intentionally mocks scripts and API calls, so
+    // keep its context worker-free and test the real worker in its own spec.
+    const context = await browser.newContext({ permissions: [], serviceWorkers: 'block' });
     const page = await context.newPage();
     const membershipToken = 'membership-lobby-smoke';
     const videoSessionId = 'video-session-lobby-smoke';
@@ -171,7 +174,7 @@ test('Lobby binds its shared video lifecycle to the socket membership and server
 
 test('study room binds its shared video lifecycle to the socket membership and server session', async ({ browser }) => {
     const server = await startServer({ withFakeRealtimeKit: true });
-    const context = await browser.newContext({ permissions: [] });
+    const context = await browser.newContext({ permissions: [], serviceWorkers: 'block' });
     const page = await context.newPage();
     const membershipToken = 'membership-room-smoke';
     const videoSessionId = 'video-session-room-smoke';

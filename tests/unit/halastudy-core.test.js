@@ -46,8 +46,11 @@ function createStorage() {
     };
 }
 
-/** @param {(request: { url: string, options: any }) => any} fetchImpl */
-function createHarness(fetchImpl) {
+/**
+ * @param {(request: { url: string, options: any }) => any} fetchImpl
+ * @param {{ serviceWorker?: any }} [options]
+ */
+function createHarness(fetchImpl, options = {}) {
     const requests = [];
     const attributes = new Map();
     const document = {
@@ -59,7 +62,9 @@ function createHarness(fetchImpl) {
             getAttribute(name) { return attributes.get(name) || null; }
         }
     };
-    const window = {};
+    const window = {
+        navigator: options.serviceWorker ? { serviceWorker: options.serviceWorker } : undefined
+    };
 
     vm.runInNewContext(CORE_SOURCE, {
         window,
@@ -152,4 +157,21 @@ test('signout immediately aborts a pending session lookup and rejects its stale 
     assert.equal(await pendingUser, null);
     assert.equal(await harness.auth.getUser(), null);
     assert.equal(harness.requests.length, 2);
+});
+
+test('shared core registers the root service worker without reusing HTTP-cached worker bytes', () => {
+    const registrations = [];
+    createHarness(() => jsonResponse({ announcement: null }), {
+        serviceWorker: {
+            register(url, options) {
+                registrations.push({ url, options });
+                return Promise.resolve();
+            }
+        }
+    });
+
+    assert.equal(registrations.length, 1);
+    assert.equal(registrations[0].url, '/service-worker.js');
+    assert.equal(registrations[0].options.scope, '/');
+    assert.equal(registrations[0].options.updateViaCache, 'none');
 });

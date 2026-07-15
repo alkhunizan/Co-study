@@ -1858,6 +1858,39 @@ test('privacy page is served bilingually and linked from landing and open footer
     assert.match(`${open.body}`, /href="\/privacy"/);
 });
 
+test('service worker is served from the origin root with update-safe headers', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const worker = await server.request('/service-worker.js');
+    assert.equal(worker.status, 200);
+    assert.match(`${worker.headers['content-type']}`, /javascript/);
+    assert.match(`${worker.headers['cache-control']}`, /no-cache/);
+    assert.equal(worker.headers['service-worker-allowed'], '/');
+    assert.match(`${worker.body}`, /const CACHE_VERSION = '[^']+'/);
+});
+
+test('uncontrolled ambient WAV URLs resolve directly to compressed MP3 bodies', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    for (const baseName of ['chimney-fire', 'cafe', 'waves']) {
+        const alias = await server.request(`/audio/${baseName}.wav`, { method: 'HEAD' });
+        const mp3Size = fs.statSync(path.join(repoRoot, 'audio', `${baseName}.mp3`)).size;
+        assert.equal(alias.status, 200);
+        assert.match(`${alias.headers['content-type']}`, /^audio\/mpeg/);
+        assert.equal(Number(alias.headers['content-length']), mp3Size);
+    }
+
+    const caseVariant = await server.request('/audio/CAFE.WAV', { method: 'HEAD' });
+    assert.equal(caseVariant.status, 200);
+    assert.match(`${caseVariant.headers['content-type']}`, /^audio\/mpeg/);
+    assert.equal(
+        Number(caseVariant.headers['content-length']),
+        fs.statSync(path.join(repoRoot, 'audio', 'cafe.mp3')).size
+    );
+});
+
 test('open alias and media mounts serve published assets only', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);

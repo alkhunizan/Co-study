@@ -65,6 +65,17 @@
     // Apply persisted theme immediately (pre-paint — this file loads sync).
     applyTheme(getStoredTheme());
 
+    /* ---------- offline worker ---------- */
+    function registerServiceWorker() {
+        const serviceWorker = global.navigator?.serviceWorker;
+        if (!serviceWorker) return;
+        serviceWorker.register('/service-worker.js', {
+            scope: '/',
+            updateViaCache: 'none'
+        }).catch(() => { /* offline support is best-effort */ });
+    }
+    registerServiceWorker();
+
     /* ---------- language ---------- */
     function getLang() {
         try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ar'; } catch (_e) { return 'ar'; }
