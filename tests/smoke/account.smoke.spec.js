@@ -175,6 +175,44 @@ test('guest focus-sync nudge appears after a focus session and dismissal sticks 
     }
 });
 
+test('signed-in focus completions send a distinct UUID for each completed timer', async ({ browser }) => {
+    const member = await createAccountPage(browser);
+    const completionRequests = [];
+
+    try {
+        await signupThroughUi(member.page, {
+            name: 'Focused',
+            email: uniqueEmail('focus-completion')
+        });
+        await member.page.waitForURL('**/open.html**');
+        await member.page.route('**/api/me/focus-session', async (route) => {
+            completionRequests.push(route.request().postDataJSON());
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ ok: true, streak: { current: 1 } })
+            });
+        });
+
+        await member.page.goto('/study');
+        await expect(member.page.locator('#join-name-reserved')).toBeVisible();
+        await member.page.evaluate(() => {
+            const completeFocusSession = (/** @type {any} */ (window)).onFocusSessionComplete;
+            completeFocusSession(25);
+            completeFocusSession(50);
+        });
+        await expect.poll(() => completionRequests.length).toBe(2);
+
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        expect(completionRequests.map((request) => request.minutes)).toEqual([25, 50]);
+        expect(completionRequests[0].completionId).toMatch(uuidPattern);
+        expect(completionRequests[1].completionId).toMatch(uuidPattern);
+        expect(completionRequests[0].completionId).not.toBe(completionRequests[1].completionId);
+    } finally {
+        await member.context.close();
+    }
+});
+
 test('404 page is bilingual and the language toggle works', async ({ browser }) => {
     const visitor = await createAccountPage(browser);
     try {
