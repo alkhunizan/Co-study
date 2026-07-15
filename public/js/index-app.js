@@ -548,9 +548,9 @@
     const AMBIENT_SOUNDS = {
         rain: { src: '/audio/rain.mp3', labelKey: 'soundRain', icon: '🌧️' },
         forest: { src: '/audio/forest.mp3', labelKey: 'soundForest', icon: '🌲' },
-        fire: { src: '/audio/chimney-fire.wav', labelKey: 'soundFire', icon: '🔥' },
-        cafe: { src: '/audio/cafe.wav', labelKey: 'soundCafe', icon: '☕' },
-        ocean: { src: '/audio/waves.wav', labelKey: 'soundOcean', icon: '🌊' }
+        fire: { src: '/audio/chimney-fire.mp3', labelKey: 'soundFire', icon: '🔥' },
+        cafe: { src: '/audio/cafe.mp3', labelKey: 'soundCafe', icon: '☕' },
+        ocean: { src: '/audio/waves.mp3', labelKey: 'soundOcean', icon: '🌊' }
     };
     const TIMER_NOTIFICATION_SOUNDS = {
         focusEnd: new Audio('/audio/work-end.mp3'),
@@ -2578,7 +2578,7 @@
         document.title = timerRunning ? `${m}:${s} · Halastudy` : currentCopy().pageTitle;
     }
 
-    function advanceTimerPhase() {
+    function advanceTimerPhase(nextPhaseStartedAt = timerDeadline) {
         const completedMode = mode;
         const notificationType = completedMode === 'focus' ? 'focusEnd' : 'breakEnd';
         playTimerNotification(notificationType);
@@ -2597,7 +2597,7 @@
 
         mode = completedMode === 'focus' ? 'break' : 'focus';
         timeLeft = timerDurations[mode] * 60;
-        timerDeadline += timeLeft * 1000;
+        timerDeadline = nextPhaseStartedAt + timeLeft * 1000;
         document.getElementById('tab-focus').className = mode === 'focus' ? 'timer-tab active' : 'timer-tab';
         document.getElementById('tab-break').className = mode === 'break' ? 'timer-tab active' : 'timer-tab';
         if (statusState.autoSync) refreshStatusState();
@@ -2606,7 +2606,10 @@
     function reconcileTimer(now = performance.now()) {
         if (!timerRunning || timerDeadline === null) return;
 
-        while (now >= timerDeadline) advanceTimerPhase();
+        // A suspended tab may resume hours later. Complete only the phase the
+        // student actually started, then begin the next phase at resume time;
+        // never manufacture unattended focus completions for skipped cycles.
+        if (now >= timerDeadline) advanceTimerPhase(now);
         timeLeft = Math.max(0, Math.ceil((timerDeadline - now) / 1000));
         updateDisp();
     }

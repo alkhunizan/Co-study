@@ -316,16 +316,7 @@ test('Pomodoro reconciles elapsed time after background timer throttling', async
     const visitor = await createSmokePage(browser);
 
     try {
-        await visitor.page.addInitScript(() => {
-            let timerNow = 0;
-            Object.defineProperty(performance, 'now', {
-                configurable: true,
-                value: () => timerNow
-            });
-            (/** @type {any} */ (window)).__advanceTimerClock = (elapsedMs) => {
-                timerNow += elapsedMs;
-            };
-        });
+        await visitor.page.clock.install({ time: new Date('2026-07-15T03:00:00Z') });
         await visitor.page.goto('/study');
         await visitor.page.fill('#cfg-f', '1');
         await visitor.page.fill('#cfg-b', '1');
@@ -333,18 +324,16 @@ test('Pomodoro reconciles elapsed time after background timer throttling', async
         await expect(visitor.page.locator('#timer-disp')).toHaveText('01:00');
 
         await visitor.page.evaluate(() => (/** @type {any} */ (window)).toggleTimer());
-        await visitor.page.evaluate(() => {
-            (/** @type {any} */ (window)).__advanceTimerClock(55_000);
-            document.dispatchEvent(new Event('visibilitychange'));
-        });
+        await visitor.page.clock.fastForward(55_000);
         await expect(visitor.page.locator('#timer-disp')).toHaveText('00:05');
 
-        await visitor.page.evaluate(() => {
-            (/** @type {any} */ (window)).__advanceTimerClock(7_000);
-            document.dispatchEvent(new Event('visibilitychange'));
-        });
+        await visitor.page.clock.fastForward(7_000);
         await expect(visitor.page.locator('#tab-break')).toHaveClass(/active/);
         await expect(visitor.page.locator('#timer-disp')).toHaveText('00:58');
+
+        await visitor.page.clock.fastForward(10 * 60 * 1000);
+        await expect(visitor.page.locator('#tab-focus')).toHaveClass(/active/);
+        await expect(visitor.page.locator('#timer-disp')).toHaveText('01:00');
     } finally {
         await visitor.context.close();
     }
