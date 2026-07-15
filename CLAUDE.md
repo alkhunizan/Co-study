@@ -173,7 +173,7 @@ Composite green target: full pipeline ≤ 60s on a warm cache.
 
 **Scheduled rooms** — `schedule-utils.js` is pure functions: Riyadh-timezone cadence (`once`/`daily`/`weekdays` = Sun–Thu/`weekly`), occurrence math, attendance (`on_time`/`late`/`missed`, streaks). Good first place to look for any timer/schedule bug; it has no I/O.
 
-**Media modes** — `mesh` (P2P WebRTC, capped at `MESH_PARTICIPANT_LIMIT`, default 4) vs `sfu` (iframe embed, only when `SFU_BASE_URL` is set). A room's mode is fixed at creation. AI focus monitoring is mesh-only.
+**Media modes** — production uses provider-authoritative Cloudflare RealtimeKit and never falls back to mesh. Authenticated WebRTC mesh is development/test-only and requires both `VIDEO_PROVIDER=mesh` and `ENABLE_DEV_MESH=true`; its participant cap defaults to 4. The legacy iframe `sfu` mode exists only when `SFU_BASE_URL` is set. A room's stored mode is fixed at creation, and AI focus monitoring remains development-mesh-only.
 
 ---
 
