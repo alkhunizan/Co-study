@@ -4,7 +4,12 @@ const net = require('node:net');
 const test = require('node:test');
 
 const { createCoStudyServer } = require('../../co-study-server');
-const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
+const {
+    closeSocket,
+    connectSocket,
+    cookieForMembershipToken,
+    emitAck
+} = require('../helpers/socket-client');
 
 function getFreePort() {
     return new Promise((resolve, reject) => {
@@ -181,6 +186,7 @@ async function requestVideoToken(server, joined) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            Cookie: cookieForMembershipToken(joined.membershipToken),
             'X-Halastudy-Membership': joined.membershipToken
         },
         body: JSON.stringify({ displayName: 'Persistence user', role: 'student' })
