@@ -8,6 +8,9 @@ const BOARD_TASK_LIMIT = 100;
 const BOARD_TASK_MAX_BYTES = 500;
 const BOARD_TASK_ID_MAX_LENGTH = 128;
 const BOARD_SERIALIZED_MAX_BYTES = 64 * 1024;
+const ROOM_EVENT_OUTBOX_LIMIT = 10_000;
+const ROOM_EVENT_TYPES = new Set(['create', 'join', 'leave', 'close']);
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function createRoomStore(options = {}) {
     const {
@@ -190,6 +193,57 @@ function createRoomStore(options = {}) {
         return ['active', 'closed', 'error'].includes(raw) ? raw : null;
     }
 
+    function sanitizeIsoTimestamp(value) {
+        if (typeof value !== 'string' || !value.trim()) return null;
+        const timestamp = Date.parse(value);
+        return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+    }
+
+    /** @param {Record<string, any>} event */
+    function sanitizeRoomEvent(event = {}) {
+        if (!event || typeof event !== 'object' || Array.isArray(event)) return null;
+        const eventId = typeof event.eventId === 'string' ? event.eventId.trim() : '';
+        const roomCode = normalizeRoom(event.roomCode || '');
+        const eventType = typeof event.eventType === 'string' ? event.eventType.trim() : '';
+        const occurredAt = sanitizeIsoTimestamp(event.occurredAt);
+        if (!UUID_PATTERN.test(eventId)
+            || !roomCode
+            || roomCode.length > 12
+            || !ROOM_EVENT_TYPES.has(eventType)
+            || !occurredAt
+            || !Number.isInteger(event.lifecycleEpoch)
+            || event.lifecycleEpoch < 0) {
+            return null;
+        }
+        const userId = typeof event.userId === 'string' && UUID_PATTERN.test(event.userId.trim())
+            ? event.userId.trim()
+            : null;
+        const ownerUserId = typeof event.ownerUserId === 'string' && UUID_PATTERN.test(event.ownerUserId.trim())
+            ? event.ownerUserId.trim()
+            : null;
+        const occurrenceId = event.occurrenceId === null || event.occurrenceId === undefined
+            ? null
+            : sanitizeIsoTimestamp(event.occurrenceId);
+        const roomExpiresAt = event.roomExpiresAt === null || event.roomExpiresAt === undefined
+            ? null
+            : sanitizeIsoTimestamp(event.roomExpiresAt);
+        return {
+            eventId,
+            roomCode,
+            userId,
+            nickname: typeof event.nickname === 'string' ? event.nickname.trim().slice(0, 80) || null : null,
+            eventType,
+            roomSchemaVersion: Number.isInteger(event.roomSchemaVersion) && event.roomSchemaVersion >= 1
+                ? event.roomSchemaVersion
+                : 1,
+            ownerUserId,
+            roomExpiresAt,
+            occurrenceId,
+            lifecycleEpoch: event.lifecycleEpoch,
+            occurredAt
+        };
+    }
+
     function sanitizeVideoPolicy(policy = {}) {
         const safe = buildVideoPolicy({
             maxRoomParticipants: Number.isInteger(policy.maxParticipants) && policy.maxParticipants > 0
@@ -242,6 +296,12 @@ function createRoomStore(options = {}) {
         });
 
         const safeBoard = fitBoardWithinLimits(sanitizeBoardGoal(room.board?.goal), safeTasks);
+        const roomEventOutbox = Array.isArray(room.roomEventOutbox)
+            ? room.roomEventOutbox
+                .map(sanitizeRoomEvent)
+                .filter(Boolean)
+                .slice(0, ROOM_EVENT_OUTBOX_LIMIT)
+            : [];
 
         return {
             schemaVersion: room.schemaVersion === 2 ? 2 : 1,
@@ -280,7 +340,8 @@ function createRoomStore(options = {}) {
             reports: Array.isArray(room.reports)
                 ? room.reports.map(sanitizeReport).filter(Boolean).slice(-ROOM_REPORTS_LIMIT)
                 : [],
-            schedule: safeSchedule
+            schedule: safeSchedule,
+            ...(roomEventOutbox.length > 0 ? { roomEventOutbox } : {})
         };
     }
 

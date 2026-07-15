@@ -175,6 +175,126 @@ test('an immediate Supabase row failure rejects without poisoning the next mutat
     assert.equal(attempts, 2);
 });
 
+test('Supabase room events are idempotent writes with lifecycle metadata', async () => {
+    const writes = [];
+    const client = {
+        async upsert(table, rows, options) {
+            writes.push({ table, rows, options });
+        }
+    };
+    const store = createSupabaseUserStore({ client, logger: { warn() {} } });
+    const event = {
+        eventId: '11111111-1111-4111-8111-111111111111',
+        roomCode: 'ABC123',
+        userId: null,
+        nickname: 'Student',
+        eventType: 'join',
+        roomSchemaVersion: 2,
+        ownerUserId: null,
+        roomExpiresAt: '2026-10-13T08:00:00.000Z',
+        occurrenceId: '2026-07-15T07:00:00.000Z',
+        lifecycleEpoch: 4,
+        occurredAt: '2026-07-15T06:55:00.000Z'
+    };
+
+    await store.logRoomEvent(event);
+    await store.logRoomEvent(event);
+
+    assert.equal(writes.length, 2);
+    for (const write of writes) {
+        assert.equal(write.table, 'room_events');
+        assert.deepEqual(write.options, { onConflict: 'event_id' });
+        assert.deepEqual(write.rows, [{
+            event_id: event.eventId,
+            room_code: event.roomCode,
+            user_id: event.userId,
+            nickname: event.nickname,
+            event_type: event.eventType,
+            room_schema_version: event.roomSchemaVersion,
+            owner_user_id: event.ownerUserId,
+            room_expires_at: event.roomExpiresAt,
+            occurrence_id: event.occurrenceId,
+            lifecycle_epoch: event.lifecycleEpoch,
+            occurred_at: event.occurredAt
+        }]);
+    }
+});
+
+test('Supabase room event failures reject and do not poison the next replay', async () => {
+    let attempts = 0;
+    const store = createSupabaseUserStore({
+        client: {
+            async upsert() {
+                attempts += 1;
+                if (attempts === 1) throw new Error('injected room event failure');
+            }
+        },
+        logger: { warn() {} }
+    });
+    const event = {
+        eventId: '22222222-2222-4222-8222-222222222222',
+        roomCode: 'ABC123',
+        eventType: 'create',
+        roomSchemaVersion: 2,
+        lifecycleEpoch: 0,
+        occurredAt: '2026-07-15T06:55:00.000Z'
+    };
+
+    await assert.rejects(store.logRoomEvent(event), /injected room event failure/);
+    await store.logRoomEvent(event);
+
+    assert.equal(attempts, 2);
+});
+
+test('a queued room event drops deleted profile foreign keys without dropping lifecycle data', async () => {
+    const user = createUser({
+        email: 'deleted-room-event@example.com',
+        passwordHash: '0123456789abcdef:0123456789abcdef',
+        displayName: 'Deleted Event User'
+    });
+    const writes = [];
+    const store = createSupabaseUserStore({
+        client: {
+            async select(table) {
+                if (table === 'profiles') {
+                    return [{
+                        ...profileRow(1),
+                        id: user.id,
+                        email: user.email,
+                        display_name: user.displayName
+                    }];
+                }
+                if (table === 'deletion_tombstones') return [];
+                throw new Error(`Unexpected table ${table}`);
+            },
+            async rpc() {},
+            async upsert(table, rows) {
+                writes.push({ table, rows });
+            }
+        },
+        logger: { warn() {} }
+    });
+    await store.hydrate();
+    await store.deleteUser(user);
+
+    await store.logRoomEvent({
+        eventId: '33333333-3333-4333-8333-333333333333',
+        roomCode: 'ABC123',
+        userId: user.id,
+        eventType: 'leave',
+        roomSchemaVersion: 2,
+        ownerUserId: user.id,
+        lifecycleEpoch: 1,
+        occurredAt: '2026-07-15T06:55:00.000Z'
+    });
+
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].table, 'room_events');
+    assert.equal(writes[0].rows[0].user_id, null);
+    assert.equal(writes[0].rows[0].owner_user_id, null);
+    assert.equal(writes[0].rows[0].event_type, 'leave');
+});
+
 test('Supabase focus persistence reports a durable duplicate and its canonical aggregate', async () => {
     const user = createUser({
         email: 'focus-rpc@example.com',

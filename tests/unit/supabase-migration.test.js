@@ -13,7 +13,8 @@ test('Supabase migrations satisfy the additive schema and deny-public-access con
 
     assert.deepEqual(report.files, [
         '20260715000000_secure_baseline.sql',
-        '20260715010000_account_resurrection_focus_idempotency.sql'
+        '20260715010000_account_resurrection_focus_idempotency.sql',
+        '20260715020000_room_event_idempotency.sql'
     ]);
     assert.deepEqual(report.tables, [
         'deletion_tombstones',
@@ -25,6 +26,24 @@ test('Supabase migrations satisfy the additive schema and deny-public-access con
     assert.deepEqual(report.protectedViews, ['admin_overview', 'daily_active', 'user_stats']);
     assert.match(report.sha256, /^[a-f0-9]{64}$/);
     assert.ok(report.bytes > 0);
+});
+
+test('room event migration adds stable replay and lifecycle columns', () => {
+    const migration = fs.readFileSync(
+        path.join(
+            repoRoot,
+            'supabase',
+            'migrations',
+            '20260715020000_room_event_idempotency.sql'
+        ),
+        'utf8'
+    );
+
+    assert.match(migration, /add column if not exists event_id uuid/i);
+    assert.match(migration, /create unique index if not exists room_events_event_id_uidx[\s\S]+event_id/i);
+    assert.match(migration, /add column if not exists occurrence_id text/i);
+    assert.match(migration, /add column if not exists lifecycle_epoch bigint/i);
+    assert.match(migration, /add column if not exists occurred_at timestamptz/i);
 });
 
 test('migration verification rejects destructive SQL before any database is contacted', (t) => {

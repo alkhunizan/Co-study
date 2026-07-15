@@ -60,6 +60,8 @@ const ROOM_TTL_MS = 1000 * 60 * 30;
 const ROOM_SCHEMA_VERSION = 2;
 const MAX_LIFECYCLE_TIMER_MS = 2_147_000_000;
 const ROOM_CLEANUP_RETRY_MS = 5 * 60 * 1000;
+const ROOM_EVENT_DRAIN_RETRY_MS = 10 * 1000;
+const ROOM_EVENT_OUTBOX_LIMIT = 10_000;
 // The Lobby: one reserved, always-available public room. Fixed code so /lobby
 // always resolves to the same room; seeded at startup and exempt from the
 // empty-room TTL cleanup so it never disappears.
@@ -1620,6 +1622,9 @@ function createCoStudyServer(options = {}) {
             board: cloneBoard(room.board),
             reports: Array.isArray(room.reports) ? room.reports.map((report) => ({ ...report })) : [],
             schedule,
+            roomEventOutbox: Array.isArray(room.roomEventOutbox)
+                ? room.roomEventOutbox.map((event) => ({ ...event }))
+                : [],
             identities: new Map(),
             cleanupTimer: null
         });
@@ -1658,6 +1663,98 @@ function createCoStudyServer(options = {}) {
 
     function persistRoomsSoon() {
         return roomStore.scheduleSave(rooms);
+    }
+
+    function roomEventUserId(identityId) {
+        return typeof identityId === 'string' && identityId.startsWith('user:')
+            ? identityId.slice('user:'.length) || null
+            : null;
+    }
+
+    function roomEventOccurrenceId(room, occurredAt) {
+        if (!roomHasSchedule(room)) return null;
+        const { currentOccurrenceAt } = findOpenOccurrence(room.schedule, occurredAt);
+        return Number.isFinite(currentOccurrenceAt)
+            ? new Date(currentOccurrenceAt).toISOString()
+            : null;
+    }
+
+    function buildRoomLifecycleEvent(room, eventType, options = {}) {
+        const occurredAt = Number.isFinite(options.occurredAt) ? options.occurredAt : Date.now();
+        return {
+            eventId: options.eventId || crypto.randomUUID(),
+            roomCode: room.id,
+            userId: options.userId || null,
+            nickname: typeof options.nickname === 'string' ? options.nickname : null,
+            eventType,
+            roomSchemaVersion: Number.isInteger(room.schemaVersion) ? room.schemaVersion : 1,
+            ownerUserId: room.ownerUserId || null,
+            roomExpiresAt: Number.isFinite(room.expiresAt) ? new Date(room.expiresAt).toISOString() : null,
+            occurrenceId: roomEventOccurrenceId(room, occurredAt),
+            lifecycleEpoch: Number.isInteger(room.lifecycleEpoch) ? room.lifecycleEpoch : 0,
+            occurredAt: new Date(occurredAt).toISOString()
+        };
+    }
+
+    function getRoomEventOutbox() {
+        const lobby = rooms.get(LOBBY_ROOM_CODE);
+        if (!lobby) {
+            const error = new Error('The durable room event outbox is unavailable.');
+            /** @type {any} */ (error).code = 'PERSISTENCE_UNAVAILABLE';
+            throw error;
+        }
+        if (!Array.isArray(lobby.roomEventOutbox)) lobby.roomEventOutbox = [];
+        return lobby.roomEventOutbox;
+    }
+
+    function stageRoomLifecycleEvents(events) {
+        if (typeof userStore.logRoomEvent !== 'function' || events.length === 0) return [];
+        const outbox = getRoomEventOutbox();
+        if (outbox.length + events.length > ROOM_EVENT_OUTBOX_LIMIT) {
+            const error = new Error('The durable room event outbox is full.');
+            /** @type {any} */ (error).code = 'PERSISTENCE_UNAVAILABLE';
+            throw error;
+        }
+        outbox.push(...events);
+        return events;
+    }
+
+    function unstageRoomLifecycleEvents(events) {
+        if (!events.length) return;
+        const eventIds = new Set(events.map((event) => event.eventId));
+        const outbox = getRoomEventOutbox();
+        for (let index = outbox.length - 1; index >= 0; index -= 1) {
+            if (eventIds.has(outbox[index].eventId)) outbox.splice(index, 1);
+        }
+    }
+
+    let roomEventDrainPromise = null;
+    function drainRoomEvents() {
+        if (roomEventDrainPromise) return roomEventDrainPromise;
+        roomEventDrainPromise = (async () => {
+            if (typeof userStore.logRoomEvent !== 'function') return { delivered: 0, pending: 0 };
+            const outbox = getRoomEventOutbox();
+            let delivered = 0;
+            while (outbox.length > 0) {
+                const event = outbox[0];
+                await userStore.logRoomEvent(event);
+                outbox.shift();
+                try {
+                    // Removing an event is durable before the next one is sent.
+                    // A failed removal is restored in memory; replay uses the
+                    // same eventId and is therefore harmless at Supabase.
+                    await roomStore.flush(rooms);
+                } catch (error) {
+                    outbox.unshift(event);
+                    throw error;
+                }
+                delivered += 1;
+            }
+            return { delivered, pending: outbox.length };
+        })().finally(() => {
+            roomEventDrainPromise = null;
+        });
+        return roomEventDrainPromise;
     }
 
     function syncRoomSchedule(room, now = Date.now()) {
@@ -1711,6 +1808,7 @@ function createCoStudyServer(options = {}) {
         const reason = typeof options.reason === 'string' ? options.reason : 'closed';
 
         if (!roomIsClosed(room)) {
+            let stagedEvents = [];
             const previousLifecycle = {
                 lifecycleEpoch: room.lifecycleEpoch,
                 closedAt: room.closedAt,
@@ -1727,10 +1825,19 @@ function createCoStudyServer(options = {}) {
             );
             room.providerCleanupLastError = null;
             try {
+                stagedEvents = stageRoomLifecycleEvents([
+                    buildRoomLifecycleEvent(room, 'close', {
+                        userId: options.actorUserId || null,
+                        nickname: options.actorNickname || null,
+                        occurredAt: room.closedAt
+                    })
+                ]);
                 // The closure epoch must be durable before identities are
-                // revoked or a provider participant is kicked.
+                // revoked or a provider participant is kicked. The event
+                // outbox shares this same atomic room snapshot.
                 await roomStore.flush(rooms);
             } catch (error) {
+                unstageRoomLifecycleEvents(stagedEvents);
                 Object.assign(room, previousLifecycle);
                 const persistenceError = new Error('Room closure could not be persisted.');
                 /** @type {any} */ (persistenceError).code = 'PERSISTENCE_UNAVAILABLE';
@@ -2016,7 +2123,8 @@ function createCoStudyServer(options = {}) {
             try {
                 const result = await closeRoomLifecycle(ownedRoomId, {
                     reason: 'owner_account_deleted',
-                    deferProviderCleanup: true
+                    deferProviderCleanup: true,
+                    actorUserId: userId
                 });
                 cleanupPending = cleanupPending || !!result?.cleanupPending;
             } catch (error) {
@@ -2700,6 +2808,7 @@ function createCoStudyServer(options = {}) {
     let videoReconcileTimer = null;
     let videoCleanupRetryTimer = null;
     let roomCleanupRetryTimer = null;
+    let roomEventDrainTimer = null;
     let runtimeWorkersStarted = false;
 
     function resetHydratedRuntimeState() {
@@ -2817,6 +2926,16 @@ function createCoStudyServer(options = {}) {
         retryPendingClosures();
         roomCleanupRetryTimer = setInterval(retryPendingClosures, ROOM_CLEANUP_RETRY_MS);
         roomCleanupRetryTimer.unref();
+        if (typeof userStore.logRoomEvent === 'function') {
+            roomEventDrainTimer = setInterval(() => {
+                void drainRoomEvents().catch((error) => logger.warn({
+                    event: 'room_event_outbox_drain_failed',
+                    pending: getRoomEventOutbox().length,
+                    error: error?.message
+                }));
+            }, ROOM_EVENT_DRAIN_RETRY_MS);
+            roomEventDrainTimer.unref();
+        }
     }
 
     let isShuttingDown = false;
@@ -2873,6 +2992,7 @@ function createCoStudyServer(options = {}) {
         if (videoReconcileTimer) clearInterval(videoReconcileTimer);
         if (videoCleanupRetryTimer) clearInterval(videoCleanupRetryTimer);
         if (roomCleanupRetryTimer) clearInterval(roomCleanupRetryTimer);
+        if (roomEventDrainTimer) clearInterval(roomEventDrainTimer);
         backupScheduler.stop();
         console.log(`Received ${signal}. Draining mutations and persisting state...`);
         const serverClosed = new Promise((resolve) => {
@@ -3359,7 +3479,10 @@ function createCoStudyServer(options = {}) {
             return;
         }
         try {
-            const result = await closeRoomLifecycle(normalizedRoom, { reason: 'owner_delete' });
+            const result = await closeRoomLifecycle(normalizedRoom, {
+                reason: 'owner_delete',
+                actorUserId: req.user.id
+            });
             if (!result) {
                 res.status(404).json({ errorCode: 'ROOM_NOT_FOUND' });
                 return;
@@ -3712,11 +3835,20 @@ function createCoStudyServer(options = {}) {
             });
 
             scheduleRoomCleanup(roomCode);
+            let stagedCreateEvents = [];
             try {
+                stagedCreateEvents = stageRoomLifecycleEvents([
+                    buildRoomLifecycleEvent(createdRoom, 'create', {
+                        userId: creator?.id || null,
+                        occurredAt: createdRoom.createdAt
+                    })
+                ]);
                 // A room code is not usable until the complete room record,
-                // including its expiry, has reached the immediate store.
+                // including its expiry and lifecycle-event outbox entry, has
+                // reached the immediate store.
                 await roomStore.flush(rooms);
             } catch (error) {
+                unstageRoomLifecycleEvents(stagedCreateEvents);
                 clearRoomCleanupTimer(createdRoom);
                 rooms.delete(roomCode);
                 logger.error({
@@ -3956,6 +4088,37 @@ function createCoStudyServer(options = {}) {
                             : 'PERSISTENCE_UNAVAILABLE'
                     );
                 }
+            }
+
+            let stagedMembershipEvents = [];
+            try {
+                const membershipEvents = [];
+                if (previousRoomId && previousRoomId !== normalizedRoom) {
+                    const previousRoom = rooms.get(previousRoomId);
+                    const previousRecord = previousRoom?.users.get(socket.id);
+                    if (previousRoom && previousRecord) {
+                        membershipEvents.push(buildRoomLifecycleEvent(previousRoom, 'leave', {
+                            userId: roomEventUserId(previousRecord.identityId),
+                            nickname: previousRecord.name,
+                            occurredAt: joinNow
+                        }));
+                    }
+                }
+                membershipEvents.push(buildRoomLifecycleEvent(room, 'join', {
+                    userId: joiningUser?.id || null,
+                    nickname: cleanName,
+                    occurredAt: joinNow
+                }));
+                stagedMembershipEvents = stageRoomLifecycleEvents(membershipEvents);
+                if (stagedMembershipEvents.length > 0) {
+                    // The source leave and target join are one durable outbox
+                    // snapshot. No source membership changes until it lands.
+                    await roomStore.flush(rooms);
+                }
+            } catch (_error) {
+                unstageRoomLifecycleEvents(stagedMembershipEvents);
+                await rollbackUserRoomMetadata();
+                return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
             }
 
             if (!roomHasSchedule(room)) {
@@ -4400,23 +4563,67 @@ function createCoStudyServer(options = {}) {
                     identityId: user.identityId || socket.data.identityId,
                     sessionId: user.sessionId || userSessionId,
                     clientId: user.clientId || userClientId || socket.data.clientId || null,
+                    disconnectedAt: Date.now(),
+                    event: null,
+                    systemMessage: null,
                     timeoutId: null
                 };
 
-                timerRecord.timeoutId = setTimeout(() => {
-                    const activeRecord = pendingLeaveTimers.get(userKey);
-                    if (activeRecord !== timerRecord) return;
+                const finalizeLeave = () => {
+                    inFlightMutations += 1;
+                    void runRoomLifecycleOperation(roomId, async () => {
+                        const activeRecord = pendingLeaveTimers.get(userKey);
+                        if (activeRecord !== timerRecord) return;
 
-                    pendingLeaveTimers.delete(userKey);
-                    const currentRoom = rooms.get(roomId);
-                    if (currentRoom) {
-                        const systemMsg = createSystemMessage(`${user.name} left the room`, user.name, 'leave');
-                        currentRoom.messages.push(systemMsg);
-                        if (currentRoom.messages.length > ROOM_HISTORY_LIMIT) currentRoom.messages.shift();
-                        io.to(roomId).emit('chat-message', systemMsg);
-                        persistRoomsSoon();
-                    }
-                }, 3000);
+                        const currentRoom = rooms.get(roomId);
+                        if (!currentRoom || roomIsClosed(currentRoom)) {
+                            pendingLeaveTimers.delete(userKey);
+                            return;
+                        }
+                        timerRecord.event ||= buildRoomLifecycleEvent(currentRoom, 'leave', {
+                            userId: roomEventUserId(timerRecord.identityId),
+                            nickname: user.name,
+                            occurredAt: timerRecord.disconnectedAt
+                        });
+                        timerRecord.systemMessage ||= createSystemMessage(
+                            `${user.name} left the room`,
+                            user.name,
+                            'leave'
+                        );
+                        const previousMessages = currentRoom.messages.map((message) => ({ ...message }));
+                        let stagedEvents = [];
+                        try {
+                            stagedEvents = stageRoomLifecycleEvents([timerRecord.event]);
+                            currentRoom.messages.push(timerRecord.systemMessage);
+                            if (currentRoom.messages.length > ROOM_HISTORY_LIMIT) currentRoom.messages.shift();
+                            if (stagedEvents.length > 0) {
+                                await roomStore.flush(rooms);
+                            } else {
+                                persistRoomsSoon();
+                            }
+                        } catch (error) {
+                            currentRoom.messages = previousMessages;
+                            unstageRoomLifecycleEvents(stagedEvents);
+                            logger.warn({
+                                event: 'room_leave_outbox_persist_failed',
+                                roomId,
+                                error: error?.message
+                            });
+                            timerRecord.timeoutId = setTimeout(finalizeLeave, 3000);
+                            timerRecord.timeoutId.unref?.();
+                            return;
+                        }
+                        pendingLeaveTimers.delete(userKey);
+                        io.to(roomId).emit('chat-message', timerRecord.systemMessage);
+                    }).catch((error) => logger.error({
+                        event: 'room_leave_finalize_failed',
+                        roomId,
+                        error: error?.message
+                    })).finally(finishMutation);
+                };
+
+                timerRecord.timeoutId = setTimeout(finalizeLeave, 3000);
+                timerRecord.timeoutId.unref?.();
 
                 pendingLeaveTimers.set(userKey, timerRecord);
             }
@@ -4475,6 +4682,7 @@ function createCoStudyServer(options = {}) {
         compatibilityTelemetry,
         rooms,
         users,
+        drainRoomEvents,
         initialize,
         listen,
         evaluateReadiness,

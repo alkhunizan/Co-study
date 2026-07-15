@@ -132,6 +132,11 @@ function verifySupabaseMigrations({ repoRoot = path.resolve(__dirname, '..') } =
         [/add\s+column\s+if\s+not\s+exists\s+room_schema_version\s+smallint/i, 'room schema version is missing'],
         [/add\s+column\s+if\s+not\s+exists\s+owner_user_id\s+uuid/i, 'room owner identity is missing'],
         [/add\s+column\s+if\s+not\s+exists\s+room_expires_at\s+timestamptz/i, 'room expiry is missing'],
+        [/add\s+column\s+if\s+not\s+exists\s+event_id\s+uuid/i, 'room event idempotency key is missing'],
+        [/create\s+unique\s+index\s+if\s+not\s+exists\s+room_events_event_id_uidx[\s\S]+event_id/i, 'room event idempotency index is missing'],
+        [/add\s+column\s+if\s+not\s+exists\s+occurrence_id\s+text/i, 'room event occurrence identity is missing'],
+        [/add\s+column\s+if\s+not\s+exists\s+lifecycle_epoch\s+bigint/i, 'room event lifecycle epoch is missing'],
+        [/add\s+column\s+if\s+not\s+exists\s+occurred_at\s+timestamptz/i, 'room event occurrence timestamp is missing'],
         [/expires_at\s+timestamptz\s+not\s+null\s+default\s*\(\s*now\s*\(\s*\)\s*\+\s*interval\s+'30 days'\s*\)/i, '30-day deletion tombstone expiry is missing'],
         [/create\s+or\s+replace\s+function\s+public\.record_focus_completion/i, 'atomic focus completion function is missing'],
         [/create\s+or\s+replace\s+function\s+public\.delete_profile_with_tombstone/i, 'durable account deletion function is missing']
