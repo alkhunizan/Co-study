@@ -262,14 +262,14 @@ function createGoogleAuthRouter(deps = {}) {
 
         clearStateCookie(req, res);
 
-        const subjectMatches = Array.from(users.values())
+        const initialSubjectMatches = Array.from(users.values())
             .filter((candidate) => candidate.googleSub === googleSub);
 
         if (state.intent === 'reauth_delete') {
             const user = req.user;
             if (user.googleSub !== googleSub
-                || subjectMatches.length !== 1
-                || subjectMatches[0].id !== user.id) {
+                || initialSubjectMatches.length !== 1
+                || initialSubjectMatches[0].id !== user.id) {
                 logger.warn({ event: 'google_delete_reauth_mismatch', userId: user.id });
                 return res.redirect('/account?auth=google_reauth_failed');
             }
@@ -319,55 +319,64 @@ function createGoogleAuthRouter(deps = {}) {
             }
         }
 
-        // Subject is the identity boundary. Fail closed if corrupt persisted
-        // state contains the same subject on more than one account.
-        if (subjectMatches.length > 1) {
-            return failRedirect('subject_conflict');
-        }
+        // Subject lookup, account creation, durable persistence, and session
+        // issuance are one serialized operation. A concurrent callback must
+        // never observe or authenticate an account whose write is still
+        // pending and may be rolled back.
+        return runGoogleSubjectMutation(googleSub, async () => {
+            const subjectMatches = Array.from(users.values())
+                .filter((candidate) => candidate.googleSub === googleSub);
 
-        let [user] = subjectMatches;
-        if (user) {
-            if (user.banned) {
-                logger.warn({ event: 'google_auth_banned', userId: user.id });
-                return res.redirect('/account?auth=banned');
+            // Subject is the identity boundary. Fail closed if corrupt
+            // persisted state contains it on more than one account.
+            if (subjectMatches.length > 1) {
+                return failRedirect('subject_conflict');
             }
+
+            let [user] = subjectMatches;
+            if (user) {
+                if (user.banned) {
+                    logger.warn({ event: 'google_auth_banned', userId: user.id });
+                    return res.redirect('/account?auth=banned');
+                }
+                setAuthCookie(req, res, user);
+                logger.info({ event: 'google_login', userId: user.id });
+                return res.redirect(state.next);
+            }
+
+            // Email proves contactability, not ownership of an existing local
+            // account. Linking is a separate, reauthenticated flow.
+            const existingId = usersByEmail.get(email);
+            user = existingId ? users.get(existingId) : null;
+            if (user) {
+                logger.warn({ event: 'google_link_required', userId: user.id });
+                return res.redirect('/account?auth=link_required');
+            }
+
+            // New verified email: create a Google-only account with no password.
+            const displayName = sanitizeUserText(profile.name || email.split('@')[0], DISPLAY_NAME_MAX_LENGTH)
+                || email.split('@')[0].slice(0, DISPLAY_NAME_MAX_LENGTH);
+            user = createUser({
+                email,
+                passwordHash: null,
+                passwordEnabled: false,
+                googleSub,
+                displayName
+            });
+            users.set(user.id, user);
+            usersByEmail.set(email, user.id);
+            try {
+                await persistUser(user);
+            } catch (error) {
+                users.delete(user.id);
+                if (usersByEmail.get(email) === user.id) usersByEmail.delete(email);
+                logger.error({ event: 'google_signup_persist_failed', error: error?.message });
+                return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            }
+            logger.info({ event: 'google_signup', userId: user.id });
             setAuthCookie(req, res, user);
-            logger.info({ event: 'google_login', userId: user.id });
             return res.redirect(state.next);
-        }
-
-        // Email proves contactability, not ownership of an existing local
-        // account. Linking is a separate, reauthenticated flow.
-        const existingId = usersByEmail.get(email);
-        user = existingId ? users.get(existingId) : null;
-        if (user) {
-            logger.warn({ event: 'google_link_required', userId: user.id });
-            return res.redirect('/account?auth=link_required');
-        }
-
-        // New verified email: create a Google-only account with no password.
-        const displayName = sanitizeUserText(profile.name || email.split('@')[0], DISPLAY_NAME_MAX_LENGTH)
-            || email.split('@')[0].slice(0, DISPLAY_NAME_MAX_LENGTH);
-        user = createUser({
-            email,
-            passwordHash: null,
-            passwordEnabled: false,
-            googleSub,
-            displayName
         });
-        users.set(user.id, user);
-        usersByEmail.set(email, user.id);
-        try {
-            await persistUser(user);
-        } catch (error) {
-            users.delete(user.id);
-            usersByEmail.delete(email);
-            logger.error({ event: 'google_signup_persist_failed', error: error?.message });
-            return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
-        }
-        logger.info({ event: 'google_signup', userId: user.id });
-        setAuthCookie(req, res, user);
-        return res.redirect(state.next);
     });
 
     return router;

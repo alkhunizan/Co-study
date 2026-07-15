@@ -77,6 +77,7 @@ async function startHarness(t, {
     users: initialUsers = [],
     profile,
     persistError = null,
+    persistUserImpl = null,
     deleteError = null,
     persistProfile = null,
     persistFocus = null,
@@ -174,8 +175,9 @@ async function startHarness(t, {
         },
         appendSetCookie,
         parseCookies,
-        persistUser: async () => {
+        persistUser: async (user) => {
             persistCount += 1;
+            await persistUserImpl?.(user, persistCount);
             if (persistError) throw persistError;
         },
         runUserMutation,
@@ -355,6 +357,68 @@ test('Google sign-in creates a new Google-only account without a synthetic passw
     assert.equal(created.authProvider, 'google');
     assert.deepEqual(harness.authSessions, [created.id]);
     assert.equal(harness.persistCount, 1);
+});
+
+test('concurrent Google callbacks cannot authenticate an identity whose persistence loses', async (t) => {
+    const firstPersistStarted = deferred();
+    const releaseFirstPersist = deferred();
+    const secondUserInfoReached = deferred();
+    const durableUserIds = new Set();
+    let userInfoCount = 0;
+    const harness = await startHarness(t, {
+        profile: {
+            sub: 'concurrent-google-sub',
+            email: 'concurrent-google@example.com',
+            email_verified: true,
+            name: 'Concurrent Google User'
+        },
+        beforeUserInfo: () => {
+            userInfoCount += 1;
+            if (userInfoCount === 2) secondUserInfoReached.resolve();
+        },
+        persistUserImpl: async (user, persistCount) => {
+            if (persistCount === 1) {
+                firstPersistStarted.resolve();
+                await releaseFirstPersist.promise;
+                throw new Error('injected first persistence failure');
+            }
+            durableUserIds.add(user.id);
+        }
+    });
+
+    const firstFlow = await harness.startGoogleFlow();
+    const secondFlow = await harness.startGoogleFlow();
+    const callbackPath = (flow) =>
+        `/auth/google/callback?code=test-code&state=${encodeURIComponent(flow.state)}`;
+    const firstCallback = harness.request(callbackPath(firstFlow), {
+        headers: { Cookie: firstFlow.stateCookie }
+    });
+    await firstPersistStarted.promise;
+
+    const secondCallback = harness.request(callbackPath(secondFlow), {
+        headers: { Cookie: secondFlow.stateCookie }
+    });
+    await secondUserInfoReached.promise;
+    const earlySecondResponse = await Promise.race([
+        secondCallback.then((response) => response),
+        new Promise((resolve) => setTimeout(() => resolve(null), 100))
+    ]);
+
+    releaseFirstPersist.resolve();
+    const [firstResponse, secondResponse] = await Promise.all([firstCallback, secondCallback]);
+    const [created] = harness.users.values();
+
+    assert.equal(earlySecondResponse, null, 'the second callback must wait for subject persistence');
+    assert.equal(firstResponse.status, 503);
+    assert.deepEqual(await firstResponse.json(), { errorCode: 'PERSISTENCE_UNAVAILABLE' });
+    assert.equal(getSetCookies(firstResponse.headers).some((cookie) => cookie.startsWith('coStudyAuth=')), false);
+    assert.equal(secondResponse.status, 302);
+    assert.equal(secondResponse.headers.get('location'), '/account?auth=google');
+    assert.equal(harness.persistCount, 2);
+    assert.equal(harness.users.size, 1);
+    assert.equal(harness.usersByEmail.get('concurrent-google@example.com'), created.id);
+    assert.deepEqual([...durableUserIds], [created.id]);
+    assert.deepEqual(harness.authSessions, [created.id]);
 });
 
 test('Google OAuth state is opaque, five-minute, single-use, and preserves only safe local next paths', async (t) => {
