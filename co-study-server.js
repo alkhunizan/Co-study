@@ -1757,6 +1757,30 @@ function createCoStudyServer(options = {}) {
             throw persistenceError;
         }
 
+        if (room.cleanupPending && options.deferProviderCleanup) {
+            // Account deletion has already made the closure epoch and every
+            // local media revocation durable. Do not hold its HTTP response
+            // open on a provider deadline; the same lifecycle lock resumes
+            // exact meeting cleanup immediately and the periodic retry worker
+            // remains the durable fallback.
+            setImmediate(() => {
+                void closeRoomLifecycle(normalizedRoom, {
+                    reason: room.closureReason || reason
+                }).catch((error) => logger.error({
+                    event: 'deferred_room_cleanup_failed',
+                    roomId: normalizedRoom,
+                    error: error?.message
+                }));
+            });
+            return {
+                ok: true,
+                roomId: normalizedRoom,
+                kicked: memberSocketIds.length,
+                cleanupPending: true,
+                lifecycleEpoch: room.lifecycleEpoch
+            };
+        }
+
         if (room.cleanupPending) {
             try {
                 await videoProvider.closeRoomMeeting({
@@ -1976,7 +2000,10 @@ function createCoStudyServer(options = {}) {
             .map((room) => room.id);
         for (const ownedRoomId of ownedRoomIds) {
             try {
-                const result = await closeRoomLifecycle(ownedRoomId, { reason: 'owner_account_deleted' });
+                const result = await closeRoomLifecycle(ownedRoomId, {
+                    reason: 'owner_account_deleted',
+                    deferProviderCleanup: true
+                });
                 cleanupPending = cleanupPending || !!result?.cleanupPending;
             } catch (error) {
                 cleanupPending = true;
@@ -1998,14 +2025,21 @@ function createCoStudyServer(options = {}) {
             }
         }
 
+        const ownedRoomSet = new Set(ownedRoomIds);
         const activeUserVideoSessions = videoSessionRegistry.listActive()
-            .filter((session) => session.userId === authenticatedIdentityId);
+            .filter((session) => (
+                session.userId === authenticatedIdentityId
+                && !ownedRoomSet.has(session.roomId)
+            ));
         for (const session of activeUserVideoSessions) {
-            const result = await requestProviderSessionEnd(session, 'account_deleted');
-            emitVideoCapacity(session.roomId);
-            cleanupPending = cleanupPending
-                || result.persistenceUnavailable
-                || !result.providerIdentityRevoked;
+            videoSessionRegistry.markVideoSessionEnding(
+                { videoSessionId: session.videoSessionId },
+                'account_deleted'
+            );
+        }
+        if (activeUserVideoSessions.length > 0) {
+            await persistVideoSessionsImmediate();
+            cleanupPending = true;
         }
 
         for (const [token, membership] of membershipTokens.entries()) {
@@ -2031,6 +2065,29 @@ function createCoStudyServer(options = {}) {
             }
             skippedDisconnects.add(socketRef.id);
             socketRef.disconnect(true);
+        }
+
+        if (activeUserVideoSessions.length > 0) {
+            setImmediate(() => {
+                void Promise.allSettled(activeUserVideoSessions.map(async (session) => {
+                    const current = videoSessionRegistry.findStoredSession({
+                        videoSessionId: session.videoSessionId
+                    });
+                    if (!current) return;
+                    await requestProviderSessionEnd(current, 'account_deleted');
+                    emitVideoCapacity(current.roomId);
+                })).then((results) => {
+                    results.forEach((result) => {
+                        if (result.status === 'rejected') {
+                            logger.error({
+                                event: 'deferred_account_video_cleanup_failed',
+                                userId,
+                                error: result.reason?.message
+                            });
+                        }
+                    });
+                });
+            });
         }
 
         return { cleanupPending };

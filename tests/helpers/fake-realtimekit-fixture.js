@@ -6,6 +6,7 @@ const failParticipants = process.env.REALTIMEKIT_FAIL_PARTICIPANT === '1';
 const failReconciliation = process.env.REALTIMEKIT_FAIL_RECONCILIATION === '1';
 const failClose = process.env.REALTIMEKIT_FAIL_CLOSE === '1';
 const participantDelayMs = Number.parseInt(process.env.REALTIMEKIT_PARTICIPANT_DELAY_MS || '0', 10);
+const closeDelayMs = Number.parseInt(process.env.REALTIMEKIT_CLOSE_DELAY_MS || '0', 10);
 const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 let initialActiveSessions = {};
 try {
@@ -307,6 +308,9 @@ const server = http.createServer(async (req, res) => {
 
     const closeMeetingMatch = url.pathname.match(/\/accounts\/([^/]+)\/realtime\/kit\/([^/]+)\/meetings\/([^/]+)$/);
     if (req.method === 'PATCH' && closeMeetingMatch) {
+        if (closeDelayMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, closeDelayMs));
+        }
         if (failClose) {
             sendJson(res, 502, { success: false, errors: [{ code: 'fake_close_failure' }] });
             return;

@@ -477,6 +477,58 @@ test('account deletion closes owned rooms and revokes live membership identities
     assert.equal(staleMembership.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
 });
 
+test('account deletion returns after durable local closure without waiting on provider cleanup', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { closeDelayMs: 2500 }
+    });
+    await cleanupServer(t, server);
+
+    const { cookie, credentials } = await signupUser(server, {
+        email: 'delete-provider-delay@example.com',
+        displayName: 'Delayed Cleanup Owner'
+    });
+    const ownerSocket = await connectSocket(server.baseUrl, { extraHeaders: { Cookie: cookie } });
+    t.after(() => closeSocket(ownerSocket));
+
+    const created = await emitAck(ownerSocket, 'create-room', { roomName: 'Deferred cleanup room' });
+    const joined = await emitAck(ownerSocket, 'join-room', {
+        roomId: created.room.roomId,
+        username: 'Delayed Cleanup Owner'
+    });
+    const token = await server.request(`/api/rooms/${created.room.roomId}/video-token`, {
+        method: 'POST',
+        headers: {
+            Cookie: cookie,
+            'X-Halastudy-Membership': joined.membershipToken
+        },
+        body: { displayName: 'Delayed Cleanup Owner', role: 'student' }
+    });
+    assert.equal(token.status, 200);
+
+    const startedAt = Date.now();
+    const deleted = await authedRequest(server, '/api/me', cookie, {
+        method: 'DELETE',
+        body: { password: credentials.password }
+    });
+    const responseTimeMs = Date.now() - startedAt;
+    assert.equal(deleted.status, 200);
+    assert.equal(deleted.body.cleanupPending, true);
+    assert.ok(responseTimeMs < 1500, `deletion response waited ${responseTimeMs}ms for provider cleanup`);
+
+    const me = await authedRequest(server, '/api/auth/me', cookie);
+    assert.equal(me.body.user, null);
+    assert.equal((await server.request(`/api/rooms/${created.room.roomId}`)).status, 404);
+
+    let providerState = await server.realtimeKitState();
+    const cleanupDeadline = Date.now() + 5000;
+    while (providerState.disabledMeetings.length === 0 && Date.now() < cleanupDeadline) {
+        await delay(100);
+        providerState = await server.realtimeKitState();
+    }
+    assert.equal(providerState.disabledMeetings.length, 1);
+});
+
 test('failed durable account deletion returns 503 and leaves the account live', async (t) => {
     const server = await startServer();
     let blockingDirectoryPresent = false;
