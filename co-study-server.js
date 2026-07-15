@@ -72,6 +72,11 @@ const DEFAULT_MESH_PARTICIPANT_LIMIT = 4;
 const DEFAULT_ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
 ];
+const COMPRESSED_AMBIENT_AUDIO_ALIASES = new Map([
+    ['/audio/chimney-fire.wav', 'chimney-fire.mp3'],
+    ['/audio/cafe.wav', 'cafe.mp3'],
+    ['/audio/waves.wav', 'waves.mp3']
+]);
 const CREATE_ROOM_RATE = { limit: 6, windowMs: 60 * 1000 };
 const JOIN_ATTEMPT_RATE = { limit: 12, windowMs: 60 * 1000 };
 const ROOM_LOOKUP_RATE = { limit: 12, windowMs: 60 * 1000 };
@@ -1744,6 +1749,17 @@ function createCoStudyServer(options = {}) {
     app.use(sessionMiddleware);
     app.use(attachUser);
     app.use(mutationDrainMiddleware);
+    app.get([...COMPRESSED_AMBIENT_AUDIO_ALIASES.keys()], (req, res) => {
+        const fileName = COMPRESSED_AMBIENT_AUDIO_ALIASES.get(req.path.toLowerCase());
+        if (!fileName) {
+            res.status(404).end();
+            return;
+        }
+        res.type('audio/mpeg');
+        res.sendFile(path.join(__dirname, 'audio', fileName), {
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+    });
     app.use('/audio', express.static(path.join(__dirname, 'audio'), { maxAge: '7d' }));
     app.use('/images', express.static(path.join(__dirname, 'images'), { maxAge: '1d' }));
     // Raw source footage lives beside the published clips (gitignored, but
@@ -1802,6 +1818,13 @@ function createCoStudyServer(options = {}) {
     app.get('/manifest.webmanifest', (_req, res) => {
         res.type('application/manifest+json');
         res.sendFile(path.join(__dirname, 'public', 'manifest.webmanifest'));
+    });
+
+    app.get('/service-worker.js', (_req, res) => {
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Service-Worker-Allowed', '/');
+        res.type('text/javascript');
+        res.sendFile(path.join(__dirname, 'public', 'js', 'service-worker.js'));
     });
 
     app.get('/api/health', (_req, res) => {
