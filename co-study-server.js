@@ -940,6 +940,10 @@ function createCoStudyServer(options = {}) {
             avatarColor: user.avatarColor,
             bio: user.bio,
             createdAt: user.createdAt,
+            authMethods: {
+                password: user.passwordEnabled !== false && !!user.passwordHash,
+                google: !!user.googleSub
+            },
             streak: { ...user.streak }
         };
     }

@@ -10,6 +10,7 @@ const BIO_MAX_LENGTH = 160;
 const FOCUS_DAY_KEY_LIMIT = 370;
 const FOCUS_MINUTES_DAY_CAP = 1440;
 const MY_ROOMS_LIMIT = 12;
+const GOOGLE_SUB_MAX_LENGTH = 255;
 const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000; // fixed UTC+3, no DST (same convention as schedule-utils)
 
 function riyadhDayKey(timestamp = Date.now()) {
@@ -158,17 +159,38 @@ function sanitizeUser(raw = {}) {
 
     const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : null;
     const email = normalizeEmail(raw.email);
-    const passwordHash = typeof raw.passwordHash === 'string' && raw.passwordHash.includes(':')
+    const storedPasswordHash = typeof raw.passwordHash === 'string' && raw.passwordHash.includes(':')
         ? raw.passwordHash.trim()
         : null;
+    const googleSub = typeof raw.googleSub === 'string'
+        && raw.googleSub.trim()
+        && raw.googleSub.length <= GOOGLE_SUB_MAX_LENGTH
+        ? raw.googleSub.trim()
+        : null;
+    // Compatibility: old password rows had no passwordEnabled field, while
+    // old Google-only rows carried an inaccessible synthetic password and
+    // authProvider="google". Explicit passwordEnabled wins for dual-method
+    // accounts; otherwise the legacy provider field determines the migration.
+    const passwordEnabled = typeof raw.passwordEnabled === 'boolean'
+        ? raw.passwordEnabled
+        : raw.authProvider === 'google'
+            ? false
+            : !!storedPasswordHash;
+    const passwordHash = passwordEnabled ? storedPasswordHash : null;
     const displayName = sanitizeUserText(raw.displayName, DISPLAY_NAME_MAX_LENGTH);
-    if (!id || !email || !passwordHash || !displayName) return null;
+    if (!id || !email || !displayName) return null;
+    if ((passwordEnabled && !passwordHash) || (!passwordEnabled && !googleSub)) return null;
 
     const focusStats = sanitizeFocusStats(raw.focusStats);
     return {
         id,
         email,
         passwordHash,
+        passwordEnabled,
+        googleSub,
+        // Retained temporarily for compatibility with the existing Supabase
+        // column. Auth decisions use passwordEnabled/googleSub, never this tag.
+        authProvider: passwordEnabled ? 'password' : 'google',
         displayName,
         avatarColor: normalizeAvatarColor(raw.avatarColor),
         bio: sanitizeUserText(raw.bio, BIO_MAX_LENGTH),
@@ -307,12 +329,22 @@ function createUserStore(options = {}) {
     };
 }
 
-/** @param {{ email: string, passwordHash: string, displayName: string, now?: number }} options */
-function createUser({ email, passwordHash, displayName, now = Date.now() } = /** @type {any} */ ({})) {
+/** @param {{ email: string, passwordHash?: string|null, passwordEnabled?: boolean, googleSub?: string|null, displayName: string, now?: number }} options */
+function createUser({
+    email,
+    passwordHash = null,
+    passwordEnabled = typeof passwordHash === 'string' && !!passwordHash,
+    googleSub = null,
+    displayName,
+    now = Date.now()
+} = /** @type {any} */ ({})) {
     return {
         id: crypto.randomUUID(),
         email,
-        passwordHash,
+        passwordHash: passwordEnabled ? passwordHash : null,
+        passwordEnabled,
+        googleSub,
+        authProvider: passwordEnabled ? 'password' : 'google',
         displayName,
         avatarColor: 'amber',
         bio: '',
