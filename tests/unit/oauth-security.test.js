@@ -25,12 +25,16 @@ test('OAuth next paths stay same-origin and reject encoded path escapes', () => 
         '/%255cevil.example/account',
         '/%2f%2fevil.example/account',
         '/%252f%252fevil.example/account',
+        '/..//evil.example/account',
+        '/%2e%2e//evil.example/account',
+        '/.%2e//evil.example/account',
         ' /account',
         '/account\nSet-Cookie:x=y'
     ];
     for (const candidate of rejected) {
         assert.equal(normalizeLocalNext(candidate), '/account', candidate);
     }
+    assert.equal(normalizeLocalNext('https://evil.example', '/%2e%2e//fallback.evil'), '/account');
 });
 
 test('OAuth state is signed with an intent-specific HKDF key and bound to its nonce', () => {

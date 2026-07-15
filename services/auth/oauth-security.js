@@ -7,6 +7,7 @@ const MAX_TOKEN_PAYLOAD_BYTES = 4096;
 const MAX_NEXT_LENGTH = 2048;
 const STATE_VERSION = 'os1';
 const PROOF_VERSION = 'op1';
+const GOOGLE_DELETE_GRANT_COOKIE = 'hala_delete_grant';
 const HKDF_SALT = Buffer.from('halastudy-oauth-security-v1', 'utf8');
 const OAUTH_INTENTS = new Set(['signin', 'link', 'reauth_delete']);
 const PROOF_PURPOSES = new Set(['link_preauth', 'delete_grant']);
@@ -39,11 +40,22 @@ function decodePathLayers(value) {
     return isUnsafePathForm(decoded) ? null : decoded;
 }
 
-function normalizeKnownFallback(fallback) {
-    if (typeof fallback !== 'string' || !fallback.startsWith('/') || fallback.startsWith('//')) {
-        return '/account';
+function parseLocalPath(raw) {
+    if (typeof raw !== 'string' || raw.length === 0 || raw.length > MAX_NEXT_LENGTH) return null;
+    if (raw !== raw.trim() || !raw.startsWith('/') || isUnsafePathForm(raw)) return null;
+    if (decodePathLayers(raw) === null) return null;
+    try {
+        const parsed = new URL(raw, 'https://halastudy.invalid');
+        if (parsed.origin !== 'https://halastudy.invalid') return null;
+        const normalized = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        // URL parsing resolves dot segments. Re-check the result because an
+        // input such as `/..//evil.example` normalizes to a network-path
+        // reference (`//evil.example`) that res.redirect would treat as remote.
+        if (isUnsafePathForm(normalized) || decodePathLayers(normalized) === null) return null;
+        return normalized;
+    } catch {
+        return null;
     }
-    return fallback;
 }
 
 /**
@@ -52,18 +64,7 @@ function normalizeKnownFallback(fallback) {
  * and proxies disagree about whether they are path or authority separators.
  */
 function normalizeLocalNext(raw, fallback = '/account') {
-    const safeFallback = normalizeKnownFallback(fallback);
-    if (typeof raw !== 'string' || raw.length === 0 || raw.length > MAX_NEXT_LENGTH) return safeFallback;
-    if (raw !== raw.trim() || !raw.startsWith('/') || isUnsafePathForm(raw)) return safeFallback;
-    if (decodePathLayers(raw) === null) return safeFallback;
-
-    try {
-        const parsed = new URL(raw, 'https://halastudy.invalid');
-        if (parsed.origin !== 'https://halastudy.invalid') return safeFallback;
-        return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-    } catch {
-        return safeFallback;
-    }
+    return parseLocalPath(raw) || parseLocalPath(fallback) || '/account';
 }
 
 function deriveKey(secret, purpose) {
@@ -262,6 +263,7 @@ function createOAuthSecurity({
 }
 
 module.exports = {
+    GOOGLE_DELETE_GRANT_COOKIE,
     OAUTH_STATE_MAX_AGE_MS,
     createOAuthSecurity,
     normalizeLocalNext
