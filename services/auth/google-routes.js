@@ -9,15 +9,18 @@
 // When GOOGLE_* env is unset the router mounts nothing, so every /auth/google
 // path 404s exactly like an unknown URL.
 const express = require('express');
-const crypto = require('node:crypto');
 const { normalizeEmail, sanitizeUserText } = require('./index');
+const {
+    OAUTH_STATE_MAX_AGE_MS,
+    createOAuthSecurity,
+    normalizeLocalNext
+} = require('./oauth-security');
 const { createUser } = require('../../user-store');
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const STATE_COOKIE = 'hala_oauth';
-const STATE_TTL_MS = 10 * 60 * 1000;
 const DISPLAY_NAME_MAX_LENGTH = 20;
 const GOOGLE_SUB_MAX_LENGTH = 255;
 
@@ -33,6 +36,7 @@ function createGoogleAuthRouter(deps = {}) {
         appendSetCookie,
         parseCookies,
         persistUser,
+        sessionSecret,
         logger = console,
         fetchImpl = globalThis.fetch
     } = deps;
@@ -41,6 +45,7 @@ function createGoogleAuthRouter(deps = {}) {
     if (!config.enabled) {
         return router; // no handlers — all /auth/google/* fall through to 404
     }
+    const oauthSecurity = deps.oauthSecurity || createOAuthSecurity({ secret: sessionSecret });
 
     function setStateCookie(req, res, nonce) {
         const parts = [
@@ -48,7 +53,7 @@ function createGoogleAuthRouter(deps = {}) {
             'Path=/auth/google',
             'HttpOnly',
             'SameSite=Lax',
-            `Max-Age=${Math.floor(STATE_TTL_MS / 1000)}`
+            `Max-Age=${Math.floor(OAUTH_STATE_MAX_AGE_MS / 1000)}`
         ];
         if (req.secure) parts.push('Secure');
         appendSetCookie(res, parts.join('; '));
@@ -65,14 +70,20 @@ function createGoogleAuthRouter(deps = {}) {
         const requestIp = getRequestIp(req);
         if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
 
-        const nonce = crypto.randomBytes(24).toString('base64url');
-        setStateCookie(req, res, nonce);
+        const intent = typeof req.query.intent === 'string' ? req.query.intent : 'signin';
+        if (intent !== 'signin') {
+            res.status(400).json({ errorCode: 'OAUTH_INTENT_INVALID' });
+            return;
+        }
+        const next = normalizeLocalNext(req.query.next, '/account?auth=google');
+        const state = oauthSecurity.issueState({ intent, next });
+        setStateCookie(req, res, state.nonce);
         const params = new URLSearchParams({
             client_id: config.clientId,
             redirect_uri: config.redirectUri,
             response_type: 'code',
             scope: 'openid email profile',
-            state: nonce,
+            state: state.token,
             access_type: 'online',
             prompt: 'select_account'
         });
@@ -90,12 +101,14 @@ function createGoogleAuthRouter(deps = {}) {
             res.redirect('/account?auth=google_failed');
         };
 
-        // CSRF: the state must match the browser-bound nonce cookie.
+        // The signed state is purpose-bound and must match a browser-only,
+        // process-issued nonce. Acceptance atomically consumes it.
         const cookies = parseCookies(req.headers.cookie || '');
-        const expected = cookies[STATE_COOKIE];
-        const got = typeof req.query.state === 'string' ? req.query.state : '';
-        if (!expected || !got || expected.length !== got.length
-            || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(got))) {
+        const state = oauthSecurity.consumeState({
+            token: typeof req.query.state === 'string' ? req.query.state : '',
+            nonce: cookies[STATE_COOKIE]
+        });
+        if (!state) {
             return failRedirect('state_mismatch');
         }
         const code = typeof req.query.code === 'string' ? req.query.code : '';
@@ -155,7 +168,7 @@ function createGoogleAuthRouter(deps = {}) {
             }
             setAuthCookie(req, res, user);
             logger.info({ event: 'google_login', userId: user.id });
-            return res.redirect('/account?auth=google');
+            return res.redirect(state.next);
         }
 
         // Email proves contactability, not ownership of an existing local
@@ -189,7 +202,7 @@ function createGoogleAuthRouter(deps = {}) {
         }
         logger.info({ event: 'google_signup', userId: user.id });
         setAuthCookie(req, res, user);
-        return res.redirect('/account?auth=google');
+        return res.redirect(state.next);
     });
 
     return router;

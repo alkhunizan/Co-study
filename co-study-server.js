@@ -26,6 +26,7 @@ const {
 } = require('./services/auth');
 const { createAuthRouter } = require('./services/auth/auth-routes');
 const { createGoogleAuthRouter } = require('./services/auth/google-routes');
+const { createOAuthSecurity } = require('./services/auth/oauth-security');
 const { createUserStore, recordMyRoom } = require('./user-store');
 const { createSupabaseClient } = require('./services/supabase/client');
 const { createSupabaseUserStore } = require('./supabase-user-store');
@@ -696,6 +697,7 @@ function createCoStudyServer(options = {}) {
         ? options.sleep
         : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const config = resolveServerConfig({ env, mode });
+    const oauthSecurity = createOAuthSecurity({ secret: config.sessionSecret });
     const errorBuffer = createErrorBuffer({ capacity: 200 });
     const logger = createLogger({ service: 'halastudy' }, { onEntry: errorBuffer.push });
     // Admin-toggleable runtime overrides. In-memory by design: a restart
@@ -1796,6 +1798,7 @@ function createCoStudyServer(options = {}) {
         persistUsersSoon,
         persistUser: persistUserImmediate,
         sessionSecret: config.sessionSecret,
+        oauthSecurity,
         logger
     }));
 

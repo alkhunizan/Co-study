@@ -55,6 +55,7 @@ async function startHarness(t, { users: initialUsers = [], profile }) {
     );
     const authSessions = [];
     let persistCount = 0;
+    let providerRequestCount = 0;
 
     const app = express();
     app.use(createGoogleAuthRouter({
@@ -82,8 +83,10 @@ async function startHarness(t, { users: initialUsers = [], profile }) {
         persistUser: async () => {
             persistCount += 1;
         },
+        sessionSecret: 'google-harness-session-secret-at-least-32-bytes',
         logger: { info() {}, warn() {}, error() {} },
         fetchImpl: async (url) => {
+            providerRequestCount += 1;
             if (url === 'https://oauth2.googleapis.com/token') {
                 return { ok: true, json: async () => ({ access_token: 'test-access-token' }) };
             }
@@ -112,8 +115,11 @@ async function startHarness(t, { users: initialUsers = [], profile }) {
         get persistCount() {
             return persistCount;
         },
-        async completeGoogleFlow() {
-            const start = await fetch(`${baseUrl}/auth/google`, { redirect: 'manual' });
+        get providerRequestCount() {
+            return providerRequestCount;
+        },
+        async startGoogleFlow(pathname = '/auth/google') {
+            const start = await fetch(`${baseUrl}${pathname}`, { redirect: 'manual' });
             assert.equal(start.status, 302);
             const state = new URL(start.headers.get('location')).searchParams.get('state');
             const stateCookie = getSetCookies(start.headers)
@@ -121,11 +127,15 @@ async function startHarness(t, { users: initialUsers = [], profile }) {
                 .find((cookie) => cookie.startsWith('hala_oauth='));
             assert.ok(state);
             assert.ok(stateCookie);
-
-            return fetch(`${baseUrl}/auth/google/callback?code=test-code&state=${encodeURIComponent(state)}`, {
-                headers: { Cookie: stateCookie },
+            return { start, state, stateCookie };
+        },
+        async completeGoogleFlow(options = {}) {
+            const flow = await this.startGoogleFlow(options.pathname);
+            const response = await fetch(`${baseUrl}/auth/google/callback?code=test-code&state=${encodeURIComponent(flow.state)}`, {
+                headers: { Cookie: flow.stateCookie },
                 redirect: 'manual'
             });
+            return { ...flow, response };
         }
     };
 }
@@ -143,7 +153,7 @@ test('Google sign-in never auto-links an existing password account by matching e
         }
     });
 
-    const response = await harness.completeGoogleFlow();
+    const { response } = await harness.completeGoogleFlow();
 
     assert.equal(response.status, 302);
     assert.equal(response.headers.get('location'), '/account?auth=link_required');
@@ -169,7 +179,7 @@ test('Google sign-in resolves an existing account by matching subject, not provi
         }
     });
 
-    const response = await harness.completeGoogleFlow();
+    const { response } = await harness.completeGoogleFlow();
 
     assert.equal(response.status, 302);
     assert.equal(response.headers.get('location'), '/account?auth=google');
@@ -193,7 +203,7 @@ test('Google sign-in rejects a different subject for an existing Google email', 
         }
     });
 
-    const response = await harness.completeGoogleFlow();
+    const { response } = await harness.completeGoogleFlow();
 
     assert.equal(response.headers.get('location'), '/account?auth=link_required');
     assert.deepEqual(harness.authSessions, []);
@@ -211,7 +221,7 @@ test('Google sign-in creates a new Google-only account without a synthetic passw
         }
     });
 
-    const response = await harness.completeGoogleFlow();
+    const { response } = await harness.completeGoogleFlow();
     const [created] = harness.users.values();
 
     assert.equal(response.headers.get('location'), '/account?auth=google');
@@ -223,4 +233,45 @@ test('Google sign-in creates a new Google-only account without a synthetic passw
     assert.equal(created.authProvider, 'google');
     assert.deepEqual(harness.authSessions, [created.id]);
     assert.equal(harness.persistCount, 1);
+});
+
+test('Google OAuth state is opaque, five-minute, single-use, and preserves only safe local next paths', async (t) => {
+    const existing = makePasswordUser('linked@example.com', {
+        googleSub: 'stable-google-sub',
+        passwordEnabled: true
+    });
+    const harness = await startHarness(t, {
+        users: [existing],
+        profile: {
+            sub: 'stable-google-sub',
+            email: 'linked@example.com',
+            email_verified: true,
+            name: 'Existing User'
+        }
+    });
+
+    const flow = await harness.startGoogleFlow('/auth/google?next=%2Froom%2FABC%3Ffrom%3Dgoogle');
+    const cookieValue = flow.stateCookie.slice(flow.stateCookie.indexOf('=') + 1);
+    assert.notEqual(flow.state, cookieValue);
+    assert.match(getSetCookies(flow.start.headers).join('\n'), /Max-Age=300/);
+
+    const callbackUrl = `${new URL(flow.start.url).origin}/auth/google/callback?code=test-code&state=${encodeURIComponent(flow.state)}`;
+    const accepted = await fetch(callbackUrl, {
+        headers: { Cookie: flow.stateCookie },
+        redirect: 'manual'
+    });
+    assert.equal(accepted.headers.get('location'), '/room/ABC?from=google');
+    assert.equal(harness.providerRequestCount, 2);
+
+    const replay = await fetch(callbackUrl, {
+        headers: { Cookie: flow.stateCookie },
+        redirect: 'manual'
+    });
+    assert.equal(replay.headers.get('location'), '/account?auth=google_failed');
+    assert.equal(harness.providerRequestCount, 2);
+
+    const unsafe = await harness.completeGoogleFlow({
+        pathname: '/auth/google?next=%2F%25255cevil.example%2Faccount'
+    });
+    assert.equal(unsafe.response.headers.get('location'), '/account?auth=google');
 });
