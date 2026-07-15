@@ -76,6 +76,8 @@
         let apiBaseUrl = options.apiBaseUrl || '';
         let lifecycleGeneration = 0;
         let operationQueue = Promise.resolve();
+        const trackedGenerations = new Set();
+        const teardownOptionsByGeneration = new Map();
         const state = {
             joined: null,
             heartbeatTimer: null,
@@ -86,6 +88,33 @@
             const result = operationQueue.then(operation, operation);
             operationQueue = result.catch(() => {});
             return result;
+        }
+
+        function mergeTeardownOptions(existing = {}, requested = {}) {
+            return {
+                ...existing,
+                ...requested,
+                keepalive: !!(existing.keepalive || requested.keepalive),
+                notifyServer: existing.notifyServer === false || requested.notifyServer === false
+                    ? false
+                    : requested.notifyServer ?? existing.notifyServer
+            };
+        }
+
+        function releaseGeneration(generation) {
+            if (!Number.isInteger(generation)) return;
+            trackedGenerations.delete(generation);
+            teardownOptionsByGeneration.delete(generation);
+        }
+
+        function requestTeardownForTrackedGenerations(throughGeneration, options) {
+            for (const generation of trackedGenerations) {
+                if (generation > throughGeneration) continue;
+                teardownOptionsByGeneration.set(
+                    generation,
+                    mergeTeardownOptions(teardownOptionsByGeneration.get(generation), options)
+                );
+            }
         }
 
         function stopHeartbeat() {
@@ -120,28 +149,39 @@
         }
 
         async function disposeSession(session, joined, options = {}) {
-            const cleanup = [];
-            if (options.notifyServer !== false
-                && session?.roomId
-                && session.membershipToken
-                && session.videoSessionId) {
-                cleanup.push(
-                    postJson(
-                        buildApiUrl(apiBaseUrl, `/api/rooms/${encodeURIComponent(session.roomId)}/video-leave`),
-                        { videoSessionId: session.videoSessionId },
-                        {
-                            headers: membershipHeaders(session.membershipToken),
-                            keepalive: !!options.keepalive
-                        }
-                    )
-                );
+            const generation = session?.generation;
+            const effectiveOptions = mergeTeardownOptions(
+                options,
+                teardownOptionsByGeneration.get(generation)
+            );
+            try {
+                const cleanup = [];
+                if (effectiveOptions.notifyServer !== false
+                    && session?.roomId
+                    && session.membershipToken
+                    && session.videoSessionId
+                    && !session.serverLeaveStarted) {
+                    session.serverLeaveStarted = true;
+                    cleanup.push(
+                        postJson(
+                            buildApiUrl(apiBaseUrl, `/api/rooms/${encodeURIComponent(session.roomId)}/video-leave`),
+                            { videoSessionId: session.videoSessionId },
+                            {
+                                headers: membershipHeaders(session.membershipToken),
+                                keepalive: !!effectiveOptions.keepalive
+                            }
+                        )
+                    );
+                }
+                if (joined && typeof joined.leave === 'function') {
+                    try {
+                        cleanup.push(joined.leave());
+                    } catch (_error) {}
+                }
+                await Promise.allSettled(cleanup);
+            } finally {
+                releaseGeneration(generation);
             }
-            if (joined && typeof joined.leave === 'function') {
-                try {
-                    cleanup.push(joined.leave());
-                } catch (_error) {}
-            }
-            await Promise.allSettled(cleanup);
         }
 
         async function disposeActiveSession(options = {}) {
@@ -155,17 +195,34 @@
         }
 
         function leave(options = {}) {
+            const teardownOptions = {
+                ...options,
+                keepalive: options.keepalive !== false
+            };
+            const supersededThroughGeneration = lifecycleGeneration;
             lifecycleGeneration += 1;
-            return enqueue(() => disposeActiveSession(options));
+            requestTeardownForTrackedGenerations(supersededThroughGeneration, teardownOptions);
+            if (state.session || state.joined) {
+                const immediateDisposal = disposeActiveSession(teardownOptions);
+                return enqueue(() => immediateDisposal);
+            }
+            return enqueue(() => disposeActiveSession(teardownOptions));
         }
 
         function joinRealtimeKitRoom(options = {}) {
             const joinGeneration = ++lifecycleGeneration;
+            trackedGenerations.add(joinGeneration);
             return enqueue(async () => {
-                if (joinGeneration !== lifecycleGeneration) throw supersededJoinError();
+                if (joinGeneration !== lifecycleGeneration) {
+                    releaseGeneration(joinGeneration);
+                    throw supersededJoinError();
+                }
 
                 await disposeActiveSession();
-                if (joinGeneration !== lifecycleGeneration) throw supersededJoinError();
+                if (joinGeneration !== lifecycleGeneration) {
+                    releaseGeneration(joinGeneration);
+                    throw supersededJoinError();
+                }
 
                 const session = {
                     generation: joinGeneration,
@@ -209,6 +266,7 @@
                         );
                     }
                     if (joinGeneration !== lifecycleGeneration) throw supersededJoinError();
+                    state.session = session;
 
                     const realtimeKitClient = (/** @type {any} */ (global)).HalastudyRealtimeKitClient;
                     const joinMethod = options.headless ? realtimeKitClient?.joinHeadless : realtimeKitClient?.join;

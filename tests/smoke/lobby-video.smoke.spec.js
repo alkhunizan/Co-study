@@ -79,15 +79,20 @@ async function installFakeMediaClient(page) {
 
 async function installVideoContract(page, videoSessionId) {
     const requests = [];
-    await page.route(/\/api\/rooms\/[^/]+\/video-(token|heartbeat|leave)$/, async (route) => {
+    const videoRequestPattern = /\/api\/rooms\/[^/]+\/video-(token|heartbeat|leave)$/;
+    page.on('request', (request) => {
+        const pathname = new URL(request.url()).pathname;
+        if (!videoRequestPattern.test(pathname)) return;
+        requests.push({
+            pathname,
+            body: request.postDataJSON(),
+            headers: request.headers()
+        });
+    });
+    await page.route(videoRequestPattern, async (route) => {
         const request = route.request();
         const pathname = new URL(request.url()).pathname;
         const body = request.postDataJSON();
-        requests.push({
-            pathname,
-            body,
-            headers: await request.allHeaders()
-        });
         await route.fulfill({
             status: 200,
             contentType: 'application/json',

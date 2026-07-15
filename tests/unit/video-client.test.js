@@ -203,6 +203,166 @@ test('rapid join, leave, and rejoin disposes the stale join and leaves the lates
     assert.deepEqual(requestBody(roomTwoLeave), { videoSessionId: 'video-session-ROOM2' });
 });
 
+test('pagehide leave keeps its keepalive option while an in-flight provider join is superseded', async () => {
+    const providerJoin = deferred();
+    const providerJoinStarted = deferred();
+    let mediaLeaves = 0;
+    const harness = createHarness({
+        fetchImpl(request) {
+            if (requestPath(request).endsWith('/video-token')) {
+                return jsonResponse({
+                    ok: true,
+                    authToken: 'pagehide-token',
+                    videoSessionId: 'video-session-pagehide',
+                    policy: {}
+                });
+            }
+            return jsonResponse({ ok: true });
+        },
+        join: async () => {
+            providerJoinStarted.resolve();
+            return providerJoin.promise;
+        }
+    });
+
+    const join = harness.client.joinRealtimeKitRoom({
+        roomId: 'PAGEHIDE',
+        displayName: 'Student',
+        membershipToken: 'membership-pagehide',
+        meetingElement: {}
+    });
+    await providerJoinStarted.promise;
+
+    const pagehideLeave = harness.client.leave({ keepalive: true });
+    const leaveRequestsBeforeProviderResolution = harness.requests.filter(
+        (request) => requestPath(request) === '/api/rooms/PAGEHIDE/video-leave'
+    );
+    assert.equal(leaveRequestsBeforeProviderResolution.length, 1);
+    assert.equal(leaveRequestsBeforeProviderResolution[0].options.keepalive, true);
+    providerJoin.resolve({
+        leave: async () => {
+            mediaLeaves += 1;
+        }
+    });
+
+    await assert.rejects(
+        join,
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_SUPERSEDED'
+    );
+    await pagehideLeave;
+
+    const leaveRequests = harness.requests.filter(
+        (request) => requestPath(request) === '/api/rooms/PAGEHIDE/video-leave'
+    );
+    assert.equal(leaveRequests.length, 1);
+    assert.equal(leaveRequests[0].options.keepalive, true);
+    assert.equal(membershipHeader(leaveRequests[0]), 'membership-pagehide');
+    assert.deepEqual(requestBody(leaveRequests[0]), { videoSessionId: 'video-session-pagehide' });
+    assert.equal(mediaLeaves, 1);
+    assert.equal(harness.timers.size, 0);
+});
+
+test('pagehide keepalive reaches an older provider join after a newer join supersedes it', async () => {
+    const staleProviderJoin = deferred();
+    const staleProviderJoinStarted = deferred();
+    let staleMediaLeaves = 0;
+    const harness = createHarness({
+        fetchImpl(request) {
+            const pathname = requestPath(request);
+            if (pathname.endsWith('/video-token')) {
+                const roomId = pathname.split('/')[3];
+                return jsonResponse({
+                    ok: true,
+                    authToken: `token-${roomId}`,
+                    videoSessionId: `video-session-${roomId}`,
+                    policy: {}
+                });
+            }
+            return jsonResponse({ ok: true });
+        },
+        join: async ({ authToken }) => {
+            assert.equal(authToken, 'token-STALE');
+            staleProviderJoinStarted.resolve();
+            return staleProviderJoin.promise;
+        }
+    });
+
+    const staleJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'STALE',
+        displayName: 'First',
+        membershipToken: 'membership-stale',
+        meetingElement: {}
+    });
+    await staleProviderJoinStarted.promise;
+
+    const newerJoin = harness.client.joinRealtimeKitRoom({
+        roomId: 'NEWER',
+        displayName: 'Second',
+        membershipToken: 'membership-newer',
+        meetingElement: {}
+    });
+    const pagehideLeave = harness.client.leave({ keepalive: true });
+    const staleRejection = assert.rejects(
+        staleJoin,
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_SUPERSEDED'
+    );
+    const newerRejection = assert.rejects(
+        newerJoin,
+        (error) => (/** @type {any} */ (error)).code === 'VIDEO_JOIN_SUPERSEDED'
+    );
+
+    staleProviderJoin.resolve({
+        leave: async () => {
+            staleMediaLeaves += 1;
+        }
+    });
+    await Promise.all([staleRejection, newerRejection, pagehideLeave]);
+
+    const staleLeave = harness.requests.find(
+        (request) => requestPath(request) === '/api/rooms/STALE/video-leave'
+    );
+    assert.ok(staleLeave);
+    assert.equal(staleLeave.options.keepalive, true);
+    assert.equal(staleMediaLeaves, 1);
+    assert.equal(
+        harness.requests.some((request) => requestPath(request) === '/api/rooms/NEWER/video-token'),
+        false
+    );
+    assert.equal(harness.timers.size, 0);
+});
+
+test('ordinary lifecycle teardown starts a keepalive advisory leave synchronously', async () => {
+    const harness = createHarness({
+        fetchImpl(request) {
+            if (requestPath(request).endsWith('/video-token')) {
+                return jsonResponse({
+                    ok: true,
+                    authToken: 'disconnect-token',
+                    videoSessionId: 'video-session-disconnect',
+                    policy: {}
+                });
+            }
+            return jsonResponse({ ok: true });
+        }
+    });
+
+    await harness.client.joinRealtimeKitRoom({
+        roomId: 'DISCONNECT',
+        displayName: 'Student',
+        membershipToken: 'membership-disconnect',
+        meetingElement: {}
+    });
+    const disconnectLeave = harness.client.leave();
+    const leaveRequest = harness.requests.find(
+        (request) => requestPath(request) === '/api/rooms/DISCONNECT/video-leave'
+    );
+
+    assert.ok(leaveRequest);
+    assert.equal(leaveRequest.options.keepalive, true);
+    await disconnectLeave;
+    assert.equal(harness.timers.size, 0);
+});
+
 test('a video join without a room membership token fails before making a request', async () => {
     const harness = createHarness();
 
