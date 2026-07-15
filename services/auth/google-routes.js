@@ -1,17 +1,15 @@
 // Google Sign-In via OAuth 2.0 Authorization Code flow. Dependency-free —
 // node:crypto for the CSRF state + global fetch for the token/userinfo calls.
 //
-// A Google account resolves to a Supabase profile by verified email: existing
-// account → linked + logged in; new email → a fresh profile with a random
-// internal password (so the shared password/sanitize pipeline is untouched —
-// the user only ever signs in through Google). We then issue the SAME signed
-// session cookie the email/password flow uses.
+// A Google account resolves only by its stable OpenID Connect subject. A
+// verified-email match without a subject match requires an explicit linking
+// flow and must never create a session. New emails become passwordless Google
+// accounts and receive the same signed session cookie as password accounts.
 //
 // When GOOGLE_* env is unset the router mounts nothing, so every /auth/google
 // path 404s exactly like an unknown URL.
 const express = require('express');
 const crypto = require('node:crypto');
-const { hashPassword } = require('./password');
 const { normalizeEmail, sanitizeUserText } = require('./index');
 const { createUser } = require('../../user-store');
 
@@ -21,6 +19,7 @@ const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const STATE_COOKIE = 'hala_oauth';
 const STATE_TTL_MS = 10 * 60 * 1000;
 const DISPLAY_NAME_MAX_LENGTH = 20;
+const GOOGLE_SUB_MAX_LENGTH = 255;
 
 function createGoogleAuthRouter(deps = {}) {
     const {
@@ -130,46 +129,58 @@ function createGoogleAuthRouter(deps = {}) {
         const email = normalizeEmail(profile.email);
         // Google's email_verified comes back as a boolean or the string "true".
         const emailVerified = profile.email_verified === true || profile.email_verified === 'true';
-        const googleSub = typeof profile.sub === 'string' && profile.sub ? profile.sub : null;
+        const googleSub = typeof profile.sub === 'string'
+            && profile.sub
+            && profile.sub.trim() === profile.sub
+            && profile.sub.length <= GOOGLE_SUB_MAX_LENGTH
+            ? profile.sub
+            : null;
         if (!email || !emailVerified || !googleSub) return failRedirect('unverified_email');
 
         clearStateCookie(req, res);
 
-        // Existing account (by verified email) → link Google + sign in.
-        const existingId = usersByEmail.get(email);
-        let user = existingId ? users.get(existingId) : null;
+        // Subject is the identity boundary. Fail closed if corrupt persisted
+        // state contains the same subject on more than one account.
+        const subjectMatches = Array.from(users.values())
+            .filter((candidate) => candidate.googleSub === googleSub);
+        if (subjectMatches.length > 1) {
+            return failRedirect('subject_conflict');
+        }
+
+        let [user] = subjectMatches;
         if (user) {
             if (user.banned) {
                 logger.warn({ event: 'google_auth_banned', userId: user.id });
                 return res.redirect('/account?auth=banned');
-            }
-            if (!user.googleSub) {
-                user.googleSub = googleSub;
-                if (!user.authProvider) user.authProvider = 'password';
-                persistUsersSoon();
             }
             setAuthCookie(req, res, user);
             logger.info({ event: 'google_login', userId: user.id });
             return res.redirect('/account?auth=google');
         }
 
-        // New account. Random internal password keeps the existing pipeline
-        // intact; the user authenticates only through Google.
+        // Email proves contactability, not ownership of an existing local
+        // account. Linking is a separate, reauthenticated flow.
+        const existingId = usersByEmail.get(email);
+        user = existingId ? users.get(existingId) : null;
+        if (user) {
+            logger.warn({ event: 'google_link_required', userId: user.id });
+            return res.redirect('/account?auth=link_required');
+        }
+
+        // New verified email: create a Google-only account with no password.
         const displayName = sanitizeUserText(profile.name || email.split('@')[0], DISPLAY_NAME_MAX_LENGTH)
             || email.split('@')[0].slice(0, DISPLAY_NAME_MAX_LENGTH);
-        const passwordHash = await hashPassword(crypto.randomBytes(32).toString('hex'));
-        // Re-check after the async hash (TOCTOU on the email key).
-        if (usersByEmail.has(email)) {
-            user = users.get(usersByEmail.get(email));
-        } else {
-            user = createUser({ email, passwordHash, displayName });
-            user.authProvider = 'google';
-            user.googleSub = googleSub;
-            users.set(user.id, user);
-            usersByEmail.set(email, user.id);
-            persistUsersSoon();
-            logger.info({ event: 'google_signup', userId: user.id });
-        }
+        user = createUser({
+            email,
+            passwordHash: null,
+            passwordEnabled: false,
+            googleSub,
+            displayName
+        });
+        users.set(user.id, user);
+        usersByEmail.set(email, user.id);
+        persistUsersSoon();
+        logger.info({ event: 'google_signup', userId: user.id });
         setAuthCookie(req, res, user);
         return res.redirect('/account?auth=google');
     });
