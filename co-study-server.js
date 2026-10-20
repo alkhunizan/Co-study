@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { Server } = require('socket.io');
+const { onClientEvent } = require('./services/socket-boundary');
 const { createRoomStore } = require('./room-store');
 const {
     VIDEO_PROVIDER_MESH,
@@ -2214,7 +2215,9 @@ function createCoStudyServer(options = {}) {
             return resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME]);
         }
 
-        socket.on('create-room', async (payload = {}, ack = () => {}) => {
+        const onEvent = (event, handler) => onClientEvent(socket, event, handler, logger);
+
+        onEvent('create-room', async (payload = {}, ack) => {
             const { roomName, password, requirePassword } = payload;
             const cleanName = sanitizeRoomName(roomName);
             const mediaMode = normalizeMediaMode(payload.mediaMode);
@@ -2301,7 +2304,7 @@ function createCoStudyServer(options = {}) {
             });
         });
 
-        socket.on('join-room', async (payload = {}, ack = () => {}) => {
+        onEvent('join-room', async (payload = {}, ack) => {
             const { roomId, username, clientId: payloadClientId, password } = payload;
             const cleanName = sanitizeNickname(username);
             const normalizedRoom = normalizeRoom(roomId);
@@ -2498,7 +2501,7 @@ function createCoStudyServer(options = {}) {
             }
         });
 
-        socket.on('send-message', (payload = {}, ack = () => {}) => {
+        onEvent('send-message', (payload = {}, ack) => {
             const { text } = payload;
             const currentRoom = socket.data.roomId;
             const cleanText = sanitizeChatMessage(text);
@@ -2532,7 +2535,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true });
         });
 
-        socket.on('board-set-goal', (payload = {}, ack = () => {}) => {
+        onEvent('board-set-goal', (payload = {}, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2553,7 +2556,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        socket.on('board-add-task', (payload = {}, ack = () => {}) => {
+        onEvent('board-add-task', (payload = {}, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2584,7 +2587,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        socket.on('board-toggle-task', (payload = {}, ack = () => {}) => {
+        onEvent('board-toggle-task', (payload = {}, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2611,7 +2614,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        socket.on('board-delete-task', (payload = {}, ack = () => {}) => {
+        onEvent('board-delete-task', (payload = {}, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2638,7 +2641,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        socket.on('board-reorder-tasks', (payload = {}, ack = () => {}) => {
+        onEvent('board-reorder-tasks', (payload = {}, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2686,7 +2689,7 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
-        socket.on('camera-status', (payload = {}) => {
+        onEvent('camera-status', (payload = {}) => {
             const { roomId } = socket.data;
             if (!roomId) return;
             const room = rooms.get(roomId);
@@ -2698,7 +2701,7 @@ function createCoStudyServer(options = {}) {
             io.to(roomId).emit('camera-status', { userId: socket.id, camera: user.cameraOn });
         });
 
-        socket.on('rtc-offer', (payload = {}) => {
+        onEvent('rtc-offer', (payload = {}) => {
             const { roomId } = socket.data;
             const { targetId, sdp } = payload;
             if (!roomId || !targetId || !sdp) return;
@@ -2707,7 +2710,7 @@ function createCoStudyServer(options = {}) {
             io.to(targetId).emit('rtc-offer', { from: socket.id, sdp });
         });
 
-        socket.on('rtc-answer', (payload = {}) => {
+        onEvent('rtc-answer', (payload = {}) => {
             const { roomId } = socket.data;
             const { targetId, sdp } = payload;
             if (!roomId || !targetId || !sdp) return;
@@ -2716,7 +2719,7 @@ function createCoStudyServer(options = {}) {
             io.to(targetId).emit('rtc-answer', { from: socket.id, sdp });
         });
 
-        socket.on('rtc-ice', (payload = {}) => {
+        onEvent('rtc-ice', (payload = {}) => {
             const { roomId } = socket.data;
             const { targetId, candidate } = payload;
             if (!roomId || !targetId || !candidate) return;
@@ -2725,7 +2728,7 @@ function createCoStudyServer(options = {}) {
             io.to(targetId).emit('rtc-ice', { from: socket.id, candidate });
         });
 
-        socket.on('user-status', (payload = {}, ack = () => {}) => {
+        onEvent('user-status', (payload = {}, ack) => {
             const { status } = payload || {};
             const { roomId } = socket.data;
             if (!roomId) return ack({ ok: false });
@@ -2741,7 +2744,7 @@ function createCoStudyServer(options = {}) {
 
         // Reports are silent: stored on the room for admin review, never
         // broadcast, never exposed through client-facing snapshots.
-        socket.on('report-user', async (payload = {}, ack = () => {}) => {
+        onEvent('report-user', async (payload = {}, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
