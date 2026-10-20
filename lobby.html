@@ -341,15 +341,6 @@
     let socket = null;
     function setParticipants(list) {
       state.participants = Array.isArray(list) ? list.slice() : [];
-      // QA aid: ?demo=N appends N filler tiles so density/pagination are visible
-      // without a live meeting. No effect unless the param is present.
-      const demo = Number(new URLSearchParams(location.search).get('demo'));
-      if (demo > 0) {
-        const palette = ['#8a6d3b', '#6d7a8a', '#8a5a5a', '#5a8a6d', '#7a6d8a', '#8a7a5a'];
-        for (let i = state.participants.length; i < Math.min(demo, LOBBY_CAP); i++) {
-          state.participants.push({ id: 'demo-' + i, name: 'طالب ' + (i + 1), cameraOn: i % 4 === 0, avatarColor: palette[i % palette.length] });
-        }
-      }
       render();
     }
 
