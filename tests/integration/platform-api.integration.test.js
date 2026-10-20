@@ -74,4 +74,23 @@ test('platform HTTP and socket journeys use real database and scoped policies', 
     })));
     assert.equal(seats.filter((entry) => entry.ok).length, 4, 'asynchronous auth must not oversubscribe mesh capacity');
     assert.equal(seats.filter((entry) => entry.errorCode === 'ROOM_FULL').length, 1);
+    const remaining = await signupUser(server, { email: 'remaining@platform.test', displayName: 'Remaining member' });
+    const finalInvite = await request(alice.cookie, `/cohorts/${circle.body.id}/invitations`, 'POST', {});
+    assert.equal((await request(remaining.cookie, '/cohorts/accept', 'POST', { token: finalInvite.body.token })).status, 200);
+    const memberSocket = await connectSocket(server.baseUrl, { extraHeaders: { Cookie: remaining.cookie } });
+    sockets.push(memberSocket);
+    assert.equal((await emitAck(memberSocket, 'join-room', { roomId: code, username: 'Remaining member' })).ok, true);
+    const closed = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Owner deletion did not close the circle room')), 5000);
+        memberSocket.once('disconnect', () => { clearTimeout(timeout); resolve(undefined); });
+    });
+    const ownerDeleted = await server.request('/api/me', {
+        method: 'DELETE', headers: { Cookie: alice.cookie }, body: { password: alice.credentials.password }
+    });
+    assert.equal(ownerDeleted.status, 200);
+    await closed;
+    assert.equal(memberSocket.connected, false);
+    assert.equal((await request(remaining.cookie, '/me')).body.cohorts.length, 0);
+    assert.equal((await request(remaining.cookie, `/cohorts/${circle.body.id}/members`)).status, 404);
+    assert.equal((await server.request('/api/health')).status, 200);
 });

@@ -34,6 +34,7 @@ function createAuthRouter(deps) {
         disconnectUser,
         canDeleteWithProvider,
         deletePlatformUser,
+        preparePlatformDeletion = async () => () => {},
         logFocusSession,
         logger
     } = deps;
@@ -279,6 +280,7 @@ function createAuthRouter(deps) {
         }
 
         const userId = req.user.id;
+        const finishPlatformDeletion = await preparePlatformDeletion(userId);
         req.user.tokenEpoch += 1;
         disconnectUser(userId);
         usersByEmail.delete(req.user.email);
@@ -295,6 +297,7 @@ function createAuthRouter(deps) {
             logger.error({ event: 'user_delete_failed', userId });
             return res.status(error.status || 503).json({ errorCode: error.errorCode || 'PERSISTENCE_UNAVAILABLE' });
         }
+        finishPlatformDeletion();
         clearAuthCookie(req, res);
         logger.info({ event: 'user_deleted', userId });
         res.json({ ok: true });

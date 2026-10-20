@@ -55,11 +55,12 @@ function createPlatform({ userStateFile, secret, env = process.env, logger = con
     }
     async function recordAttendance(roomId, user) {
         if (!enabled || !user) return;
-        await ensureUser(user);
+        await platform.ready;
         const timestamp = Date.now();
         await platform.db.query(`INSERT INTO halastudy.attendance(session_id,user_id,first_joined_at,last_seen_at)
             SELECT s.id,$2,$3,$3 FROM halastudy.scheduled_sessions s
             JOIN halastudy.cohort_members m ON m.cohort_id=s.cohort_id AND m.user_id=$2
+            JOIN halastudy.cohorts c ON c.id=s.cohort_id AND c.archived=false
             WHERE s.room_id=$1 AND s.starts_at<=$3::bigint+900000
                 AND s.starts_at+s.duration_minutes::bigint*60000>=$3
             ON CONFLICT(session_id,user_id) DO UPDATE SET last_seen_at=$3`, [roomId, user.id, timestamp]);
@@ -78,6 +79,11 @@ function createPlatform({ userStateFile, secret, env = process.env, logger = con
                 const others = await tx.query(`SELECT id FROM halastudy.role_assignments WHERE role='super_admin' AND user_id<>$1`, [userId]);
                 requireCondition(others.rows.length > 0, 'LAST_SUPER_ADMIN', 409);
             }
+            // Keep shared history and private room scope, but retire circles
+            // whose only manager is being deleted. Do this in the same commit.
+            await tx.query('UPDATE halastudy.cohorts SET archived=true WHERE owner_id=$1', [userId]);
+            await tx.query(`DELETE FROM halastudy.invitations WHERE cohort_id IN
+                (SELECT id FROM halastudy.cohorts WHERE owner_id=$1)`, [userId]);
             await tx.query(`UPDATE halastudy.cases SET detail='[account deleted]' WHERE reporter_id=$1 OR target_id=$1`, [userId]);
             await tx.query('UPDATE halastudy.audit_events SET actor_id=NULL, detail=$2 WHERE actor_id=$1', [userId, '{}']);
             await tx.query('DELETE FROM halastudy.users WHERE id=$1', [userId]);

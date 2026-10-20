@@ -1712,6 +1712,18 @@ function createCoStudyServer(options = {}) {
         flushUsers: () => userStore.flush(users),
         requireUser,
         disconnectUser,
+        preparePlatformDeletion: async (userId) => {
+            if (!platform.enabled) return () => {};
+            const owned = await platform.db.query('SELECT id FROM halastudy.cohorts WHERE owner_id=$1', [userId]);
+            const ids = new Set(owned.rows.map((row) => row.id));
+            return () => {
+                for (const room of rooms.values()) {
+                    if (!ids.has(room.cohortId)) continue;
+                    for (const socketId of room.users.keys()) io.sockets.sockets.get(socketId)?.disconnect(true);
+                    deleteRoom(room.id);
+                }
+            };
+        },
         deletePlatformUser: (userId) => userStore.isPlatform ? Promise.resolve() : platform.removeUser(userId),
         canDeleteWithProvider: (req) => {
             const cookies = parseCookies(req.headers.cookie || '');
