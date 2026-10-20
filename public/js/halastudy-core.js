@@ -174,7 +174,6 @@
 
     function signout() {
         return requestJson('POST', '/api/auth/logout')
-            .catch(() => { /* already signed out */ })
             .then(() => { userPromise = Promise.resolve(null); return null; });
     }
 
@@ -190,9 +189,13 @@
             if (ui && typeof ui.renderAuthChip === 'function') {
                 ui.renderAuthChip(entry, user, {
                     menuItems: [
+                        { label: ar ? 'مساحتي' : 'My workspace', href: '/app' },
+                        { label: ar ? 'عضوية VIP' : 'VIP membership', href: '/plans' },
                         { label: ar ? 'حسابي' : 'My account', href: '/account.html' },
                         { label: ar ? 'تسجيل الخروج' : 'Sign out', danger: true, onSelect: () => {
-                            signout().then(() => { global.location.assign('/'); });
+                            signout().then(() => { global.location.assign('/'); }).catch(() => {
+                                ui.toast(ar ? 'تعذّر تسجيل الخروج. حاول مرة أخرى.' : 'Sign-out failed. Please try again.', { kind: 'error' });
+                            });
                         } }
                     ]
                 });
@@ -223,12 +226,12 @@
 
     function showAnnouncement(announcement) {
         clearAnnouncement();
-        if (!announcement || !announcement.id) return;
+        if (!announcement?.id) return;
         var message = announcementMessage(announcement);
         if (!message) return;
         try {
             if (localStorage.getItem(ANNOUNCE_DISMISS_KEY) === announcement.id) return;
-        } catch (e) { /* storage unavailable */ }
+        } catch (_e) { /* storage unavailable */ }
 
         var banner = document.createElement('div');
         banner.id = 'announce-banner';
@@ -247,7 +250,7 @@
             + 'font-size:16px;line-height:1;min-inline-size:32px;min-block-size:32px;border-radius:50%;';
         dismiss.addEventListener('click', () => {
             banner.remove();
-            try { localStorage.setItem(ANNOUNCE_DISMISS_KEY, announcement.id); } catch (e) {}
+            try { localStorage.setItem(ANNOUNCE_DISMISS_KEY, announcement.id); } catch (_e) {}
         });
         banner.appendChild(text);
         banner.appendChild(dismiss);

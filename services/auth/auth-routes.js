@@ -32,11 +32,15 @@ function createAuthRouter(deps) {
         persistUsersSoon,
         flushUsers,
         requireUser,
+        disconnectUser,
+        canDeleteWithProvider,
+        deletePlatformUser,
         logFocusSession,
         logger
     } = deps;
 
     const router = express.Router();
+    router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
 
     router.post('/auth/signup', async (req, res) => {
         const requestIp = getRequestIp(req);
@@ -73,7 +77,13 @@ function createAuthRouter(deps) {
         const user = createUser({ email, passwordHash, displayName });
         users.set(user.id, user);
         usersByEmail.set(email, user.id);
-        persistUsersSoon();
+        try {
+            await flushUsers();
+        } catch {
+            users.delete(user.id);
+            usersByEmail.delete(email);
+            return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+        }
         setAuthCookie(req, res, user);
         logger.info({ event: 'user_signup', userId: user.id });
         res.json({ ok: true, user: publicUser(user) });
@@ -112,7 +122,14 @@ function createAuthRouter(deps) {
         res.json({ ok: true, user: publicUser(user) });
     });
 
-    router.post('/auth/logout', (req, res) => {
+    router.post('/auth/logout', async (req, res) => {
+        if (req.user) {
+            req.user.tokenEpoch += 1;
+            disconnectUser(req.user.id);
+        }
+        // A retry may carry a cookie invalidated in memory by a failed first
+        // attempt. Commit pending revocations before acknowledging that retry.
+        await flushUsers();
         clearAuthCookie(req, res);
         res.json({ ok: true });
     });
@@ -187,16 +204,9 @@ function createAuthRouter(deps) {
                 existing.sessions = Math.max(existing.sessions, day.sessions);
             }
         }
-        let totalFocusMinutes = 0;
-        let totalSessions = 0;
-        for (const day of Object.values(stats.days)) {
-            totalFocusMinutes += day.focusMinutes;
-            totalSessions += day.sessions;
-        }
-        stats.totalFocusMinutes = totalFocusMinutes;
-        stats.totalSessions = totalSessions;
+        req.user.focusStats = sanitizeFocusStats(stats);
         persistUsersSoon();
-        res.json({ ok: true, focusStats: stats, streak: req.user.streak });
+        res.json({ ok: true, focusStats: req.user.focusStats, streak: req.user.streak });
     });
 
     router.get('/me/stats', requireUser, (req, res) => {
@@ -216,19 +226,34 @@ function createAuthRouter(deps) {
         if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
 
         const password = typeof req.body?.password === 'string' ? req.body.password : '';
-        const passwordOk = await verifyPassword(password, req.user.passwordHash);
+        const passwordOk = req.user.authProvider === 'google'
+            ? canDeleteWithProvider(req)
+            : await verifyPassword(password, req.user.passwordHash);
         if (!passwordOk) {
-            res.status(401).json({ errorCode: 'INVALID_CREDENTIALS' });
+            res.status(401).json({
+                errorCode: req.user.authProvider === 'google' ? 'REAUTH_REQUIRED' : 'INVALID_CREDENTIALS'
+            });
             return;
         }
 
         const userId = req.user.id;
+        req.user.tokenEpoch += 1;
+        disconnectUser(userId);
         usersByEmail.delete(req.user.email);
         users.delete(userId);
-        clearAuthCookie(req, res);
         // PDPL delete-my-data: flush immediately rather than debounced, so the
         // record is gone from disk before we acknowledge.
-        await flushUsers();
+        try {
+            await flushUsers();
+            await deletePlatformUser(userId);
+        } catch (error) {
+            users.set(userId, req.user);
+            usersByEmail.set(req.user.email, userId);
+            try { await flushUsers(); } catch (_restoreError) {}
+            logger.error({ event: 'user_delete_failed', userId });
+            return res.status(error.status || 503).json({ errorCode: error.errorCode || 'PERSISTENCE_UNAVAILABLE' });
+        }
+        clearAuthCookie(req, res);
         logger.info({ event: 'user_deleted', userId });
         res.json({ ok: true });
     });

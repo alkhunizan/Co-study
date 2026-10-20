@@ -21,6 +21,7 @@ const USERS_PAGE_SIZE = 50;
 function createAdminRouter(deps) {
     const {
         config,
+        platform,
         rooms,
         users,
         io,
@@ -73,7 +74,11 @@ function createAdminRouter(deps) {
         }, /** @type {Record<string, string>} */ ({}));
     }
 
-    function requireAdmin(req, res, next) {
+    async function requireAdmin(req, res, next) {
+        if (platform?.enabled) {
+            await platform.ready;
+            if (await platform.access.hasStaff()) return res.status(403).json({ errorCode: 'NAMED_STAFF_REQUIRED' });
+        }
         const token = parseCookies(req.headers.cookie || '')[ADMIN_COOKIE_NAME];
         const verified = verifySessionToken(token, {
             secret: config.sessionSecret,
@@ -111,6 +116,10 @@ function createAdminRouter(deps) {
     });
 
     router.post('/api/login', async (req, res) => {
+        if (platform?.enabled) {
+            await platform.ready;
+            if (await platform.access.hasStaff()) return res.status(403).json({ errorCode: 'NAMED_STAFF_REQUIRED' });
+        }
         const requestIp = getRequestIp(req);
         // Per-IP lockout plus a global key so distributed guessing is blunted too.
         if (!applyHttpRateLimit(req, res, rateLimiters.adminLogin, requestIp)) return;
@@ -191,7 +200,7 @@ function createAdminRouter(deps) {
                 dailyActive: Array.isArray(dailyActive) ? dailyActive : []
             });
         } catch (error) {
-            logger.warn({ event: 'admin_dashboard_failed', error: error && error.message });
+            logger.warn({ event: 'admin_dashboard_failed', error: error?.message });
             res.status(502).json({ errorCode: 'DASHBOARD_UNAVAILABLE' });
         }
     });
@@ -271,7 +280,7 @@ function createAdminRouter(deps) {
             return;
         }
         const socketId = typeof req.body?.socketId === 'string' ? req.body.socketId : '';
-        if (!socketId || !room.users || !room.users.has(socketId)) {
+        if (!socketId || !room.users?.has(socketId)) {
             res.status(404).json({ errorCode: 'PARTICIPANT_NOT_FOUND' });
             return;
         }
@@ -432,9 +441,9 @@ function createAdminRouter(deps) {
 
     // ---- system ----
 
-    router.post('/api/backup', requireAdmin, (_req, res) => {
+    router.post('/api/backup', requireAdmin, async (_req, res) => {
         try {
-            const result = backupScheduler.runBackup();
+            const result = await backupScheduler.runBackup();
             res.json({ ok: true, files: result.files.map((file) => path.basename(file)), entries: result.entries });
         } catch (error) {
             res.status(500).json({ errorCode: 'BACKUP_FAILED', message: error.message });

@@ -227,6 +227,7 @@
 
     <!-- Signed-in view: account hub -->
     <section id="account-view" class="hidden">
+      <div class="form-actions"><a class="btn btn-primary" href="/app" data-lang="workspaceLink">مساحتي وتقدّمي</a><a class="btn btn-secondary" href="/plans">VIP · US$4.99</a></div>
       <div class="form-card">
         <h3 class="form-title" data-lang="statsTitle">تركيزك</h3>
         <div class="stats-row">
@@ -333,11 +334,12 @@
           roomGone: 'Expired',
           dangerTitle: 'Account',
           btnSignOutFull: 'Sign out',
-          deleteNote: 'Deleting your account erases your email, focus minutes, and streak permanently. Per data-protection law this is immediate and irreversible.',
+          workspaceLink: 'My workspace and progress',
+          deleteNote: 'Delete your account and personal progress. Shared room content and operational records follow the privacy policy.',
           labelPasswordConfirm: 'Password to confirm',
           btnDeleteData: 'Delete my data',
           deleteConfirmTitle: 'Delete this account?',
-          deleteConfirmBody: 'Everything goes: your email, focus history, streak, and room list. This cannot be undone.',
+          deleteConfirmBody: 'Your account, personal focus history, and memberships will be removed. This cannot be undone.',
           deleteConfirmLabel: 'Delete forever',
           deleteCancelLabel: 'Keep my account',
           deleteTypePrompt: 'Type your room name to confirm',
@@ -389,11 +391,12 @@
           roomGone: 'انتهت',
           dangerTitle: 'إدارة الحساب',
           btnSignOutFull: 'تسجيل الخروج',
-          deleteNote: 'حذف الحساب يمسح بريدك ودقائق تركيزك وسلسلتك نهائيًا. حسب نظام حماية البيانات، هذا الحذف فوري ولا يمكن التراجع عنه.',
+          workspaceLink: 'مساحتي وتقدّمي',
+          deleteNote: 'احذف حسابك وتقدّمك الشخصي. يخضع محتوى الغرف المشتركة والسجلات التشغيلية لسياسة الخصوصية.',
           labelPasswordConfirm: 'كلمة المرور للتأكيد',
           btnDeleteData: 'احذف بياناتي',
           deleteConfirmTitle: 'تحذف الحساب؟',
-          deleteConfirmBody: 'كل شيء يروح: بريدك، سجل تركيزك، سلسلتك، وقائمة غرفك. ما فيه رجعة.',
+          deleteConfirmBody: 'سيُحذف حسابك وسجل تركيزك الشخصي وعضوياتك. لا يمكن التراجع عن هذا الإجراء.',
           deleteConfirmLabel: 'احذف نهائيًا',
           deleteCancelLabel: 'خلّ الحساب',
           deleteTypePrompt: 'اكتب اسمك في الغرفة للتأكيد',
@@ -612,6 +615,8 @@
 
       async function loadAccount(user) {
         currentUser = user;
+        const deletePassword = document.getElementById('delete-password');
+        deletePassword.closest('.input-group').hidden = user.authProvider === 'google';
         authView.classList.add('hidden');
         accountView.classList.remove('hidden');
         document.getElementById('profile-nickname').value = user.displayName;
@@ -648,15 +653,23 @@
       });
 
       document.getElementById('btn-signout').addEventListener('click', async () => {
-        await auth.signout();
-        window.HalaUI.toast(t('signedOutToast'));
-        setTimeout(() => location.assign('/'), 400);
+        try {
+          await auth.signout();
+          window.HalaUI.toast(t('signedOutToast'));
+          setTimeout(() => location.assign('/'), 400);
+        } catch (error) {
+          setFeedback('profile-feedback', errText(error), 'error');
+        }
       });
 
       document.getElementById('btn-delete').addEventListener('click', async () => {
         setFeedback('danger-feedback', '');
         const password = document.getElementById('delete-password').value;
-        if (!password) {
+        if (currentUser?.authProvider === 'google' && new URLSearchParams(location.search).get('reauth') !== 'complete') {
+          location.assign('/auth/google?purpose=delete');
+          return;
+        }
+        if (!password && currentUser?.authProvider !== 'google') {
           setFeedback('danger-feedback', t('errINVALID_CREDENTIALS'), 'error');
           return;
         }
@@ -674,6 +687,10 @@
           window.HalaUI.toast(t('deletedToast'));
           setTimeout(() => location.assign('/'), 800);
         } catch (error) {
+          if (error.code === 'REAUTH_REQUIRED') {
+            location.assign('/auth/google?purpose=delete');
+            return;
+          }
           setFeedback('danger-feedback', errText(error), 'error');
         }
       });

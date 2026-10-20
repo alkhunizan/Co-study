@@ -17,13 +17,14 @@ module.exports = defineConfig({
     reporter: process.env.CI
         ? [
             ['list'],
-            ['html', { open: 'never', outputFolder: 'playwright-report' }]
+            ['html', { open: 'never', outputFolder: process.env.PLAYWRIGHT_HTML_OUTPUT_DIR || 'docs/implementation/2026-10-20-platform/evidence/browser-report' }]
         ]
         : [['list']],
-    outputDir: 'test-results',
+    outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || 'docs/implementation/2026-10-20-platform/evidence/browser-results',
     use: {
         baseURL: `http://127.0.0.1:${SMOKE_PORT}`,
         browserName: 'chromium',
+        channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
         screenshot: 'only-on-failure',
         trace: 'retain-on-failure',
         video: 'retain-on-failure'

@@ -595,6 +595,7 @@
         }
     </style>
     <script src="/js/halastudy-core.js"></script>
+    <script src="/js/focus-client.js" defer></script>
     <script src="/js/ui.js" defer></script>
 </head>
 <body>
@@ -3131,6 +3132,7 @@
     }
 
     function onFocusSessionComplete(minutes) {
+        trackValidatedFocus('complete');
         if (accountUser && window.HalaCore) {
             window.HalaCore.postJson('/api/me/focus-session', { minutes })
                 .then((payload) => {
@@ -3141,6 +3143,15 @@
         } else {
             maybeShowFocusSyncHint();
         }
+    }
+
+    function trackValidatedFocus(action) {
+        if (!accountUser || !window.HalaFocus) return;
+        window.HalaFocus[action]().catch(() => {
+            if (window.HalaUI) window.HalaUI.toast(window.HalaCore.getLang() === 'ar'
+                ? 'تعذّرت مزامنة التقدّم. مؤقّت الغرفة مستمر.'
+                : 'Progress could not sync. Your room timer is still running.');
+        });
     }
 
     function applyMemberAccents() {
@@ -3455,6 +3466,7 @@
         const focusDur = parseInt(document.getElementById('cfg-f').value, 10) || 25;
         const breakDur = parseInt(document.getElementById('cfg-b').value, 10) || 5;
         if(timer) {
+            if (mode === 'focus') trackValidatedFocus('pause');
             clearInterval(timer); timer = null;
             btn.textContent = '▶';
             btn.style.boxShadow = 'var(--shadow-btn)';
@@ -3462,6 +3474,7 @@
             refreshStatusState();
             updateDisp();
         } else {
+            if (mode === 'focus') trackValidatedFocus('start');
             if(timeLeft === 25*60 && mode === 'focus') timeLeft = focusDur * 60;
             btn.textContent = '⏸';
             btn.style.boxShadow = 'var(--shadow-btn-inset)';
@@ -3490,6 +3503,7 @@
                     }
 
                     mode = mode==='focus' ? 'break' : 'focus';
+                    if (mode === 'focus') trackValidatedFocus('start');
                     timeLeft = (mode==='focus' ? focusDur : breakDur) * 60;
                     document.getElementById('tab-focus').className = mode==='focus'?'timer-tab active':'timer-tab';
                     document.getElementById('tab-break').className = mode==='break'?'timer-tab active':'timer-tab';
@@ -3501,6 +3515,7 @@
     }
 
     function resetTimer() {
+        trackValidatedFocus('complete');
         clearInterval(timer); timer = null;
         document.getElementById('btn-toggle').textContent = '▶';
         mode = 'focus';

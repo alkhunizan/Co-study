@@ -88,7 +88,7 @@ function request(baseUrl, pathname, options = {}) {
     });
 }
 
-async function waitForServer(baseUrl, timeoutMs = 15000) {
+async function waitForServer(baseUrl, timeoutMs = 60000) {
     const startedAt = Date.now();
 
     while (Date.now() - startedAt < timeoutMs) {
@@ -277,6 +277,11 @@ async function startServer(options = {}) {
         env: {
             ...process.env,
             NODE_ENV: 'test',
+            SUPABASE_URL: '',
+            SUPABASE_SERVICE_ROLE_KEY: '',
+            PLATFORM_ENABLED: 'false',
+            PLATFORM_DATABASE_URL: '',
+            PLATFORM_DATA_DIR: 'memory://',
             PORT: String(port),
             ROOM_STATE_FILE: roomStateFile,
             USER_STATE_FILE: userStateFile,

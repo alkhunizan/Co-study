@@ -14,6 +14,7 @@ const path = require('node:path');
 const { loadDotEnv } = require('./cloudflare/realtimekit-common');
 const { createR2Client } = require('./cloudflare/r2-client');
 const { timestampLabel, resolveRoomStateFile } = require('./room-state-utils');
+const { hash } = require('../services/platform/common');
 
 function resolveUserStateFile(env = process.env) {
     return path.resolve(env.USER_STATE_FILE || path.join(__dirname, '..', 'data', 'users.json'));
@@ -62,12 +63,32 @@ async function main() {
         return;
     }
 
+    const platformEnabled = process.env.PLATFORM_ENABLED !== 'false' && (process.env.NODE_ENV !== 'test' || process.env.PLATFORM_ENABLED === 'true');
+    let platformFile = null;
+    if (platformEnabled) {
+        const index = process.argv.indexOf('--platform-file');
+        if (index < 0 || !process.argv[index + 1]) throw new Error('Platform storage is enabled. Supply --platform-file <fresh platform backup>; legacy JSON is no longer authoritative.');
+        platformFile = path.resolve(process.argv[index + 1]);
+        const snapshot = JSON.parse(fs.readFileSync(platformFile, 'utf8'));
+        if (snapshot.format !== 'halastudy-platform-v1' || !snapshot.tables || snapshot.checksum !== hash(JSON.stringify(snapshot.tables))) {
+            throw new Error('Invalid platform backup.');
+        }
+        const age = Date.now() - Date.parse(snapshot.createdAt);
+        if (!Number.isFinite(age) || age < 0 || age > 24 * 3600000) throw new Error('Create a fresh platform backup (less than 24 hours old).');
+        if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('Legacy Supabase profiles need a separate verified backup before this snapshot can represent the full platform.');
+    }
+
     console.log(`R2 backup → bucket "${bucket}"`);
     if (!(await client.headBucket(bucket))) {
         console.log('  bucket missing — creating…');
         await client.createBucket(bucket);
     }
     const uploaded = [];
+    if (platformFile) {
+        await backupFile(client, bucket, 'platform', platformFile);
+        console.log('Done — canonical platform snapshot uploaded to R2.');
+        return;
+    }
     const rooms = await backupFile(client, bucket, 'rooms', resolveRoomStateFile());
     if (rooms) uploaded.push(rooms);
     const users = await backupFile(client, bucket, 'users', resolveUserStateFile());

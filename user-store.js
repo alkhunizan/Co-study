@@ -58,7 +58,17 @@ function sanitizeFocusStats(raw = {}) {
         totalFocusMinutes += day.focusMinutes;
         totalSessions += day.sessions;
     }
-    return { days, totalFocusMinutes, totalSessions };
+    // v1 totals could exceed the sum of capped days. Only v2 explicitly
+    // separates archived lifetime activity from the retained daily window.
+    const archivedFocusMinutes = source.version === 2 && Number.isSafeInteger(source.archivedFocusMinutes)
+        ? Math.max(0, source.archivedFocusMinutes) : 0;
+    const archivedSessions = source.version === 2 && Number.isSafeInteger(source.archivedSessions)
+        ? Math.max(0, source.archivedSessions) : 0;
+    return {
+        version: 2, days, archivedFocusMinutes, archivedSessions,
+        totalFocusMinutes: totalFocusMinutes + archivedFocusMinutes,
+        totalSessions: totalSessions + archivedSessions
+    };
 }
 
 /**
@@ -99,17 +109,24 @@ function sanitizeMyRoom(raw = {}) {
 function applyFocusSession(user, { minutes, now = Date.now() } = /** @type {any} */ ({})) {
     const safeMinutes = Math.min(Math.max(Math.round(minutes), 1), 240);
     const dayKey = riyadhDayKey(now);
-    const stats = user.focusStats;
+    const stats = sanitizeFocusStats(user.focusStats);
+    user.focusStats = stats;
     const day = stats.days[dayKey] || { focusMinutes: 0, sessions: 0 };
-    day.focusMinutes = Math.min(day.focusMinutes + safeMinutes, FOCUS_MINUTES_DAY_CAP);
+    const acceptedMinutes = Math.min(safeMinutes, FOCUS_MINUTES_DAY_CAP - day.focusMinutes);
+    if (acceptedMinutes <= 0 || day.sessions >= 500) {
+        return { focusStats: stats, streak: user.streak, dayKey, minutes: 0 };
+    }
+    day.focusMinutes += acceptedMinutes;
     day.sessions += 1;
     stats.days[dayKey] = day;
-    stats.totalFocusMinutes += safeMinutes;
+    stats.totalFocusMinutes += acceptedMinutes;
     stats.totalSessions += 1;
 
     const dayKeys = Object.keys(stats.days).sort();
     if (dayKeys.length > FOCUS_DAY_KEY_LIMIT) {
         for (const staleKey of dayKeys.slice(0, dayKeys.length - FOCUS_DAY_KEY_LIMIT)) {
+            stats.archivedFocusMinutes += stats.days[staleKey].focusMinutes;
+            stats.archivedSessions += stats.days[staleKey].sessions;
             delete stats.days[staleKey];
         }
     }
@@ -124,7 +141,7 @@ function applyFocusSession(user, { minutes, now = Date.now() } = /** @type {any}
     }
     streak.lastActiveDay = dayKey;
     streak.best = Math.max(streak.best, streak.current);
-    return { focusStats: stats, streak, dayKey, minutes: safeMinutes };
+    return { focusStats: stats, streak, dayKey, minutes: acceptedMinutes };
 }
 
 /**
@@ -175,6 +192,8 @@ function sanitizeUser(raw = {}) {
         createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(),
         banned: !!raw.banned,
         tokenEpoch: Number.isInteger(raw.tokenEpoch) && raw.tokenEpoch > 0 ? raw.tokenEpoch : 1,
+        authProvider: raw.authProvider === 'google' ? 'google' : 'password',
+        googleSub: typeof raw.googleSub === 'string' && raw.googleSub ? raw.googleSub : null,
         focusStats,
         streak: sanitizeStreak(raw.streak, focusStats),
         myRooms: Array.isArray(raw.myRooms)
@@ -222,11 +241,12 @@ function createUserStore(options = {}) {
     }
 
     function enqueueWrite(json) {
-        writePromise = writePromise
-            .then(() => writeSnapshot(json))
-            .catch((error) => {
-                warn(`Failed to persist user state to ${resolvedFilePath}.`, error);
-            });
+        writePromise = writePromise.catch(() => {}).then(() => writeSnapshot(json));
+        // Observe background failures without converting the critical flush
+        // promise into a successful result.
+        void writePromise.catch((error) => {
+            warn(`Failed to persist user state to ${resolvedFilePath}.`, error);
+        });
         return writePromise;
     }
 
@@ -319,6 +339,8 @@ function createUser({ email, passwordHash, displayName, now = Date.now() } = /**
         createdAt: now,
         banned: false,
         tokenEpoch: 1,
+        authProvider: 'password',
+        googleSub: null,
         focusStats: { days: {}, totalFocusMinutes: 0, totalSessions: 0 },
         streak: { current: 0, best: 0, lastActiveDay: null },
         myRooms: []

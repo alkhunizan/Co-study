@@ -438,6 +438,6 @@ test('banned semantics: a bad users file entry is dropped, not fatal, in non-str
     const { cookie } = await signupUser(server, { email: 'shape@example.com' });
     const me = await authedRequest(server, '/api/auth/me', cookie);
     assert.deepEqual(Object.keys(me.body.user).sort(), [
-        'avatarColor', 'bio', 'createdAt', 'displayName', 'email', 'id', 'streak'
+        'authProvider', 'avatarColor', 'bio', 'createdAt', 'displayName', 'email', 'id', 'streak'
     ]);
 });

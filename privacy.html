@@ -92,7 +92,7 @@
   <main>
     <section lang="ar" dir="rtl">
       <h1>سياسة الخصوصية</h1>
-      <p class="updated">آخر تحديث: 4 يوليو 2026</p>
+      <p class="updated">آخر تحديث: 20 أكتوبر 2026</p>
 
       <p>هلاستدي غرفة مذاكرة هادئة. نجمع أقل قدر ممكن من البيانات لتشغيل الغرف — الحساب اختياري تماماً، بدون رقم جوال، وبدون أدوات تتبّع إعلانية.</p>
 
@@ -113,11 +113,11 @@
         <li>الاسم المستعار الذي تدخله عند الانضمام، وعدّادات الحضور للغرف المجدولة.</li>
       </ul>
 
-      <h2>ماذا لا يصل إلى الخادم أبداً؟</h2>
+      <h2>كيف تعمل الوسائط؟</h2>
       <ul>
-        <li><strong>الكاميرا والمايك:</strong> الفيديو والصوت ينتقلان مباشرة بين المشاركين (نظير إلى نظير). الخادم يمرر رسائل إعداد الاتصال فقط، ولا يستقبل أو يسجل أي وسائط.</li>
-        <li>إذا تعذّر الاتصال المباشر، قد تمر الوسائط <em>مشفّرة</em> عبر خادم ترحيل (TURN) لا يستطيع فك تشفيرها.</li>
-        <li>لا نسجّل أي جلسة مذاكرة، ولا نحتفظ بأي صورة أو صوت منها.</li>
+        <li>بحسب وضع الغرفة، تُنقل الوسائط عبر Cloudflare RealtimeKit أو باتصال نظير إلى نظير مع خادم ترحيل عند الحاجة. لذلك لا نفترض أن الوسائط تبقى دائمًا بين أجهزة المشاركين فقط.</li>
+        <li>التسجيل معطّل في إعدادات الخدمة. لا يوفّر التطبيق زرًا لتسجيل الجلسات، ويُمنع المشاركون من تسجيل الآخرين وفق شروط الاستخدام.</li>
+        <li>حفظ التقدّم والنقاط لا يتطلب تشغيل الكاميرا.</li>
       </ul>
 
       <h2>التحليلات والقياس</h2>
@@ -125,23 +125,24 @@
 
       <h2>كم تبقى البيانات؟</h2>
       <ul>
-        <li>الغرف غير المجدولة تُحذف تلقائياً بعد نحو 30 دقيقة من مغادرة آخر مشارك، ومعها الدردشة واللوحة.</li>
-        <li>الغرف المجدولة تبقى بين الجلسات حتى يحذفها منشئها أو تنتهي صلاحيتها.</li>
-        <li>عناوين IP تُستخدم في الذاكرة فقط للحماية من إساءة الاستخدام (حدود المعدل) ولا تُخزّن على القرص.</li>
+        <li>تُزال الغرف الفورية العادية من الحالة النشطة بعد نحو 30 دقيقة من خلوّها. الغرفة العامة والغرف المجدولة وغرف المجموعات الخاصة مستثناة.</li>
+        <li>تبقى بيانات المجموعات والجلسات والحضور والتقدّم منفصلة عن عمر الغرفة، وتُستخدم لتقديم هذه الميزات. مدة عرض السجل حسب العضوية ليست موعدًا لحذف البيانات.</li>
+        <li>قد تبقى نسخ احتياطية وسجلات تشغيل وبلاغات بعد إزالة غرفة أو حساب. تواصل معنا لطلبات الوصول أو الحذف التي تشمل هذه السجلات.</li>
       </ul>
 
       <h2>الحسابات الاختيارية</h2>
       <ul>
-        <li>التسجيل اختياري — فتح الغرف الفورية والانضمام إليها لا يحتاج حساباً أبداً.</li>
-        <li>إذا أنشأت حساباً نخزّن: بريدك الإلكتروني، وكلمة مرورك بصيغة مشفّرة أحادية الاتجاه (PBKDF2)، واسمك، ودقائق تركيزك وسلسلة أيامك، وقائمة غرفك الأخيرة.</li>
-        <li>رسائل الدردشة داخل الغرف غير مربوطة بحسابك — الغرف الفورية تُحذف بمحتواها تلقائياً.</li>
-        <li>تحذف بياناتك بنفسك في أي وقت من <a href="/account.html#delete">صفحة الحساب</a> — الحذف فوري ونهائي ويشمل البريد ودقائق التركيز والسلسلة.</li>
+        <li>يمكن استخدام الغرف العامة كضيف. يتطلب حفظ التقدّم والعضوية والدخول إلى المجموعات الخاصة حسابًا.</li>
+        <li>نخزّن البريد والاسم وبيانات الملف، وتجزئة كلمة المرور أو معرّف Google المرتبط، والتقدّم والنقاط والإنجازات وقائمة الغرف.</li>
+        <li>نخزّن عضوية المجموعات والصلاحيات والجلسات والحضور وحالة VIP. يرى مشرف المجموعة حضور أعضاء مجموعته، ولا تمنحه العضوية المدفوعة صلاحيات إدارية عامة.</li>
+        <li>يحذف إجراء <a href="/account.html#delete">حذف الحساب</a> سجلك الشخصي والتقدّم والعضوية من قاعدة البيانات النشطة بعد التحقق. قد تبقى رسائلك ومهامك المشتركة لدى الغرفة وسجلات بلاغات منزوعة الارتباط والنسخ الاحتياطية. يجب نقل مسؤولية آخر مسؤول رئيسي قبل حذف حسابه.</li>
       </ul>
 
       <h2>ملفات تعريف الارتباط والتخزين المحلي</h2>
       <ul>
         <li>ملف تعريف جلسة وظيفي واحد (معرّف عشوائي، صلاحيته 30 يوماً) — لا ملفات تتبّع.</li>
         <li>ملف تعريف ثانٍ موقّع لتسجيل الدخول، فقط إذا أنشأت حساباً.</li>
+        <li>ملفات قصيرة الأجل لحماية تسجيل الدخول عبر Google وإعادة التحقق، وملف جلسة الموظفين لمدة 15 دقيقة بعد المصادقة الثنائية. نخزّن سر المصادقة مشفّرًا ورموز الاسترداد كتجزئات.</li>
         <li>تفضيلاتك (اللغة، السمة، الاسم المستعار) تبقى في متصفحك أنت، ولا تُرسل إلينا.</li>
       </ul>
 
@@ -171,7 +172,7 @@
 
     <section lang="en" dir="ltr">
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated: July 4, 2026</p>
+      <p class="updated">Last updated: October 20, 2026</p>
 
       <p>Halastudy is a quiet study room. We collect the minimum needed to run rooms — accounts are entirely optional, no phone number, and no advertising trackers.</p>
 
@@ -192,11 +193,11 @@
         <li>The nickname you enter when joining, and attendance counters for scheduled rooms.</li>
       </ul>
 
-      <h2>What never reaches the server</h2>
+      <h2>How media works</h2>
       <ul>
-        <li><strong>Camera and microphone:</strong> video and audio travel directly between participants (peer-to-peer). The server only relays connection-setup messages and never receives or records media.</li>
-        <li>When a direct connection is impossible, media may pass <em>encrypted</em> through a relay server (TURN) that cannot decrypt it.</li>
-        <li>We never record a study session, and we keep no image or audio from one.</li>
+        <li>Depending on the room mode, media uses Cloudflare RealtimeKit or peer-to-peer connections with a relay when needed. Media is not necessarily confined to participants' devices.</li>
+        <li>Recording is disabled in the service configuration. The app provides no session-recording control, and our terms prohibit participants from recording others.</li>
+        <li>Progress and points do not require your camera.</li>
       </ul>
 
       <h2>Analytics and measurement</h2>
@@ -204,23 +205,24 @@
 
       <h2>How long data is kept</h2>
       <ul>
-        <li>Unscheduled rooms are deleted automatically about 30 minutes after the last participant leaves, along with their chat and board.</li>
-        <li>Scheduled rooms persist between sessions until their creator deletes them or they expire.</li>
-        <li>IP addresses are used in memory only for abuse protection (rate limiting) and are never written to disk.</li>
+        <li>Ordinary instant rooms leave active storage about 30 minutes after becoming empty. The public lobby, scheduled rooms and private-circle rooms are exempt.</li>
+        <li>Circle membership, sessions, attendance and progress are stored separately from a room's lifetime. The history visible under a membership is not a data-deletion deadline.</li>
+        <li>Backups, operational records and reports may remain after a room or account is removed. Contact us for access or deletion requests involving these records.</li>
       </ul>
 
       <h2>Optional accounts</h2>
       <ul>
-        <li>Signing up is optional — opening and joining instant rooms never requires an account.</li>
-        <li>If you create one, we store: your email, your password as a one-way hash (PBKDF2), your name, your focus minutes and day streak, and your recent rooms list.</li>
-        <li>Room chat is not linked to your account — instant rooms and their content are deleted automatically.</li>
-        <li>You can delete your data yourself at any time from the <a href="/account.html#delete">account page</a> — deletion is immediate, permanent, and covers your email, focus history, and streak.</li>
+        <li>Public rooms allow guests. Saving progress, membership and private-circle access require an account.</li>
+        <li>We store your email, name and profile, password hash or linked Google identifier, progress, points, achievements and recent rooms.</li>
+        <li>We also store circle membership, permissions, sessions, attendance and VIP status. Circle supervisors can see attendance in their assigned circles. Paid membership does not grant platform administration.</li>
+        <li>After verification, <a href="/account.html#delete">account deletion</a> removes your account, progress and membership from the active database. Shared room messages and tasks, reports with account links removed, and backups may remain. The last super admin must transfer responsibility before deleting their account.</li>
       </ul>
 
       <h2>Cookies and local storage</h2>
       <ul>
         <li>One functional session cookie (a random identifier, 30-day lifetime) — no tracking cookies.</li>
         <li>A second signed cookie for sign-in, only if you create an account.</li>
+        <li>Short-lived cookies protect Google sign-in and reauthentication. Staff verification uses a 15-minute cookie. Authenticator secrets are encrypted and recovery codes are stored as hashes.</li>
         <li>Your preferences (language, theme, nickname) stay in your own browser and are not sent to us.</li>
       </ul>
 

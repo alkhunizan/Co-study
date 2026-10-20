@@ -76,40 +76,52 @@ function createSupabaseUserStore(options = {}) {
     if (!client) throw new Error('createSupabaseUserStore requires a Supabase client.');
 
     let knownIds = new Set();
+    let knownRows = new Map();
     let hydrated = false;
     let saveTimer = null;
     let queuedMap = null;
     let writePromise = Promise.resolve();
 
     function warn(event, error) {
-        const payload = { event, error: error && error.message ? error.message : String(error || '') };
+        const payload = { event, error: error?.message ? error.message : String(error || '') };
         (logger && typeof logger.warn === 'function' ? logger.warn : console.warn).call(logger || console, payload);
     }
 
     /** Load all profiles into memory. Called once at boot; the factory awaits it. */
     async function hydrate() {
-        const rows = await client.select('profiles', 'select=*');
+        const rows = [];
+        // Advance by the actual page length so a server-side row cap cannot
+        // silently truncate hydration.
+        for (;;) {
+            const page = await client.select('profiles', `select=*&order=id.asc&limit=500&offset=${rows.length}`);
+            if (!Array.isArray(page)) throw new Error('Invalid profiles response.');
+            if (page.length === 0) break;
+            rows.push(...page);
+        }
         const users = (Array.isArray(rows) ? rows : []).map(rowToUser).filter(Boolean);
+        if (users.length !== rows.length) throw new Error('Invalid profile rows; hydration refused.');
         knownIds = new Set(users.map((u) => u.id));
+        knownRows = new Map(users.map((user) => [user.id, JSON.stringify(userToRow(user))]));
         hydrated = true;
         return users;
     }
 
-    async function persistDiff(map) {
-        const currentIds = new Set(map.keys());
-        const rows = Array.from(map.values()).map(userToRow);
+    async function persistDiff(snapshot) {
+        const currentIds = new Set(snapshot.map((row) => row.id));
+        const rows = snapshot.filter((row) => knownRows.get(row.id) !== JSON.stringify(row));
         // Deletions only propagate once hydrated (before that, knownIds is empty
         // and an upsert-only pass can never wrongly delete a not-yet-loaded row).
         const toDelete = hydrated ? [...knownIds].filter((id) => !currentIds.has(id)) : [];
         if (rows.length) await client.upsert('profiles', rows);
         if (toDelete.length) await client.remove('profiles', 'id', toDelete);
         knownIds = currentIds;
+        knownRows = new Map(snapshot.map((row) => [row.id, JSON.stringify(row)]));
     }
 
     function enqueue(map) {
-        writePromise = writePromise
-            .then(() => persistDiff(map))
-            .catch((error) => warn('user_persist_failed', error));
+        const snapshot = JSON.parse(JSON.stringify(Array.from(map.values()).map(userToRow)));
+        writePromise = writePromise.catch(() => {}).then(() => persistDiff(snapshot));
+        void writePromise.catch((error) => warn('user_persist_failed', error));
         return writePromise;
     }
 

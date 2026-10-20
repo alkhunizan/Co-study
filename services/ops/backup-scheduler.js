@@ -5,9 +5,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { ensureDir, readRoomStateArray, timestampLabel, writeJsonAtomic } = require('../../scripts/room-state-utils');
 
-/** @param {{ intervalMinutes?: number, retentionCount?: number, backupDir: string, targets?: Array<{label: string, filePath: string}>, logger?: any }} options */
-function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backupDir, targets = [], logger = console } = /** @type {any} */ ({})) {
+/** @param {{ intervalMinutes?: number, retentionCount?: number, backupDir: string, targets?: Array<{label: string, filePath: string}>, extraBackup?: any, logger?: any }} options */
+function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backupDir, targets = [], extraBackup = null, logger = console } = /** @type {any} */ ({})) {
     let timer = null;
+    let running = null;
     const status = { lastRunAt: null, lastError: null };
 
     function pruneOldBackups(label) {
@@ -22,7 +23,7 @@ function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backu
         }
     }
 
-    function runBackup() {
+    async function writeBackup() {
         ensureDir(backupDir);
         const label = timestampLabel();
         const written = [];
@@ -37,6 +38,12 @@ function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backu
                 written.push(backupFile);
                 entryCount += entries.length;
             }
+            if (extraBackup) {
+                const result = await extraBackup(path.join(backupDir, `platform.${label}.backup.json`));
+                written.push(result.filePath);
+                entryCount += result.entries;
+                pruneOldBackups('platform');
+            }
             status.lastRunAt = Date.now();
             status.lastError = null;
             logger.info({ event: 'backup_completed', files: written.length, entries: entryCount });
@@ -48,14 +55,15 @@ function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backu
         }
     }
 
+    function runBackup() {
+        if (!running) running = writeBackup().finally(() => { running = null; });
+        return running;
+    }
+
     function start() {
         if (timer || !intervalMinutes) return;
         timer = setInterval(() => {
-            try {
-                runBackup();
-            } catch (_error) {
-                // Already logged; keep the schedule alive.
-            }
+            void runBackup().catch(() => {});
         }, intervalMinutes * 60 * 1000);
         timer.unref();
     }

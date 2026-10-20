@@ -62,7 +62,7 @@
                 window.__halastudyRtkUiLoaded && window.__halastudyRtkUiLoaded();
             `;
             script.onerror = () => {
-                globalAny.__halastudyRtkUiFailed && globalAny.__halastudyRtkUiFailed('RealtimeKit UI Kit failed to load.');
+                globalAny.__halastudyRtkUiFailed?.('RealtimeKit UI Kit failed to load.');
             };
             document.head.appendChild(script);
         });

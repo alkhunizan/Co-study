@@ -216,6 +216,8 @@ function createRoomStore(options = {}) {
             name: safeName,
             requirePassword: room.requirePassword === undefined ? !!passwordHash : !!room.requirePassword,
             passwordHash,
+            ownerUserId: typeof room.ownerUserId === 'string' ? room.ownerUserId : null,
+            cohortId: typeof room.cohortId === 'string' ? room.cohortId : null,
             mediaMode: normalizeMediaMode(room.mediaMode),
             videoProvider: sanitizeVideoProvider(room.videoProvider),
             videoProviderMeetingId: typeof room.videoProviderMeetingId === 'string' && room.videoProviderMeetingId.trim()
@@ -260,11 +262,10 @@ function createRoomStore(options = {}) {
     }
 
     function enqueueWrite(json) {
-        writePromise = writePromise
-            .then(() => writeSnapshot(json))
-            .catch((error) => {
-                warn(`Failed to persist room state to ${resolvedFilePath}.`, error);
-            });
+        writePromise = writePromise.catch(() => {}).then(() => writeSnapshot(json));
+        void writePromise.catch((error) => {
+            warn(`Failed to persist room state to ${resolvedFilePath}.`, error);
+        });
         return writePromise;
     }
 
@@ -340,6 +341,7 @@ function createRoomStore(options = {}) {
     return {
         filePath: resolvedFilePath,
         loadRooms,
+        sanitizeRoom,
         scheduleSave,
         flush
     };

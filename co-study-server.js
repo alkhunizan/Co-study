@@ -24,9 +24,14 @@ const {
 } = require('./services/auth');
 const { createAuthRouter } = require('./services/auth/auth-routes');
 const { createGoogleAuthRouter } = require('./services/auth/google-routes');
-const { createUserStore, recordMyRoom } = require('./user-store');
+const { COOKIE_NAME: REAUTH_COOKIE, verifyReauth } = require('./services/auth/reauth');
+const { createUserStore, recordMyRoom, sanitizeUser } = require('./user-store');
 const { createSupabaseClient } = require('./services/supabase/client');
 const { createSupabaseUserStore } = require('./supabase-user-store');
+const { createPlatform } = require('./services/platform');
+const { createPlatformRouter } = require('./services/platform/routes');
+const { createRecordStore } = require('./services/platform/record-store');
+const { backupDatabase } = require('./services/platform/maintenance');
 const { createVideoProvider } = require('./services/video');
 const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
 const {
@@ -50,8 +55,6 @@ const SESSION_COOKIE_NAME = 'coStudySessionId';
 const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 const AUTH_COOKIE_NAME = 'coStudyAuth';
 const AUTH_COOKIE_MAX_AGE_MS = SESSION_COOKIE_MAX_AGE * 1000;
-const ADMIN_COOKIE_NAME = 'coStudyAdmin';
-const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const ADMIN_USER_ID = 'admin';
 const CLIENT_ID_MAX_LENGTH = 64;
 const ROOM_CODE_LENGTH = 6;
@@ -782,6 +785,7 @@ function createCoStudyServer(options = {}) {
         authLogin: new SlidingWindowRateLimiter(AUTH_LOGIN_RATE),
         authFailure: new SlidingWindowRateLimiter(AUTH_FAILURE_RATE),
         profileMutation: new SlidingWindowRateLimiter(PROFILE_MUTATION_RATE),
+        platformMutation: new SlidingWindowRateLimiter({ limit: 120, windowMs: 60000 }),
         focusLog: new SlidingWindowRateLimiter(FOCUS_LOG_RATE),
         adminLogin: new SlidingWindowRateLimiter(ADMIN_LOGIN_RATE),
         metrics: new SlidingWindowRateLimiter(METRICS_RATE),
@@ -846,7 +850,9 @@ function createCoStudyServer(options = {}) {
     });
     readinessState.socket = true;
 
-    const roomStore = createRoomStore({
+    const platform = createPlatform({ userStateFile: config.userStateFile, secret: config.sessionSecret, logger });
+    /** @type {any} */
+    let roomStore = createRoomStore({
         filePath: config.roomStateFile,
         roomHistoryLimit: ROOM_HISTORY_LIMIT,
         normalizeRoom,
@@ -858,6 +864,9 @@ function createCoStudyServer(options = {}) {
         sanitizeBoardTaskText,
         normalizeBoardPriority
     });
+    if (platform.enabled) {
+        roomStore = createRecordStore({ platform, kind: 'rooms', legacyStore: roomStore, sanitize: roomStore.sanitizeRoom, logger });
+    }
 
     // Persistence backend: Supabase profiles table when configured (accounts +
     // dashboards), otherwise the local users.json file store (dev default).
@@ -872,6 +881,9 @@ function createCoStudyServer(options = {}) {
         logger.info({ event: 'user_store_backend', backend: 'supabase' });
     } else {
         userStore = createUserStore({ filePath: config.userStateFile, logger });
+        if (platform.enabled) {
+            userStore = createRecordStore({ platform, kind: 'accounts', legacyStore: userStore, sanitize: sanitizeUser, logger });
+        }
         logger.info({ event: 'user_store_backend', backend: 'file' });
     }
 
@@ -880,11 +892,16 @@ function createCoStudyServer(options = {}) {
         retentionCount: config.backup.retentionCount,
         backupDir: config.roomStateBackupDir,
         targets: [
-            { label: 'rooms', filePath: config.roomStateFile },
+            ...(!roomStore.isPlatform ? [{ label: 'rooms', filePath: config.roomStateFile }] : []),
             // Skip the users.json backup target when Supabase owns accounts —
             // the file is never written in that mode.
-            ...(config.supabase.enabled ? [] : [{ label: 'users', filePath: config.userStateFile }])
+            ...(config.supabase.enabled || userStore.isPlatform ? [] : [{ label: 'users', filePath: config.userStateFile }])
         ],
+        extraBackup: platform.enabled ? async (destination) => {
+            await platform.ready;
+            await Promise.all([roomStore.flush(rooms), userStore.flush(users)]);
+            return backupDatabase(platform.db, destination);
+        } : null,
         logger
     });
     /** @type {Map<string, any>} userId -> user record */
@@ -912,7 +929,7 @@ function createCoStudyServer(options = {}) {
                     logger.info({ event: 'user_store_hydrated', backend: 'supabase', count: persistedUsers.length });
                 })
                 .catch((error) => {
-                    logger.error({ event: 'user_store_hydrate_failed', error: error && error.message });
+                    logger.error({ event: 'user_store_hydrate_failed', error: error?.message });
                 });
             return 0;
         }
@@ -934,6 +951,7 @@ function createCoStudyServer(options = {}) {
             avatarColor: user.avatarColor,
             bio: user.bio,
             createdAt: user.createdAt,
+            authProvider: user.authProvider || 'password',
             streak: { ...user.streak }
         };
     }
@@ -1000,6 +1018,12 @@ function createCoStudyServer(options = {}) {
             return;
         }
         next();
+    }
+
+    function disconnectUser(userId) {
+        for (const socket of io.sockets.sockets.values()) {
+            if (socket.data.userId === userId) socket.disconnect(true);
+        }
     }
 
     function getDefaultRoomVideoPolicy(policy = {}) {
@@ -1153,7 +1177,8 @@ function createCoStudyServer(options = {}) {
                 protected: true,
                 status: 'active',
                 participantCount: room.users.size,
-                requiresPassword: true
+                requiresPassword: !!room.requirePassword,
+                requiresMembership: !!room.cohortId
             }
         };
     }
@@ -1172,6 +1197,8 @@ function createCoStudyServer(options = {}) {
             name: sanitizeRoomName(room.name || room.id || '') || normalizeRoom(room.id || room.roomId || room.code || ''),
             requirePassword: !!room.requirePassword,
             passwordHash: room.passwordHash || null,
+            ownerUserId: typeof room.ownerUserId === 'string' ? room.ownerUserId : null,
+            cohortId: typeof room.cohortId === 'string' ? room.cohortId : null,
             mediaMode: normalizeMediaMode(room.mediaMode),
             videoProvider: room.videoProvider || config.video.provider,
             videoProviderMeetingId: typeof room.videoProviderMeetingId === 'string' ? room.videoProviderMeetingId : null,
@@ -1253,6 +1280,7 @@ function createCoStudyServer(options = {}) {
                 name: meta.name || normalized,
                 requirePassword: !!meta.requirePassword,
                 passwordHash: meta.passwordHash || null,
+                ownerUserId: meta.ownerUserId || null,
                 mediaMode: normalizeMediaMode(meta.mediaMode),
                 videoProvider: meta.videoProvider || config.video.provider,
                 createdAt: meta.createdAt || Date.now(),
@@ -1291,7 +1319,7 @@ function createCoStudyServer(options = {}) {
 
     function scheduleRoomCleanup(roomId) {
         const room = rooms.get(roomId);
-        if (!room || room.users.size > 0 || room.cleanupTimer || roomHasSchedule(room) || isLobbyRoom(room)) return;
+        if (!room || room.users.size > 0 || room.cleanupTimer || room.cohortId || roomHasSchedule(room) || isLobbyRoom(room)) return;
         room.cleanupTimer = setTimeout(() => deleteRoom(roomId), ROOM_TTL_MS);
     }
 
@@ -1318,6 +1346,20 @@ function createCoStudyServer(options = {}) {
     }
 
     function loadPersistedRooms() {
+        if (typeof roomStore.hydrate === 'function') {
+            roomStore.hydrate().then(async (persistedRooms) => {
+                const scopes = new Map((await platform.db.query('SELECT id,cohort_id FROM halastudy.rooms')).rows.map((row) => [row.id, row.cohort_id]));
+                for (const persistedRoom of persistedRooms) {
+                    persistedRoom.cohortId = scopes.get(persistedRoom.id) || null;
+                    const runtimeRoom = buildRuntimeRoom(persistedRoom);
+                    rooms.set(runtimeRoom.id, runtimeRoom);
+                    if (!runtimeRoom.users.size) scheduleRoomCleanup(runtimeRoom.id);
+                }
+                seedLobbyRoom();
+                readinessState.roomStore = true;
+            }).catch(() => logger.error({ event: 'room_store_hydrate_failed' }));
+            return 0;
+        }
         const persistedRooms = roomStore.loadRooms({ strict: true });
         persistedRooms.forEach((persistedRoom) => {
             const runtimeRoom = buildRuntimeRoom(persistedRoom);
@@ -1612,6 +1654,9 @@ function createCoStudyServer(options = {}) {
                 console.error('Final state flush failed:', result.reason);
             }
         });
+        if (platform.enabled) {
+            try { await platform.ready; await platform.db.close(); } catch (_error) {}
+        }
         server.close(() => {
             process.exit(0);
         });
@@ -1631,6 +1676,12 @@ function createCoStudyServer(options = {}) {
     app.use(express.json());
     app.use(sessionMiddleware);
     app.use(attachUser);
+    app.use(['/api', '/auth/google'], (_req, res, next) => {
+        if (!readinessState.userStore || !readinessState.roomStore) {
+            return res.status(503).json({ errorCode: 'STORAGE_STARTING' });
+        }
+        next();
+    });
     app.use('/audio', express.static(path.join(__dirname, 'audio'), { maxAge: '7d' }));
     app.use('/images', express.static(path.join(__dirname, 'images'), { maxAge: '1d' }));
     // Raw source footage lives beside the published clips (gitignored, but
@@ -1638,6 +1689,7 @@ function createCoStudyServer(options = {}) {
     app.use('/videos/hero/source', (_req, res) => res.status(404).end());
     app.use('/videos', express.static(path.join(__dirname, 'videos'), { maxAge: '1d' }));
     app.use('/js', express.static(path.join(__dirname, 'public', 'js'), { maxAge: '1h' }));
+    app.use('/css', express.static(path.join(__dirname, 'public', 'css'), { maxAge: '1h' }));
     // The pages only need the stylesheets; the rest of design-system/ is
     // internal documentation and must not be publicly fetchable.
     app.use('/design-system', (req, res, next) => {
@@ -1658,11 +1710,24 @@ function createCoStudyServer(options = {}) {
         persistUsersSoon,
         flushUsers: () => userStore.flush(users),
         requireUser,
+        disconnectUser,
+        deletePlatformUser: (userId) => userStore.isPlatform ? Promise.resolve() : platform.removeUser(userId),
+        canDeleteWithProvider: (req) => {
+            const cookies = parseCookies(req.headers.cookie || '');
+            return verifyReauth(cookies[REAUTH_COOKIE], req.user, cookies[AUTH_COOKIE_NAME], config.sessionSecret);
+        },
         // Analytics event log (Supabase only) — powers user + admin dashboards.
         logFocusSession: typeof userStore.logFocusSession === 'function'
             ? (payload) => userStore.logFocusSession(payload)
             : null,
         logger
+    }));
+
+    app.use('/api/platform', createPlatformRouter({
+        platform, requireUser, users, rooms, config, parseCookies, appendSetCookie, logger,
+        applyHttpRateLimit, rateLimiters, disconnectUser,
+        flushUsers: () => userStore.flush(users), flushRooms: () => roomStore.flush(rooms),
+        io, clearRoomCleanupTimer, deleteRoom, runtimeFlags, isVideoJoinDisabled, announcementState, backupScheduler
     }));
 
     // Google OAuth (only mounts real handlers when GOOGLE_* env is set; every
@@ -1679,6 +1744,7 @@ function createCoStudyServer(options = {}) {
         parseCookies,
         persistUsersSoon,
         sessionSecret: config.sessionSecret,
+        flushUsers: () => userStore.flush(users),
         logger
     }));
 
@@ -1751,6 +1817,10 @@ function createCoStudyServer(options = {}) {
         const room = rooms.get(normalizedRoom);
         if (!normalizedRoom || !room) {
             sendVideoError(res, 404, 'ROOM_NOT_FOUND');
+            return;
+        }
+        if (!(await platform.canJoin(normalizedRoom, req.user))) {
+            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
             return;
         }
 
@@ -1964,7 +2034,7 @@ function createCoStudyServer(options = {}) {
         });
     });
 
-    app.get('/api/rooms/:roomId', (req, res) => {
+    app.get('/api/rooms/:roomId', async (req, res) => {
         const { roomId } = req.params;
         const requestIp = getRequestIp(req);
         if (!applyHttpRateLimit(req, res, rateLimiters.roomLookup, requestIp)) {
@@ -1984,7 +2054,7 @@ function createCoStudyServer(options = {}) {
         }
 
         // Protected rooms leak nothing before a verified, password-gated join.
-        if (room.requirePassword) {
+        if (room.requirePassword || !(await platform.canJoin(normalizedRoom, req.user))) {
             res.json(roomPreview(normalizedRoom, room));
             return;
         }
@@ -2021,6 +2091,11 @@ function createCoStudyServer(options = {}) {
         res.sendFile(path.join(__dirname, 'blog-study-with-me.html'));
     });
 
+    app.get(['/app', '/plans', '/supervisor'], (_req, res) => {
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.sendFile(path.join(__dirname, 'platform.html'));
+    });
+
     app.get(['/account.html', '/account'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'account.html'));
     });
@@ -2036,6 +2111,7 @@ function createCoStudyServer(options = {}) {
     if (config.admin.enabled) {
         app.use(config.admin.path, createAdminRouter({
             config,
+            platform,
             rooms,
             users,
             io,
@@ -2106,6 +2182,26 @@ function createCoStudyServer(options = {}) {
         const handshakeCookies = parseCookies(socket.handshake?.headers?.cookie || '');
         const authedUser = resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME]);
         socket.data.userId = authedUser ? authedUser.id : null;
+        // Account-bearing connections must retain a valid account session for
+        // every event. A revoked account never silently becomes a guest.
+        socket.use(async (packet, next) => {
+            if (!readinessState.roomStore || !readinessState.userStore) return next(new Error('STORAGE_STARTING'));
+            if (socket.data.userId && !resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME])) {
+                socket.disconnect(true);
+                return next(new Error('AUTH_REQUIRED'));
+            }
+            if (socket.data.roomId && packet[0] !== 'join-room') {
+                try {
+                    if (!(await platform.canJoin(socket.data.roomId, resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME])))) {
+                        socket.disconnect(true);
+                        return next(new Error('ROOM_ACCESS_REVOKED'));
+                    }
+                } catch {
+                    return next(new Error('SERVICE_UNAVAILABLE'));
+                }
+            }
+            next();
+        });
 
         // Late joiners still see an active admin broadcast.
         const currentAnnouncement = getActiveAnnouncement();
@@ -2115,8 +2211,7 @@ function createCoStudyServer(options = {}) {
 
         function getSocketUser() {
             if (!socket.data.userId) return null;
-            const user = users.get(socket.data.userId);
-            return user && !user.banned ? user : null;
+            return resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME]);
         }
 
         socket.on('create-room', async (payload = {}, ack = () => {}) => {
@@ -2170,10 +2265,16 @@ function createCoStudyServer(options = {}) {
                 }
             }
 
+            try {
+                await platform.registerRoom(roomCode, getSocketUser());
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
             ensureRoom(roomCode, {
                 name: cleanName,
                 requirePassword: shouldProtect,
                 passwordHash,
+                ownerUserId: getSocketUser()?.id || null,
                 mediaMode,
                 videoProvider: config.video.provider,
                 createdAt: Date.now(),
@@ -2219,6 +2320,11 @@ function createCoStudyServer(options = {}) {
             const room = rooms.get(normalizedRoom);
             if (!room) {
                 return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+            try {
+                if (!(await platform.canJoin(normalizedRoom, getSocketUser()))) return ackError(ack, 'ROOM_MEMBERSHIP_REQUIRED');
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
             }
             clearRoomCleanupTimer(room);
             if (roomUsesSfu(room) && !config.sfuAvailable) {
@@ -2339,11 +2445,21 @@ function createCoStudyServer(options = {}) {
                 streakCurrent: joiningUser ? joiningUser.streak.current : null
             };
 
-            if (joiningUser) {
-                recordMyRoom(joiningUser, { roomId: normalizedRoom, name: room.name, role: 'joined' });
-                persistUsersSoon();
+            // Recheck after asynchronous password/authorization work. No await
+            // separates these capacity/name checks from reserving the seat.
+            try {
+                if (!(await platform.canJoin(normalizedRoom, getSocketUser()))) return ackError(ack, 'ROOM_MEMBERSHIP_REQUIRED');
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
             }
-
+            if (!socket.connected || (joiningUser && !getSocketUser())) return ackError(ack, 'AUTH_REQUIRED');
+            if (rooms.get(normalizedRoom) !== room) return ackError(ack, 'ROOM_NOT_FOUND');
+            if (Array.from(room.users.values()).some((entry) => entry.name === cleanName && !isSameIdentity(entry, sessionId, clientId))) {
+                return ackError(ack, 'USERNAME_TAKEN');
+            }
+            const capacity = isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT
+                : getRoomVideoProvider(room) === VIDEO_PROVIDER_MESH && roomUsesMesh(room) ? config.meshParticipantLimit : Infinity;
+            if (!room.users.has(socket.id) && room.users.size >= capacity) return ackError(ack, 'ROOM_FULL');
             room.users.set(socket.id, userRecord);
             if (identityKey) {
                 room.identities.set(identityKey, socket.id);
@@ -2353,6 +2469,18 @@ function createCoStudyServer(options = {}) {
             socket.data.roomId = normalizedRoom;
             socket.join(normalizedRoom);
 
+            if (joiningUser) {
+                try {
+                    await platform.recordAttendance(normalizedRoom, joiningUser);
+                } catch {
+                    removeUserFromRoom(room, socket.id, normalizedRoom);
+                    socket.disconnect(true);
+                    return ackError(ack, 'SERVICE_UNAVAILABLE');
+                }
+                if (!socket.connected || !getSocketUser()) return ackError(ack, 'AUTH_REQUIRED');
+                recordMyRoom(joiningUser, { roomId: normalizedRoom, name: room.name, role: 'joined' });
+                persistUsersSoon();
+            }
             const snapshot = roomSnapshot(normalizedRoom);
             ack({ ok: true, room: snapshot });
             if (scheduleChanged) {
@@ -2613,7 +2741,7 @@ function createCoStudyServer(options = {}) {
 
         // Reports are silent: stored on the room for admin review, never
         // broadcast, never exposed through client-facing snapshots.
-        socket.on('report-user', (payload = {}, ack = () => {}) => {
+        socket.on('report-user', async (payload = {}, ack = () => {}) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -2651,6 +2779,15 @@ function createCoStudyServer(options = {}) {
                 createdAt: Date.now(),
                 status: 'open'
             };
+            try {
+                const reporterUser = getSocketUser();
+                const targetUser = users.get(io.sockets.sockets.get(targetId)?.data?.userId);
+                await platform.ensureUser(reporterUser);
+                await platform.ensureUser(targetUser);
+                await platform.recordCase(currentRoom, report, reporterUser?.id, targetUser?.id);
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
             if (!Array.isArray(room.reports)) room.reports = [];
             room.reports.push(report);
             if (room.reports.length > ROOM_REPORTS_LIMIT) {

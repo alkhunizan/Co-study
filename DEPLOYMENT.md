@@ -1,5 +1,7 @@
 # Co-Study Deployment Guide
 
+Before deploying the October 2026 platform changes, follow the [platform migration and restore guide](docs/implementation/2026-10-20-platform/OPERATIONS.md). Recover live data, dry-run migration against a copy, and verify a canonical database backup. Old JSON files stop updating after SQL import; switching back to them is not a rollback. Payment simulation is unavailable in production. These changes have not been deployed by this implementation task.
+
 This guide assumes the hardened launch setup:
 - `server.js` runs the app on local HTTP
 - Nginx terminates public TLS and proxies to `http://127.0.0.1:3000`

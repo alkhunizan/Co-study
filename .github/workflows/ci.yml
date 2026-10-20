@@ -55,6 +55,6 @@ jobs:
         with:
           name: playwright-artifacts
           path: |
-            playwright-report/
-            test-results/
+            docs/implementation/2026-10-20-platform/evidence/browser-report/
+            docs/implementation/2026-10-20-platform/evidence/browser-results/
           if-no-files-found: ignore

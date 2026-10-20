@@ -16,14 +16,17 @@ This release ships with:
 - Custom room names with shareable room codes
 - Optional password protection with PBKDF2 hashing
 - Optional accounts (email + password, no verification wall): synced focus minutes and day streaks, My Rooms with one-click rejoin, reserved nickname, avatar accent + bio. Instant rooms stay guest-open; scheduled rooms require an account
-- Self-serve, immediate delete-my-data flow on the account page (PDPL)
-- Hidden admin ops console at an env-secret path: live overview, room inspect/force-close/kick, runtime video kill-switch, user ban/unban, site-wide broadcast banner, backup-now, recent errors
+- Reauthenticated account deletion with durable failure handling and session revocation; shared content/backups are explained in the privacy policy
+- Member workspace at `/app`, private circles and assigned supervisors at `/supervisor`, and one VIP offer at `/plans`: USD 4.99/month
+- Local test checkout only; production checkout stays unavailable until a payment provider is integrated
+- Named staff roles with authenticator MFA, recovery codes, audit events, moderation and operating controls; first-owner bootstrap retires shared-admin access
+- Server-timed sessions, pause/resume, bounded heartbeat credit, deduplicated points and achievements
 - Cloudflare RealtimeKit video rooms with server-issued participant tokens, plus legacy mesh fallback
 - Live Socket.IO chat and room presence
 - Pomodoro timer with daily focus tracking
 - Shared room board, room status sharing, and ambient sounds
 - Reusable scheduled rooms with Riyadh-based cadence, countdowns, calendar export, and WhatsApp-ready invites
-- Disk-backed room persistence for chat history and board state
+- Transactional PostgreSQL-compatible account, room and platform storage; embedded PGlite for local development
 - TURN-ready runtime ICE config
 - Launch guardrails: 20 global active video participants, 20 per room, mic off by default, recording off
 - AI focus monitoring through the browser FaceDetector API
@@ -41,6 +44,8 @@ npm start
 ```
 
 Open `http://localhost:3000`.
+
+For an isolated local platform review, run `npm run platform:preview` and open `http://127.0.0.1:3470/app`. See [platform operations and migration](docs/implementation/2026-10-20-platform/OPERATIONS.md) for test checkout, first-owner setup, storage, backups and remaining production integrations.
 
 ### Local Secure-Context Testing
 
@@ -69,12 +74,12 @@ npm run test:ci
 ## Operator Commands
 
 ```bash
-npm run backup:rooms
-npm run restore:rooms -- /absolute/path/to/backup.json
+npm run platform:backup -- --directory /absolute/path/to/database --file /absolute/path/to/backups/platform.json
+npm run platform:restore -- --directory /absolute/path/to/empty-database --file /absolute/path/to/backups/platform.json
 npm run verify:deploy -- https://your-domain.com
 ```
 
-Room restore is an offline operator action: stop the app first, restore the snapshot, then start the app and run `verify:deploy`.
+Offline backup/restore requires stopping the app. Restore targets an empty database and invalidates previous sessions. The named-staff console and scheduler can create snapshots while the app runs. `backup:rooms`/`restore:rooms` apply only to the legacy JSON mode.
 
 ## Stack
 
@@ -165,9 +170,9 @@ Launch cost guardrail:
 
 This stays under the $500 launch cap only while the 20-user global cap remains enforced and recording/screenshare/AI/transcription extras stay off.
 
-Room persistence stores room metadata, protected-room password hashes, chat history, shared board state, and scheduled-room metadata/attendance on disk. Live presence, socket IDs, camera state, and other transient participant state remain memory-only.
+Platform storage imports legacy JSON once into the `halastudy` SQL schema. Live presence, socket IDs and camera state remain memory-only. Supabase profile storage remains a compatibility path that needs its own account backup.
 
-This persistence layer is designed for a single app instance. Keep PM2 at one process, back up the state file, and do restores while the app is stopped.
+Keep PM2 at one process. Runtime locks refuse concurrent instances. Back up the canonical database; disabling the platform after migration would read stale JSON and is not a safe rollback. See the [operations guide](docs/implementation/2026-10-20-platform/OPERATIONS.md).
 
 ## Manual Media QA
 

@@ -8,6 +8,9 @@ data/rooms.json
 data/rooms.json.tmp
 data/users.json
 data/users.json.tmp
+data/*.platform/
+data/platform-preview/
+docs/implementation/2026-10-20-platform/evidence/tmp/
 # Transient legal-content source drafts (transcribed into privacy.html/terms.html)
 halastudy-privacy-policy.md
 halastudy-terms-of-service.md
