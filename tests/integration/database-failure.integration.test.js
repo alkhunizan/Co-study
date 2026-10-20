@@ -12,6 +12,7 @@ test('managed database bounds work and discards clients when rollback fails with
     const original = new Error('commit response lost');
     const lease = { on() {}, release() {}, query: async () => ({ rows: [{ acquired: true }] }) };
     const client = {
+        on() {}, removeListener() {},
         release: (discard) => releases.push(discard),
         query: async (sql) => {
             queries.push(sql);

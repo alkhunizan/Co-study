@@ -2,12 +2,13 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
 
-/** @param {{url?: string, directory?: string, migrate?: boolean}} options */
-async function createDatabase({ url = '', directory, migrate = false } = {}) {
+/** @param {{url?: string, directory?: string, migrate?: boolean, onFailure?: (event: string) => void}} options */
+async function createDatabase({ url = '', directory, migrate = false, onFailure = () => {} } = {}) {
     let driver;
     let query;
     let transaction;
     let close;
+    let healthy = true;
     if (url) {
         const { Pool } = require('pg');
         driver = new Pool({
@@ -18,33 +19,52 @@ async function createDatabase({ url = '', directory, migrate = false } = {}) {
         });
         // Idle clients can emit errors outside query promises. The pool removes
         // them; observing the event prevents an unhandled EventEmitter crash.
-        driver.on('error', () => {});
+        driver.on('error', () => onFailure('database_connection_failed'));
         // The current application keeps account and socket state in one runtime.
         // Refuse a second runtime until that cache is replaced by shared services.
-        const lease = await driver.connect();
-        const locked = await lease.query('SELECT pg_try_advisory_lock(190221, 1) AS acquired');
-        if (!locked.rows[0].acquired) {
-            lease.release();
-            await driver.end();
-            throw new Error('PLATFORM_ALREADY_RUNNING');
-        }
+        let lease;
         let leaseLost = false;
-        lease.on('error', () => { leaseLost = true; });
+        try {
+            lease = await driver.connect();
+            lease.on('error', () => {
+                leaseLost = true;
+                healthy = false;
+                onFailure('database_lease_lost');
+            });
+            const locked = await lease.query('SELECT pg_try_advisory_lock(190221, 1) AS acquired');
+            if (!locked.rows[0].acquired) throw new Error('PLATFORM_ALREADY_RUNNING');
+        } catch (error) {
+            lease?.release(true);
+            await driver.end();
+            throw error;
+        }
         const checkLease = () => { if (leaseLost) throw new Error('PLATFORM_LEASE_LOST'); };
-        query = (sql, values = []) => { checkLease(); return driver.query(sql, values); };
+        query = async (sql, values = []) => {
+            checkLease();
+            const result = await driver.query(sql, values);
+            checkLease();
+            return result;
+        };
         transaction = async (operation) => {
             checkLease();
             const client = await driver.connect();
             let discard = false;
+            let connectionError = null;
+            const observe = (error) => { connectionError = error; discard = true; onFailure('database_connection_failed'); };
+            client.on('error', observe);
             try {
+                checkLease();
                 await client.query('BEGIN');
                 const result = await operation(client);
+                if (connectionError) throw connectionError;
+                checkLease();
                 await client.query('COMMIT');
                 return result;
             } catch (error) {
                 try { await client.query('ROLLBACK'); } catch { discard = true; }
                 throw error;
             } finally {
+                client.removeListener('error', observe);
                 client.release(discard);
             }
         };
@@ -85,7 +105,7 @@ async function createDatabase({ url = '', directory, migrate = false } = {}) {
         await close();
         throw error;
     }
-    return { query, transaction, close };
+    return { query, transaction, close, isHealthy: () => healthy };
 }
 
 module.exports = { createDatabase };

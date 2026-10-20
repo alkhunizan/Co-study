@@ -16,6 +16,7 @@ function createPlatform({ userStateFile, secret, env = process.env, logger = con
     platform.ready = enabled ? (async () => {
         platform.db = await createDatabase({
             url: env.PLATFORM_DATABASE_URL || '',
+            onFailure: (event) => logger.error({ event }),
             directory: env.PLATFORM_DATA_DIR || path.join(path.dirname(userStateFile), `${path.basename(userStateFile)}.platform`)
         });
         platform.access = createAccess(platform.db, secret);
