@@ -714,3 +714,27 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 
 **Open questions for Aziz:**
 - Production mail provider, alert destination and hosting choices are still needed for live integration. Payment provider remains undecided; simulated purchases must stay disabled in production.
+
+## 2026-10-20 — SEO structure and crawlable public pages
+
+**Goal for this session:** Audit the live SEO structure and implement verified local improvements without disrupting public article URLs or private workflows.
+
+**What worked:**
+- A clean Git archive of runtime 685e636 passes all 113 integration tests plus syntax, types, lint and dead-code checks.
+- Seven public desktop/tablet/mobile views pass accessibility and overflow checks; English/Arabic navigation works without JavaScript. Screenshots were visually reviewed.
+- Read-only production checks identified missing sitemap/robots, missing article cover assets, public URL duplication and absent indexing headers on private workflows.
+
+**What broke:**
+- Verification caught low-contrast public controls and a comparison table that could not receive keyboard focus; both are fixed.
+- One final browser run timed out waiting for a live preview track in the existing camera-blur test. The preceding full run and isolated rerun passed. The trace does not establish the teardown cause; no camera code or timeout was changed to hide it.
+
+**What I changed:**
+- Existing article/cover checkpoint e4ab7c4; SEO implementation 976532c; canonical host normalization 685e636.
+- Added a ten-page sitemap, robots rules, canonical redirects, initial-HTML English routes, reciprocal language links, metadata/schema, contact pages and direct WhatsApp support links. Kept descriptive article slugs stable.
+- Report, release provenance, test receipts and screenshots: docs/seo/2026-10-20/. VIP and the dependency lockfile remain unchanged. No deployment or indexing submission.
+
+**Next session starts with:**
+- After the existing production gates and normal deployment process, run npm run verify:seo -- https://halastudy.com and verify hosting redirects before submitting the sitemap to Search Console.
+
+**Open questions for Aziz:**
+- No input needed for these local SEO changes; production integrations from the earlier hardening handoff remain outstanding.
