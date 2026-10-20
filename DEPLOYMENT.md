@@ -167,6 +167,7 @@ server {
     ssl_prefer_server_ciphers on;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
     access_log /var/log/nginx/co-study-access.log;
     error_log /var/log/nginx/co-study-error.log;
