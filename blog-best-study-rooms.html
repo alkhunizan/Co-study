@@ -11,6 +11,17 @@
   <meta property="og:description" content="قارن بين Halastudy وStudyStream وFocusmate ويوتيوب وغرف الديسكورد، واعرف أفضل خيار للمذاكرة الصامتة والقدرات والتحصيلي.">
   <meta property="og:url" content="https://halastudy.com/blog/best-online-group-study-rooms-saudi">
   <meta property="og:locale" content="ar_SA">
+  <meta property="og:site_name" content="Halastudy · هلاستدي">
+  <meta property="og:image" content="https://halastudy.com/images/og/blog-best-study-rooms.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية — هلاستدي">
+  <meta property="article:published_time" content="2026-07-04">
+  <meta property="article:modified_time" content="2026-07-08">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية">
+  <meta name="twitter:description" content="قارن بين Halastudy وStudyStream وFocusmate ويوتيوب وغرف الديسكورد، واعرف أفضل خيار للمذاكرة الصامتة والقدرات والتحصيلي.">
+  <meta name="twitter:image" content="https://halastudy.com/images/og/blog-best-study-rooms.png">
   <link rel="icon" type="image/svg+xml" href="/images/icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/icons/favicon-16.png">
@@ -50,6 +61,59 @@
     .faq details[open] summary::after { content: "−"; }
     .faq details p { margin: 10px 0 0; }
     .article-end { margin-block-start: 44px; padding-block-start: 20px; border-block-start: 1px solid var(--line); }
+
+    /* Masthead — the single lamp-glow surface (DESIGN.md §2.6, §11 "one image") */
+    .article-hero { position: relative; margin-block-end: 8px; padding-block-end: 6px; overflow: clip; }
+    .article-hero .lamp-glow { z-index: 0; }
+    .article-hero-inner { position: relative; z-index: 1; }
+    .article-hero .eyebrow { margin-block: 12px 6px; }
+    .article-meta {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+      margin-block-start: 16px; color: var(--ink-2); font-size: var(--t-caption);
+    }
+    .meta-cat {
+      font-weight: var(--w-semibold); color: var(--accent-3);
+      background: var(--accent-soft); border-radius: var(--r-pill); padding: 3px 12px;
+    }
+    .dot-sep { inline-size: 3px; block-size: 3px; border-radius: 999px; background: var(--ink-3); }
+
+    /* باختصار — quiet editorial callout, not a heavy card */
+    .tldr {
+      margin-block: 24px; padding: 18px 22px;
+      background: var(--accent-soft); border: 1px solid var(--line);
+      border-inline-start: 3px solid var(--accent); border-radius: var(--r-lg);
+    }
+    .tldr-label { font-weight: var(--w-bold); color: var(--accent-3); font-size: var(--t-caption); }
+    .article .tldr ul { margin: 10px 0 0; }
+    .article .tldr li { color: var(--ink); }
+
+    /* One restrained pull-quote */
+    .pullquote {
+      margin-block: 34px; padding-inline-start: 18px;
+      border-inline-start: 3px solid var(--accent);
+      font-family: var(--font-display-ar); font-size: clamp(21px, 3.4vw, 28px);
+      line-height: 1.55; color: var(--ink);
+    }
+
+    /* Read-next cross-link */
+    .readnext {
+      display: block; margin-block-start: 40px; padding: 20px 22px;
+      background: var(--card); border: 1px solid var(--line); border-radius: var(--r-xl);
+      box-shadow: var(--sh-1); text-decoration: none; color: inherit;
+      transition: border-color 180ms var(--ease-soft), transform 180ms var(--ease-soft), box-shadow 180ms var(--ease-soft);
+    }
+    .readnext:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--sh-3); }
+    .readnext:focus-visible { outline: none; box-shadow: var(--sh-focus); }
+    .readnext-label { font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--accent-3); }
+    .readnext-title {
+      font-family: var(--font-display-ar); font-size: clamp(18px, 2.6vw, 22px);
+      line-height: 1.4; color: var(--ink); margin-block-start: 6px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .readnext { transition: none; }
+      .readnext:hover { transform: none; }
+    }
   </style>
 </head>
 <body class="is-landing-page">
@@ -65,17 +129,38 @@
   </header>
 
   <main class="article-shell">
-    <a class="back-link" href="/blog"><span aria-hidden="true">→</span> كل التدوينات</a>
     <article class="article">
-      <div class="eyebrow">المدونة · دليل</div>
-      <h1>أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية: كيف تختار الغرفة المناسبة لك؟</h1>
+      <header class="article-hero">
+        <div class="lamp-glow" aria-hidden="true"></div>
+        <div class="article-hero-inner">
+          <a class="back-link" href="/blog"><span aria-hidden="true">→</span> كل التدوينات</a>
+          <div class="eyebrow">المدونة</div>
+          <h1>أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية: كيف تختار الغرفة المناسبة لك؟</h1>
+          <p class="lead">تبي تذاكر، بس ما تبي تجلس لحالك.</p>
+          <div class="article-meta">
+            <span class="meta-cat">دليل مقارنة</span>
+            <span class="dot-sep" aria-hidden="true"></span>
+            <span>8 دقائق قراءة</span>
+            <span class="dot-sep" aria-hidden="true"></span>
+            <span>يوليو 2026</span>
+          </div>
+        </div>
+      </header>
 
-      <p class="lead">تبي تذاكر، بس ما تبي تجلس لحالك.</p>
+      <aside class="tldr" aria-label="باختصار">
+        <div class="tldr-label">باختصار</div>
+        <ul>
+          <li>تبي غرفة عربية صامتة للقدرات والتحصيلي والجامعة؟ <strong>Halastudy</strong> هو الأقرب لك.</li>
+          <li>تبي مجتمع عالمي كبير 24/7؟ <strong>StudyStream</strong>. تبي التزام شخص لشخص؟ <strong>Focusmate</strong>.</li>
+          <li>القاعدة: اختر الغرفة اللي تخليك <strong>تبدأ بسرعة</strong>، مو الأشهر اسمًا.</li>
+        </ul>
+      </aside>
+
       <p>تدخل يوتيوب وتشغل «ذاكر معي». تجرب قروب ديسكورد، بس يتحول سوالف. تفتح Zoom مع أصحابك، وبعد ربع ساعة تلقون أنفسكم تتكلمون عن كل شيء إلا المذاكرة.</p>
       <p>الفكرة ممتازة: أذاكر مع ناس عشان ألتزم. بس الاختيار الغلط للغرفة يخرب التجربة.</p>
       <p>مو كل غرفة مذاكرة جماعية مناسبة لكل طالب. فيه فرق بين غرفة عالمية، غرفة ديسكورد، جلسة يوتيوب، بودي دبلنق شخصي، وغرفة عربية صامتة مخصصة للطلاب في السعودية والخليج.</p>
       <p>هذا الدليل يساعدك تختار بدون لف ودوران.</p>
-      <div class="cta-block"><a class="btn btn-primary" href="/open">ادخل غرفة مذاكرة عربية الآن</a></div>
+      <div class="cta-block"><a class="btn btn-primary" href="/open">ادخل غرفة مذاكرة عربية الآن <span class="arrow" aria-hidden="true">→</span></a></div>
 
       <h2>الخلاصة السريعة: أفضل خيار حسب احتياجك</h2>
       <div class="table-wrap">
@@ -229,6 +314,8 @@
       </ul>
       <p>إذا الغرفة تقول لك «افتح كاميرتك وخلاص» بدون قواعد خصوصية واضحة، لا تدخل. الكاميرا وسيلة تركيز، مو تنازل عن الخصوصية.</p>
 
+      <blockquote class="pullquote">الغرفة الصح ما تعطيك نصائح مذاكرة — تعطيك مكان تدخله وتذاكر فيه الآن.</blockquote>
+
       <h2>الحكم النهائي</h2>
       <p>إذا تبي تختصر الموضوع:</p>
       <ul>
@@ -252,6 +339,11 @@
         <details><summary>هل غرف Discord مناسبة للمذاكرة؟</summary><p>تنفع إذا كان القروب منضبطًا وله قواعد واضحة. بدون قواعد، غالبًا تتحول الجلسة إلى سوالف وتشتيت.</p></details>
         <details><summary>هل Halastudy مناسب للقدرات والتحصيلي؟</summary><p>نعم، لأن جلسات المذاكرة الصامتة تناسب حل الأسئلة، مراجعة الأخطاء، وبناء روتين يومي قبل الاختبار.</p></details>
       </section>
+
+      <a class="readnext" href="/blog/study-with-me-online-arabic">
+        <div class="readnext-label">اقرأ بعده</div>
+        <div class="readnext-title">ذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ الآن</div>
+      </a>
 
       <div class="article-end">
         <a class="btn btn-primary" href="/open">افتح غرفتك وابدأ الآن</a>
@@ -279,8 +371,42 @@
     "inLanguage": "ar",
     "description": "قارن بين Halastudy وStudyStream وFocusmate ويوتيوب وغرف الديسكورد، واعرف أفضل خيار للمذاكرة الصامتة والقدرات والتحصيلي.",
     "mainEntityOfPage": "https://halastudy.com/blog/best-online-group-study-rooms-saudi",
-    "author": { "@type": "Organization", "name": "Halastudy" },
-    "publisher": { "@type": "Organization", "name": "Halastudy" }
+    "image": "https://halastudy.com/images/og/blog-best-study-rooms.png",
+    "datePublished": "2026-07-04",
+    "dateModified": "2026-07-08",
+    "author": { "@type": "Organization", "name": "Halastudy", "url": "https://halastudy.com" },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Halastudy",
+      "logo": { "@type": "ImageObject", "url": "https://halastudy.com/images/icons/favicon-512.png" }
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://halastudy.com/" },
+      { "@type": "ListItem", "position": 2, "name": "المدونة", "item": "https://halastudy.com/blog" },
+      { "@type": "ListItem", "position": 3, "name": "أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية" }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "ما أفضل غرفة مذاكرة جماعية أونلاين للطلاب في السعودية؟", "acceptedAnswer": { "@type": "Answer", "text": "إذا تبي تجربة عربية صامتة ومناسبة للطلاب في السعودية والخليج، فالأفضل يكون خيارًا مثل Halastudy. أما إذا تبي مجتمع عالمي كبير، فStudyStream وStudy Together خيارات معروفة." } },
+      { "@type": "Question", "name": "هل فيه بديل عربي لـ StudyStream؟", "acceptedAnswer": { "@type": "Answer", "text": "نعم، الفكرة الأساسية لبديل عربي هي أن يقدم غرف مذاكرة مباشرة، لكن باللغة العربية وبقواعد خصوصية أوضح وبمراعاة أوقات واختبارات الطلاب في السعودية والخليج." } },
+      { "@type": "Question", "name": "هل غرف المذاكرة الجماعية فعالة؟", "acceptedAnswer": { "@type": "Answer", "text": "تساعد كثير من الطلاب لأنها تقلل شعور المذاكرة الفردية وتزيد الالتزام. لكنها ليست بديلًا عن الفهم أو الشرح. أفضل استخدام لها هو التطبيق، المراجعة، حل الأسئلة، وإنهاء المهام." } },
+      { "@type": "Question", "name": "هل لازم أفتح الكاميرا في غرفة المذاكرة؟", "acceptedAnswer": { "@type": "Answer", "text": "ليس بالضرورة. الأفضل أن تختار غرفة تعطيك خيارات خصوصية مثل توجيه الكاميرا على المكتب، استخدام خلفية افتراضية، أو الاكتفاء بزاوية لا تكشف البيت أو الوجه." } },
+      { "@type": "Question", "name": "وش الفرق بين YouTube Study With Me وغرفة مذاكرة مباشرة؟", "acceptedAnswer": { "@type": "Answer", "text": "يوتيوب يعطيك أجواء ومؤقت. الغرفة المباشرة تعطيك إحساس حضور والتزام لأن فيه ناس يذاكرون معك في نفس الوقت." } },
+      { "@type": "Question", "name": "هل Focusmate مناسب للطلاب؟", "acceptedAnswer": { "@type": "Answer", "text": "نعم، إذا الطالب يحتاج التزام شخصي مباشر بجلسة شخص لشخص. لكنه ليس غرفة مذاكرة عربية جماعية، وقد لا يناسب من يفضل بيئة طلابية محلية." } },
+      { "@type": "Question", "name": "هل غرف Discord مناسبة للمذاكرة؟", "acceptedAnswer": { "@type": "Answer", "text": "تنفع إذا كان القروب منضبطًا وله قواعد واضحة. بدون قواعد، غالبًا تتحول الجلسة إلى سوالف وتشتيت." } },
+      { "@type": "Question", "name": "هل Halastudy مناسب للقدرات والتحصيلي؟", "acceptedAnswer": { "@type": "Answer", "text": "نعم، لأن جلسات المذاكرة الصامتة تناسب حل الأسئلة، مراجعة الأخطاء، وبناء روتين يومي قبل الاختبار." } }
+    ]
   }
   </script>
 </body>
