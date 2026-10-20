@@ -9,6 +9,28 @@ const { createBackupScheduler } = require('../../services/ops/backup-scheduler')
 const { createLogger } = require('../../services/logging/logger');
 const { createVideoRevocations } = require('../../services/video/revocations');
 
+test('shutdown waits for the in-flight backup before flushing its failure alert', async () => {
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'halastudy-backup-shutdown-'));
+    const file = path.join(directory, 'alerts.json');
+    const alerts = createOperationalAlerts({ file, env: {} });
+    let failBackup = (_error) => {};
+    const pendingBackup = new Promise((_resolve, reject) => { failBackup = reject; });
+    const backup = createBackupScheduler({
+        backupDir: directory, extraBackup: () => pendingBackup,
+        logger: { error: alerts.observe, info: alerts.observe }
+    });
+    const active = backup.runBackup().catch(() => {});
+    let completed = false;
+    const shutdown = backup.stop().then(async () => { await alerts.close(); completed = true; });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(completed, false);
+    await assert.rejects(backup.runBackup(), /BACKUP_SCHEDULER_STOPPED/);
+    failBackup(new Error('synthetic backup failure'));
+    await active;
+    await shutdown;
+    assert.equal(JSON.parse(await fs.readFile(file, 'utf8'))[0].event, 'backup_failed');
+});
+
 test('final alert flush retains delayed media cleanup failures and rejected owners leave journals untouched', async () => {
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'halastudy-alert-shutdown-'));
     const file = path.join(directory, 'alerts.json');

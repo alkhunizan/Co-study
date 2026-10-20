@@ -1693,7 +1693,7 @@ function createCoStudyServer(options = {}) {
         isShuttingDown = true;
         clearInterval(videoSweepTimer);
         if (attendanceSweep) await attendanceSweep;
-        backupScheduler.stop();
+        await backupScheduler.stop();
         console.log(`Received ${signal}. Persisting room state to ${roomStore.filePath}...`);
         const flushResults = await Promise.allSettled([
             roomStore.flush(rooms),

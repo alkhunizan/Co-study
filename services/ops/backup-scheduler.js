@@ -9,6 +9,7 @@ const { ensureDir, readRoomStateArray, timestampLabel, writeJsonAtomic } = requi
 function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backupDir, targets = [], extraBackup = null, logger = console } = /** @type {any} */ ({})) {
     let timer = null;
     let running = null;
+    let stopped = false;
     const status = { lastRunAt: null, lastError: null };
 
     function pruneOldBackups(label) {
@@ -56,11 +57,13 @@ function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backu
     }
 
     function runBackup() {
+        if (stopped) return Promise.reject(new Error('BACKUP_SCHEDULER_STOPPED'));
         if (!running) running = writeBackup().finally(() => { running = null; });
         return running;
     }
 
     function start() {
+        stopped = false;
         if (timer || !intervalMinutes) return;
         timer = setInterval(() => {
             void runBackup().catch(() => {});
@@ -68,11 +71,14 @@ function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backu
         timer.unref();
     }
 
-    function stop() {
+    async function stop() {
+        stopped = true;
         if (timer) {
             clearInterval(timer);
             timer = null;
         }
+        // The active backup may still emit a failure or use the database.
+        if (running) await running.catch(() => {});
     }
 
     return { start, stop, runBackup, status };
