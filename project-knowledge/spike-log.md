@@ -639,3 +639,53 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 1. Deploy note: signing invalidates existing `coStudySessionId` cookies — anonymous guests get a fresh session on next request (rate-limit counters reset, in-room identity re-established on next join). Auth/account cookies are unaffected. Acceptable, but it's a one-time churn on deploy.
 2. Want F6 + F12 next (the other two cheap real ones), or hold and merge this first?
 3. Merge `fix/identity-and-room-switch` to main + deploy, or PR for review?
+
+## 2026-10-20 — Viber production gate
+
+**Goal for this session:** Run all nine Viber phases on the new member/VIP/staff platform and produce an evidence-backed release verdict.
+
+**What worked:**
+- Three small fixes committed on `viber/2026-10-20`: Docker context hygiene, real-only lobby presence, and visible/recoverable lobby join/camera failures.
+- Existing 89 integration tests and 28 browser tests passed across initial and targeted reruns; four fresh platform screenshots inspected.
+- Frozen Node 22 local candidate checks pass; network-drive dependency folders were restored from that stable install after files disappeared during verification.
+
+**What broke:**
+- P0 V9-01: guest Socket.IO `create-room` with null payload terminates Node at co-study-server.js:2218; valid create/health succeeded beforehand and health failed afterward.
+- Four account/circle failure/lifecycle defects remain in pre-existing dirty files protected by the invoked skill.
+- Production workspace/VIP/supervisor routes are 404; release source remains partly uncommitted. Initial test runs also encountered environment/configuration/time-limit failures, retained in the evidence.
+
+**What I changed:**
+- Commits: 3b6440f, 594ce74, 0c91440. Application paths: .dockerignore, lobby.html, tests/smoke/lobby.smoke.spec.js.
+- Full report and evidence: docs/viber/2026-10-20/. No push, merge, live database write or deployment.
+
+**Next session starts with:**
+- Repair socket payload/callback validation and async rejection handling across the shared server, then rerun Viber before release.
+
+**Open questions for Aziz:**
+- Circle-owner deletion needs an explicit transfer/archive policy before release; real payment provider remains unselected by design.
+
+## 2026-10-20 — Viber authorized dirty-file remediation
+
+**Goal for this session:** Fix the previously blocked implementation findings and verify a complete committed candidate.
+
+**What worked:**
+- Git-archived runtime candidate 6319399 passes 99 integration tests and 32 browser tests in complete runs, plus syntax, types, lint, dead-code scan and production dependency audit.
+- The original guest-null socket probe now returns PAYLOAD_INVALID and leaves health at 200. All 40 anonymous protected-route probes remain denied.
+- Independent review found two additional recovery/selection races; both were fixed. Real HTTP owner deletion disconnects connected circle members.
+- Five layouts were reviewed; the Arabic dark mobile retry control measures 15.09:1 text contrast with no overflow.
+
+**What broke:**
+- The first execution copy omitted published hero videos, causing an asset 404; rebuilding from Git fixed the assembly error.
+- The network checkout's cached Chromium executable was missing; verification used installed Chrome. Unsigned PowerShell probe wrappers were not executed; their inspected Node bodies ran directly without changing execution policy.
+
+**What I changed:**
+- Checkpointed related implementation in 14aa494; ten focused remediation commits run from d504302 through 6319399.
+- Fixed socket boundaries, atomic durable account changes, unavailable/retry states, private scheduling and circle lifecycle, connected attendance, database deadlines and deployment-template preservation.
+- Owner deletion now archives owned circles, revokes invites and closes active rooms while preserving private history.
+- Outputs: docs/viber/2026-10-20/remediation/. Unrelated blog/image work preserved. No push, merge, live write or deployment.
+
+**Next session starts with:**
+- Complete the production handoff in remediation/RUN.md: live-data parity/restore, actual provider/PostgreSQL verification, reviewed HTTPS configuration and deployment acceptance.
+
+**Open questions for Aziz:**
+- No input needed for these local fixes. The payment provider remains intentionally unselected; VIP is USD 4.99/month with local test checkout only.
