@@ -6,9 +6,13 @@ npm-debug.log
 .claude
 .DS_Store
 *.log
-data/rooms.json
-data/rooms.json.tmp
-data/backups
+# Secrets and runtime state must never enter the image build context.
+.env*
+!.env.example
+data
+# Review artifacts can contain synthetic sessions and local database snapshots.
+docs
+.gstack
 playwright-report
 test-results
 tests
