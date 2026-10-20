@@ -100,14 +100,23 @@ function createCohorts(db, entitlements, now = Date.now) {
             const title = sanitizeUserText(input.title, 80);
             const startsAt = Number(input.startsAt);
             const duration = Number(input.durationMinutes);
-            requireCondition(title && startsAt > now() && startsAt < now() + 366 * 86400000, 'SCHEDULE_INVALID');
+            requireCondition(title && Number.isSafeInteger(startsAt), 'SCHEDULE_INVALID');
             requireCondition(Number.isInteger(duration) && duration >= 5 && duration <= 240, 'DURATION_INVALID');
+            // A response can be lost after commit. Identical retries under the
+            // cohort lock must resolve to the same session, even after it starts.
+            const existing = (await tx.query(`SELECT id FROM halastudy.scheduled_sessions
+                WHERE cohort_id=$1 AND room_id=$2 AND title=$3 AND starts_at=$4
+                AND duration_minutes=$5 AND created_by=$6`,
+            [cohortId, input.roomId, title, startsAt, duration, userId])).rows[0];
+            const allowedUserIds = (await tx.query('SELECT user_id FROM halastudy.cohort_members WHERE cohort_id=$1', [cohortId])).rows.map((row) => row.user_id);
+            if (existing) return { id: existing.id, allowedUserIds };
+            requireCondition(startsAt > now() && startsAt < now() + 366 * 86400000, 'SCHEDULE_INVALID');
             await tx.query('UPDATE halastudy.rooms SET cohort_id=$2 WHERE id=$1', [input.roomId, cohortId]);
             const id = crypto.randomUUID();
             await tx.query(`INSERT INTO halastudy.scheduled_sessions(id,cohort_id,room_id,title,starts_at,duration_minutes,created_by)
                 VALUES($1,$2,$3,$4,$5,$6,$7)`, [id, cohortId, input.roomId, title, startsAt, duration, userId]);
             await audit(tx, userId, 'cohort.session.created', id);
-            return { id };
+            return { id, allowedUserIds };
         });
     }
     async function sessions(userId, cohortId) {

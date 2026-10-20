@@ -119,12 +119,15 @@ function createPlatformRouter(deps) {
         const room = rooms.get(req.body.roomId);
         room.cohortId = req.params.id;
         clearRoomCleanupTimer(room);
-        await flushRooms();
+        // Revoke receivers synchronously after committing private scope, before
+        // any further fallible await. Outgoing-event checks do not stop listening.
+        const allowed = new Set(result.allowedUserIds);
         for (const socketId of room.users.keys()) {
             const socket = io.sockets.sockets.get(socketId);
-            if (socket && !(await platform.canJoin(room.id, users.get(socket.data.userId)))) socket.disconnect(true);
+            if (socket && !allowed.has(socket.data.userId)) socket.disconnect(true);
         }
-        res.json(result);
+        await flushRooms();
+        res.json({ id: result.id });
     }));
     router.get('/cohorts/:id/sessions/:sessionId/attendance', handle(async (req, res) =>
         res.json({ attendance: await platform.cohorts.attendance(req.user.id, req.params.id, req.params.sessionId) })));
