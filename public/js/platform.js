@@ -469,14 +469,14 @@
         if (!['home','progress','circles','vip','security','staff'].includes(currentView)) currentView = 'home';
         document.title = `${t({ home: 'homeTitle', progress: 'progressTitle', circles: 'circlesTitle', vip: 'vipTitle', security: 'securityTitle', staff: 'staffTitle' }[currentView])} — Halastudy`;
         document.querySelectorAll('[data-panel]').forEach((panel) => {
-            panel.toggleAttribute('hidden', panel.getAttribute('data-panel') !== currentView || (!user && currentView !== 'vip'));
+            panel.toggleAttribute('hidden', !state || panel.getAttribute('data-panel') !== currentView || (!user && currentView !== 'vip'));
         });
-        $('guest').hidden = !identityKnown || !!user || currentView === 'vip';
+        $('guest').hidden = !state || !identityKnown || !!user || currentView === 'vip';
         document.querySelectorAll('[data-view]').forEach((link) => {
             if (link.getAttribute('data-view') === currentView) link.setAttribute('aria-current', 'page');
             else link.removeAttribute('aria-current');
         });
-        if (currentView === 'staff') void renderStaff().catch((error) => notice(errorText(error), true));
+        if (currentView === 'staff' && state) void renderStaff().catch((error) => notice(errorText(error), true));
     }
     async function refresh() {
         if (!user) return;

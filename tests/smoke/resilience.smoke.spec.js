@@ -109,7 +109,13 @@ test('circle selection and destructive action targets remain consistent under re
             const [name, ...value] = part.trim().split('=');
             return { name, value: value.join('='), url: server.baseUrl };
         }));
+        await page.route('**/api/platform/progress', (route) => route.fulfill({ status: 503, json: { errorCode: 'SERVICE_UNAVAILABLE' } }));
         await page.goto(`${server.baseUrl}/app#circles`);
+        await expect(page.locator('#session-unavailable')).toBeVisible();
+        await expect(page.locator('#circle-create')).toBeHidden();
+        await expect(page.locator('#guest')).toBeHidden();
+        await page.unroute('**/api/platform/progress');
+        await page.locator('#session-unavailable button').click();
         await page.locator('#circle-list .row').filter({ hasText: 'Circle A' }).getByRole('button').click();
         await expect(page.locator('#circle-title')).toHaveText('Circle A');
         const pending = [];
