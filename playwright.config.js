@@ -25,6 +25,9 @@ module.exports = defineConfig({
         baseURL: `http://127.0.0.1:${SMOKE_PORT}`,
         browserName: 'chromium',
         channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
+        launchOptions: process.env.CO_STUDY_OFFLINE === '1' ? {
+            args: ['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1']
+        } : {},
         screenshot: 'only-on-failure',
         trace: 'retain-on-failure',
         video: 'retain-on-failure'

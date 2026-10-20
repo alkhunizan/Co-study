@@ -136,6 +136,9 @@
     let progress = null;
     let ownedRooms = [];
     let selectedCircle = null;
+    let identityKnown = false;
+    let circleRequest = 0;
+    let requestedCircleId = null;
     let checkout = null;
     let enrolling = false;
     let currentView = location.pathname === '/plans' ? 'vip' : location.hash.slice(1) || (location.pathname === '/supervisor' ? 'circles' : 'home');
@@ -253,8 +256,16 @@
         )), 'emptyCircles');
     }
     async function showCircle(circle) {
-        selectedCircle = circle;
+        const request = ++circleRequest;
+        requestedCircleId = circle.id;
+        selectedCircle = null;
+        $('circle-detail').hidden = true;
+        $('invite-result').hidden = true;
+        $('invite-code').textContent = '';
+        $('attendance').replaceChildren();
         const [members, sessions] = await Promise.all([api('GET', `/cohorts/${circle.id}/members`), api('GET', `/cohorts/${circle.id}/sessions`)]);
+        if (request !== circleRequest) return;
+        selectedCircle = circle;
         const owner = circle.owner_id === user.id;
         const supervisor = owner || circle.member_role === 'supervisor';
         $('circle-detail').hidden = false;
@@ -271,11 +282,11 @@
             if (owner && member.user_id !== user.id) {
                 actions.push(button(t(member.role === 'supervisor' ? 'makeMember' : 'makeSupervisor'), async () => {
                     await api('PATCH', `/cohorts/${circle.id}/members/${member.user_id}`, { role: member.role === 'supervisor' ? 'member' : 'supervisor' });
-                    await showCircle(circle);
+                    if (selectedCircle?.id === circle.id) await showCircle(circle);
                 }));
                 actions.push(button(t('remove'), async () => {
                     await api('PATCH', `/cohorts/${circle.id}/members/${member.user_id}`, { role: 'remove' });
-                    await showCircle(circle);
+                    if (selectedCircle?.id === circle.id) await showCircle(circle);
                 }));
             }
             return row(member.display_name, t(member.role), actions);
@@ -287,13 +298,14 @@
                 join,
                 button(t('attendance'), async () => {
                     const result = await api('GET', `/cohorts/${circle.id}/sessions/${session.id}/attendance`);
+                    if (request !== circleRequest) return;
                     fill('attendance', result.attendance.map((entry) => row(entry.display_name, t(entry.status))));
                 })
             ];
             if (supervisor && Number(session.starts_at) > Date.now()) actions.push(button(t('cancelSession'), async () => {
                 if (!window.confirm(t('cancelSessionConfirm'))) return;
                 await api('DELETE', `/cohorts/${circle.id}/sessions/${session.id}`);
-                await showCircle(circle);
+                if (selectedCircle?.id === circle.id) await showCircle(circle);
             }));
             return row(session.title, `${date(session.starts_at)} · ${session.duration_minutes}`, actions);
         }));
@@ -302,7 +314,7 @@
         const subscription = state?.benefits.subscription;
         $('test-notice').hidden = state?.mode !== 'test';
         $('checkout-start').hidden = !!subscription;
-        $('checkout-start').disabled = !!user && state?.mode !== 'test';
+        $('checkout-start').disabled = !identityKnown || (!!user && state?.mode !== 'test');
         $('checkout-start').textContent = user ? t('tryCheckout') : t('signInForVip');
         $('plan-status').textContent = state?.mode !== 'test' && user ? t('checkoutUnavailable') : '';
         $('billing-management').hidden = !subscription;
@@ -459,7 +471,7 @@
         document.querySelectorAll('[data-panel]').forEach((panel) => {
             panel.toggleAttribute('hidden', panel.getAttribute('data-panel') !== currentView || (!user && currentView !== 'vip'));
         });
-        $('guest').hidden = !!user || currentView === 'vip';
+        $('guest').hidden = !identityKnown || !!user || currentView === 'vip';
         document.querySelectorAll('[data-view]').forEach((link) => {
             if (link.getAttribute('data-view') === currentView) link.setAttribute('aria-current', 'page');
             else link.removeAttribute('aria-current');
@@ -499,20 +511,31 @@
         form.reset(); await refresh(); notice(t('saved'));
     });
     $('create-invite').addEventListener('click', () => void work($('create-invite'), async () => {
-        const result = await api('POST', `/cohorts/${selectedCircle.id}/invitations`, {});
+        const circle = selectedCircle;
+        const request = circleRequest;
+        if (!circle) return;
+        const result = await api('POST', `/cohorts/${circle.id}/invitations`, {});
+        if (request !== circleRequest) return;
         $('invite-result').hidden = false;
         $('invite-code').textContent = result.token;
     }));
     $('circle-exit').addEventListener('click', () => void work($('circle-exit'), async () => {
-        const owner = selectedCircle.owner_id === user.id;
+        const circle = selectedCircle;
+        if (!circle) return;
+        const owner = circle.owner_id === user.id;
         if (!window.confirm(t(owner ? 'archiveConfirm' : 'leaveConfirm'))) return;
-        await api('POST', `/cohorts/${selectedCircle.id}/${owner ? 'archive' : 'leave'}`, {});
-        selectedCircle = null; $('circle-detail').hidden = true;
+        await api('POST', `/cohorts/${circle.id}/${owner ? 'archive' : 'leave'}`, {});
+        if (requestedCircleId === circle.id) {
+            ++circleRequest; requestedCircleId = null; selectedCircle = null; $('circle-detail').hidden = true;
+        }
         await refresh(); notice(t('saved'));
     }));
     bindForm('session-create', async (data, form) => {
-        await api('POST', `/cohorts/${selectedCircle.id}/sessions`, { ...data, startsAt: new Date(String(data.startsAt)).getTime(), durationMinutes: Number(data.durationMinutes) });
-        form.reset(); await showCircle(selectedCircle); notice(t('saved'));
+        const circle = selectedCircle;
+        if (!circle) return;
+        await api('POST', `/cohorts/${circle.id}/sessions`, { ...data, startsAt: new Date(String(data.startsAt)).getTime(), durationMinutes: Number(data.durationMinutes) });
+        if (selectedCircle?.id === circle.id) { form.reset(); await showCircle(circle); }
+        notice(t('saved'));
     });
     $('checkout-start').addEventListener('click', () => void work($('checkout-start'), async () => {
         if (!user) { location.assign('/account?next=%2Fplans'); return; }
@@ -555,6 +578,7 @@
     async function boot() {
         try {
             user = await global.HalaAuth.getUser();
+            identityKnown = true;
             if (user) await refresh();
             else {
                 const catalog = await api('GET', '/catalog');
@@ -563,6 +587,7 @@
             }
         } catch (error) {
             notice(errorText(error), true);
+            core.showUnavailable(null, () => global.location.reload());
             showView();
         } finally { $('loading').hidden = true; }
     }
