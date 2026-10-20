@@ -7,7 +7,7 @@ const { createPlatformRouter } = require('../../services/platform/routes');
 
 test('private scope survives failed snapshot, schedule retries deduplicate and deleted owners archive circles', async (t) => {
     const platform = createPlatform({ userStateFile: 'unused', secret: 'test-only',
-        env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://' } });
+        env: { NODE_ENV: 'test', BILLING_PROVIDER: 'simulator', PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://' } });
     await platform.ready;
     t.after(() => platform.db.close());
     const owner = { id: crypto.randomUUID(), displayName: 'Owner', createdAt: Date.now() };

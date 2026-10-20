@@ -5,7 +5,7 @@ const { createPlatform } = require('../../services/platform');
 
 test('presence refresh credits early connected members once and never revives deleted users', async (t) => {
     const platform = createPlatform({ userStateFile: 'unused', secret: 'test-only',
-        env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://' } });
+        env: { NODE_ENV: 'test', BILLING_PROVIDER: 'simulator', PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://' } });
     await platform.ready;
     t.after(() => platform.db.close());
     const owner = { id: crypto.randomUUID(), displayName: 'Early arrival', createdAt: Date.now() };
