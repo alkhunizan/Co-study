@@ -230,6 +230,7 @@
       <div class="form-actions"><a class="btn btn-primary" href="/app" data-lang="workspaceLink">مساحتي وتقدّمي</a><a class="btn btn-secondary" href="/plans">VIP · US$4.99</a></div>
       <div class="form-card">
         <h3 class="form-title" data-lang="statsTitle">تركيزك</h3>
+        <div id="stats-unavailable" hidden></div>
         <div class="stats-row">
           <div class="stat-tile">
             <strong id="stat-streak" class="num-eastern">٠</strong>
@@ -269,6 +270,7 @@
       <div class="form-card">
         <h3 class="form-title" data-lang="roomsTitle">غرفك</h3>
         <div class="rooms-list" id="rooms-list"></div>
+        <div id="rooms-unavailable" hidden></div>
         <p class="form-note hidden" id="rooms-empty" data-lang="roomsEmpty">أول ما تفتح غرفة أو تدخل وحدة، بتلقاها هنا.</p>
       </div>
 
@@ -339,7 +341,7 @@
           labelPasswordConfirm: 'Password to confirm',
           btnDeleteData: 'Delete my data',
           deleteConfirmTitle: 'Delete this account?',
-          deleteConfirmBody: 'Your account, personal focus history, and memberships will be removed. This cannot be undone.',
+          deleteConfirmBody: 'Your account, personal focus history, and memberships will be removed. Circles you own will be archived and their rooms closed. This cannot be undone.',
           deleteConfirmLabel: 'Delete forever',
           deleteCancelLabel: 'Keep my account',
           deleteTypePrompt: 'Type your room name to confirm',
@@ -396,7 +398,7 @@
           labelPasswordConfirm: 'كلمة المرور للتأكيد',
           btnDeleteData: 'احذف بياناتي',
           deleteConfirmTitle: 'تحذف الحساب؟',
-          deleteConfirmBody: 'سيُحذف حسابك وسجل تركيزك الشخصي وعضوياتك. لا يمكن التراجع عن هذا الإجراء.',
+          deleteConfirmBody: 'سيُحذف حسابك وسجل تركيزك الشخصي وعضوياتك، وستُؤرشف المجموعات التي تملكها وتُغلق غرفها. لا يمكن التراجع عن هذا الإجراء.',
           deleteConfirmLabel: 'احذف نهائيًا',
           deleteCancelLabel: 'خلّ الحساب',
           deleteTypePrompt: 'اكتب اسمك في الغرفة للتأكيد',
@@ -622,16 +624,28 @@
         document.getElementById('profile-nickname').value = user.displayName;
         document.getElementById('profile-bio').value = user.bio || '';
         renderSwatches(user.avatarColor);
-        renderStats(null, user.streak);
+        for (const id of ['stat-streak', 'stat-best', 'stat-hours']) document.getElementById(id).textContent = '—';
+        await Promise.all([loadStats(), loadRooms()]);
+      }
+      async function loadStats() {
         try {
           const stats = await core.requestJson('GET', '/api/me/stats');
+          if (!Number.isFinite(stats.focusStats?.totalFocusMinutes)
+              || !Number.isFinite(stats.streak?.current) || !Number.isFinite(stats.streak?.best)) throw new Error('RESPONSE_INVALID');
           renderStats(stats.focusStats, stats.streak);
-        } catch (e) { /* stats stay at defaults */ }
+          document.getElementById('stats-unavailable').hidden = true;
+        } catch (e) {
+          core.showUnavailable(document.getElementById('stats-unavailable'), loadStats);
+        }
+      }
+      async function loadRooms() {
         try {
           const mine = await core.requestJson('GET', '/api/me/rooms');
-          renderRooms(mine.rooms || []);
+          if (!Array.isArray(mine.rooms)) throw new Error('RESPONSE_INVALID');
+          renderRooms(mine.rooms);
+          document.getElementById('rooms-unavailable').hidden = true;
         } catch (e) {
-          renderRooms([]);
+          core.showUnavailable(document.getElementById('rooms-unavailable'), loadRooms);
         }
       }
 
@@ -702,7 +716,7 @@
         } else {
           authView.classList.remove('hidden');
         }
-      });
+      }).catch(() => core.showUnavailable());
     })();
   </script>
 </body>

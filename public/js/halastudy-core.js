@@ -116,6 +116,7 @@
         langState.listeners.forEach((cb) => {
             try { cb(langState.lang, copy); } catch (_e) {}
         });
+        translateUnavailable();
     }
 
     function initLang(dict) {
@@ -131,18 +132,24 @@
     }
 
     /* ---------- fetch helper (same contract as video-client postJson) ---------- */
-    function requestJson(method, url, body) {
+    async function requestJson(method, url, body) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
         /** @type {RequestInit & { headers: Record<string, string> }} */
         const options = {
             method: method,
             headers: {},
-            credentials: 'include'
+            credentials: 'include',
+            signal: controller.signal
         };
         if (body !== undefined) {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body || {});
         }
-        return fetch(url, options).then((response) => response.json().catch(() => ({})).then((payload) => {
+        try {
+                const response = await fetch(url, options);
+                const payload = await response.json();
+                if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('RESPONSE_INVALID');
                 if (!response.ok) {
                     /** @type {Error & { status?: number, code?: string, payload?: any }} */
                     const error = new Error(`Request failed: ${response.status}`);
@@ -152,7 +159,7 @@
                     throw error;
                 }
                 return payload;
-            }));
+        } finally { clearTimeout(timeout); }
     }
 
     /* ---------- auth session cache ---------- */
@@ -160,9 +167,18 @@
 
     function getUser() {
         if (!userPromise) {
-            userPromise = requestJson('GET', '/api/auth/me')
-                .then((payload) => payload?.user ? payload.user : null)
-                .catch(() => null);
+            const pending = requestJson('GET', '/api/auth/me')
+                .then((payload) => {
+                    if (payload.user !== null && (typeof payload.user !== 'object' || typeof payload.user?.id !== 'string')) {
+                        throw new Error('RESPONSE_INVALID');
+                    }
+                    return payload.user;
+                })
+                .catch((error) => {
+                    if (userPromise === pending) userPromise = null;
+                    throw error;
+                });
+            userPromise = pending;
         }
         return userPromise;
     }
@@ -175,6 +191,43 @@
     function signout() {
         return requestJson('POST', '/api/auth/logout')
             .then(() => { userPromise = Promise.resolve(null); return null; });
+    }
+
+    function showUnavailable(target = null, retry = null) {
+        if (!target) {
+            target = document.getElementById('session-unavailable');
+            if (!target) {
+                target = document.createElement('div');
+                target.id = 'session-unavailable';
+                const main = document.querySelector('main') || document.body;
+                main.prepend(target);
+            }
+        }
+        target.hidden = false;
+        target.setAttribute('role', 'status');
+        const message = document.createElement('p');
+        message.setAttribute('data-core-unavailable', 'message');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-secondary';
+        button.style.minBlockSize = '44px';
+        button.setAttribute('data-core-unavailable', 'retry');
+        button.onclick = () => {
+            button.disabled = true;
+            Promise.resolve().then(() => retry ? retry() : global.location.reload())
+                .catch(() => showUnavailable(target, retry))
+                .finally(() => { button.disabled = false; });
+        };
+        target.replaceChildren(message, button);
+        translateUnavailable();
+    }
+    function translateUnavailable() {
+        document.querySelectorAll('[data-core-unavailable]').forEach((element) => {
+            const retry = element.getAttribute('data-core-unavailable') === 'retry';
+            element.textContent = getLang() === 'ar'
+                ? (retry ? 'إعادة المحاولة' : 'تعذّر تحميل البيانات. حاول مرة أخرى.')
+                : (retry ? 'Retry' : 'Data is unavailable. Please try again.');
+        });
     }
 
     /* Swap the quiet "Sign in" topbar link (#auth-entry) for the avatar chip
@@ -203,6 +256,9 @@
                 entry.textContent = user.displayName;
                 entry.setAttribute('href', '/account.html');
             }
+        }).catch(() => {
+            entry.hidden = true;
+            showUnavailable();
         });
     }
 
@@ -291,6 +347,7 @@
         setTheme: setTheme,
         toggleTheme: toggleTheme,
         requestJson: requestJson,
+        showUnavailable: showUnavailable,
         postJson: (url, body) => requestJson('POST', url, body)
     };
 

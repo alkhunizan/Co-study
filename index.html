@@ -3195,7 +3195,7 @@
             const reserved = document.getElementById('join-name-reserved');
             if (reserved) reserved.hidden = false;
             updateStreakBadge();
-        });
+        }).catch(() => window.HalaCore.showUnavailable());
     }
 
     function createEmptyBoardState() {

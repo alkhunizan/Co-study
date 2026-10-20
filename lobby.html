@@ -475,7 +475,10 @@
       el('lobby-view').hidden = false;
       buildDensity();
       joinLobby(name);
-      if (window.HalaAuth) window.HalaAuth.getUser().then(refreshCameraCta).catch(() => refreshCameraCta(null));
+      if (window.HalaAuth) window.HalaAuth.getUser().then(refreshCameraCta).catch(() => {
+        el('camera-cta').disabled = true;
+        window.HalaCore.showUnavailable();
+      });
       else refreshCameraCta(null);
     }
 

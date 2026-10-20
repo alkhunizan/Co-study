@@ -667,7 +667,7 @@
                     toggleScheduleFields();
                     if (scheduleDateInput) scheduleDateInput.focus();
                 }
-            });
+            }).catch(() => window.HalaCore.showUnavailable());
         }
 
         function formatScheduleCadenceLabel(cadence) {
