@@ -24,6 +24,7 @@ const {
     verifyAnonSessionToken
 } = require('./services/auth');
 const { createAuthRouter } = require('./services/auth/auth-routes');
+const { createRecoveryMail } = require('./services/auth/recovery');
 const { createGoogleAuthRouter } = require('./services/auth/google-routes');
 const { COOKIE_NAME: REAUTH_COOKIE, verifyReauth } = require('./services/auth/reauth');
 const { createUserStore, recordMyRoom, sanitizeUser } = require('./user-store');
@@ -791,7 +792,10 @@ function createCoStudyServer(options = {}) {
         focusLog: new SlidingWindowRateLimiter(FOCUS_LOG_RATE),
         adminLogin: new SlidingWindowRateLimiter(ADMIN_LOGIN_RATE),
         metrics: new SlidingWindowRateLimiter(METRICS_RATE),
-        reports: new SlidingWindowRateLimiter(REPORT_RATE)
+        reports: new SlidingWindowRateLimiter(REPORT_RATE),
+        recoveryIp: new SlidingWindowRateLimiter({ limit: 10, windowMs: 600000 }),
+        recoveryAccount: new SlidingWindowRateLimiter({ limit: 3, windowMs: 600000 }),
+        recoveryComplete: new SlidingWindowRateLimiter({ limit: 20, windowMs: 600000 })
     };
     const videoProvider = createVideoProvider({ config: config.video, logger });
     const videoSessionRegistry = createVideoSessionRegistry({ logger });
@@ -958,6 +962,7 @@ function createCoStudyServer(options = {}) {
             bio: user.bio,
             createdAt: user.createdAt,
             authProvider: user.authProvider || 'password',
+            emailVerified: !!user.emailVerifiedAt || (user.authProvider === 'google' && !!user.googleSub),
             streak: { ...user.streak }
         };
     }
@@ -1724,6 +1729,10 @@ function createCoStudyServer(options = {}) {
     }, express.static(path.join(__dirname, 'design-system'), { maxAge: '1d' }));
 
     app.use('/api', createAuthRouter({
+        recoveryMail: createRecoveryMail({
+            env: config.supabase.enabled ? { ...env, AUTH_MAIL_MODE: 'disabled' } : env,
+            directory: `${config.userStateFile}.mail`
+        }),
         users,
         usersByEmail,
         rooms,
@@ -2202,6 +2211,12 @@ function createCoStudyServer(options = {}) {
 
     app.get(['/account.html', '/account'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'account.html'));
+    });
+    app.get(['/recover', '/recovery.html'], (_req, res) => {
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Referrer-Policy', 'no-referrer');
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.sendFile(path.join(__dirname, 'recovery.html'));
     });
 
     app.get(['/index.html', '/study', '/workspace', '/room'], (_req, res) => {

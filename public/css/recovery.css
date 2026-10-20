@@ -1,0 +1,9 @@
+.recovery-shell { max-inline-size: 600px; margin-inline: auto; padding: 40px 24px 80px; }
+.recovery-shell h1 { font-size: clamp(32px, 6vw, 48px); }
+.recovery-shell input { inline-size: 100%; min-inline-size: 0; }
+.recovery-shell button:focus-visible, .recovery-shell input:focus-visible, .recovery-shell a:focus-visible,
+.platform-header button:focus-visible, .platform-header a:focus-visible {
+    outline: none; box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.recovery-shell [role="status"] { overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { * { transition-duration: 0.01ms !important; } }

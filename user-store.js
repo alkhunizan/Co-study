@@ -194,6 +194,13 @@ function sanitizeUser(raw = {}) {
         tokenEpoch: Number.isInteger(raw.tokenEpoch) && raw.tokenEpoch > 0 ? raw.tokenEpoch : 1,
         authProvider: raw.authProvider === 'google' ? 'google' : 'password',
         googleSub: typeof raw.googleSub === 'string' && raw.googleSub ? raw.googleSub : null,
+        emailVerifiedAt: Number.isSafeInteger(raw.emailVerifiedAt) && raw.emailVerifiedAt > 0 ? raw.emailVerifiedAt : null,
+        recovery: Object.fromEntries(['reset', 'verify'].flatMap((purpose) => {
+            const record = raw.recovery?.[purpose];
+            return record && /^[a-f0-9]{64}$/.test(record.hash) && Number.isSafeInteger(record.expiresAt)
+                && Number.isInteger(record.epoch) && record.email === email
+                ? [[purpose, { hash: record.hash, expiresAt: record.expiresAt, epoch: record.epoch, email }]] : [];
+        })),
         focusStats,
         streak: sanitizeStreak(raw.streak, focusStats),
         myRooms: Array.isArray(raw.myRooms)

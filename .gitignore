@@ -8,6 +8,9 @@ data/rooms.json
 data/rooms.json.tmp
 data/users.json
 data/users.json.tmp
+**/*.json.mail/
+**/*.video-grants.json
+**/*.video-grants.json.tmp
 data/*.platform/
 data/platform-preview/
 docs/implementation/2026-10-20-platform/evidence/tmp/

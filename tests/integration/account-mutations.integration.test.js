@@ -4,7 +4,7 @@ const express = require('express');
 const { createAuthRouter } = require('../../services/auth/auth-routes');
 const { createUser } = require('../../user-store');
 
-async function fixture(t, flush) {
+async function fixture(t, flush, overrides = {}) {
     const user = createUser({ email: 'mutation@example.invalid', passwordHash: 'test:hash', displayName: 'Original' });
     const users = new Map([[user.id, user]]);
     const app = express();
@@ -15,7 +15,7 @@ async function fixture(t, flush) {
         requireUser: (_req, _res, next) => next(), applyHttpRateLimit: () => true,
         getRequestIp: () => '127.0.0.1', canDeleteWithProvider: () => true,
         disconnectUser() {}, clearAuthCookie() {}, deletePlatformUser: async () => {},
-        flushUsers: () => flush(user, users), logger: { error() {}, info() {} }
+        flushUsers: () => flush(user, users), logger: { error() {}, info() {} }, ...overrides
     }));
     const server = app.listen(0, '127.0.0.1');
     await new Promise((resolve) => server.once('listening', resolve));
@@ -35,6 +35,24 @@ test('profile validates every field before changing or saving any field', async 
         assert.equal(f.user.displayName, 'Original');
     }
     assert.equal(saves, 0);
+});
+
+test('account deletion rechecks authentication after preparation yields to a password reset', async (t) => {
+    let prepared = () => {};
+    let release = () => {};
+    const started = new Promise((resolve) => { prepared = () => resolve(undefined); });
+    const gate = new Promise((resolve) => { release = () => resolve(undefined); });
+    const f = await fixture(t, async () => {}, {
+        preparePlatformDeletion: async () => { prepared(); await gate; return () => {}; }
+    });
+    f.user.authProvider = 'google';
+    const deletion = f.send('/me', {}, 'DELETE');
+    await started;
+    f.user.tokenEpoch++;
+    f.user.passwordHash = 'new:password';
+    release();
+    assert.equal((await deletion).status, 401);
+    assert.equal(f.users.get(f.user.id), f.user);
 });
 
 test('profile, focus and import reject failed persistence and restore their fields before retry', async (t) => {

@@ -6,6 +6,7 @@
 // carry a session.
 const express = require('express');
 const { hashPassword, verifyPassword } = require('./password');
+const { registerRecoveryRoutes } = require('./recovery');
 const {
     normalizeEmail,
     validatePassword,
@@ -52,6 +53,7 @@ function createAuthRouter(deps) {
             }
             const before = Object.fromEntries(fields.map((field) => [field, structuredClone(user[field])]));
             const result = change(user);
+            const resultingEpoch = user.tokenEpoch;
             try {
                 await flushUsers();
             } catch {
@@ -66,7 +68,7 @@ function createAuthRouter(deps) {
                 }
                 return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
             }
-            if (users.get(user.id) !== user || user.tokenEpoch !== epoch) {
+            if (users.get(user.id) !== user || user.tokenEpoch !== resultingEpoch) {
                 return res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
             }
             return result();
@@ -77,6 +79,7 @@ function createAuthRouter(deps) {
         }).catch(() => {});
         return operation;
     }
+    registerRecoveryRoutes(router, deps, mutateAccount);
 
     router.post('/auth/signup', async (req, res) => {
         const requestIp = getRequestIp(req);
@@ -141,8 +144,11 @@ function createAuthRouter(deps) {
 
         const userId = email ? usersByEmail.get(email) : null;
         const user = userId ? users.get(userId) : null;
+        const loginEpoch = user?.tokenEpoch;
+        const loginHash = user?.passwordHash;
         const passwordOk = user ? await verifyPassword(password, user.passwordHash) : false;
-        if (!user || !passwordOk) {
+        if (!user || !passwordOk || users.get(user.id) !== user
+            || user.tokenEpoch !== loginEpoch || user.passwordHash !== loginHash) {
             rateLimiters.authFailure.consume(failureKey);
             res.status(401).json({ errorCode: 'INVALID_CREDENTIALS' });
             return;
@@ -268,6 +274,8 @@ function createAuthRouter(deps) {
         const requestIp = getRequestIp(req);
         if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
 
+        const deletionEpoch = req.user.tokenEpoch;
+        const deletionHash = req.user.passwordHash;
         const password = typeof req.body?.password === 'string' ? req.body.password : '';
         const passwordOk = req.user.authProvider === 'google'
             ? canDeleteWithProvider(req)
@@ -281,6 +289,10 @@ function createAuthRouter(deps) {
 
         const userId = req.user.id;
         const finishPlatformDeletion = await preparePlatformDeletion(userId);
+        if (users.get(userId) !== req.user || req.user.tokenEpoch !== deletionEpoch
+            || req.user.passwordHash !== deletionHash) {
+            return res.status(401).json({ errorCode: 'REAUTH_REQUIRED' });
+        }
         req.user.tokenEpoch += 1;
         disconnectUser(userId);
         usersByEmail.delete(req.user.email);
