@@ -1633,9 +1633,24 @@ function createCoStudyServer(options = {}) {
     seedLobbyRoom();
     const loadedUserCount = loadPersistedUsers();
     backupScheduler.start();
+    let attendanceSweep = null;
     const videoSweepTimer = setInterval(() => {
         const ended = videoSessionRegistry.sweepStaleVideoSessions();
         emitEndedVideoSessions(ended);
+        // A member may arrive before a session's attendance window and then
+        // study quietly. Connected presence must not depend on another join.
+        if (platform.enabled && readinessState.userStore && !attendanceSweep) {
+            attendanceSweep = (async () => {
+                for (const socket of io.sockets.sockets.values()) {
+                    if (!socket.data.roomId || !socket.data.userId) continue;
+                    const cookies = parseCookies(socket.handshake?.headers?.cookie || '');
+                    const user = resolveUserFromToken(cookies[AUTH_COOKIE_NAME]);
+                    if (!user) { socket.disconnect(true); continue; }
+                    await platform.recordAttendance(socket.data.roomId, user);
+                }
+            })().catch(() => logger.error({ event: 'attendance_sweep_failed' }))
+                .finally(() => { attendanceSweep = null; });
+        }
     }, VIDEO_SESSION_SWEEP_MS);
     videoSweepTimer.unref();
 
@@ -1644,6 +1659,7 @@ function createCoStudyServer(options = {}) {
         if (isShuttingDown) return;
         isShuttingDown = true;
         clearInterval(videoSweepTimer);
+        if (attendanceSweep) await attendanceSweep;
         backupScheduler.stop();
         console.log(`Received ${signal}. Persisting room state to ${roomStore.filePath}...`);
         const flushResults = await Promise.allSettled([
