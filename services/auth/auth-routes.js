@@ -130,7 +130,10 @@ function createAuthRouter(deps) {
 
     router.post('/auth/login', async (req, res) => {
         const requestIp = getRequestIp(req);
-        if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
+        if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) {
+            logger.warn?.({ event: 'authentication_rejected' });
+            return;
+        }
 
         const email = normalizeEmail(req.body?.email);
         const password = typeof req.body?.password === 'string' ? req.body.password : '';
@@ -138,6 +141,7 @@ function createAuthRouter(deps) {
         const failureKey = `${requestIp}:${email || 'invalid'}`;
         const lockout = rateLimiters.authFailure.check(failureKey);
         if (!lockout.allowed) {
+            logger.warn?.({ event: 'authentication_rejected' });
             res.status(429).json({ errorCode: 'RATE_LIMITED', retryAfterMs: lockout.retryAfterMs });
             return;
         }
@@ -149,6 +153,7 @@ function createAuthRouter(deps) {
         const passwordOk = user ? await verifyPassword(password, user.passwordHash) : false;
         if (!user || !passwordOk || users.get(user.id) !== user
             || user.tokenEpoch !== loginEpoch || user.passwordHash !== loginHash) {
+            logger.warn?.({ event: 'authentication_rejected' });
             rateLimiters.authFailure.consume(failureKey);
             res.status(401).json({ errorCode: 'INVALID_CREDENTIALS' });
             return;

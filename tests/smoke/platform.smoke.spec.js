@@ -116,6 +116,14 @@ test('member, VIP, supervisor and named staff journeys work in the browser', asy
         await expect(page.locator('#staff-nav')).toBeVisible();
         await page.locator('#staff-nav').click();
         await expect(page.locator('#staff-roles')).toContainText('Super admin');
+        await expect(page.locator('#staff-alerts')).toContainText('No alerts recorded.');
+        for (let attempt = 0; attempt < 20; attempt++) {
+            await server.request('/api/auth/login', {
+                method: 'POST', body: { email: 'synthetic-invalid@example.invalid', password: 'invalid' }
+            });
+        }
+        await page.reload();
+        await expect(page.locator('#staff-alerts')).toContainText('Elevated rejected sign-ins');
         await page.locator('#video-gate').click();
         await expect(page.locator('#video-gate')).toHaveText('Allow video entry');
         await page.locator('#video-gate').click();
@@ -128,7 +136,8 @@ test('member, VIP, supervisor and named staff journeys work in the browser', asy
             ['desktop-en-home', 1440, 'en', 'light', 'home'],
             ['tablet-ar-vip', 900, 'ar', 'light', 'vip'],
             ['mobile-ar-circles', 390, 'ar', 'light', 'circles'],
-            ['mobile-en-progress-dark', 390, 'en', 'dark', 'progress']
+            ['mobile-en-progress-dark', 390, 'en', 'dark', 'progress'],
+            ['mobile-ar-staff-dark', 390, 'ar', 'dark', 'staff']
         ]) {
             await page.setViewportSize({ width: Number(width), height: 1000 });
             await page.goto(`${server.baseUrl}/app#${view}`);

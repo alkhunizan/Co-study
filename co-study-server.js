@@ -15,6 +15,7 @@ const {
 const { createLogger } = require('./services/logging/logger');
 const { createErrorBuffer } = require('./services/ops/error-buffer');
 const { createBackupScheduler } = require('./services/ops/backup-scheduler');
+const { createOperationalAlerts } = require('./services/ops/alerts');
 const { createAdminRouter } = require('./services/admin/admin-routes');
 const { hashPassword, verifyPassword } = require('./services/auth/password');
 const {
@@ -749,10 +750,19 @@ function getSocketRequestIp(request, trustProxy) {
 }
 
 function createCoStudyServer(options = {}) {
+    const startedAt = Date.now();
     const { env = process.env, mode = 'http', createServer } = options;
     const config = resolveServerConfig({ env, mode });
     const errorBuffer = createErrorBuffer({ capacity: 200 });
-    const logger = createLogger({ service: 'halastudy' }, { onEntry: errorBuffer.push });
+    let operationalAlerts = null;
+    const earlyOperationalEvents = [];
+    const logger = createLogger({ service: 'halastudy' }, {
+        onEntry: errorBuffer.push,
+        onEvent: (entry) => {
+            if (operationalAlerts) operationalAlerts.observe(entry);
+            else if (earlyOperationalEvents.length < 100) earlyOperationalEvents.push(entry);
+        }
+    });
     // Admin-toggleable runtime overrides. In-memory by design: a restart
     // falls back to the env-configured defaults (fail-safe).
     const runtimeFlags = { videoJoinDisabled: null };
@@ -861,6 +871,11 @@ function createCoStudyServer(options = {}) {
     const videoRevocations = createVideoRevocations({
         file: `${config.roomStateFile}.video-grants.json`, provider: videoProvider, logger, start: platform.ready
     });
+    operationalAlerts = createOperationalAlerts({
+        file: `${config.userStateFile}.alerts.json`, env, start: platform.ready
+    });
+    earlyOperationalEvents.forEach(operationalAlerts.observe);
+    earlyOperationalEvents.length = 0;
     /** @type {any} */
     let roomStore = createRoomStore({
         filePath: config.roomStateFile,
@@ -1611,7 +1626,8 @@ function createCoStudyServer(options = {}) {
             userStore: readinessState.userStore,
             // @ts-expect-error internal socket.io flag for closed state
             socket: readinessState.socket && !io._closed,
-            config: readinessState.config
+            config: readinessState.config,
+            ...(platform.enabled ? { database: !!platform.db?.isHealthy() } : {})
         };
         const ready = Object.values(checks).every(Boolean);
 
@@ -1650,6 +1666,10 @@ function createCoStudyServer(options = {}) {
     const videoSweepTimer = setInterval(() => {
         const ended = videoSessionRegistry.sweepStaleVideoSessions();
         emitEndedVideoSessions(ended);
+        if (config.backup.intervalMinutes > 0
+            && Date.now() - (backupScheduler.status.lastRunAt || startedAt) > config.backup.intervalMinutes * 120000) {
+            logger.warn({ event: 'backup_stale' });
+        }
         // A member may arrive before a session's attendance window and then
         // study quietly. Connected presence must not depend on another join.
         if (platform.enabled && readinessState.userStore && !attendanceSweep) {
@@ -1682,12 +1702,15 @@ function createCoStudyServer(options = {}) {
         ]);
         flushResults.forEach((result) => {
             if (result.status === 'rejected') {
+                logger.error({ event: 'storage_shutdown_failed' });
                 console.error('Final state flush failed:', result.reason);
             }
         });
         if (platform.enabled) {
             try { await platform.ready; await platform.db.close(); } catch (_error) {}
         }
+        // Persist incidents emitted by every other component's final cleanup.
+        try { await operationalAlerts.close(); } catch (_error) {}
         server.close(() => {
             process.exit(0);
         });
@@ -1707,9 +1730,13 @@ function createCoStudyServer(options = {}) {
     app.use(express.json());
     app.use(sessionMiddleware);
     app.use(attachUser);
-    app.use(['/api', '/auth/google'], (_req, res, next) => {
+    app.use(['/api', '/auth/google'], (req, res, next) => {
         if (!readinessState.userStore || !readinessState.roomStore) {
             return res.status(503).json({ errorCode: 'STORAGE_STARTING' });
+        }
+        if (platform.enabled && platform.db && !platform.db.isHealthy()
+            && !['/health', '/ready'].includes(req.path)) {
+            return res.status(503).json({ errorCode: 'SERVICE_UNAVAILABLE' });
         }
         next();
     });
@@ -1774,7 +1801,8 @@ function createCoStudyServer(options = {}) {
         platform, requireUser, users, rooms, config, parseCookies, appendSetCookie, logger,
         applyHttpRateLimit, rateLimiters, disconnectUser,
         flushUsers: () => userStore.flush(users), flushRooms: () => roomStore.flush(rooms),
-        io, clearRoomCleanupTimer, deleteRoom, runtimeFlags, isVideoJoinDisabled, announcementState, backupScheduler
+        io, clearRoomCleanupTimer, deleteRoom, runtimeFlags, isVideoJoinDisabled, announcementState, backupScheduler,
+        operationalAlerts, videoRevocations
     }));
 
     // Google OAuth (only mounts real handlers when GOOGLE_* env is set; every
@@ -2305,6 +2333,11 @@ function createCoStudyServer(options = {}) {
         // every event. A revoked account never silently becomes a guest.
         socket.use(async (packet, next) => {
             if (!readinessState.roomStore || !readinessState.userStore) return next(new Error('STORAGE_STARTING'));
+            if (platform.enabled && platform.db && !platform.db.isHealthy()) {
+                const ack = packet.at(-1);
+                if (typeof ack === 'function') ack({ ok: false, errorCode: 'SERVICE_UNAVAILABLE' });
+                return next(new Error('SERVICE_UNAVAILABLE'));
+            }
             if (socket.data.userId && !resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME])) {
                 socket.disconnect(true);
                 return next(new Error('AUTH_REQUIRED'));

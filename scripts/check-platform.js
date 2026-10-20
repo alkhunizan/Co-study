@@ -4,6 +4,7 @@ const vm = require('node:vm');
 const files = [
     ...fs.readdirSync('services/platform').filter((name) => name.endsWith('.js')).map((name) => path.join('services/platform', name)),
     'services/auth/reauth.js', 'services/auth/recovery.js', 'services/video/revocations.js',
+    'services/ops/alerts.js',
     'public/js/recovery.js', 'public/js/platform.js', 'public/js/focus-client.js', 'scripts/platform-maintenance.js', 'scripts/preview-platform.js',
     ...fs.readdirSync('tests/integration').filter((name) => name.startsWith('platform') || name.startsWith('foundations')).map((name) => path.join('tests/integration', name)),
     'tests/smoke/platform.smoke.spec.js'

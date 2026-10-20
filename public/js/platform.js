@@ -7,6 +7,16 @@
         ar[element.getAttribute('data-lang')] = element.textContent;
     });
     Object.assign(ar, {
+        alertsTitle: 'تنبيهات التشغيل الأخيرة', alertsEmpty: 'لا توجد تنبيهات مسجّلة.',
+        alertLocal: 'التنبيهات محفوظة محليًا. الإشعارات الخارجية غير مفعّلة.',
+        alertExternal: 'الإشعارات الخارجية مفعّلة.', alertStorage: 'تعذر حفظ سجل التنبيهات.',
+        account_rollback_persist_failed: 'تعذر استعادة بيانات الحساب', video_revocation_failed: 'تعذر إلغاء وصول الفيديو',
+        video_revocation_persist_failed: 'تعذر حفظ إلغاء الوصول', video_revocation_start_failed: 'تعذر فتح سجل وصول الفيديو',
+        database_lease_lost: 'فقد الخادم حجز قاعدة البيانات', database_connection_failed: 'انقطاع اتصال قاعدة البيانات',
+        storage_shutdown_failed: 'تعذر حفظ البيانات عند إيقاف الخادم', backup_failed: 'فشل النسخ الاحتياطي', backup_stale: 'تأخر النسخ الاحتياطي',
+        authentication_rejected: 'ارتفاع محاولات الدخول المرفوضة', socket_handler_failed: 'أخطاء في اتصالات الغرف',
+        attendance_sweep_failed: 'تعذر تحديث الحضور', account_recovery_delivery_failed: 'تعذر تجهيز رسالة الاستعادة',
+        video_provider_request_failed: 'أخطاء لدى مزود الفيديو',
         pageTitle: 'مساحتك — Halastudy', workspaceNav: 'التنقل في المساحة', greeting: 'أهلًا،',
         minutes: 'دقائق موثّقة', sessions: 'جلسات مكتملة', xp: 'نقاط التركيز', streak: 'أيام متتالية',
         emptyRooms: 'غرفك الجديدة ستظهر هنا. الغرف القديمة تبقى في سجل حسابك.',
@@ -338,6 +348,16 @@
         LOBBY_PROTECTED: 'الغرفة العامة دائمة.', VALUE_INVALID: 'تحقق من القيم المدخلة.'
     });
     Object.assign(en, {
+        alertsTitle: 'Recent operational alerts', alertsEmpty: 'No alerts recorded.',
+        alertLocal: 'Alerts are stored locally. External notifications are not configured.',
+        alertExternal: 'External notifications are configured.', alertStorage: 'The alert journal could not be saved.',
+        account_rollback_persist_failed: 'Account rollback failed', video_revocation_failed: 'Video access revocation failed',
+        video_revocation_persist_failed: 'Video revocation storage failed', video_revocation_start_failed: 'Video journal unavailable',
+        database_lease_lost: 'Database ownership lost', database_connection_failed: 'Database connection lost',
+        storage_shutdown_failed: 'Shutdown persistence failed', backup_failed: 'Backup failed', backup_stale: 'Backup overdue',
+        authentication_rejected: 'Elevated rejected sign-ins', socket_handler_failed: 'Room connection errors',
+        attendance_sweep_failed: 'Attendance refresh failed', account_recovery_delivery_failed: 'Recovery message failed',
+        video_provider_request_failed: 'Video provider errors',
         archiveCircle: 'Archive circle', leaveCircle: 'Leave circle', upcoming: 'Not started',
         CIRCLE_VIP_REQUIRED: 'The circle owner needs active VIP to add sessions or supervisors.',
         archiveConfirm: 'Archiving closes this circle’s rooms and invitations. Continue?', leaveConfirm: 'Leave this circle?',
@@ -391,6 +411,10 @@
         $('platform-backup').hidden = !permissions.includes('backups.manage');
         if (permissions.includes('operations.read')) {
             const operations = await api('GET', '/staff/operations');
+            $('staff-monitoring-status').textContent = t(operations.monitoring?.storageHealthy === false
+                ? 'alertStorage' : operations.monitoring?.deliveryConfigured ? 'alertExternal' : 'alertLocal');
+            const alerts = (operations.alerts || []).filter((entry) => !entry.resolvedAt);
+            fill('staff-alerts', alerts.map((entry) => row(t(entry.event), `${entry.count} · ${date(entry.lastSeenAt)}`)), 'alertsEmpty');
             $('video-gate').textContent = t(operations.videoDisabled ? 'enableVideo' : 'disableVideo');
             $('video-gate').dataset.disabled = String(operations.videoDisabled);
             const result = await api('GET', '/staff/rooms');

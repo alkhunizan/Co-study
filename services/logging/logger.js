@@ -1,6 +1,5 @@
 function redactValue(value) {
-    if (typeof value !== 'string') return value;
-    if (!value) return value;
+    if (value === null || value === undefined || value === '') return value;
     return '[redacted]';
 }
 
@@ -13,7 +12,9 @@ function sanitizeLogPayload(payload = {}) {
     for (const [key, value] of Object.entries(payload)) {
         if (/token|secret|password|credential|key/i.test(key)) {
             safe[key] = redactValue(value);
-        } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+        } else if (Array.isArray(value)) {
+            safe[key] = value.map((entry) => entry && typeof entry === 'object' ? sanitizeLogPayload(entry) : entry);
+        } else if (value && typeof value === 'object') {
             safe[key] = sanitizeLogPayload(value);
         } else {
             safe[key] = value;
@@ -24,9 +25,9 @@ function sanitizeLogPayload(payload = {}) {
 
 /**
  * @param {Record<string, any>} defaults
- * @param {{ onEntry?: (entry: any) => void }} [hooks]
+ * @param {{ onEntry?: (entry: any) => void, onEvent?: (entry: any) => void }} [hooks]
  */
-function createLogger(defaults = {}, { onEntry } = {}) {
+function createLogger(defaults = {}, { onEntry, onEvent } = {}) {
     function write(level, payload = {}) {
         const entry = {
             level,
@@ -35,6 +36,7 @@ function createLogger(defaults = {}, { onEntry } = {}) {
             ...sanitizeLogPayload(payload)
         };
         const line = JSON.stringify(entry);
+        try { onEvent?.(entry); } catch { /* monitoring cannot break requests */ }
         if (level === 'error') {
             console.error(line);
         } else if (level === 'warn') {

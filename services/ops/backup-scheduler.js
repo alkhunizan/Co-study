@@ -24,11 +24,11 @@ function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backu
     }
 
     async function writeBackup() {
-        ensureDir(backupDir);
         const label = timestampLabel();
         const written = [];
         let entryCount = 0;
         try {
+            ensureDir(backupDir);
             for (const target of targets) {
                 if (!fs.existsSync(target.filePath)) continue;
                 const entries = readRoomStateArray(target.filePath);

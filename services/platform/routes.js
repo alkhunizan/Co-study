@@ -7,7 +7,8 @@ const { requireCondition, audit } = require('./common');
 function createPlatformRouter(deps) {
     const { platform, requireUser, users, rooms, config, parseCookies, appendSetCookie, logger,
         applyHttpRateLimit, rateLimiters, disconnectUser, flushUsers, flushRooms,
-        io, clearRoomCleanupTimer, deleteRoom, runtimeFlags, isVideoJoinDisabled, announcementState, backupScheduler } = deps;
+        io, clearRoomCleanupTimer, deleteRoom, runtimeFlags, isVideoJoinDisabled, announcementState, backupScheduler,
+        operationalAlerts, videoRevocations } = deps;
     const router = express.Router();
     const handle = (handler) => async (req, res) => {
         try {
@@ -273,7 +274,11 @@ function createPlatformRouter(deps) {
     }));
     router.get('/staff/operations', handle(async (req, res) => {
         await staff(req, 'operations.read');
-        res.json({ videoDisabled: isVideoJoinDisabled(), backup: { lastRunAt: backupScheduler.status.lastRunAt, failed: !!backupScheduler.status.lastError } });
+        res.json({ videoDisabled: isVideoJoinDisabled(),
+            backup: { lastRunAt: backupScheduler.status.lastRunAt, failed: !!backupScheduler.status.lastError },
+            monitoring: operationalAlerts?.status(), alerts: operationalAlerts?.list() || [],
+            media: videoRevocations?.status()
+        });
     }));
     router.post('/staff/video', handle(async (req, res) => {
         await staff(req, 'operations.manage');

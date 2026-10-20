@@ -6,6 +6,9 @@ const test = require('node:test');
 const { Client } = require('pg');
 const { createDatabase } = require('../../services/platform/database');
 const { backupDatabase, restoreDatabase } = require('../../services/platform/maintenance');
+const { startServer } = require('../helpers/server-control');
+const { signupUser } = require('../helpers/auth-helpers');
+const { connectSocket, emitAck, closeSocket } = require('../helpers/socket-client');
 
 const url = process.env.HALASTUDY_TEST_DATABASE_URL;
 if (!url) throw new Error('Use scripts/test-postgres.ps1 or the isolated PostgreSQL CI job.');
@@ -32,7 +35,7 @@ test('real PostgreSQL migration, lock timeout, rollback, lease loss, backup and 
     const control = await connectControl();
     t.after(() => control.end());
     let db = await createDatabase({ url, migrate: true });
-    t.after(() => db.close());
+    t.after(() => db?.close());
     // Migration connections intentionally have a longer deadline. Reopen using
     // the exact normal-runtime policy before exercising operational timeouts.
     await db.close();
@@ -93,4 +96,25 @@ test('real PostgreSQL migration, lock timeout, rollback, lease loss, backup and 
     await db.close();
     db = await createDatabase({ url });
     assert.equal((await db.query("SELECT display_name FROM halastudy.users WHERE id='outage-user'")).rows[0].display_name, 'Original');
+    await db.close();
+    db = null;
+    const app = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATABASE_URL: url, VIDEO_PROVIDER: 'mesh' } });
+    t.after(() => app.stop());
+    const owner = await signupUser(app);
+    const socket = await connectSocket(app.baseUrl, { clientId: 'pg-outage-owner', extraHeaders: { Cookie: owner.cookie } });
+    t.after(() => closeSocket(socket));
+    const appLease = (await control.query("SELECT pid FROM pg_locks WHERE locktype='advisory' AND classid=190221 AND objid=1 AND database=(SELECT oid FROM pg_database WHERE datname=current_database())")).rows[0].pid;
+    await control.query('SELECT pg_terminate_backend($1)', [appLease]);
+    await pause(100);
+    assert.equal((await app.request('/api/ready')).status, 503);
+    assert.equal((await app.request('/api/health')).status, 200);
+    assert.equal((await app.request('/api/me/profile', { method: 'PATCH', headers: { Cookie: owner.cookie }, body: { displayName: 'Rejected' } })).status, 503);
+    assert.equal((await emitAck(socket, 'create-room', { roomName: 'Rejected room' })).errorCode, 'SERVICE_UNAVAILABLE');
+    let persistedAlerts = [];
+    for (let attempt = 0; attempt < 70; attempt++) {
+        persistedAlerts = JSON.parse(await fs.readFile(`${app.userStateFile}.alerts.json`, 'utf8').catch(() => '[]'));
+        if (persistedAlerts.some((item) => item.event === 'database_lease_lost')) break;
+        await pause(100);
+    }
+    assert.ok(persistedAlerts.some((item) => item.event === 'database_lease_lost'));
 });
