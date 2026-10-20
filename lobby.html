@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="/design-system/colors_and_type.css">
   <link rel="stylesheet" href="/design-system/landing.css">
   <script src="/js/halastudy-core.js"></script>
+  <script src="/js/ui.js"></script>
   <style>
     .lobby-wrap { max-inline-size: 1180px; margin-inline: auto; padding-block: 92px 40px; padding-inline: 16px; }
 
@@ -181,7 +182,9 @@
         camReady: 'Turn on my camera',
         watching: 'watching',
         live: 'live',
-        full: 'The Lobby is full right now — try again in a bit, or open your own room.'
+        full: 'The Lobby is full right now — try again in a bit, or open your own room.',
+        joinFailed: 'Could not join the Lobby. Check your connection and try again.',
+        cameraFailed: 'Could not turn on your camera. Check camera permission and try again.'
       },
       ar: {
         pageTitle: 'هلاستدي | اللوبي',
@@ -199,7 +202,9 @@
         camReady: 'افتح كاميرتي',
         watching: 'يتفرج',
         live: 'مباشر',
-        full: 'اللوبي ممتلئ حالياً — جرّب بعد شوي، أو افتح غرفتك الخاصة.'
+        full: 'اللوبي ممتلئ حالياً — جرّب بعد شوي، أو افتح غرفتك الخاصة.',
+        joinFailed: 'تعذّر دخول اللوبي. تأكد من اتصالك وحاول مرة أخرى.',
+        cameraFailed: 'تعذّر تشغيل الكاميرا. تأكد من السماح باستخدامها وحاول مرة أخرى.'
       }
     };
     window.HalaCore.initLang(DICT);
@@ -345,11 +350,18 @@
     }
 
     function joinLobby(name) {
+      function joinFailed(code) {
+        socket.disconnect();
+        el('name-gate').hidden = false;
+        el('lobby-view').hidden = true;
+        window.HalaUI.toast(t(code === 'ROOM_FULL' ? 'full' : 'joinFailed'), { kind: 'error' });
+      }
       socket = io({ auth: { clientId: clientId() } });
+      socket.on('connect_error', () => joinFailed());
       socket.on('connect', () => {
         socket.emit('join-room', { roomId: 'LOBBY', username: name, clientId: clientId() }, (res = {}) => {
           if (!res.ok) {
-            if (res.errorCode === 'ROOM_FULL' && window.HalaUI) window.HalaUI.toast(t('full'), { kind: 'error' });
+            joinFailed(res.errorCode);
             return;
           }
           setParticipants((res.room && res.room.participants) || []);
@@ -443,12 +455,16 @@
             location.href = '/account.html?next=%2Flobby';
           } else {
             // No creds / provider unavailable — re-attach as a watcher.
+            window.HalaUI.toast(t('cameraFailed'), { kind: 'error' });
             await connectRealtimeKit('viewer');
           }
         }
-      } catch (_e) {}
-      cta.disabled = false;
-      render();
+      } catch (_e) {
+        window.HalaUI.toast(t('cameraFailed'), { kind: 'error' });
+      } finally {
+        cta.disabled = false;
+        render();
+      }
     }
 
     // ---- Boot ----
