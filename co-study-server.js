@@ -16,6 +16,7 @@ const { createLogger } = require('./services/logging/logger');
 const { createErrorBuffer } = require('./services/ops/error-buffer');
 const { createBackupScheduler } = require('./services/ops/backup-scheduler');
 const { createOperationalAlerts } = require('./services/ops/alerts');
+const { registerPublicPages } = require('./services/seo/public-pages');
 const { createAdminRouter } = require('./services/admin/admin-routes');
 const { hashPassword, verifyPassword } = require('./services/auth/password');
 const {
@@ -1726,6 +1727,15 @@ function createCoStudyServer(options = {}) {
     });
 
     app.use(securityHeaders);
+    app.use((req, res, next) => {
+        // Keep application/session URLs out of search without preventing
+        // crawlers from reading the noindex directive on the HTML response.
+        if (/^\/(?:api|auth|account(?:\.html)?|open(?:\.html)?|lobby(?:\.html)?|index\.html|study|workspace|room|app|plans|supervisor|recover|recovery\.html)(?:\/|$)/i.test(req.path)
+            || (config.admin.enabled && (req.path === config.admin.path || req.path.startsWith(`${config.admin.path}/`)))) {
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        }
+        next();
+    });
     app.use(originGuard);
     app.use(express.json());
     app.use(sessionMiddleware);
@@ -2203,33 +2213,10 @@ function createCoStudyServer(options = {}) {
         res.json(roomSnapshot(roomId));
     });
 
-    app.get('/', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'landing.html'));
-    });
+    registerPublicPages(app, __dirname);
 
     app.get(['/open.html', '/open'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'open.html'));
-    });
-
-    app.get(['/privacy.html', '/privacy'], (_req, res) => {
-        res.sendFile(path.join(__dirname, 'privacy.html'));
-    });
-
-    app.get(['/terms.html', '/terms'], (_req, res) => {
-        res.sendFile(path.join(__dirname, 'terms.html'));
-    });
-
-    app.get(['/blog.html', '/blog'], (_req, res) => {
-        res.sendFile(path.join(__dirname, 'blog.html'));
-    });
-
-    // Individual blog posts — explicit slug→file map (no dynamic path lookup, so
-    // no traversal surface). Add a line here per new article.
-    app.get('/blog/best-online-group-study-rooms-saudi', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'blog-best-study-rooms.html'));
-    });
-    app.get('/blog/study-with-me-online-arabic', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'blog-study-with-me.html'));
     });
 
     app.get(['/app', '/plans', '/supervisor'], (_req, res) => {
@@ -2297,6 +2284,7 @@ function createCoStudyServer(options = {}) {
             res.status(404).json({ errorCode: 'NOT_FOUND' });
             return;
         }
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
         res.status(404).sendFile(path.join(__dirname, '404.html'));
     });
 

@@ -1,0 +1,45 @@
+const { test, expect } = require('@playwright/test');
+const AxeBuilder = require('@axe-core/playwright').default;
+
+test('public locale links work without JavaScript and retain English content despite Arabic preferences', async ({ browser, baseURL }, testInfo) => {
+    test.setTimeout(90000);
+    const plain = await browser.newContext({ javaScriptEnabled: false, baseURL });
+    try {
+        const page = await plain.newPage();
+        await page.goto('/en');
+        await expect(page.locator('h1')).toContainText('Study online.');
+        await page.locator('a[data-lang-value="ar"]').click();
+        await expect(page).toHaveURL(`${baseURL}/`);
+        await expect(page.locator('h1')).toContainText('ذاكر أونلاين.');
+        await page.goto('/en/blog');
+        await expect(page.locator('h1')).toHaveText('From the Halastudy desk');
+        await page.goto('/en/contact');
+        await expect(page.locator('h1')).toHaveText('Contact Halastudy');
+    } finally { await plain.close(); }
+    const context = await browser.newContext({ baseURL });
+    try {
+        await context.addInitScript(() => localStorage.setItem('halastudyLang', 'ar'));
+        const page = await context.newPage();
+        const errors = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        /** @type {Array<[string, number, string]>} */
+        const views = [
+            ['/en', 1440, 'light'], ['/', 390, 'light'],
+            ['/en/blog', 390, 'dark'], ['/contact', 390, 'light'], ['/en/contact', 900, 'dark'],
+            ['/blog/best-online-group-study-rooms-saudi', 390, 'light'],
+            ['/blog/study-with-me-online-arabic', 900, 'dark']
+        ];
+        for (const [route, width, theme] of views) {
+            await page.setViewportSize({ width, height: 1000 });
+            await page.goto(route);
+            await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
+            await expect(page.locator('html')).toHaveAttribute('lang', route.startsWith('/en') ? 'en' : 'ar');
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+            const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+            expect(audit.violations.map((issue) => ({ id: issue.id, nodes: issue.nodes.map((node) => node.target) }))).toEqual([]);
+            await page.screenshot({ path: testInfo.outputPath(`${route.replaceAll('/', '-') || 'home'}-${width}-${theme}-viewport.png`) });
+            await page.screenshot({ path: testInfo.outputPath(`${route.replaceAll('/', '-') || 'home'}-${width}-${theme}.png`), fullPage: true });
+        }
+        expect(errors).toEqual([]);
+    } finally { await context.close(); }
+});

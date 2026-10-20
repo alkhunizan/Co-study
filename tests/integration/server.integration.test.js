@@ -1279,7 +1279,8 @@ test('privacy page is served bilingually and linked from landing and open footer
     assert.match(`${privacy.body}`, /Privacy Policy/);
 
     const privacyAlias = await server.request('/privacy.html');
-    assert.equal(privacyAlias.status, 200);
+    assert.equal(privacyAlias.status, 301);
+    assert.equal(privacyAlias.headers.location, '/privacy');
 
     const landing = await server.request('/');
     assert.match(`${landing.body}`, /href="\/privacy"/);

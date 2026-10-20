@@ -30,7 +30,7 @@ test('landing page renders the hero and routes to the create form', async ({ pag
     await expect(page.locator('.live-pill')).toBeVisible();
 
     await page.locator('.hero-actions a.btn-primary').click();
-    await expect(page).toHaveURL(/\/open\.html$/);
+    await expect(page).toHaveURL(/\/open$/);
     await expect(page.locator('#create-form')).toBeVisible();
 
     expect(errors).toEqual([]);
@@ -79,7 +79,8 @@ test('theme and language survive the landing to open handoff', async ({ browser 
     try {
         await page.goto('/');
         await page.click('#theme-toggle');
-        await page.click('.lang-switch button[data-lang-value="en"]');
+        await page.click('.lang-switch [data-lang-value="en"]');
+        await expect(page).toHaveURL(/\/en$/);
         await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
 
         await page.goto('/open.html');

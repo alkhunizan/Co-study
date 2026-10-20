@@ -26,6 +26,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/design-system/colors_and_type.css">
   <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/marketing-copy.js"></script>
   <script src="/js/halastudy-core.js"></script>
   <script src="/js/ui.js" defer></script>
 </head>
@@ -77,6 +78,7 @@
     <a class="btn btn-primary mobile-menu-cta" href="/open.html"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
   </nav>
 
+  <main id="main-content">
   <section class="hero hero--mosaic">
     <div class="lamp-glow" aria-hidden="true"></div>
     <div class="hero-mosaic">
@@ -378,6 +380,7 @@
     </div>
   </section>
 
+  </main>
   <footer class="footer">
     <div data-i18n="footerTag">هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.</div>
     <div class="links">
@@ -402,116 +405,13 @@
     var THEME_KEY = 'halastudyTheme';
 
     /* ---------- i18n ---------- */
-    var I18N = {
-      en: {
-        navWhy: 'Why Hala?', navHow: 'How it works', navRooms: 'Rooms', navTonight: 'Tonight', navBlog: 'Blog', navVip: 'VIP',
-        navSignIn: 'Sign in',
-        menuLabel: 'Menu',
-        mobileNavLabel: 'Primary navigation',
-        whyEyebrow: 'Why Halastudy',
-        whyTitle1: 'Presence beats', whyTitle2: 'willpower.',
-        why1H: 'You’re not alone at the desk',
-        why1P: 'Body-doubling turns solo study into shared momentum. When someone is working across from you — camera on — you keep going too.',
-        why2H: 'Quiet by design',
-        why2P: 'Mic off by default. No talking, no performance — your presence is the whole contract.',
-        why3H: 'Built for here',
-        why3P: 'Arabic-first, Riyadh-time schedules, and the Gulf’s late-night study rhythm — not a Western app with Arabic bolted on.',
-        why4H: 'No wall, no cost',
-        why4P: 'No download, no login to start, free during beta. Open a room in seconds.',
-        ctaOpen: 'Open a room', ctaOpenShort: 'Open a room', ctaJoin: 'See who’s live',
-        livePillLabel: 'lamps on right now',
-        illustrativeNote: 'Illustrative preview',
-        heroTitle1: 'Drop in.', heroTitle2: 'Camera on.', heroTitle3: 'Work alongside someone.',
-        heroSub: 'A quiet room. Open all night. The world is already studying and working — pull up a desk.',
-        heroFoot: 'No download. No login wall. Mic stays off.',
-        stepsEyebrow: 'How a room works',
-        stepsTitle1: 'Three steps.', stepsTitle2: 'No login wall.',
-        stepNum1: '01', step1H: 'Open a room',
-        step1P: 'Pick a focus length — 25 min, 50 min, or open. We hand you a six-character code to share.',
-        stepNum2: '02', step2H: 'Camera on, mic off',
-        step2P: 'The whole point. Your presence is the social contract. Nobody is listening; everyone is working.',
-        stepNum3: '03', step3H: 'Stay until the timer rings',
-        step3P: 'When the Pomodoro finishes, you stretch with everyone else. Quiet break, quiet return.',
-        roomMeta: 'Quiet room · 50 min focus',
-        previewYou: 'You',
-        previewFootL: 'Mic off · video on',
-        previewFootR: 'Encrypted · WebRTC',
-        communityEyebrow: 'The desks across from yours',
-        communityTitle1: 'Tonight’s ', communityTitle2: 'quiet company.',
-        communitySub: 'Real students. Real exams next week. The lamps are on — join the table.',
-        statPictured: 'pictured', statRightNow: 'right now', statCities: 'cities',
-        member1Name: 'Munira Abdullah', member1Major: 'Computer Science',
-        member2Name: 'Shahad Nasser',  member2Major: 'Business Administration',
-        member3Name: 'Turki Nasser',   member3Major: 'Architecture',
-        member4Name: 'Sarah Khalid',   member4Major: 'Media & Communication',
-        member5Name: 'Fahad Sultan',   member5Major: 'Biotechnology',
-        closerTitle1: 'One lamp on at 1am.', closerTitle2: 'You are not the only one.',
-        closerSub: 'Halastudy is a quiet room, open all night, where the cameras stay on and the conversation stays off.',
-        footerTag: 'Halastudy · Online focus rooms for studying and working — study or work live, with serious people.',
-        footerBlog: 'Blog', footerPrivacy: 'Privacy', footerTerms: 'Terms', footerWhatsapp: 'WhatsApp invite',
-        whatsappShareText: 'Try Halastudy — quiet focus rooms for studying and working',
-        tileNames: ['Nouf Abdulaziz', 'Reem Sultan', 'Lama Faisal', 'Jawaher Khalid', 'Danah Saad', 'Saud Abdullah'],
-        previewNames: ['Haya Turki', 'Majed Faisal', 'Razan Fahad']
-      },
-      ar: {
-        navWhy: 'ليش هلا؟', navHow: 'كيف تشتغل', navRooms: 'الغرف', navTonight: 'الطلاب', navBlog: 'المدونة', navVip: 'عضوية VIP',
-        navSignIn: 'تسجيل الدخول',
-        menuLabel: 'القائمة',
-        mobileNavLabel: 'التنقل الرئيسي',
-        whyEyebrow: 'ليش هلاستدي',
-        whyTitle1: 'الوجود', whyTitle2: 'أقوى من العزيمة.',
-        why1H: 'ما انت لحالك على المكتب',
-        why1P: 'المرافقة بالوجود تحوّل المذاكرة الفردية إلى زخم مشترك. لما فيه أحد شغّال قدامك والكاميرا مفتوحة، تكمّل معه.',
-        why2H: 'هادية بالتصميم',
-        why2P: 'المايك مقفول افتراضياً. لا كلام ولا استعراض — وجودك هو الاتفاق كله.',
-        why3H: 'مبنية لنا',
-        why3P: 'عربية أول، جداول بتوقيت الرياض، وإيقاع مذاكرة الخليج بالليل — مو تطبيق غربي مركّب عليه عربي.',
-        why4H: 'بدون حاجز، بدون تكلفة',
-        why4P: 'بدون تنزيل، وبدون تسجيل عشان تبدأ، ومجانية في التجربة. افتح غرفة بثوانٍ.',
-        ctaOpen: 'افتح غرفة', ctaOpenShort: 'افتح غرفة', ctaJoin: 'شوف اللي شغّال',
-        livePillLabel: 'مصباح شغّال الآن',
-        illustrativeNote: 'عرض توضيحي',
-        heroTitle1: 'ادخل.', heroTitle2: 'الكاميرا شغّالة.', heroTitle3: 'اشتغل مع غيرك.',
-        heroSub: 'غرفة هادية، مفتوحة طول الليل. العالم كله يذاكر ويشتغل — قرّب كرسيك.',
-        heroFoot: 'بدون تنزيل. بدون تسجيل. المايك مقفول.',
-        stepsEyebrow: 'كيف الغرفة',
-        stepsTitle1: 'ثلاث خطوات.', stepsTitle2: 'بدون تسجيل.',
-        stepNum1: '٠١', step1H: 'افتح غرفة',
-        step1P: 'اختر مدة التركيز — 25 دقيقة، 50 دقيقة، أو مفتوحة. تطلع لك كود من ست خانات تشاركه.',
-        stepNum2: '٠٢', step2H: 'الكاميرا شغّالة، المايك مقفول',
-        step2P: 'هذا هو المربط. وجودك هو الاتفاق. ما فيه أحد يسمع؛ كل واحد قاعد يشتغل.',
-        stepNum3: '٠٣', step3H: 'اقعد لين يرنّ المنبه',
-        step3P: 'لما تخلص البومودورو، كلكم تستريحون مع بعض. راحة هادية، ورجعة هادية.',
-        roomMeta: 'غرفة هادية · 50 دقيقة تركيز',
-        previewYou: 'انت',
-        previewFootL: 'المايك مقفول · الكاميرا شغّالة',
-        previewFootR: 'مشفّر · WebRTC',
-        communityEyebrow: 'اللي معاك الليلة',
-        communityTitle1: 'مذاكرة ', communityTitle2: 'بصمت واحد.',
-        communitySub: 'طلاّب حقيقيّين. اختبارات جاية. المصابيح شغّالة — اقعد على الطاولة.',
-        statPictured: 'في الصورة', statRightNow: 'الآن', statCities: 'مدينة',
-        member1Name: 'منيرة عبدالله', member1Major: 'علوم الحاسب',
-        member2Name: 'شهد ناصر',   member2Major: 'إدارة أعمال',
-        member3Name: 'تركي ناصر',  member3Major: 'عمارة',
-        member4Name: 'ساره خالد',  member4Major: 'إعلام واتّصال',
-        member5Name: 'فهد سلطان',  member5Major: 'تقنية حيوية',
-        closerTitle1: 'مصباح واحد شغّال الساعة ١.', closerTitle2: 'انت مو لحالك.',
-        closerSub: 'هلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.',
-        footerTag: 'هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.',
-        footerBlog: 'المدونة', footerPrivacy: 'الخصوصية', footerTerms: 'الشروط', footerWhatsapp: 'دعوة واتساب',
-        whatsappShareText: 'جرّب هلاستدي — غرف تركيز هادية للمذاكرة والعمل',
-        tileNames: ['نوف عبدالعزيز', 'ريم سلطان', 'لمى فيصل', 'جواهر خالد', 'دانة سعد', 'سعود عبدالله'],
-        previewNames: ['هيا تركي', 'ماجد فيصل', 'رزان فهد']
-      }
-    };
+    var I18N = window.HalaMarketingCopy.home;
 
     function applyLang(lang) {
       var dict = I18N[lang] || I18N.en;
       document.documentElement.lang = lang;
       document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-      document.title = lang === 'ar'
-        ? 'هلاستدي | غرفة هادية. مفتوحة طول الليل.'
-        : 'Halastudy | A quiet room. Open all night.';
+      document.title = dict.pageTitle;
       document.querySelectorAll('[data-i18n]').forEach(function (el) {
         var key = el.getAttribute('data-i18n');
         if (dict[key] != null) el.textContent = dict[key];
@@ -528,7 +428,7 @@
         var i = parseInt(el.getAttribute('data-preview-name'), 10);
         if (dict.previewNames && dict.previewNames[i]) el.textContent = dict.previewNames[i];
       });
-      document.querySelectorAll('.lang-switch button').forEach(function (b) {
+      document.querySelectorAll('.lang-switch [data-lang-value]').forEach(function (b) {
         b.classList.toggle('is-on', b.getAttribute('data-lang-value') === lang);
       });
       // build city-marquee text in the active language
@@ -630,7 +530,7 @@
     /* ---------- Boot ---------- */
     document.addEventListener('DOMContentLoaded', function () {
       // Lang switch
-      document.querySelectorAll('.lang-switch button').forEach(function (b) {
+      document.querySelectorAll('.lang-switch [data-lang-value]').forEach(function (b) {
         b.addEventListener('click', function () { setLang(b.getAttribute('data-lang-value')); });
       });
       // Theme toggle
@@ -643,7 +543,8 @@
       // Restore lang + theme
       var savedLang = null, savedTheme = null;
       try { savedLang = localStorage.getItem(LANG_KEY); savedTheme = localStorage.getItem(THEME_KEY); } catch (e) {}
-      applyLang(savedLang === 'en' ? 'en' : 'ar');
+      var routeLang = document.documentElement.getAttribute('data-route-lang');
+      applyLang(routeLang || (savedLang === 'en' ? 'en' : 'ar'));
       applyTheme(savedTheme === 'dark' ? 'dark' : 'light');
 
       // Reduced motion: freeze cam clips to the poster frame.

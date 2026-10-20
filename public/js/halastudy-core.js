@@ -67,6 +67,8 @@
 
     /* ---------- language ---------- */
     function getLang() {
+        const routeLang = document.documentElement.getAttribute('data-route-lang');
+        if (routeLang === 'ar' || routeLang === 'en') return routeLang;
         try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ar'; } catch (_e) { return 'ar'; }
     }
     function setStoredLang(lang) {

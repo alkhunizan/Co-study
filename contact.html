@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تواصل معنا | هلاستدي</title>
+  <link rel="icon" type="image/svg+xml" href="/images/icons/favicon.svg">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <style>
+    .contact-shell { max-inline-size: 720px; margin-inline: auto; padding: 120px 24px 64px; min-block-size: 70vh; }
+    .contact-shell h1 { font-size: clamp(32px, 6vw, 52px); }
+    .contact-shell p { line-height: 1.8; color: var(--ink-2); }
+    .contact-shell p a { color: var(--accent-3); }
+    .contact-shell a:focus-visible { outline: none; box-shadow: var(--sh-focus); }
+    .contact-shell .btn-primary { color: #2D3436; }
+    .contact-links { display: flex; gap: 16px; flex-wrap: wrap; margin-block: 32px; }
+    .contact-links a, .footer > a { display: inline-flex; align-items: center; min-block-size: 44px; padding-inline: 8px; }
+  </style>
+</head>
+<body class="is-landing-page">
+  <header class="topbar">
+    <a class="brand" href="/"><span>Hala<em>study</em><span class="dot">.</span></span></a>
+    <nav class="lang-switch" aria-label="Language">
+      <button type="button" data-lang-value="ar">عربي</button>
+      <button type="button" data-lang-value="en">EN</button>
+    </nav>
+  </header>
+  <main class="contact-shell">
+    <h1 data-lang="heading">تواصل مع هلاستدي</h1>
+    <p data-lang="intro">للاستفسارات أو المساعدة في استخدام غرف المذاكرة والتركيز، تواصل معنا عبر البريد الإلكتروني أو الهاتف أو واتساب.</p>
+    <div class="contact-links">
+      <a class="btn btn-primary" href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
+      <a class="btn btn-ghost" href="tel:+966599161315" dir="ltr">+966 59 916 1315</a>
+      <a class="btn btn-ghost" href="https://wa.me/966599161315" target="_blank" rel="noopener" data-lang="whatsapp">تواصل عبر واتساب</a>
+    </div>
+    <p data-lang="operator">تدير هلاستدي مؤسسة هلا، المملوكة لعزيز الخنيزان، ومقرها الرياض، المملكة العربية السعودية.</p>
+    <p><a href="/privacy" data-lang="privacy">سياسة الخصوصية</a> · <a href="/terms" data-lang="terms">شروط الاستخدام</a></p>
+  </main>
+  <footer class="footer"><a href="/blog" data-lang="blog">المدونة</a></footer>
+</body>
+</html>

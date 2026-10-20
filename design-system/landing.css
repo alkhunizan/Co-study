@@ -27,6 +27,15 @@
 html[lang="ar"] .is-landing-page,
 html[lang="ar"] .is-open-page { font-family: var(--font-body-ar); }
 
+/* Public pages use readable caption/accent inks in both themes. */
+.is-landing-page { --ink-3: var(--ink-2); }
+html:not([data-theme="dark"]) .is-landing-page { --accent-3: #845330; }
+.is-landing-page .eyebrow { color: var(--accent-3); }
+.is-landing-page .btn-primary { color: #2D3436; }
+.is-landing-page .article a:not(.btn):not(.readnext) { color: var(--accent-3); }
+.is-landing-page .article a:focus-visible { outline: none; box-shadow: var(--sh-focus); }
+.is-landing-page .table-wrap:focus-visible { outline: none; box-shadow: var(--sh-focus); }
+
 /* ---- single lamp glow behind hero — DESIGN.md §2 rule of one ---- */
 .lamp-glow {
   position: absolute;
@@ -170,7 +179,7 @@ html[dir="rtl"] .back-arrow { display: inline-block; transform: scaleX(-1); }
   font-weight: 600;
   color: var(--ink-2);
 }
-.lang-switch button {
+.lang-switch button, .lang-switch a {
   border: 0;
   background: transparent;
   padding: 6px 12px;
@@ -181,11 +190,14 @@ html[dir="rtl"] .back-arrow { display: inline-block; transform: scaleX(-1); }
   font-family: var(--font-body);
   transition: all 180ms var(--ease-soft);
 }
-.lang-switch button.is-on {
+.lang-switch button.is-on, .lang-switch a.is-on {
   background: var(--accent-soft);
   color: var(--accent-3);
 }
-.lang-switch button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+.lang-switch button:focus-visible, .lang-switch a:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+.lang-switch a { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; min-block-size: 44px; min-inline-size: 44px; }
+.footer > a { display: inline-flex; align-items: center; min-block-size: 44px; color: var(--ink-2); text-decoration: none; }
+.footer > a:focus-visible { outline: none; box-shadow: var(--sh-focus); }
 
 /* ============================================================
    Mobile burger menu — topbar collapses under 880px.
@@ -242,7 +254,7 @@ html[dir="rtl"] .back-arrow { display: inline-block; transform: scaleX(-1); }
   padding-block: 10px;
 }
 .mobile-menu-controls .icon-btn { width: 44px; height: 44px; }
-.mobile-menu-controls .lang-switch button { min-height: 44px; }
+.mobile-menu-controls .lang-switch button, .mobile-menu-controls .lang-switch a { min-height: 44px; }
 .mobile-menu-cta {
   margin-block-start: 12px;
   justify-content: center;
