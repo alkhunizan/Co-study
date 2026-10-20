@@ -171,9 +171,24 @@ function createRealtimeKitProvider({ config, logger, fetchImpl = fetch } = {}) {
                 expiresAt: participant.expiresAt || null
             };
         },
+        async revokeParticipant({ meetingId, participantId }) {
+            const base = `/meetings/${encodeURIComponent(meetingId)}`;
+            let kickError;
+            try {
+                await request(`${base}/active-session/kick`, {
+                    method: 'POST', body: { participant_ids: [participantId] }
+                });
+            } catch (error) { if (error.status !== 404) kickError = error; }
+            // Even if the kick fails, prevent the bearer token being reused.
+            try { await request(`${base}/participants/${encodeURIComponent(participantId)}`, { method: 'DELETE' }); }
+            catch (error) { if (error.status !== 404) throw error; }
+            if (kickError) throw kickError;
+        },
         async closeRoomMeeting({ meetingId }) {
             if (!meetingId) return { ok: true };
             try {
+                try { await request(`/meetings/${encodeURIComponent(meetingId)}/active-session/kick-all`, { method: 'POST' }); }
+                catch (error) { if (error.status !== 404) throw error; }
                 await request(`/meetings/${encodeURIComponent(meetingId)}`, {
                     method: 'PATCH',
                     body: { status: 'INACTIVE' }

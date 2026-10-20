@@ -6,12 +6,28 @@ const { spawnSync } = require('node:child_process');
 
 const { repoRoot, resetStateFile, makeTempStateFile } = require('../helpers/test-env');
 const { delay, startServer } = require('../helpers/server-control');
-const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
+const { closeSocket, connectSocket: connectRawSocket, emitAck } = require('../helpers/socket-client');
+const { extractCookies } = require('../helpers/auth-helpers');
 const { signupUser } = require('../helpers/auth-helpers');
 
 const DEFAULT_ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
 ];
+const videoCookies = new Map();
+async function connectSocket(baseUrl, options = {}) {
+    if (options.clientId && options.extraHeaders?.Cookie) {
+        videoCookies.set(`${baseUrl}:${options.clientId}`, options.extraHeaders.Cookie);
+    }
+    if (options.clientId && !options.extraHeaders?.Cookie) {
+        const key = `${baseUrl}:${options.clientId}`;
+        if (!videoCookies.has(key)) {
+            const response = await fetch(`${baseUrl}/api/runtime-config`);
+            videoCookies.set(key, extractCookies(response.headers.getSetCookie()));
+        }
+        options = { ...options, extraHeaders: { ...options.extraHeaders, Cookie: videoCookies.get(key) } };
+    }
+    return connectRawSocket(baseUrl, options);
+}
 
 function buildFutureRiyadhSchedule(options = {}) {
     const minutesFromNow = Number.isInteger(options.minutesFromNow) ? options.minutesFromNow : 5;
@@ -76,7 +92,7 @@ async function issueVideoToken(server, roomId, body, headers = {}) {
     return server.request(`/api/rooms/${roomId}/video-token`, {
         method: 'POST',
         body,
-        headers
+        headers: { Cookie: videoCookies.get(`${server.baseUrl}:${body.clientSessionId}`) || '', ...headers }
     });
 }
 
@@ -958,6 +974,7 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
 
     const heartbeat = await server.request(`/api/rooms/${roomId}/video-heartbeat`, {
         method: 'POST',
+        headers: { Cookie: videoCookies.get(`${server.baseUrl}:rtk-life-owner`) },
         body: {
             clientSessionId: 'rtk-life-owner'
         }
@@ -967,6 +984,7 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
 
     const leave = await server.request(`/api/rooms/${roomId}/video-leave`, {
         method: 'POST',
+        headers: { Cookie: videoCookies.get(`${server.baseUrl}:rtk-life-owner`) },
         body: {
             clientSessionId: 'rtk-life-owner'
         }

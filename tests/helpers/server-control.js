@@ -202,7 +202,8 @@ async function startFakeRealtimeKit(options = {}) {
         env: {
             ...process.env,
             PORT: String(port),
-            REALTIMEKIT_FAIL_PARTICIPANT: options.failParticipants ? '1' : '0'
+            REALTIMEKIT_FAIL_PARTICIPANT: options.failParticipants ? '1' : '0',
+            REALTIMEKIT_PARTICIPANT_DELAY: String(options.participantDelay || 0)
         },
         stdio: ['ignore', 'pipe', 'pipe']
     });

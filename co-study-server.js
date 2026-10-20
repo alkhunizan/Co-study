@@ -35,6 +35,7 @@ const { createRecordStore } = require('./services/platform/record-store');
 const { backupDatabase } = require('./services/platform/maintenance');
 const { createVideoProvider } = require('./services/video');
 const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
+const { createVideoRevocations } = require('./services/video/revocations');
 const {
     buildScheduleSummary,
     normalizeSchedule,
@@ -794,6 +795,7 @@ function createCoStudyServer(options = {}) {
     };
     const videoProvider = createVideoProvider({ config: config.video, logger });
     const videoSessionRegistry = createVideoSessionRegistry({ logger });
+    const videoMintLocks = new Set();
     config.video.warnings.forEach((message) => {
         logger.warn({
             event: 'video_config_warning',
@@ -851,7 +853,10 @@ function createCoStudyServer(options = {}) {
     });
     readinessState.socket = true;
 
-    const platform = createPlatform({ userStateFile: config.userStateFile, secret: config.sessionSecret, logger });
+    const platform = createPlatform({ userStateFile: config.userStateFile, secret: config.sessionSecret, logger, env });
+    const videoRevocations = createVideoRevocations({
+        file: `${config.roomStateFile}.video-grants.json`, provider: videoProvider, logger, start: platform.ready
+    });
     /** @type {any} */
     let roomStore = createRoomStore({
         filePath: config.roomStateFile,
@@ -1094,6 +1099,7 @@ function createCoStudyServer(options = {}) {
 
     function emitVideoSessionEnded(session) {
         if (!session?.roomId) return;
+        void videoRevocations.revokeWhere((row) => row.socketId === session.socketId && row.roomId === session.roomId).catch(() => {});
         io.to(session.roomId).emit('video-session-ended', {
             roomId: session.roomId,
             userId: session.userId,
@@ -1263,6 +1269,7 @@ function createCoStudyServer(options = {}) {
         // keeps it alive within a running process.
         if (isLobbyRoom(room)) return false;
         clearRoomCleanupTimer(room);
+        void videoRevocations.revokeWhere((row) => row.roomId === normalizedRoom).catch(() => {});
         rooms.delete(normalizedRoom);
         persistRoomsSoon();
         return true;
@@ -1328,6 +1335,7 @@ function createCoStudyServer(options = {}) {
         if (!room || !socketId) return false;
         const record = existingRecord || room.users.get(socketId);
         if (!record) return false;
+        emitEndedVideoSessions(videoSessionRegistry.markSocketSessionsLeft(socketId, 'room_switch'));
 
         room.users.delete(socketId);
 
@@ -1436,11 +1444,11 @@ function createCoStudyServer(options = {}) {
         const sessionId = verifyAnonSessionToken(cookies[SESSION_COOKIE_NAME], { secret: config.sessionSecret }) || '';
         const users = Array.from(room.users.values());
         return users.find((user) => {
-            if (!user || user.name !== displayName) return false;
-            if (clientSessionId && user.clientId === clientSessionId) return true;
-            if (clientSessionId && user.sessionId === clientSessionId) return true;
-            if (sessionId && user.sessionId === sessionId) return true;
-            return false;
+            if (!user || (displayName && user.name !== displayName)) return false;
+            if (user.clientId !== clientSessionId && user.sessionId !== clientSessionId) return false;
+            const socket = io.sockets.sockets.get(user.socketId);
+            return !!((sessionId && user.sessionId === sessionId)
+                || (req.user && socket?.data.userId === req.user.id));
         }) || null;
     }
 
@@ -1664,7 +1672,8 @@ function createCoStudyServer(options = {}) {
         console.log(`Received ${signal}. Persisting room state to ${roomStore.filePath}...`);
         const flushResults = await Promise.allSettled([
             roomStore.flush(rooms),
-            userStore.flush(users)
+            userStore.flush(users),
+            videoRevocations.close()
         ]);
         flushResults.forEach((result) => {
             if (result.status === 'rejected') {
@@ -1932,11 +1941,32 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 409, 'ROOM_FULL');
             return;
         }
+        try { await videoRevocations.drain(); }
+        catch { return sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE'); }
+        if (!videoRevocations.status().healthy || videoRevocations.status().pending) {
+            sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE');
+            return;
+        }
+        // Lock before any provider await. Repeated mints retire the old grant.
+        const mintKey = `${normalizedRoom}:${userId}:${clientSessionId}`;
+        if (videoMintLocks.has(mintKey)) {
+            sendVideoError(res, 409, 'VIDEO_REQUEST_PENDING');
+            return;
+        }
+        videoMintLocks.add(mintKey);
         if (!await refreshExpiredRoomMeetingIfIdle(normalizedRoom, room)) {
+            videoMintLocks.delete(mintKey);
             sendVideoError(res, 409, 'ROOM_DURATION_LIMIT_REACHED');
             return;
         }
 
+        if (videoSessionRegistry.countActiveGlobalVideoParticipants() - (existingActive ? 1 : 0) >= config.video.maxGlobalParticipants
+            || videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom) - (existingActive ? 1 : 0) >= roomParticipantCap) {
+            videoMintLocks.delete(mintKey);
+            sendVideoError(res, 409, 'ROOM_FULL');
+            return;
+        }
+        if (existingActive) emitVideoSessionEnded(videoSessionRegistry.markVideoSessionLeft(existingActive, 'replaced'));
         videoSessionRegistry.registerVideoSession({
             roomId: normalizedRoom,
             userId,
@@ -1950,8 +1980,21 @@ function createCoStudyServer(options = {}) {
             lastSeenAt: Date.now()
         });
 
+        let issued = null;
+        let attempt = null;
+        let attemptMeeting = null;
         try {
+            await videoRevocations.ready;
+            await videoRevocations.drain();
+            if (!videoRevocations.status().healthy || videoRevocations.status().pending) {
+                throw new Error('VIDEO_REVOCATION_PENDING');
+            }
             const meeting = await ensureRealtimeKitMeeting(normalizedRoom, room);
+            attemptMeeting = meeting.meetingId;
+            attempt = await videoRevocations.track({
+                meetingId: meeting.meetingId, participantId: '*', roomId: normalizedRoom,
+                socketId: member.socketId
+            });
             const presetName = role === 'viewer'
                 ? config.video.viewerPresetName
                 : config.video.defaultPresetName;
@@ -1962,6 +2005,22 @@ function createCoStudyServer(options = {}) {
                 displayName,
                 presetName
             });
+            issued = { meetingId: tokenPayload.meetingId, participantId: tokenPayload.participantId,
+                roomId: normalizedRoom, socketId: member.socketId };
+            await videoRevocations.track(issued);
+            await videoRevocations.forget(attempt);
+            attempt = null;
+            const currentUser = resolveUserFromToken(parseCookies(req.headers.cookie || '')[AUTH_COOKIE_NAME]);
+            const stillAllowed = await platform.canJoin(normalizedRoom, currentUser);
+            if (isShuttingDown || rooms.get(normalizedRoom) !== room || !stillAllowed
+                || (req.user && currentUser !== req.user)
+                || !io.sockets.sockets.get(member.socketId)?.connected
+                || !room.users.has(member.socketId)
+                || !findActiveVideoSession(normalizedRoom, userId, clientSessionId)) {
+                await videoRevocations.revokeWhere((row) => row.participantId === issued.participantId);
+                sendVideoError(res, 403, 'ROOM_NOT_JOINED');
+                return;
+            }
 
             videoSessionRegistry.updateVideoSession({ roomId: normalizedRoom, userId, clientSessionId }, {
                 providerMeetingId: tokenPayload.meetingId,
@@ -1991,6 +2050,18 @@ function createCoStudyServer(options = {}) {
                 policy: getClientVideoPolicy(room)
             });
         } catch (error) {
+            if (attempt) {
+                // A timed-out POST may have created a participant without returning
+                // its id. Retire that meeting; restart also replays this intent.
+                if (room.videoProviderMeetingId === attemptMeeting) {
+                    room.videoProviderStatus = 'closed';
+                    persistRoomsSoon();
+                }
+                await videoRevocations.revokeWhere((row) => row.id === attempt).catch(() => {});
+            }
+            if (issued) {
+                await videoRevocations.revokeWhere((row) => row.participantId === issued.participantId).catch(() => {});
+            }
             videoSessionRegistry.markVideoSessionLeft({ roomId: normalizedRoom, userId, clientSessionId }, 'provider_failure');
             emitVideoCapacity(normalizedRoom);
             logger.warn({
@@ -2002,6 +2073,8 @@ function createCoStudyServer(options = {}) {
                 message: error.message
             });
             sendVideoError(res, error.status || 502, 'VIDEO_PROVIDER_UNAVAILABLE');
+        } finally {
+            videoMintLocks.delete(mintKey);
         }
     });
 
@@ -2019,9 +2092,10 @@ function createCoStudyServer(options = {}) {
         }
         const clientSessionId = normalizeClientId(req.body?.clientSessionId);
         const displayName = sanitizeNickname(req.body?.displayName);
-        const member = displayName && clientSessionId
+        const member = clientSessionId
             ? findRoomVideoMember(req, room, displayName, clientSessionId)
             : null;
+        if (!member) return sendVideoError(res, 403, 'ROOM_NOT_JOINED');
         const userId = member?.clientId || member?.sessionId || clientSessionId;
         if (!clientSessionId || !userId) {
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
@@ -2047,9 +2121,10 @@ function createCoStudyServer(options = {}) {
         }
         const clientSessionId = normalizeClientId(req.body?.clientSessionId);
         const displayName = sanitizeNickname(req.body?.displayName);
-        const member = displayName && clientSessionId
+        const member = clientSessionId
             ? findRoomVideoMember(req, room, displayName, clientSessionId)
             : null;
+        if (!member) return sendVideoError(res, 403, 'ROOM_NOT_JOINED');
         const userId = member?.clientId || member?.sessionId || clientSessionId;
         if (!clientSessionId || !userId) {
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');

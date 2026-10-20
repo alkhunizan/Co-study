@@ -58,6 +58,22 @@ const server = http.createServer(async (req, res) => {
     }
 
     const participantMatch = url.pathname.match(/\/accounts\/([^/]+)\/realtime\/kit\/([^/]+)\/meetings\/([^/]+)\/participants$/);
+    if (req.method === 'POST' && /\/active-session\/kick(?:-all)?$/.test(url.pathname)) {
+        const body = await readJson(req);
+        for (const participant of state.participants) {
+            if (url.pathname.endsWith('/kick-all') || body.participant_ids?.includes(participant.id)) participant.kicked = true;
+        }
+        return sendJson(res, 200, { success: true });
+    }
+    const deleteMatch = url.pathname.match(/\/participants\/([^/]+)$/);
+    if (req.method === 'DELETE' && deleteMatch) {
+        const participant = state.participants.find((entry) => entry.id === decodeURIComponent(deleteMatch[1]));
+        if (participant) participant.revoked = true;
+        return sendJson(res, participant ? 200 : 404, { success: !!participant });
+    }
+    if (req.method === 'PATCH' && /\/meetings\/[^/]+$/.test(url.pathname)) {
+        return sendJson(res, 200, { success: true });
+    }
     if (req.method === 'POST' && participantMatch) {
         if (failParticipants) {
             sendJson(res, 502, {
@@ -70,6 +86,9 @@ const server = http.createServer(async (req, res) => {
         const id = `participant_${state.participants.length + 1}`;
         const meetingId = decodeURIComponent(participantMatch[3]);
         state.participants.push({ id, meetingId, body });
+        if (process.env.REALTIMEKIT_PARTICIPANT_DELAY) {
+            await new Promise((resolve) => setTimeout(resolve, Number(process.env.REALTIMEKIT_PARTICIPANT_DELAY)));
+        }
         sendJson(res, 200, {
             success: true,
             result: {
