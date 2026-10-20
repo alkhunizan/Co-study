@@ -10,7 +10,15 @@ async function createDatabase({ url = '', directory, migrate = false } = {}) {
     let close;
     if (url) {
         const { Pool } = require('pg');
-        driver = new Pool({ connectionString: url, max: 5, connectionTimeoutMillis: 10000 });
+        driver = new Pool({
+            connectionString: url, max: 5, connectionTimeoutMillis: 10000,
+            statement_timeout: migrate ? 120000 : 15000,
+            query_timeout: migrate ? 125000 : 20000,
+            lock_timeout: 5000, idle_in_transaction_session_timeout: 30000
+        });
+        // Idle clients can emit errors outside query promises. The pool removes
+        // them; observing the event prevents an unhandled EventEmitter crash.
+        driver.on('error', () => {});
         // The current application keeps account and socket state in one runtime.
         // Refuse a second runtime until that cache is replaced by shared services.
         const lease = await driver.connect();
@@ -27,16 +35,17 @@ async function createDatabase({ url = '', directory, migrate = false } = {}) {
         transaction = async (operation) => {
             checkLease();
             const client = await driver.connect();
+            let discard = false;
             try {
                 await client.query('BEGIN');
                 const result = await operation(client);
                 await client.query('COMMIT');
                 return result;
             } catch (error) {
-                await client.query('ROLLBACK');
+                try { await client.query('ROLLBACK'); } catch { discard = true; }
                 throw error;
             } finally {
-                client.release();
+                client.release(discard);
             }
         };
         close = async () => { lease.release(true); await driver.end(); };
