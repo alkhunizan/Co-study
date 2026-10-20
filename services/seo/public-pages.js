@@ -154,9 +154,10 @@ function registerPublicPages(app, root) {
         if (!['GET', 'HEAD'].includes(req.method)) return next();
         const normalized = req.path.toLowerCase().replace(/\/+$/, '') || '/';
         const destination = aliases[normalized] || (byPath.has(normalized) ? normalized : null);
-        if (destination && req.path !== destination) {
+        const canonicalHost = req.hostname?.toLowerCase() === 'www.halastudy.com';
+        if (destination && (req.path !== destination || canonicalHost)) {
             const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
-            return res.redirect(301, destination + query);
+            return res.redirect(301, (canonicalHost ? ORIGIN : '') + destination + query);
         }
         next();
     });

@@ -70,6 +70,9 @@ test('public aliases redirect once while session URLs stay functional and exclud
     assert.equal(missing.status, 404);
     assert.match(missing.headers['x-robots-tag'], /noindex/);
     assert.equal((await server.request('/en/blog/study-with-me-online-arabic')).status, 404, 'no fake translated article');
+    const www = await server.request('/EN/BLOG/?utm_source=share', { headers: { Host: 'www.halastudy.com' } });
+    assert.equal(www.status, 301);
+    assert.equal(www.headers.location, 'https://halastudy.com/en/blog?utm_source=share');
 });
 
 test('locale pages render translated content and reciprocal alternatives before JavaScript runs', async (t) => {
