@@ -29,7 +29,6 @@ function createAuthRouter(deps) {
         publicUser,
         setAuthCookie,
         clearAuthCookie,
-        persistUsersSoon,
         flushUsers,
         requireUser,
         disconnectUser,
@@ -41,6 +40,42 @@ function createAuthRouter(deps) {
 
     const router = express.Router();
     router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+    const mutations = new Map();
+    function mutateAccount(req, res, fields, change) {
+        const user = req.user;
+        const epoch = user.tokenEpoch;
+        const previous = mutations.get(user.id) || Promise.resolve();
+        const operation = previous.catch(() => {}).then(async () => {
+            if (users.get(user.id) !== user || user.tokenEpoch !== epoch) {
+                return res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+            }
+            const before = Object.fromEntries(fields.map((field) => [field, structuredClone(user[field])]));
+            const result = change(user);
+            try {
+                await flushUsers();
+            } catch {
+                // Restore only this operation's fields. Room history, revocations
+                // and other accounts may have changed while the store was busy.
+                // Also restore the detached object: a concurrent failed delete
+                // can restore that same object later. Never reinsert it here.
+                Object.assign(user, before);
+                // Supersede any whole-map snapshot queued during the failed save.
+                try { await flushUsers(); } catch {
+                    logger.error({ event: 'account_rollback_persist_failed', userId: user.id });
+                }
+                return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            }
+            if (users.get(user.id) !== user || user.tokenEpoch !== epoch) {
+                return res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+            }
+            return result();
+        });
+        mutations.set(user.id, operation);
+        void operation.finally(() => {
+            if (mutations.get(user.id) === operation) mutations.delete(user.id);
+        }).catch(() => {});
+        return operation;
+    }
 
     router.post('/auth/signup', async (req, res) => {
         const requestIp = getRequestIp(req);
@@ -144,30 +179,33 @@ function createAuthRouter(deps) {
         if (!applyHttpRateLimit(req, res, rateLimiters.profileMutation, req.user.id)) return;
 
         const body = req.body || {};
+        const patch = {};
         if (body.displayName !== undefined) {
             const displayName = sanitizeUserText(body.displayName, DISPLAY_NAME_MAX_LENGTH);
             if (!displayName) {
                 res.status(400).json({ errorCode: 'DISPLAY_NAME_REQUIRED' });
                 return;
             }
-            req.user.displayName = displayName;
+            patch.displayName = displayName;
         }
         if (body.avatarColor !== undefined) {
             if (normalizeAvatarColor(body.avatarColor) !== body.avatarColor) {
                 res.status(400).json({ errorCode: 'AVATAR_COLOR_INVALID' });
                 return;
             }
-            req.user.avatarColor = body.avatarColor;
+            patch.avatarColor = body.avatarColor;
         }
         if (body.bio !== undefined) {
             if (typeof body.bio !== 'string' || Array.from(body.bio).length > BIO_MAX_LENGTH) {
                 res.status(400).json({ errorCode: 'BIO_TOO_LONG' });
                 return;
             }
-            req.user.bio = sanitizeUserText(body.bio, BIO_MAX_LENGTH);
+            patch.bio = sanitizeUserText(body.bio, BIO_MAX_LENGTH);
         }
-        persistUsersSoon();
-        res.json({ ok: true, user: publicUser(req.user) });
+        return mutateAccount(req, res, Object.keys(patch), (user) => {
+            Object.assign(user, patch);
+            return () => res.json({ ok: true, user: publicUser(user) });
+        });
     });
 
     router.post('/me/focus-session', requireUser, (req, res) => {
@@ -178,14 +216,17 @@ function createAuthRouter(deps) {
             res.status(400).json({ errorCode: 'FOCUS_MINUTES_INVALID' });
             return;
         }
-        const result = applyFocusSession(req.user, { minutes });
-        persistUsersSoon();
-        // Append an analytics event (Supabase only) — the aggregate lives on the
-        // profile, but the per-session log powers the dashboards. Fire-and-forget.
-        if (typeof logFocusSession === 'function') {
-            logFocusSession({ userId: req.user.id, minutes: result.minutes, dayKey: result.dayKey });
-        }
-        res.json({ ok: true, focusStats: result.focusStats, streak: result.streak });
+        return mutateAccount(req, res, ['focusStats', 'streak'], (user) => {
+            const result = applyFocusSession(user, { minutes });
+            return () => {
+                if (typeof logFocusSession === 'function') {
+                    void Promise.resolve().then(() => logFocusSession({
+                        userId: user.id, minutes: result.minutes, dayKey: result.dayKey
+                    })).catch(() => logger.error({ event: 'focus_analytics_failed' }));
+                }
+                return res.json({ ok: true, focusStats: result.focusStats, streak: result.streak });
+            };
+        });
     });
 
     // One-time import of the pre-signup localStorage focus history. Merge is
@@ -194,7 +235,8 @@ function createAuthRouter(deps) {
         if (!applyHttpRateLimit(req, res, rateLimiters.profileMutation, req.user.id)) return;
 
         const imported = sanitizeFocusStats({ days: req.body?.days });
-        const stats = req.user.focusStats;
+        return mutateAccount(req, res, ['focusStats', 'streak'], (user) => {
+        const stats = user.focusStats;
         for (const [dayKey, day] of Object.entries(imported.days)) {
             const existing = stats.days[dayKey];
             if (!existing) {
@@ -204,9 +246,9 @@ function createAuthRouter(deps) {
                 existing.sessions = Math.max(existing.sessions, day.sessions);
             }
         }
-        req.user.focusStats = sanitizeFocusStats(stats);
-        persistUsersSoon();
-        res.json({ ok: true, focusStats: req.user.focusStats, streak: req.user.streak });
+        user.focusStats = sanitizeFocusStats(stats);
+        return () => res.json({ ok: true, focusStats: user.focusStats, streak: user.streak });
+        });
     });
 
     router.get('/me/stats', requireUser, (req, res) => {
