@@ -689,3 +689,28 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 
 **Open questions for Aziz:**
 - No input needed for these local fixes. The payment provider remains intentionally unselected; VIP is USD 4.99/month with local test checkout only.
+
+## 2026-10-20 — Sequential media, recovery, database and alert hardening
+
+**Goal:** Implement the four approved resilience batches in order and retain reviewable local evidence.
+
+**What worked:**
+- Final Git-archived runtime `32947ab` passes 110 integration tests, 33 browser tests, syntax, types, lint and dead-code checks. The unchanged dependency lockfile has zero reported production vulnerabilities.
+- An isolated real PostgreSQL 16 cluster validates lock/statement deadlines, rollback, terminated connections, ownership loss, fresh restore, API/socket rejection and persisted outage alerts. The cluster was stopped.
+- Recovery and staff alerts pass bilingual mobile/browser accessibility checks; generated evidence stays in `docs/hardening/2026-10-20/evidence/`.
+
+**What broke:**
+- Actual PostgreSQL connection termination initially raised an uncaught borrowed-client error. The runtime now observes/discards failed connections.
+- Recovery fragment-only navigation did not initially reopen the form; hash-change handling fixes it.
+- Review found late media and backup failures could arrive after the final alert flush; shutdown now awaits them before flushing alerts.
+
+**What changed:**
+- Five commits, `aac08ca` through `32947ab`: durable provider grant revocation, secure local recovery, real PostgreSQL resilience tests, private operational alerts and shutdown ordering.
+- No changes to VIP USD 4.99/month or local test checkout. Unrelated dirty blog pages and `images/og/` remain preserved.
+- Run receipt and operational handoff: `docs/hardening/2026-10-20/RUN.md` and `OPERATIONS.md`. No push, merge, deployment, real notification or live data write.
+
+**Next session starts with:**
+- Production gate remains NO-GO until actual Cloudflare revocation/replay and pre-journal sessions are reconciled, recovery email and external monitoring are integrated, and hosted-data/HTTPS acceptance is verified.
+
+**Open questions for Aziz:**
+- Production mail provider, alert destination and hosting choices are still needed for live integration. Payment provider remains undecided; simulated purchases must stay disabled in production.
