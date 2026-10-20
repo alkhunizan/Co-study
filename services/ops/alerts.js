@@ -17,6 +17,7 @@ const RULES = {
     socket_handler_failed: ['warning', 3, 'Inspect application errors and affected room operations.'],
     attendance_sweep_failed: ['warning', 3, 'Inspect database health and attendance updates.'],
     account_recovery_delivery_failed: ['warning', 1, 'Check recovery mail configuration and delivery.'],
+    payment_reconciliation_failed: ['warning', 1, 'Inspect payment verification worker and database health.'],
     video_provider_request_failed: ['warning', 3, 'Inspect video provider status and credentials.']
 };
 const WINDOW_MS = 5 * 60000;

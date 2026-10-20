@@ -9,6 +9,23 @@ const { createBackupScheduler } = require('../../services/ops/backup-scheduler')
 const { createLogger } = require('../../services/logging/logger');
 const { createVideoRevocations } = require('../../services/video/revocations');
 
+test('payment reconciliation failures create a persistent private operational alert', async (t) => {
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'halastudy-payment-alert-'));
+    const file = path.join(directory, 'alerts.json');
+    const alerts = createOperationalAlerts({ file, env: {} });
+    t.after(() => alerts.close());
+    t.mock.method(console, 'error', () => {});
+    const logger = createLogger({}, { onEvent: alerts.observe });
+    logger.error({ event: 'payment_reconciliation_failed', transactionId: 'private-transaction', email: 'private@example.invalid' });
+    await alerts.flush();
+    const entries = JSON.parse(await fs.readFile(file, 'utf8'));
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].event, 'payment_reconciliation_failed');
+    assert.equal(entries[0].pending, true);
+    assert.ok(!JSON.stringify(entries).includes('private-transaction'));
+    assert.ok(!JSON.stringify(entries).includes('private@example.invalid'));
+});
+
 test('shutdown waits for the in-flight backup before flushing its failure alert', async () => {
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'halastudy-backup-shutdown-'));
     const file = path.join(directory, 'alerts.json');
