@@ -179,10 +179,13 @@ test('refinement: responsive bilingual themes, keyboard focus and accessible mem
     for (const width of [320, 390, 768, 1440]) for (const lang of ['ar', 'en']) for (const theme of ['light', 'dark']) {
         await page.setViewportSize({ width, height: width < 500 ? 844 : 1000 });
         await page.goto(`${server.baseUrl}/app`);
-        await page.evaluate(({ lang, theme }) => { localStorage.setItem('halastudyLang', lang); localStorage.setItem('halastudyTheme', theme); }, { lang, theme });
+        await page.locator(`[data-lang-value=${lang}]`).click();
+        if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('#theme-toggle').click();
         for (const view of ['home', 'progress', 'circles', 'account']) {
             await page.goto(`${server.baseUrl}/app#${view}`);
             await expect(page.locator(`[data-panel=${view}]`)).toBeVisible();
+            await expect(page.locator('html')).toHaveAttribute('lang', lang);
+            await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}/${lang}/${theme}/${view} overflow`).toBe(true);
             const findings = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
             expect(findings.violations.filter((entry) => ['serious', 'critical'].includes(entry.impact))).toEqual([]);
