@@ -3,6 +3,25 @@ const { test, expect } = require('@playwright/test');
 const ADMIN_PATH = '/ops-smoke-test-1234';
 const ADMIN_PASSWORD = 'smoke-admin-password';
 
+test('failed admin signout stays explicit and can be retried', async ({ page }) => {
+    await page.goto(ADMIN_PATH);
+    await page.fill('#admin-password', ADMIN_PASSWORD);
+    await page.click('#login-form button[type="submit"]');
+    await expect(page.locator('#ops-shell')).toBeVisible();
+    await page.route(`**${ADMIN_PATH}/api/logout`, (route) => route.fulfill({
+        status: 503, contentType: 'application/json', body: '{"errorCode":"UNAVAILABLE"}'
+    }));
+    await page.click('#btn-admin-signout');
+    await expect(page.locator('#signout-feedback')).toContainText('still signed in');
+    await expect(page.locator('#ops-shell')).toBeVisible();
+    await expect(page.locator('#btn-admin-signout')).toBeEnabled();
+    expect((await page.request.get(`${ADMIN_PATH}/api/overview`)).status()).toBe(200);
+    await page.unroute(`**${ADMIN_PATH}/api/logout`);
+    await page.click('#btn-admin-signout');
+    await expect(page.locator('#login-view')).toBeVisible();
+    expect((await page.request.get(`${ADMIN_PATH}/api/overview`)).status()).toBe(401);
+});
+
 let adminIpCounter = 180;
 
 async function createAdminPage(browser) {

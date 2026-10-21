@@ -132,6 +132,7 @@
       <button type="button" class="btn" id="btn-refresh">Refresh</button>
       <button type="button" class="btn" id="btn-admin-signout">Sign out</button>
     </div>
+    <p id="signout-feedback" class="feedback" role="alert"></p>
 
     <div class="tabs" id="tabs">
       <button data-panel="overview" class="is-on">Overview</button>
@@ -330,8 +331,16 @@
       });
 
       $('btn-admin-signout').addEventListener('click', async () => {
-        try { await api('POST', '/logout'); } catch (_e) {}
-        window.location.reload();
+        $('btn-admin-signout').disabled = true;
+        $('signout-feedback').textContent = '';
+        try {
+          await api('POST', '/logout');
+          window.location.reload();
+        } catch (_error) {
+          $('signout-feedback').textContent = 'Could not sign out. You are still signed in. Please retry.';
+        } finally {
+          $('btn-admin-signout').disabled = false;
+        }
       });
 
       /* ---------- tabs ---------- */
