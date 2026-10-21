@@ -838,3 +838,30 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 - Owner-controlled sandbox/service acceptance and an approved release are still required before real users/payments.
 
 **Final receipt:** 133 integration tests and 55 browser tests passed; one online-font diagnostic intentionally skipped. All five targeted probes passed. Final verdict remains NO-GO for the open release/payment/lobby and external acceptance items.
+
+
+## 2026-10-21 - Ordered hardening and clean-release verification
+
+**Goal for this session:** Implement the six recommended hardening items, reviewing and testing after each fix.
+
+**What worked:**
+- Lobby media renewal, serialized role changes, reconnect/departure cleanup and permanent camera privacy regressions pass focused checks.
+- Shared boards enforce a non-destructive 100-task ceiling with bilingual draft-preserving feedback; sensitive browser diagnostics are disabled/redacted.
+- Payment notifications coalesce per order, preserve cooldown/retry limits, retain concurrent hints and cannot revive exhausted jobs. Migration 003 preserves overlapping paid review orders beside pending checkouts.
+- MFA-verified billing readers can view unresolved payments; only super admins can perform audited, provider-verified rechecks/explicit review activation. No manual paid overrides or live charging.
+- Clean Git archive of source release 3754ef0, fresh npm ci, all static/dependency checks, 145 integration tests and 62 browser tests pass. One online-font diagnostic intentionally skipped. Disposable PostgreSQL 16 outage/restore test passes and its cluster is stopped. Archive/source/lockfile parity is exact after tests.
+
+**What broke:**
+- Regressions reproduced lobby lifecycle gaps, board overflow, sensitive diagnostics, notification-job multiplication and delayed-approval uniqueness failure.
+- Staff review initially used a UUID cursor cast against a text column; corrected. Its harness initially omitted the operator path and failed to renew MFA after role grants; corrected while retaining the permission assertions. Review also prevented callback revival of exhausted jobs and refreshed subscription/audit lists after rechecks.
+
+**What I changed:**
+- Focused commits 94cd1dd (media lifecycle), 5372f6a (privacy CI), and coherent source assembly 3754ef0 (preserved UX/payment overlay plus reviewed hardening). Required previously untracked modules/tests/migrations are now committed. Unrelated audit folders remain untouched.
+- Review, runner, acceptance handoff and ignored evidence are under docs/hardening/2026-10-21. No .env copied, no production/provider calls, real email, push, hosted migration or deployment.
+
+**Next session starts with:**
+- Read docs/hardening/2026-10-21/ACCEPTANCE.md and complete owner-controlled service acceptance against the tested release.
+
+**Open questions for Aziz:**
+- Which staging URL and recovery-email provider should be used? Production recovery currently has no delivery adapter; the local-only outbox is not real delivery.
+- Merchant selection/contract, actual media termination, hosted restore, external alert receipt and deployment still require their designated environments and acceptance evidence.
