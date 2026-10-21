@@ -54,12 +54,18 @@ test('platform transactions enforce subscriptions, scoped supervision, rewards a
         await assert.rejects(cohorts.members(eve, circle.id), /COHORT_NOT_FOUND/);
         const invitation = await cohorts.invite(alice, circle.id);
         await cohorts.accept(bob, invitation.token);
+        assert.deepEqual(await cohorts.accept(bob, invitation.token), { id: circle.id }, 'lost-response retry belongs to the same current member');
+        const unused = await cohorts.invite(alice, circle.id);
+        await assert.rejects(cohorts.revokeInvites(bob, circle.id), /FORBIDDEN/);
+        await cohorts.revokeInvites(alice, circle.id);
+        await assert.rejects(cohorts.accept(eve, unused.token), /INVITE_INVALID/);
         await assert.rejects(cohorts.accept(eve, invitation.token), /INVITE_INVALID|INVITE_USED/);
         await assert.rejects(cohorts.setRole(bob, circle.id, bob, 'supervisor'), /FORBIDDEN/);
         await cohorts.setRole(alice, circle.id, bob, 'supervisor');
         assert.equal((await cohorts.membership(bob, circle.id)).canSupervise, true);
         assert.deepEqual(await access.roles(bob), []);
         await cohorts.setRole(alice, circle.id, bob, 'remove');
+        await assert.rejects(cohorts.accept(bob, invitation.token), /INVITE_USED/);
         await assert.rejects(cohorts.members(bob, circle.id), /COHORT_NOT_FOUND/);
         const secondCircle = await cohorts.create(alice, 'Second circle');
         await cohorts.create(alice, 'Third circle');
@@ -135,6 +141,9 @@ test('platform transactions enforce subscriptions, scoped supervision, rewards a
         assert.equal((await progress.update(bob, midnight.id, 'complete')).xp, 2);
         const days = (await db.query('SELECT day_key,xp FROM halastudy.xp_ledger WHERE user_id=$1 ORDER BY day_key', [bob])).rows;
         assert.deepEqual(days, [{ day_key: '2026-10-20', xp: 1 }, { day_key: '2026-10-21', xp: 1 }]);
+        const week = (await progress.summary(bob)).activity;
+        assert.equal(week.length, 7);
+        assert.deepEqual(week.slice(-2), [{ day: '2026-10-20', xp: 1 }, { day: '2026-10-21', xp: 1 }]);
         timestamp = Date.parse('2026-10-22T06:00:00Z');
         const capped = await progress.start(bob);
         for (let index = 0; index < 322; index++) {
@@ -148,6 +157,21 @@ test('platform transactions enforce subscriptions, scoped supervision, rewards a
         timestamp += 30000; await progress.update(bob, next.id, 'heartbeat');
         timestamp += 30000;
         assert.equal((await progress.update(bob, next.id, 'complete')).xp, 0);
+        timestamp = savedTime;
+    });
+
+    await t.test('abandoned sessions and backward clocks never become reward credit', async () => {
+        const savedTime = timestamp;
+        const stale = await progress.start(alice);
+        timestamp += 13 * 3600000;
+        assert.equal((await progress.summary(alice)).current, null);
+        await assert.rejects(progress.update(alice, stale.id, 'complete'), /SESSION_EXPIRED/);
+        const fresh = await progress.start(alice);
+        assert.notEqual(fresh.id, stale.id);
+        assert.equal((await db.query('SELECT state FROM halastudy.focus_sessions WHERE id=$1', [stale.id])).rows[0].state, 'abandoned');
+        timestamp -= 10000;
+        assert.equal(Number((await progress.update(alice, fresh.id, 'heartbeat')).credited_ms), 0);
+        assert.equal((await progress.update(alice, fresh.id, 'complete')).xp, 0);
         timestamp = savedTime;
     });
 

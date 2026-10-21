@@ -12,6 +12,8 @@ test('OAuth verifies browser state, PKCE, explicit linking and purpose-bound rea
     let exchangeCount = 0;
     let verifier = '';
     let flushFails = false;
+    let exchangeGate = null;
+    let exchangeStarted = () => {};
     const secret = 'google-test-session-secret';
     const app = express();
     app.use((req, _res, next) => { req.user = users.get(String(req.headers['x-test-user'] || '')); next(); });
@@ -25,6 +27,8 @@ test('OAuth verifies browser state, PKCE, explicit linking and purpose-bound rea
         logger: { warn() {}, info() {}, error() {} },
         fetchImpl: async (url, options) => {
             if (url.includes('/token')) {
+                exchangeStarted();
+                if (exchangeGate) await exchangeGate;
                 exchangeCount++;
                 verifier = new URLSearchParams(options.body).get('code_verifier');
                 return { ok: true, json: async () => ({ access_token: 'test-only-token' }) };
@@ -36,9 +40,9 @@ test('OAuth verifies browser state, PKCE, explicit linking and purpose-bound rea
     await new Promise((resolve) => server.once('listening', resolve));
     t.after(() => new Promise((resolve) => server.close(resolve)));
     const base = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`;
-    const flow = async (purpose = 'login', userId = '') => {
+    const flow = async (purpose = 'login', userId = '', next = '') => {
         const headers = userId ? { 'x-test-user': userId } : {};
-        const started = await fetch(`${base}/auth/google?purpose=${purpose}`, { headers, redirect: 'manual' });
+        const started = await fetch(`${base}/auth/google?purpose=${purpose}&next=${encodeURIComponent(next)}`, { headers, redirect: 'manual' });
         const url = new URL(started.headers.get('location'));
         return { state: url.searchParams.get('state'), challenge: url.searchParams.get('code_challenge'), headers };
     };
@@ -54,8 +58,13 @@ test('OAuth verifies browser state, PKCE, explicit linking and purpose-bound rea
     assert.equal(users.size, 1);
     const googleUser = [...users.values()][0];
     assert.equal(googleUser.googleSub, profile.sub);
+    const destination = '/app#circles?invite=synthetic-only';
+    assert.equal((await finish(await flow('login', '', destination))).headers.get('location'), destination);
+    for (const unsafe of ['//example.invalid', '/\\example.invalid', 'https://example.invalid']) {
+        assert.equal((await finish(await flow('login', '', unsafe))).headers.get('location'), '/account?auth=google');
+    }
     await finish(first);
-    assert.equal(exchangeCount, 1, 'callback replay must not exchange another code');
+    assert.equal(exchangeCount, 5, 'callback replay must not exchange another code');
     const proofResponse = await finish(await flow('security', googleUser.id));
     const proofCookie = proofResponse.headers.getSetCookie().find((cookie) => cookie.startsWith('coStudyReauth='));
     const proof = proofCookie.split(';')[0].split('=')[1];
@@ -68,6 +77,20 @@ test('OAuth verifies browser state, PKCE, explicit linking and purpose-bound rea
     assert.ok(!passwordUser.googleSub);
     assert.equal((await finish(await flow('login', passwordUser.id))).headers.get('location'), '/account?auth=google');
     assert.equal(passwordUser.googleSub, profile.sub);
+    const revoked = createUser({ email: 'revoked@example.invalid', passwordHash: 'local:hash', displayName: 'Revoked actor' });
+    const previousSubject = revoked.googleSub;
+    users.set(revoked.id, revoked); usersByEmail.set(revoked.email, revoked.id);
+    profile = { ...profile, sub: 'revoked-link-subject', email: revoked.email };
+    let release = () => {};
+    const started = new Promise((resolve) => { exchangeStarted = () => resolve(undefined); });
+    exchangeGate = new Promise((resolve) => { release = () => resolve(undefined); });
+    const linking = finish(await flow('login', revoked.id));
+    await started;
+    revoked.tokenEpoch++;
+    release();
+    assert.equal((await linking).headers.get('location'), '/account?auth=google_failed');
+    assert.equal(revoked.googleSub, previousSubject, 'a revoked actor cannot authorize provider linking');
+    exchangeGate = null;
     flushFails = true;
     profile = { ...profile, sub: 'third-subject', email: 'offline@example.invalid' };
     assert.equal((await finish(await flow())).headers.get('location'), '/account?auth=google_failed');

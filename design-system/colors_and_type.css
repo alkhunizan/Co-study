@@ -23,6 +23,7 @@
   --ink-2:        #5B666A;   /* readable secondary text on paper and selected surfaces */
   --ink-3:        #667075;   /* tertiary, captions, placeholders */
   --ink-inv:      #FAF7F1;   /* text on dark / accent fills */
+  --on-accent:    #2D3436;   /* dark ink on amber in either theme */
 
   /* Borders / hairlines */
   --line:         #E2D7C8;   /* default border, warm */
@@ -39,7 +40,7 @@
   /* Semantic — kept warm, editorial */
   --success:      #5A8C5C;   /* sage */
   --success-soft: rgba(90, 140, 92, 0.12);
-  --danger:       #C75545;   /* terracotta */
+  --danger:       #A84336;   /* readable terracotta text on paper */
   --danger-soft:  rgba(199, 85, 69, 0.12);
   --warn:         #D4A256;   /* deeper amber */
   --warn-soft:    rgba(212, 162, 86, 0.14);

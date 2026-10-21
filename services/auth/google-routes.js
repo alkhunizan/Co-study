@@ -15,6 +15,7 @@ const { hashPassword } = require('./password');
 const { normalizeEmail, sanitizeUserText } = require('./index');
 const { createUser } = require('../../user-store');
 const { COOKIE_NAME, TTL_MS, issueReauth } = require('./reauth');
+const safeReturn = require('../../public/js/safe-return');
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -78,7 +79,8 @@ function createGoogleAuthRouter(deps = {}) {
         if (purpose !== 'login' && !req.user) return res.redirect('/account');
         if (pending.size >= 1000) return res.status(429).json({ errorCode: 'RATE_LIMITED' });
         const verifier = crypto.randomBytes(32).toString('base64url');
-        pending.set(nonce, { expires: Date.now() + STATE_TTL_MS, purpose, userId: req.user?.id, verifier });
+        pending.set(nonce, { expires: Date.now() + STATE_TTL_MS, purpose, userId: req.user?.id, verifier,
+            returnTo: purpose === 'login' ? safeReturn(req.query.next, '') : '' });
         setStateCookie(req, res, nonce);
         const params = new URLSearchParams({
             client_id: config.clientId,
@@ -99,10 +101,14 @@ function createGoogleAuthRouter(deps = {}) {
         const requestIp = getRequestIp(req);
         if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
 
+        let flow;
+        const actor = req.user;
+        const actorEpoch = actor?.tokenEpoch;
+        const liveActor = () => actor && users.get(actor.id) === actor && actor.tokenEpoch === actorEpoch && !actor.banned;
         const failRedirect = (reason) => {
             clearStateCookie(req, res);
             logger.warn({ event: 'google_auth_failed', reason });
-            res.redirect('/account?auth=google_failed');
+            res.redirect(`/account?auth=google_failed${flow?.returnTo ? `&next=${encodeURIComponent(flow.returnTo)}` : ''}`);
         };
 
         // CSRF: the state must match the browser-bound nonce cookie.
@@ -113,7 +119,7 @@ function createGoogleAuthRouter(deps = {}) {
             || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(got))) {
             return failRedirect('state_mismatch');
         }
-        const flow = pending.get(got);
+        flow = pending.get(got);
         pending.delete(got);
         if (!flow || flow.expires <= Date.now()) return failRedirect('state_expired');
         if (flow.purpose !== 'login' && (!req.user || flow.userId !== req.user.id)) {
@@ -151,6 +157,7 @@ function createGoogleAuthRouter(deps = {}) {
         }
 
         const email = normalizeEmail(profile.email);
+        if (actor && !liveActor()) return failRedirect('session_changed');
         // Google's email_verified comes back as a boolean or the string "true".
         const emailVerified = profile.email_verified === true || profile.email_verified === 'true';
         const googleSub = typeof profile.sub === 'string' && profile.sub ? profile.sub : null;
@@ -178,20 +185,29 @@ function createGoogleAuthRouter(deps = {}) {
             if (!user.googleSub) {
                 // Email/password accounts have not verified email ownership.
                 // Linking therefore requires their existing signed-in session.
-                if (req.user?.id !== user.id) return failRedirect('link_requires_login');
+                if (req.user?.id !== user.id || !liveActor()) return failRedirect('link_requires_login');
                 user.googleSub = googleSub;
                 if (!user.authProvider) user.authProvider = 'password';
                 persistUsersSoon();
             }
             if (user.googleSub !== googleSub) return failRedirect('identity_mismatch');
+            const epoch = user.tokenEpoch;
             try { await flushUsers(); } catch {
                 user.googleSub = previousSubject;
                 persistUsersSoon();
                 return failRedirect('persistence_failed');
             }
+            if (users.get(user.id) !== user || user.tokenEpoch !== epoch || user.banned || (actor && !liveActor())) {
+                if (!previousSubject && user.googleSub === googleSub) {
+                    user.googleSub = previousSubject;
+                    persistUsersSoon();
+                    try { await flushUsers(); } catch { logger.error({ event: 'google_link_rollback_failed' }); }
+                }
+                return failRedirect('session_changed');
+            }
             setAuthCookie(req, res, user);
             logger.info({ event: 'google_login', userId: user.id });
-            return res.redirect('/account?auth=google');
+            return res.redirect(flow.returnTo || '/account?auth=google');
         }
 
         // New account. Random internal password keeps the existing pipeline
@@ -219,7 +235,7 @@ function createGoogleAuthRouter(deps = {}) {
             return failRedirect('persistence_failed');
         }
         setAuthCookie(req, res, user);
-        return res.redirect('/account?auth=google');
+        return res.redirect(flow.returnTo || '/account?auth=google');
     });
 
     return router;

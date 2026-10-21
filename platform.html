@@ -7,13 +7,14 @@
   <meta name="theme-color" content="#F5F2EB">
   <title>مساحتك — Halastudy</title>
   <link rel="icon" href="/images/icons/favicon.svg">
-  <link rel="stylesheet" href="/design-system/colors_and_type.css">
-  <link rel="stylesheet" href="/css/platform.css">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css?v=20261021-refinement">
+  <link rel="stylesheet" href="/css/platform.css?v=20261021-refinement">
   <script src="/js/halastudy-core.js"></script>
   <script src="/js/ux-insights.js"></script>
   <script src="/js/schedule-display.js"></script>
-  <script src="/js/focus-client.js" defer></script>
-  <script src="/js/platform.js" defer></script>
+  <script src="/js/focus-client.js?v=20261021-refinement" defer></script>
+  <script src="/js/platform-copy.js?v=20261021-refinement" defer></script>
+  <script src="/js/platform.js?v=20261021-refinement" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main" data-lang="skip">انتقل إلى المحتوى</a>
@@ -43,25 +44,33 @@
         <a class="button primary" href="/account?next=%2Fapp" data-lang="signIn">سجّل الدخول</a>
         <a class="button" href="/open" data-lang="continueGuest">ادخل غرفة كضيف</a>
       </section>
-      <section data-panel="home" hidden>
+      <section data-panel="home" class="study-home" hidden>
         <p class="eyebrow" id="greeting"></p>
         <h1 data-lang="homeTitle">فسحة للتركيز</h1>
         <p class="lede" data-lang="homeBody">ابدأ جلسة هادئة، وخلّ التقدّم يجي خطوة بخطوة.</p>
-        <a class="button primary" href="/open" data-lang="openRoom">افتح غرفة</a>
-        <a class="button" href="/lobby" data-lang="lobby">ادخل الاستراحة</a>
-        <h2 data-lang="continueStudy">أكمل مذاكرتك</h2><div id="return-room" class="rows"></div>
-        <h2 data-lang="nextSession">موعدك القادم</h2><div id="next-session" class="rows"></div>
-        <p class="note" data-lang="todayRule">دقائق اليوم من الجلسات المكتملة، بتوقيت الرياض (Asia/Riyadh).</p>
+        <div class="study-start">
+          <p data-lang="startHint">اختر مكانك، وحدد خطوة واحدة.</p>
+          <div class="actions"><a class="button primary" href="/open" data-lang="openRoom">افتح غرفة</a>
+          <a class="button" href="/app#progress" data-lang="soloFocus">ركّز على مهل</a></div>
+          <p class="note" data-lang="quietWelcome">مع رفقة أو بمفردك. الكاميرا اختيارية، والاستراحة جزء من المذاكرة.</p>
+        </div>
+        <section id="return-section"><h2 data-lang="continueStudy">أكمل مذاكرتك</h2><div id="return-room" class="rows"></div></section>
+        <section id="next-section"><h2 data-lang="nextSession">موعدك القادم</h2><div id="next-session" class="rows"></div></section>
         <div class="metrics" id="home-metrics"></div>
-        <div class="section-heading"><h2 data-lang="yourRooms">الغرف التي تديرها</h2><a href="/account" data-lang="roomHistory">سجل الغرف</a></div>
-        <div id="owned-rooms" class="rows"></div>
+        <p class="note" data-lang="todayRule">دقائق اليوم من الجلسات المكتملة، بتوقيت الرياض (Asia/Riyadh).</p>
+        <div class="home-company"><h2 data-lang="familiarCompany">مكان مألوف، ورفقة هادئة</h2>
+          <p class="note" data-lang="communityHint">ادخل الاستراحة للجلوس مع الموجودين، أو ارجع إلى مجموعتك الخاصة.</p>
+          <div class="actions"><a href="/lobby" class="button" data-lang="lobby">ادخل الاستراحة</a><a href="/app#circles" class="button" data-lang="groupsNav">المجموعات</a></div>
+        </div>
+        <section id="owned-section"><div class="section-heading"><h2 data-lang="yourRooms">الغرف التي تديرها</h2><a href="/account" data-lang="roomHistory">سجل الغرف</a></div>
+        <div id="owned-rooms" class="rows"></div></section>
       </section>
       <section data-panel="progress" hidden>
         <p class="eyebrow" data-lang="yourRhythm">على إيقاعك</p>
         <h1 data-lang="progressTitle">وقت يستحق أن يُحسب</h1>
         <p class="lede" data-lang="progressBody">تُحسب الجلسات أثناء اتصالك. الكاميرا اختيارية، والنقاط لا تعتمد على العضوية.</p>
         <div class="focus-card">
-          <div><p data-lang="currentSession">جلسة التركيز</p><output id="focus-clock" class="focus-clock" dir="ltr">00:00</output><p id="focus-state"></p></div>
+          <div class="focus-top"><p data-lang="currentSession">جلسة التركيز</p><output id="focus-clock" class="focus-clock" dir="ltr">00:00</output><p id="focus-state" role="status"></p></div>
           <div class="actions"><button class="primary" id="focus-start" data-lang="start">ابدأ جلسة</button><button id="focus-pause" data-lang="pause" hidden>إيقاف مؤقت</button><button id="focus-finish" data-lang="finish" hidden>إنهاء الجلسة</button></div>
           <p class="note" data-lang="focusRule">دقيقة مكتملة = نقطة واحدة، حتى 240 نقطة يوميًا. الانقطاع الطويل لا يُحتسب، وبياناتك السابقة تبقى في حسابك.</p>
         </div>
@@ -70,6 +79,7 @@
           <button id="recap-next" class="primary" data-lang="anotherSession">ابدأ جلسة أخرى</button>
         </section>
         <div class="metrics" id="progress-metrics"></div>
+        <section class="rhythm" aria-labelledby="rhythm-title"><h2 id="rhythm-title" data-lang="rhythmTitle">أسبوعك على مهل</h2><div id="week-activity" class="week-activity"></div><p id="next-milestone"></p><p class="note" data-lang="restWelcome">ما أنجزته يبقى لك. ارجع بخطوة تناسب وقتك.</p></section>
         <h2 data-lang="achievements">إنجازاتك</h2><div id="achievements" class="achievements"></div>
         <div class="section-heading"><h2 data-lang="recentSessions">جلساتك الأخيرة</h2><a id="export-progress" href="/api/platform/progress/export" hidden data-lang="export">تصدير CSV</a></div>
         <div id="session-history" class="rows"></div>
@@ -86,17 +96,20 @@
           <h2 id="circle-title"></h2>
           <button id="circle-exit"></button>
           <button id="create-invite" data-lang="createInvite" hidden>أنشئ دعوة لشخص واحد</button>
-          <div id="invite-result" hidden><p class="note" data-lang="inviteReady">رمز لشخص واحد، صالح لمدة 48 ساعة:</p><code id="invite-code" class="copy-value" dir="ltr"></code></div>
+          <button id="revoke-invites" data-lang="revokeInvites" hidden>إلغاء الدعوات غير المستخدمة</button>
+          <div id="invite-result" hidden><p class="note" data-lang="inviteReady">رمز لشخص واحد، صالح لمدة 48 ساعة:</p><code id="invite-code" class="copy-value" dir="ltr"></code><a id="invite-link" class="copy-value" dir="ltr"></a><button id="copy-invite" data-lang="copyInvite">انسخ رابط الدعوة</button><p id="invite-copy-status" class="note" role="status"></p></div>
+          <p class="note" data-lang="circlePrivacy">الأعضاء فقط يرون أسماء المجموعة ومواعيدها. المشرف يرى حضور مجموعته، والكاميرا اختيارية.</p>
           <h3 data-lang="members">الأعضاء</h3><div id="circle-members" class="rows"></div>
           <form id="session-create" class="form-grid" hidden>
             <h3 data-lang="scheduleSession">جدولة جلسة للمجموعة</h3>
             <label><span data-lang="sessionTitle">عنوان الجلسة</span><input name="title" maxlength="80" required></label>
             <label><span data-lang="room">الغرفة</span><select name="roomId" id="session-room" required></select></label>
             <label><span data-lang="startsAt">البدء بتوقيت جهازك</span><small id="schedule-zone"></small><input name="startsAt" type="datetime-local" required></label>
-            <label><span data-lang="minutes">الدقائق</span><input name="durationMinutes" type="number" min="5" max="240" value="25" required></label>
+            <label><span data-lang="durationLabel">مدة الجلسة بالدقائق</span><input name="durationMinutes" type="number" min="5" max="240" value="25" required></label>
             <p class="note" data-lang="privateRoomNotice">ربط الغرفة بالمجموعة يجعل دخولها متاحًا لأعضاء المجموعة فقط، مع بقاء كلمة المرور إن وُجدت.</p>
             <button class="primary" data-lang="schedule">احفظ الموعد</button>
           </form>
+          <p id="session-room-hint" class="note" hidden><span data-lang="needRoom">افتح غرفة أولًا لتربطها بموعد المجموعة.</span> <a href="/open" data-lang="openRoom">افتح غرفة</a></p>
           <h3 data-lang="scheduledSessions">مواعيد المجموعة</h3><div id="circle-sessions" class="rows"></div>
           <div id="attendance" class="rows" aria-live="polite"></div>
         </section>

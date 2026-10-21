@@ -56,8 +56,9 @@ test('platform HTTP and socket journeys use real database and scoped policies', 
     const attendance = await request(alice.cookie, `/cohorts/${circle.body.id}/sessions/${schedule.body.id}/attendance`);
     assert.equal(attendance.status, 200);
     assert.equal(attendance.body.attendance.find((entry) => entry.display_name === 'Alice').status, 'on_time');
-    const start = await request(alice.cookie, '/focus/start', 'POST', {});
+    const start = await request(alice.cookie, '/focus/start', 'POST', { credited_ms: 999999999, startedAt: 0, xp: 99999 });
     assert.equal(start.status, 200);
+    assert.equal(Number(start.body.credited_ms), 0, 'client clock and claimed credit are ignored');
     assert.equal((await request(bob.cookie, `/focus/${start.body.id}/complete`, 'POST', {})).status, 404);
     const complete = await request(alice.cookie, `/focus/${start.body.id}/complete`, 'POST', {});
     assert.equal(complete.body.xp, 0);

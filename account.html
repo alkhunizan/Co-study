@@ -13,9 +13,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/design-system/colors_and_type.css">
-  <link rel="stylesheet" href="/design-system/landing.css">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css?v=20261021-refinement">
+  <link rel="stylesheet" href="/design-system/landing.css?v=20261021-refinement">
   <script src="/js/halastudy-core.js"></script>
+  <script src="/js/safe-return.js?v=20261021-refinement"></script>
   <script src="/js/ui.js" defer></script>
   <style>
     .account-shell {
@@ -230,7 +231,9 @@
     <section id="account-view" class="hidden">
       <div class="form-actions"><a class="btn btn-primary" href="/app" data-lang="workspaceLink">مساحتي وتقدّمي</a><a class="btn btn-secondary" href="/plans">VIP · US$4.99</a></div>
       <div class="form-card">
-        <h3 class="form-title" data-lang="statsTitle">تركيزك</h3>
+        <h3 class="form-title" data-lang="statsTitle">سجلك السابق على الحساب</h3>
+        <p class="form-hint" data-lang="legacyHistoryNote">يشمل المؤقّت القديم والبيانات المستوردة. لا يمنح نقاطًا موثّقة. راجع تقدّمك الموثّق في مساحتك.</p>
+        <a href="/app#progress" class="btn btn-secondary" data-lang="verifiedProgress">تقدّمي الموثّق</a>
         <div id="stats-unavailable" hidden></div>
         <div class="stats-row">
           <div class="stat-tile">
@@ -325,8 +328,10 @@
           orDivider: 'or',
           btnGoogle: 'Continue with Google',
           errGoogle: 'Google sign-in didn’t complete. Try again.',
-          statsTitle: 'Your focus',
-          statStreak: 'Day streak',
+          statsTitle: 'Earlier recorded history',
+          legacyHistoryNote: 'Includes the earlier timer and imported history. It does not award validated points. See verified progress in your workspace.',
+          verifiedProgress: 'My verified progress',
+          statStreak: 'Last recorded streak',
           statBest: 'Best streak',
           statTotalFocus: 'Focus hours',
           profileTitle: 'Your profile',
@@ -384,8 +389,10 @@
           orDivider: 'أو',
           btnGoogle: 'تابع مع جوجل',
           errGoogle: 'ما اكتمل الدخول عبر جوجل. جرّب مرة ثانية.',
-          statsTitle: 'تركيزك',
-          statStreak: 'سلسلة الأيام',
+          statsTitle: 'سجلك السابق على الحساب',
+          legacyHistoryNote: 'يشمل المؤقّت القديم والبيانات المستوردة. لا يمنح نقاطًا موثّقة. راجع تقدّمك الموثّق في مساحتك.',
+          verifiedProgress: 'تقدّمي الموثّق',
+          statStreak: 'آخر سلسلة مسجّلة',
           statBest: 'أفضل سلسلة',
           statTotalFocus: 'ساعات التركيز',
           profileTitle: 'ملفك',
@@ -470,7 +477,11 @@
         const fb = document.getElementById('signin-feedback');
         if (fb) fb.textContent = t(authParam === 'banned' ? 'errACCOUNT_BANNED' : 'errGoogle');
       }
-      if (authParam) history.replaceState(null, '', location.pathname);
+      if (authParam) {
+        const cleaned = new URL(location.href);
+        cleaned.searchParams.delete('auth');
+        history.replaceState(null, '', cleaned.pathname + cleaned.search + cleaned.hash);
+      }
 
       // Emotional numbers (streak, focus hours) render Eastern in Arabic — the
       // .num-eastern CSS class alone doesn't convert ASCII digits (DESIGN.md §5).
@@ -491,9 +502,11 @@
       }
       function resolveNextUrl() {
         const next = new URLSearchParams(location.search).get('next') || '';
-        // Same-site paths only — never an absolute URL (open-redirect guard).
-        return next.startsWith('/') && !next.startsWith('//') ? next : '/open.html';
+        return window.HalaSafeReturn(next, '/open.html');
       }
+      document.querySelectorAll('a[href="/auth/google"]').forEach((link) => {
+        link.href = `/auth/google?next=${encodeURIComponent(resolveNextUrl())}`;
+      });
 
       /* ---------- tabs ---------- */
       function setTab(which) {

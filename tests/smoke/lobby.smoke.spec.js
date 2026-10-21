@@ -1,5 +1,22 @@
 const { test, expect } = require('@playwright/test');
 
+test('lobby camera control announces actual state across languages', async ({ page }) => {
+    await page.goto('/lobby');
+    await page.locator('#name-input').fill('Camera control fixture');
+    await page.locator('#name-go').click();
+    await expect(page.locator('#lobby-view')).toBeVisible();
+    await page.evaluate(() => (/** @type {any} */ (window)).HalaAuth.getUser());
+    await page.locator('[data-lang-value=en]').filter({ visible: true }).click();
+    await page.evaluate(`rtk.meeting = {self: {videoEnabled:true, disableVideo(){this.videoEnabled=false;}}}; rtk.connected=true; rtk.role='publisher'; refreshCameraCta({id:'synthetic-member'});`);
+    await expect(page.locator('#camera-cta')).toHaveText('Turn off my camera');
+    await expect(page.locator('#camera-cta')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('#camera-cta').click();
+    await expect(page.locator('#camera-cta')).toHaveText('Turn on my camera');
+    await expect(page.locator('#camera-cta')).toHaveAttribute('aria-pressed', 'false');
+    await page.locator('[data-lang-value=ar]').filter({ visible: true }).click();
+    await expect(page.locator('#camera-cta')).toHaveText('افتح كاميرتي');
+});
+
 test('lobby renews its media session and page exit tears it down', async ({ page }) => {
     await page.goto('/lobby');
     await page.clock.install();

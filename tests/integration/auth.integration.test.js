@@ -418,7 +418,7 @@ test('created and joined rooms land in /api/me/rooms and presence carries avatar
     assert.equal(joined.ok, true);
     const self = joined.room.participants.find((participant) => participant.name === 'Rooma');
     assert.equal(self.avatarColor, 'dusk');
-    assert.equal(typeof self.streakCurrent, 'number');
+    assert.equal(Object.hasOwn(self, 'streakCurrent'), false, 'personal progress stays private to its account');
 
     const myRooms = await authedRequest(server, '/api/me/rooms', cookie);
     assert.equal(myRooms.status, 200);

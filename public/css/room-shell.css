@@ -1,4 +1,10 @@
 /* The room shell keeps the timer central and secondary tools within reach. */
+[hidden] { display: none !important; }
+.join-input { color: var(--ink); }
+.join-input::placeholder { color: var(--ink-3); opacity: 1; }
+.join-submit { color: var(--on-accent); border-radius: 999px; }
+.join-error { color: var(--danger); }
+.join-exit { display: inline-flex; align-items: center; min-block-size: 44px; color: var(--ink); text-underline-offset: 4px; justify-content: center; }
 body { min-block-size: 100svh; }
 body > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px; flex: 0 0 auto; }
 body > .room-meta { padding: 0 24px 12px; flex: 0 0 auto; }
@@ -32,6 +38,21 @@ main > .card { background: var(--card); border: 1px solid var(--line); border-ra
 .video-box.collapsed .cam-placeholder { display: none; }
 .video-box.collapsed .cam-controls { position: absolute; inset-block-end: 12px; inset-inline: 12px; transform: none; }
 .camera-privacy { font-size: 13px; color: var(--ink-2); margin: 0; line-height: 1.5; }
+.room-company { align-self: stretch; margin: 0; color: var(--ink-2); font-size: 13px; text-align: start; line-height: 1.6; }
+.shared-intent { display: grid; gap: 6px; inline-size: 100%; text-align: start; padding: 12px 16px; background: var(--inset); border-inline-start: 2px solid var(--accent-3); border-radius: 12px; }
+.shared-intent span { font-size: 12px; color: var(--ink-2); }
+.shared-intent bdi { font-size: 15px; overflow-wrap: anywhere; }
+.quiet-ready { display: flex; align-items: center; gap: 12px; inline-size: 100%; }
+.quiet-ready small { color: var(--ink-2); font-size: 12px; text-align: start; }
+.quiet-ready button, .room-credit button { min-block-size: 44px; padding: 8px 16px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--inset); color: var(--ink); font: inherit; cursor: pointer; }
+.quiet-ready button { flex-shrink: 0; font-size: 13px; }
+.quiet-ready button[aria-pressed="true"] { border-color: var(--accent-3); }
+.room-credit, .room-recap { inline-size: 100%; text-align: start; border-block-start: 1px solid var(--line); padding-block-start: 12px; }
+.room-credit p, .room-recap p { font-size: 13px; line-height: 1.6; color: var(--ink-2); margin: 0; }
+.room-credit-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-block-start: 6px; font-size: 13px; }
+.room-credit a { display: inline-flex; min-block-size: 44px; align-items: center; color: var(--ink); }
+.room-recap h2 { font: 500 20px/1.5 var(--font-display); margin-block: 0 8px; }
+[lang="ar"] .room-recap h2 { font-family: var(--font-display-ar); }
 .camera-help { padding: 16px; border: 1px solid var(--line-strong); border-radius: 20px; background: var(--card); }
 .camera-help[hidden] { display: none; }
 .camera-help p { margin-block-end: 12px; line-height: 1.6; }

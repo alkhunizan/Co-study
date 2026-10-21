@@ -869,7 +869,8 @@ function createCoStudyServer(options = {}) {
     });
     readinessState.socket = true;
 
-    const platform = createPlatform({ userStateFile: config.userStateFile, secret: config.sessionSecret, logger, env });
+    const platform = createPlatform({ userStateFile: config.userStateFile, secret: config.sessionSecret, logger, env,
+        isCurrentUser: (user, epoch) => users.get(user.id) === user && user.tokenEpoch === epoch && !user.banned });
     const videoRevocations = createVideoRevocations({
         file: `${config.roomStateFile}.video-grants.json`, provider: videoProvider, logger, start: platform.ready
     });
@@ -1184,7 +1185,6 @@ function createCoStudyServer(options = {}) {
                 cameraOn: !!user.cameraOn,
                 status: user.status || null,
                 avatarColor: user.avatarColor || null,
-                streakCurrent: Number.isInteger(user.streakCurrent) ? user.streakCurrent : null
             })),
             messages: room.messages,
             board,
@@ -2585,7 +2585,6 @@ function createCoStudyServer(options = {}) {
                 // Profile perks relayed to peers via presence (user content,
                 // not chrome — single-accent rule stays intact client-side).
                 avatarColor: joiningUser ? joiningUser.avatarColor : null,
-                streakCurrent: joiningUser ? joiningUser.streak.current : null
             };
 
             // Recheck after asynchronous password/authorization work. No await

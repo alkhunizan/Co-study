@@ -21,7 +21,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Halastudy webfonts -->
     <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/design-system/colors_and_type.css">
+    <link rel="stylesheet" href="/design-system/colors_and_type.css?v=20261021-refinement">
     <style>
         /* Halastudy aliases — base tokens live in /design-system/colors_and_type.css.
            Neumorphic shadows (DESIGN.md §10 hard-no) replaced with the warm-ink
@@ -595,11 +595,12 @@
             .schedule-stats { grid-template-columns: 1fr; }
         }
     </style>
-    <link rel="stylesheet" href="/css/room-shell.css">
+    <link rel="stylesheet" href="/css/room-shell.css?v=20261021-refinement">
     <script src="/js/halastudy-core.js"></script>
   <script src="/js/ux-insights.js"></script>
   <script src="/js/schedule-display.js"></script>
-    <script src="/js/focus-client.js" defer></script>
+    <script src="/js/focus-client.js?v=20261021-refinement" defer></script>
+    <script src="/js/room-focus.js?v=20261021-refinement" defer></script>
     <script src="/js/ui.js" defer></script>
 </head>
 <body>
@@ -627,6 +628,7 @@
         <input type="password" id="join-password" class="join-input" maxlength="64" autocomplete="current-password" data-lang-placeholder="joinPasswordPlaceholder" placeholder="Leave empty if no password">
         <div class="join-error" id="join-error" role="alert"></div>
         <button class="join-submit" type="submit" data-lang="joinButton">Enter room</button>
+        <a class="join-exit" href="/open" data-lang="chooseAnotherRoom">Choose another room</a>
     </form>
 </div>
 
@@ -684,21 +686,21 @@
         <div class="status-control">
             <label class="status-label" data-lang="myStatus">My status</label>
             <div class="status-presets">
-                <button class="status-btn" type="button" data-status="meal">🍜 <span data-lang="statusMeal">Meal break</span></button>
-                <button class="status-btn" type="button" data-status="away">🚶 <span data-lang="statusAway">Away</span></button>
-                <button class="status-btn" type="button" data-status="studying">📖 <span data-lang="statusStudying">Studying</span></button>
-                <button class="status-btn" type="button" data-status="working">💼 <span data-lang="statusWorking">Working</span></button>
+                <button class="status-btn" type="button" data-status="meal"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 3v7a3 3 0 0 0 6 0V3M7 3v18M19 3v18M19 3c-5 2-5 10 0 10"/></svg><span data-lang="statusMeal">Meal break</span></button>
+                <button class="status-btn" type="button" data-status="away"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 5h9v14H9M3 12h10M9 8l4 4-4 4"/></svg><span data-lang="statusAway">Away</span></button>
+                <button class="status-btn" type="button" data-status="studying"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 5v16M12 5C9 2 4 3 2 4v16c4-2 7-1 10 1 3-2 6-3 10-1V4c-4-2-7-1-10 1Z"/></svg><span data-lang="statusStudying">Studying</span></button>
+                <button class="status-btn" type="button" data-status="working"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V3h8v4M3 12h18"/></svg><span data-lang="statusWorking">Working</span></button>
             </div>
             <input type="text" id="status-custom" class="status-input" maxlength="20" data-lang-placeholder="statusCustomPlaceholder" placeholder="Custom status...">
 
             <div class="status-options">
                 <label class="status-toggle">
                     <input type="checkbox" id="status-auto-sync">
-                    <span data-lang="statusAutoSync">🔄 Sync with timer</span>
+                    <span data-lang="statusAutoSync">Sync with timer</span>
                 </label>
                 <label class="status-toggle">
                     <input type="checkbox" id="status-share" checked>
-                    <span data-lang="statusShare">🔒 Share with room</span>
+                    <span data-lang="statusShare">Share with room</span>
                 </label>
             </div>
             <div class="status-preview" id="status-preview">--</div>
@@ -764,7 +766,7 @@
     <div class="center-col">
         <p class="camera-privacy" data-lang="cameraPrivacy">Camera optional. When enabled, people in your room can see it. You can turn it off at any time.</p>
         <div class="video-box">
-            <div class="video-box-collapsed-banner" id="video-collapse-banner" hidden>📹 <span data-lang="videoCollapsedBanner">No video stream</span></div>
+            <div class="video-box-collapsed-banner" id="video-collapse-banner" hidden><span data-lang="videoCollapsedBanner">No video stream</span></div>
             <div class="cam-feed" id="local-cam">
                 <div class="status-badge"><div class="status-dot" id="ai-dot"></div><span data-lang="aiMonitor">AI Focus Monitor</span></div>
                 <div class="ai-status" id="ai-status-text">AI ready</div>
@@ -802,10 +804,13 @@
         </section>
         <div class="timer-box">
             <h1 class="room-heading" data-lang="roomHeading">Room for focus</h1>
+            <p id="room-company" class="room-company" role="status"></p>
+            <div id="shared-intent" class="shared-intent" hidden><span data-lang="roomGoalLabel">Room goal</span><bdi id="shared-intent-text" dir="auto"></bdi></div>
             <div class="focus-intent">
             <label class="status-label status-goal-label" for="status-goal" data-lang="goalLabel">Session goal</label>
             <input type="text" id="status-goal" class="status-input" maxlength="80" data-lang-placeholder="goalPlaceholder" placeholder="What are you working on?">
             </div>
+            <div class="quiet-ready"><button type="button" id="quiet-ready" aria-pressed="false" data-lang="readyToFocus">Ready to focus</button><small data-lang="statusPrivacyHint">Your status is visible only when sharing is on.</small></div>
             <div class="timer-tabs">
                 <div class="timer-tab active" id="tab-focus" data-lang="focusMode">Focus mode</div>
                 <div class="timer-tab" id="tab-break" data-lang="breakMode">Break mode</div>
@@ -828,6 +833,11 @@
                 </div>
             </div>
 
+            <div class="timer-controls">
+                <button class="btn-ctrl" data-lang-title="timerResetLabel" onclick="resetTimer()">↻</button>
+                <button class="btn-ctrl main" id="btn-toggle" aria-label="Start focus" onclick="toggleTimer()">▶</button>
+            </div>
+
             <div class="timer-config-bar">
                 <div class="config-item">
                     <label for="cfg-f" data-lang="timerSet">Focus</label>:
@@ -846,10 +856,8 @@
                 <button type="button" class="timer-preset-chip" data-focus="90" data-break="15" data-lang-title="preset90">90/15</button>
             </div>
 
-            <div class="timer-controls">
-                <button class="btn-ctrl" data-lang-title="timerResetLabel" onclick="resetTimer()">↻</button>
-                <button class="btn-ctrl main" id="btn-toggle" aria-label="Start focus" onclick="toggleTimer()">▶</button>
-            </div>
+            <div class="room-credit"><p id="room-focus-message" role="status"></p><div class="room-credit-actions"><button type="button" id="room-focus-finish" hidden data-lang="saveFocus">Finish and save</button><button type="button" id="room-focus-retry" hidden data-lang="mediaRetry">Retry</button><a href="/app#progress" id="room-progress-link" hidden data-lang="verifiedProgress">Verified progress</a></div></div>
+            <section id="room-session-recap" class="room-recap" hidden tabindex="-1"><h2 data-lang="roomRecapTitle">A good place to pause</h2><p id="room-recap-values"></p><p data-lang="roomRecapRest">Your progress is saved. Rest, or choose your next small step.</p></section>
         </div>
     </div>
 
@@ -857,14 +865,14 @@
         <summary data-lang="chatTitle">Chat room</summary>
         <div class="room-tool-content" tabindex="0">
         <div class="chat-container">
-            <div class="chat-msgs" id="chat-msgs"></div>
+            <div class="chat-msgs" id="chat-msgs" tabindex="0" role="log" data-lang-aria="chatTitle" aria-label="Room chat"></div>
             <form class="chat-input-area" id="chat-form">
                 <input type="text" class="chat-input" id="chat-input" maxlength="500" autocomplete="off" enterkeyhint="send" data-lang-placeholder="chatPlaceholder" placeholder="Type a message..." disabled>
                 <button class="btn-send" id="chat-send" data-lang-title="chatSend" type="submit" disabled>➤</button>
             </form>
         </div>
         <div class="ambient-control">
-            <button id="ambient-toggle" class="ambient-btn" type="button">🎵 <span data-lang="ambientSound">Ambient sound</span> ▼</button>
+            <button id="ambient-toggle" class="ambient-btn" type="button"><span data-lang="ambientSound">Ambient sound</span> <span aria-hidden="true">⌄</span></button>
             <div id="ambient-popover" class="ambient-popover" hidden>
                 <div class="ambient-header">
                     <span data-lang="ambientTitle">Choose ambient sound</span>
@@ -1278,6 +1286,24 @@
         }
     };
     const langDict = translations;
+    Object.assign(translations.ar, {
+        readyToFocus: 'جاهز للتركيز', statusPrivacyHint: 'تظهر حالتك للغرفة فقط عند تفعيل المشاركة.',
+        chooseAnotherRoom: 'العودة لاختيار غرفة', roomFull: 'الغرفة مكتملة العدد. جرّب غرفة أخرى أو ارجع لاحقًا.',
+        companyWaiting: 'بانتظار الاتصال بالغرفة.', companyFirst: 'أنت أول الحاضرين. شارك الرابط إن رغبت.',
+        companyTogether: 'عدد الحاضرين: {count}. كلٌّ على إيقاعه.',
+        focusTodayLabel: 'مؤقّت هذا الجهاز', focusReset: 'مسح',
+        statusAutoSync: 'مزامنة مع المؤقّت', statusShare: 'مشاركة الحالة مع الغرفة',
+        mediaRealtimeKitDetail: 'الكاميرا اختيارية. المايك مقفل تلقائيًا.'
+    });
+    Object.assign(translations.en, {
+        readyToFocus: 'Ready to focus', statusPrivacyHint: 'Your status is visible only when sharing is on.',
+        chooseAnotherRoom: 'Choose another room', roomFull: 'This room is full. Try another room or return later.',
+        companyWaiting: 'Connecting to your room.', companyFirst: 'You’re the first here. Share the link if you like.',
+        companyTogether: 'Here together: {count}. Everyone at their own pace.',
+        focusTodayLabel: 'This device’s timer', focusReset: 'Clear',
+        statusAutoSync: 'Sync with timer', statusShare: 'Share status with room',
+        mediaRealtimeKitDetail: 'Camera optional. Mic stays off automatically.'
+    });
     const SERVER_ERROR_KEYS = {
         ROOM_NAME_REQUIRED: 'roomNameRequired',
         ROOM_CODE_GENERATION_FAILED: 'roomCodeGenerationFailed',
@@ -2627,6 +2653,7 @@
         }
         updatePresenceList();
         updateFocusSummary();
+        window.dispatchEvent(new Event('halaroomlanguage'));
         renderScheduleCard();
         renderBoardFeedback();
         renderBoard({ preserveGoalDraft: isBoardGoalFocused() });
@@ -2665,6 +2692,8 @@
     }
 
     function updateStatusPresetUI(activePreset) {
+        const ready = document.getElementById('quiet-ready');
+        ready.setAttribute('aria-pressed', String(activePreset === 'studying'));
         if (!statusPresetButtons || typeof statusPresetButtons.forEach !== 'function') return;
         statusPresetButtons.forEach(btn => {
             const target = btn.dataset.status;
@@ -3160,6 +3189,12 @@
     };
     const FOCUS_HINT_DISMISS_KEY = 'halastudyHintDismissed.focusSync';
     let accountUser = null;
+    let verifiedStreak = 0;
+    window.addEventListener('halaprogress', (event) => {
+        verifiedStreak = event.detail.totals.streak;
+        void window.HalaAuth.getUser().then((user) => { accountUser = user; updateStreakBadge(); }).catch(() => {});
+        updateStreakBadge();
+    });
 
     function formatEmotionalNumber(value) {
         // Streaks are emotional numbers — Eastern numerals in Arabic (DESIGN.md §5).
@@ -3169,7 +3204,7 @@
     function updateStreakBadge() {
         const badge = document.getElementById('streak-badge');
         if (!badge) return;
-        const current = accountUser && accountUser.streak ? accountUser.streak.current : 0;
+        const current = accountUser ? verifiedStreak : 0;
         if (!current) {
             badge.hidden = true;
             return;
@@ -3194,25 +3229,14 @@
 
     function onFocusSessionComplete(minutes) {
         trackValidatedFocus('complete');
-        if (accountUser && window.HalaCore) {
-            window.HalaCore.postJson('/api/me/focus-session', { minutes })
-                .then((payload) => {
-                    accountUser.streak = payload.streak;
-                    updateStreakBadge();
-                })
-                .catch(() => { /* offline — local stats still counted */ });
-        } else {
+        if (!accountUser) {
             maybeShowFocusSyncHint();
         }
     }
 
     function trackValidatedFocus(action) {
-        if (!accountUser || !window.HalaFocus) return;
-        window.HalaFocus[action]().catch(() => {
-            if (window.HalaUI) window.HalaUI.toast(window.HalaCore.getLang() === 'ar'
-                ? 'تعذّرت مزامنة التقدّم. مؤقّت الغرفة مستمر.'
-                : 'Progress could not sync. Your room timer is still running.');
-        });
+        if (!window.HalaRoomFocus) return;
+        void window.HalaRoomFocus.action(action);
     }
 
     function applyMemberAccents() {
@@ -3381,6 +3405,8 @@
     function renderBoard(options = {}) {
         if (!todoList) return;
         const preserveGoalDraft = options.preserveGoalDraft === true;
+        document.getElementById('shared-intent').hidden = !boardState.goal;
+        document.getElementById('shared-intent-text').textContent = boardState.goal;
         if (roomGoalInput && !preserveGoalDraft) {
             roomGoalInput.value = boardState.goal;
         }
@@ -3531,7 +3557,7 @@
             if (mode === 'focus') trackValidatedFocus('pause');
             clearInterval(timer); timer = null;
             btn.textContent = '▶';
-            btn.style.boxShadow = 'var(--shadow-btn)';
+            btn.style.boxShadow = 'var(--sh-2)';
             timerRunning = false;
             refreshStatusState();
             updateDisp();
@@ -3539,7 +3565,7 @@
             if (mode === 'focus') trackValidatedFocus('start');
             if(timeLeft === 25*60 && mode === 'focus') timeLeft = focusDur * 60;
             btn.textContent = '⏸';
-            btn.style.boxShadow = 'var(--shadow-btn-inset)';
+            btn.style.boxShadow = 'var(--sh-lamp)';
             timerRunning = true;
             refreshStatusState();
             updateDisp();
@@ -3620,6 +3646,7 @@
 
     function updatePresenceText() {
         presenceCountEl.textContent = presenceCount;
+        document.getElementById('room-company').textContent = currentCopy()[presenceCount > 1 ? 'companyTogether' : presenceCount === 1 ? 'companyFirst' : 'companyWaiting'].replace('{count}', String(presenceCount));
     }
 
     function updatePresenceList(list) {
@@ -4039,6 +4066,8 @@
         });
     }
     if (statusPresetButtons && statusPresetButtons.length) {
+        document.getElementById('quiet-ready').addEventListener('click', () => setStatusPreset(statusState.manualPreset === 'studying' ? 'away' : 'studying'));
+        window.addEventListener('halaroomfinish', () => { if (timer) toggleTimer(); });
         statusPresetButtons.forEach(btn => {
             btn.addEventListener('click', () => setStatusPreset(btn.dataset.status));
         });

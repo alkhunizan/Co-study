@@ -48,11 +48,17 @@ function createCohorts(db, entitlements, now = Date.now) {
     async function accept(userId, token) {
         return db.transaction(async (tx) => {
             const invitation = (await tx.query('SELECT * FROM halastudy.invitations WHERE token_hash=$1', [hash(token)])).rows[0];
-            requireCondition(invitation && !invitation.accepted_at && Number(invitation.expires_at) > now(), 'INVITE_INVALID', 404);
+            requireCondition(invitation, 'INVITE_INVALID', 404);
             const cohort = (await tx.query('SELECT * FROM halastudy.cohorts WHERE id=$1 AND archived=false FOR UPDATE', [invitation.cohort_id])).rows[0];
             requireCondition(cohort, 'COHORT_NOT_FOUND', 404);
-            const currentInvite = (await tx.query('SELECT accepted_at FROM halastudy.invitations WHERE token_hash=$1 FOR UPDATE', [hash(token)])).rows[0];
-            requireCondition(!currentInvite.accepted_at, 'INVITE_USED', 409);
+            const currentInvite = (await tx.query('SELECT * FROM halastudy.invitations WHERE token_hash=$1 FOR UPDATE', [hash(token)])).rows[0];
+            requireCondition(currentInvite, 'INVITE_INVALID', 404);
+            if (currentInvite.accepted_at) {
+                const member = await tx.query('SELECT user_id FROM halastudy.cohort_members WHERE cohort_id=$1 AND user_id=$2', [cohort.id, userId]);
+                requireCondition(currentInvite.accepted_by === userId && member.rows.length, 'INVITE_USED', 409);
+                return { id: cohort.id };
+            }
+            requireCondition(Number(currentInvite.expires_at) > now(), 'INVITE_INVALID', 404);
             const { features, plan } = await entitlements.resolve(cohort.owner_id, tx);
             requireCondition(plan.id === 'vip', 'INVITE_UNAVAILABLE', 409);
             const existing = await tx.query('SELECT user_id FROM halastudy.cohort_members WHERE cohort_id=$1 AND user_id=$2', [cohort.id, userId]);
@@ -64,6 +70,14 @@ function createCohorts(db, entitlements, now = Date.now) {
             await tx.query('UPDATE halastudy.invitations SET accepted_by=$2,accepted_at=$3 WHERE token_hash=$1', [hash(token), userId, now()]);
             await audit(tx, userId, 'cohort.joined', cohort.id);
             return { id: cohort.id };
+        });
+    }
+    async function revokeInvites(userId, cohortId) {
+        return db.transaction(async (tx) => {
+            await tx.query('SELECT id FROM halastudy.cohorts WHERE id=$1 FOR UPDATE', [cohortId]);
+            requireCondition((await membership(userId, cohortId, tx)).canManage, 'FORBIDDEN', 403);
+            await tx.query('DELETE FROM halastudy.invitations WHERE cohort_id=$1 AND accepted_at IS NULL', [cohortId]);
+            await audit(tx, userId, 'cohort.invitations.revoked', cohortId);
         });
     }
     async function members(userId, cohortId) {
@@ -165,7 +179,7 @@ function createCohorts(db, entitlements, now = Date.now) {
             WHERE m.cohort_id=$1 AND ($4::boolean OR m.user_id=$5)`,
         [cohortId, sessionId, session.starts_at, cohort.canSupervise, userId, now()])).rows;
     }
-    return { membership, list, create, invite, accept, members, setRole, schedule, sessions, attendance, archive, leave, cancelSession };
+    return { membership, list, create, invite, accept, revokeInvites, members, setRole, schedule, sessions, attendance, archive, leave, cancelSession };
 }
 
 module.exports = { createCohorts };

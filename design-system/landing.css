@@ -1738,3 +1738,15 @@ html[lang="ar"] .room-preview-name { font-family: var(--font-display-ar); font-w
 .room-preview-warning { font-size: 13px; line-height: 1.5; }
 .room-preview-note { color: var(--ink-2); }
 .room-preview-warning { margin-top: 8px; color: var(--danger); font-weight: 600; }
+
+/* Entry screens retain their actions when text grows or the viewport narrows. */
+.form-shell > *, .form-column, .form-intro { min-inline-size: 0; }
+.form-shell { grid-template-columns: minmax(0,380px) minmax(0,1fr); }
+.is-open-page .topbar { position: sticky; flex-wrap: wrap; gap: 10px; }
+.is-open-page .topbar-right { max-inline-size: 100%; flex-wrap: wrap; min-inline-size: 0; }
+.is-open-page .form-shell, .is-open-page .auth-shell { padding-block-start: 36px; }
+.is-open-page .form-card { min-inline-size: 0; padding: clamp(20px,3vw,32px); }
+.is-open-page .form-card input, .is-open-page .form-card select, .is-open-page .form-card textarea { min-inline-size: 0; max-inline-size: 100%; }
+.is-open-page .my-room-row { flex-wrap: wrap; }
+.is-open-page .form-card .btn, .is-open-page .my-room-row .btn { white-space: normal; max-inline-size: 100%; }
+@media (max-width: 880px) { .form-shell { grid-template-columns: minmax(0,1fr); } }

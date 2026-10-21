@@ -9,7 +9,7 @@ button:disabled { opacity: .45; cursor: wait; }
 button:hover:not(:disabled), .button:hover { border-color: var(--accent-3); }
 button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: #2D3436; font-weight: 700; }
 input, select { inline-size: 100%; min-block-size: 46px; padding: 10px 14px; background: var(--inset); border: 1px solid var(--line-strong); border-radius: 16px; }
-:focus-visible { outline: 3px solid var(--accent-3); outline-offset: 3px; }
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
 .skip-link { position: absolute; inset-block-start: -80px; inset-inline-start: 20px; z-index: 20; padding: 12px; background: var(--card); }
 .skip-link:focus { inset-block-start: 8px; }
 .platform-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 5vw; border-block-end: 1px solid var(--line); background: var(--paper); }
@@ -98,3 +98,47 @@ footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 28px; pad
 
 .consent-label { display: flex; align-items: center; gap: 12px; min-block-size: 44px; }
 .consent-label input { inline-size: 24px; min-block-size: 24px; block-size: 24px; flex-shrink: 0; }
+
+/* A quiet study front door; empty scheduling rows are conditional, not filler. */
+.study-home { max-inline-size: 860px; }
+.study-start { margin-block: 30px; padding: clamp(22px, 4vw, 36px); border: 1px solid var(--line); border-radius: 24px; background: radial-gradient(ellipse at 100% 0%, var(--accent-soft), transparent 75%), var(--card); }
+.study-start > p:first-child { font-size: 20px; margin-block-end: 20px; }
+.study-start .note { margin-block: 20px 0; }
+.study-home > section { margin-block: 30px; }
+.study-home .metrics { display: flex; gap: 28px; margin-block: 28px 0; padding-block: 18px; }
+.study-home .metric { display: flex; align-items: baseline; gap: 12px; }
+.study-home .metric strong { font-size: 30px; }
+.home-company { margin-block: 40px; }
+.header-actions a { display: none; }
+.focus-top { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 4px 20px; }
+.focus-top > p { margin: 0; }
+.focus-top .focus-clock { grid-column: 2; grid-row: 1 / span 2; font-size: clamp(40px,7vw,68px); line-height: 1.2; margin: 0; color: var(--ink); }
+.focus-top #focus-state { color: var(--ink-2); font-size: 14px; }
+.focus-card .actions { margin-block-start: 24px; }
+.focus-card > .note:last-child { margin-block-end: 0; }
+.rhythm { margin-block: 32px; }
+.week-activity { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 6px; margin-block: 22px; }
+.week-day { display: grid; justify-items: center; gap: 10px; padding-block: 12px; border-block-end: 2px solid var(--line); font-size: 13px; color: var(--ink-2); }
+.week-day strong { font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 500; }
+.week-day.has-focus { border-color: var(--accent-3); color: var(--ink); }
+.rhythm > p { margin-block-end: 8px; }
+#invite-result { margin-block: 18px; }
+#invite-link { margin-block: 10px; }
+@media (max-width: 540px) {
+  .platform-header { flex-wrap: wrap; padding: 14px 16px; gap: 8px; }
+  .brand { gap: 6px; font-size: 22px; }
+  .header-actions { flex-wrap: nowrap; }
+  .header-actions button { min-inline-size: 44px; padding-inline: 7px; font-size: 14px; }
+  .platform-nav { display: flex; flex-wrap: wrap; background: var(--paper); }
+  .platform-nav a { flex: 1 1 auto; min-inline-size: max-content; overflow-wrap: normal; }
+  main { padding-block: 30px 80px; }
+  h1 { font-size: 36px; margin-block-end: 16px; }
+  .lede { font-size: 17px; }
+  .study-start { margin-block: 24px; padding: 22px; }
+  .study-start .actions { flex-direction: column; align-items: stretch; }
+  .study-start .note { font-size: 13px; }
+  footer { padding-block-end: 28px; }
+  .focus-top { grid-template-columns: 1fr; gap: 10px; }
+  .focus-top .focus-clock { grid-column: auto; grid-row: auto; }
+  .week-day { font-size: 11px; }
+}

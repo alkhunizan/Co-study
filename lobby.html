@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/design-system/colors_and_type.css">
-  <link rel="stylesheet" href="/design-system/landing.css">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css?v=20261021-refinement">
+  <link rel="stylesheet" href="/design-system/landing.css?v=20261021-refinement">
   <script src="/js/halastudy-core.js"></script>
   <script src="/js/ui.js"></script>
   <style>
@@ -115,7 +115,7 @@
     </a>
     <div class="topbar-right">
       <a class="topbar-link" id="auth-entry" href="/account.html" data-lang="signIn">تسجيل الدخول</a>
-      <div class="lang-switch" role="tablist" aria-label="Language">
+      <div class="lang-switch" role="group" aria-label="Language">
         <button type="button" data-lang-value="en">EN</button>
         <button type="button" data-lang-value="ar" class="is-on">ع</button>
       </div>
@@ -181,6 +181,7 @@
         micOff: 'Mic is off for everyone',
         camGuest: 'Sign in to turn on your camera',
         camReady: 'Turn on my camera',
+        camOff: 'Turn off my camera',
         watching: 'watching',
         live: 'live',
         full: 'The Lobby is full right now — try again in a bit, or open your own room.',
@@ -201,6 +202,7 @@
         micOff: 'المايك مقفول للجميع',
         camGuest: 'سجّل دخول عشان تفتح الكاميرا',
         camReady: 'افتح كاميرتي',
+        camOff: 'أوقف كاميرتي',
         watching: 'يتفرج',
         live: 'مباشر',
         full: 'اللوبي ممتلئ حالياً — جرّب بعد شوي، أو افتح غرفتك الخاصة.',
@@ -265,6 +267,7 @@
     // ---- Density control ----
     function buildDensity() {
       const box = document.querySelector('.density');
+      box.replaceChildren();
       DENSITY.forEach((d) => {
         const b = document.createElement('button');
         b.type = 'button';
@@ -314,6 +317,7 @@
     }
 
     function render() {
+      refreshCameraCta(lobbyUser);
       const list = getTiles();
       el('present-n').textContent = String(list.length);
       const pages = Math.max(1, Math.ceil(list.length / state.perPage));
@@ -445,10 +449,15 @@
     }
 
     // ---- Auth-gated camera button ----
+    let lobbyUser = null;
     function refreshCameraCta(user) {
+      lobbyUser = user;
       const cta = el('camera-cta');
+      const enabled = !!rtk.meeting?.self?.videoEnabled;
+      cta.removeAttribute('data-lang');
+      cta.setAttribute('aria-pressed', String(enabled));
       if (user) {
-        cta.textContent = t('camReady');
+        cta.textContent = t(enabled ? 'camOff' : 'camReady');
         cta.onclick = () => startPublishing();   // wired in P4
       } else {
         cta.textContent = t('camGuest');
@@ -520,14 +529,16 @@
 
       let saved = '';
       try { saved = localStorage.getItem(NAME_KEY) || ''; } catch (_e) {}
+      const go = () => { const v = el('name-input').value.trim(); if (v) enterLobby(v); };
+      el('name-input').value = saved;
+      el('name-go').addEventListener('click', go);
+      el('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+      window.HalaCore.onLangChange(() => render());
       if (saved) {
         enterLobby(saved);
       } else {
         const gate = el('name-gate');
         gate.hidden = false;
-        const go = () => { const v = el('name-input').value.trim(); if (v) enterLobby(v); };
-        el('name-go').addEventListener('click', go);
-        el('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
       }
     })();
   </script>

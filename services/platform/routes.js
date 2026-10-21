@@ -38,12 +38,24 @@ function createPlatformRouter(deps) {
     }));
     router.use(requireUser);
     router.use(async (req, res, next) => {
+        const user = req.user;
+        const epoch = user.tokenEpoch;
         try {
-            await platform.ensureUser(req.user);
+            await platform.ready;
+            if (users.get(user.id) !== user || user.tokenEpoch !== epoch || user.banned) {
+                return res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+            }
+            // Supabase compatibility accounts still need a SQL projection. Its
+            // transaction rechecks live identity before and after the upsert.
+            await platform.ensureUser(user);
+            if (users.get(user.id) !== user || user.tokenEpoch !== epoch || user.banned) {
+                return res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+            }
             if (req.method !== 'GET' && !applyHttpRateLimit(req, res, rateLimiters.platformMutation, req.user.id)) return;
             next();
-        } catch {
-            res.status(503).json({ errorCode: 'SERVICE_UNAVAILABLE' });
+        } catch (error) {
+            const expired = error.errorCode === 'AUTH_REQUIRED';
+            res.status(expired ? 401 : 503).json({ errorCode: expired ? 'AUTH_REQUIRED' : 'SERVICE_UNAVAILABLE' });
         }
     });
     async function staff(req, permission) {
@@ -103,6 +115,10 @@ function createPlatformRouter(deps) {
     }));
     router.post('/cohorts', handle(async (req, res) => res.json(await platform.cohorts.create(req.user.id, req.body?.name))));
     router.post('/cohorts/accept', handle(async (req, res) => res.json(await platform.cohorts.accept(req.user.id, req.body?.token))));
+    router.delete('/cohorts/:id/invitations', handle(async (req, res) => {
+        await platform.cohorts.revokeInvites(req.user.id, req.params.id);
+        res.json({ ok: true });
+    }));
     router.post('/cohorts/:id/invitations', handle(async (req, res) => res.json(await platform.cohorts.invite(req.user.id, req.params.id))));
     router.get('/cohorts/:id/members', handle(async (req, res) => res.json({ members: await platform.cohorts.members(req.user.id, req.params.id) })));
     router.patch('/cohorts/:id/members/:userId', handle(async (req, res) => {

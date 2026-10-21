@@ -84,7 +84,7 @@ function createProgress(db, now = Date.now) {
             [userId, now() - historyDays * 86400000]),
             db.query('SELECT achievement_key,awarded_at FROM halastudy.achievements WHERE user_id=$1 ORDER BY awarded_at', [userId]),
             db.query(`SELECT * FROM halastudy.focus_sessions WHERE user_id=$1 AND state IN ('active','paused') AND last_seen_at >= $2`, [userId, now() - 12 * 3600000]),
-            db.query('SELECT DISTINCT day_key FROM halastudy.xp_ledger WHERE user_id=$1 AND xp>0 ORDER BY day_key DESC', [userId])
+            db.query('SELECT day_key,SUM(xp) AS xp FROM halastudy.xp_ledger WHERE user_id=$1 AND xp>0 GROUP BY day_key ORDER BY day_key DESC', [userId])
         ]);
         const activeDays = new Set(days.rows.map((row) => row.day_key));
         let cursor = now();
@@ -97,6 +97,10 @@ function createProgress(db, now = Date.now) {
         return {
             totals: { minutes: Math.floor(Number(totals.rows[0].milliseconds) / 60000), sessions: Number(totals.rows[0].sessions), xp: Number(totals.rows[0].xp), streak },
             sessions: sessions.rows, achievements: achievements.rows, current: current.rows[0] || null,
+            activity: Array.from({ length: 7 }, (_, index) => {
+                const day = dayKey(now() - (6 - index) * 86400000);
+                return { day, xp: Number(days.rows.find((row) => row.day_key === day)?.xp || 0) };
+            }),
             rules: { heartbeatSeconds: 15, interruptionGraceSeconds: 45, dailyXpCap: XP_DAILY_CAP, cameraRequired: false }
         };
     }

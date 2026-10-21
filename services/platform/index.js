@@ -10,8 +10,8 @@ const { createProgress } = require('./progress');
 const { createCohorts } = require('./cohorts');
 const { requireCondition, audit } = require('./common');
 
-/** @param {{userStateFile: string, secret: string, env?: any, logger?: any}} options */
-function createPlatform({ userStateFile, secret, env = process.env, logger = console }) {
+/** @param {{userStateFile: string, secret: string, env?: any, logger?: any, isCurrentUser?: Function}} options */
+function createPlatform({ userStateFile, secret, env = process.env, logger = console, isCurrentUser = () => true }) {
     const enabled = env.PLATFORM_ENABLED !== 'false' && (env.NODE_ENV !== 'test' || env.PLATFORM_ENABLED === 'true');
     const mode = env.NODE_ENV === 'production' ? 'live' : env.BILLING_MODE === 'disabled' ? 'disabled' : 'test';
     const provider = env.BILLING_PROVIDER || (env.NODE_ENV === 'test' ? 'simulator' : 'digetpay');
@@ -38,10 +38,15 @@ function createPlatform({ userStateFile, secret, env = process.env, logger = con
 
     async function ensureUser(user) {
         if (!enabled || !user) return;
+        const epoch = user.tokenEpoch;
         await platform.ready;
-        await platform.db.query(`INSERT INTO halastudy.users(id,display_name,created_at) VALUES($1,$2,$3)
+        await platform.db.transaction(async (tx) => {
+            requireCondition(isCurrentUser(user, epoch), 'AUTH_REQUIRED', 401);
+            await tx.query(`INSERT INTO halastudy.users(id,display_name,created_at) VALUES($1,$2,$3)
             ON CONFLICT(id) DO UPDATE SET display_name=$2 WHERE halastudy.users.display_name IS DISTINCT FROM $2`,
-        [user.id, user.displayName, user.createdAt]);
+            [user.id, user.displayName, user.createdAt]);
+            requireCondition(isCurrentUser(user, epoch), 'AUTH_REQUIRED', 401);
+        });
     }
     async function registerRoom(roomId, owner) {
         if (!enabled) return;

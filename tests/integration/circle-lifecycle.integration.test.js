@@ -33,7 +33,7 @@ test('private scope survives failed snapshot, schedule retries deduplicate and d
     app.use(express.json());
     app.use((req, _res, next) => { req.user = owner; next(); });
     app.use(createPlatformRouter({
-        platform, requireUser: (_req, _res, next) => next(),
+        platform, users: new Map([[owner.id, owner], [member.id, member]]), requireUser: (_req, _res, next) => next(),
         applyHttpRateLimit: () => true, rateLimiters: {}, logger: { error() {} },
         rooms: new Map([[room.id, room]]), clearRoomCleanupTimer() {},
         io: { sockets: { sockets } },
