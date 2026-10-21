@@ -37,3 +37,29 @@ test('successful headless join retains the meeting until explicit leave', async 
     await joined.leave();
     assert.equal(leaves, 1);
 });
+
+test('a stalled video-token request aborts instead of trapping the join flow', async () => {
+    const window = {};
+    let aborted = false;
+    const deadlines = [];
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../public/js/video/video-client.js'), 'utf8'), {
+        window, AbortController, clearTimeout, setInterval, clearInterval,
+        setTimeout(callback, milliseconds) { deadlines.push(milliseconds); return setTimeout(callback, 10); },
+        fetch: (_url, options) => new Promise((_resolve, reject) => {
+            options.signal?.addEventListener('abort', () => {
+                aborted = true;
+                reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+            });
+        })
+    });
+    const client = (/** @type {any} */ (window)).HalastudyVideoClient.createVideoClient();
+    let guard;
+    const result = await Promise.race([
+        client.joinRealtimeKitRoom({ roomId: 'test', clientSessionId: 'test' }).then(() => 'unexpected success', () => 'rejected'),
+        new Promise((resolve) => { guard = setTimeout(() => resolve('hung'), 200); })
+    ]);
+    clearTimeout(guard);
+    assert.equal(result, 'rejected');
+    assert.equal(aborted, true);
+    assert.ok(deadlines.some((ms) => ms > 0 && ms <= 30000));
+});

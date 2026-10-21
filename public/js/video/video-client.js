@@ -7,22 +7,29 @@
     }
 
     async function postJson(url, body, options = {}) {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(body),
-            keepalive: !!options.keepalive
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || payload.ok === false) {
-            /** @type {Error & { code?: string, payload?: any }} */
-            const error = new Error(payload.errorCode || payload.error || `HTTP_${response.status}`);
-            error.code = payload.errorCode || payload.error || `HTTP_${response.status}`;
-            error.payload = payload;
-            throw error;
+        const controller = new AbortController();
+        const deadline = setTimeout(() => controller.abort(), 15000);
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body),
+                keepalive: !!options.keepalive,
+                signal: controller.signal
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload.ok === false) {
+                /** @type {Error & { code?: string, payload?: any }} */
+                const error = new Error(payload.errorCode || payload.error || `HTTP_${response.status}`);
+                error.code = payload.errorCode || payload.error || `HTTP_${response.status}`;
+                error.payload = payload;
+                throw error;
+            }
+            return payload;
+        } finally {
+            clearTimeout(deadline);
         }
-        return payload;
     }
 
     function createVideoClient(options = {}) {
