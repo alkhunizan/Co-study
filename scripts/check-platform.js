@@ -9,7 +9,8 @@ const files = [
     'public/js/safe-return.js', 'public/js/room-focus.js',
     'public/js/recovery.js', 'public/js/platform.js', 'public/js/focus-client.js', 'scripts/platform-maintenance.js', 'scripts/preview-platform.js',
     'public/js/ux-insights.js', 'public/js/schedule-display.js', 'public/js/legal-shell.js',
-    ...fs.readdirSync('tests/integration').filter((name) => /^(platform|foundations|digetpay|ux-)/.test(name)).map((name) => path.join('tests/integration', name)),
+    'public/js/study-copy.js', 'public/js/study-workspace.js', 'public/js/study-routine.js',
+    ...fs.readdirSync('tests/integration').filter((name) => /^(platform|foundations|digetpay|study-|ux-)/.test(name)).map((name) => path.join('tests/integration', name)),
     'tests/helpers/digetpay-fixture.js', 'tests/smoke/platform.smoke.spec.js', 'tests/smoke/digetpay.smoke.spec.js',
     'tests/smoke/ux-journeys.smoke.spec.js', 'tests/smoke/ux-return.smoke.spec.js'
 ];

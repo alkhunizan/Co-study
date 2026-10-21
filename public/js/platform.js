@@ -201,6 +201,7 @@
         const request = ++circleRequest;
         requestedCircleId = circle.id;
         selectedCircle = null;
+        window.dispatchEvent(new CustomEvent('halacirclechange', { detail: null }));
         $('circle-detail').hidden = true;
         $('invite-result').hidden = true;
         $('invite-code').textContent = '';
@@ -208,6 +209,7 @@
         const [members, sessions] = await Promise.all([api('GET', `/cohorts/${circle.id}/members`), api('GET', `/cohorts/${circle.id}/sessions`)]);
         if (request !== circleRequest) return;
         selectedCircle = circle;
+        window.dispatchEvent(new CustomEvent('halacirclechange', { detail: circle }));
         const owner = circle.owner_id === user.id;
         const supervisor = owner || circle.member_role === 'supervisor';
         $('circle-detail').hidden = false;
@@ -457,17 +459,18 @@
         $('mfa-password').required = !google;
         $('mfa-enroll').hidden = state?.mfaEnabled || (google && !googleVerified);
         renderProgress(); renderDashboard(); renderRecap(); renderRooms(); renderCircles(); renderBilling();
+        window.dispatchEvent(new CustomEvent('halaplatformcontext'));
     }
     function showView(focus = false) {
-        if (!['home','progress','circles','account','vip','security','staff'].includes(currentView)) currentView = 'home';
-        document.title = `${t({ account: 'accountTitle', home: 'homeTitle', progress: 'progressTitle', circles: 'circlesTitle', vip: 'vipTitle', security: 'securityTitle', staff: 'staffTitle' }[currentView])} — Halastudy`;
+        if (!['home','progress','circles','account','vip','security','staff','planner'].includes(currentView)) currentView = 'home';
+        document.title = `${t({ account: 'accountTitle', home: 'homeTitle', progress: 'progressTitle', circles: 'circlesTitle', vip: 'vipTitle', security: 'securityTitle', staff: 'staffTitle', planner:'plannerTitle' }[currentView])} — Halastudy`;
         document.querySelectorAll('[data-panel]').forEach((panel) => {
             panel.toggleAttribute('hidden', !state || panel.getAttribute('data-panel') !== currentView || (!user && currentView !== 'vip'));
         });
         $('guest').querySelector('a.primary').href = `/account?next=${encodeURIComponent(currentView === 'vip' ? '/plans' : invitedToken && currentView === 'circles' ? `/app#circles?invite=${encodeURIComponent(invitedToken)}` : `/app#${currentView}`)}`;
         $('guest').hidden = !state || !identityKnown || !!user || currentView === 'vip';
         document.querySelectorAll('[data-view]').forEach((link) => {
-            if (link.getAttribute('data-view') === currentView || (link.closest('.platform-nav') && link.getAttribute('data-view') === 'account' && ['vip', 'security', 'staff'].includes(currentView))) link.setAttribute('aria-current', 'page');
+            if (link.getAttribute('data-view') === currentView || (link.closest('.platform-nav') && ((link.getAttribute('data-view') === 'account' && ['vip', 'security', 'staff'].includes(currentView)) || (link.getAttribute('data-view') === 'home' && currentView === 'planner')))) link.setAttribute('aria-current', 'page');
             else link.removeAttribute('aria-current');
         });
         if (activeNotice?.view !== currentView) activeNotice = null;
@@ -477,10 +480,16 @@
             if (heading instanceof HTMLElement) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
         }
         if (currentView === 'staff' && state) void renderStaff().catch((error) => noticeError(error, 'staff'));
+        if (focus && user && ['home','circles'].includes(currentView)) void refresh().catch((error) => noticeError(error,currentView));
+        if (focus && user && currentView === 'planner') window.dispatchEvent(new CustomEvent('halastudyrefresh'));
     }
     async function refresh() {
         if (!user) return;
         [state, progress, { rooms: ownedRooms }, dashboard] = await Promise.all([api('GET', '/me'), api('GET', '/progress'), api('GET', '/rooms'), api('GET', '/dashboard')]);
+        if (selectedCircle && !state.cohorts.some(circle => circle.id === selectedCircle.id)) {
+            selectedCircle = null; circleRequest++; requestedCircleId = null; $('circle-detail').hidden = true;
+            window.dispatchEvent(new CustomEvent('halacirclechange', { detail:null }));
+        }
         global.HalaFocus.restore(progress.current);
         render();
         showView();
@@ -508,13 +517,22 @@
     }
     window.addEventListener('popstate', restoreView);
     window.addEventListener('hashchange', restoreView);
+    let identityCheck = null;
+    function checkIdentity() {
+        if (!identityKnown || identityCheck) return;
+        identityCheck = global.HalaAuth.refreshUser().then((current) => {
+            if (current?.id !== user?.id) location.reload();
+        }).catch(() => {}).finally(() => { identityCheck = null; });
+    }
+    window.addEventListener('focus', checkIdentity);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkIdentity(); });
     window.addEventListener('halafocuschange', () => {
         if (global.HalaFocus.current()?.state === 'completed') { recap = global.HalaFocus.current(); renderRecap(); }
         renderFocus();
     });
     setInterval(() => { if (currentView === 'progress') renderFocus(); }, 1000);
     window.addEventListener('halafocuserror', () => notice('networkError', true));
-    $('focus-start').addEventListener('click', () => void work($('focus-start'), async () => { recap = null; renderRecap(); await global.HalaFocus.start(); }));
+    $('focus-start').addEventListener('click', () => void work($('focus-start'), async () => { recap = null; renderRecap(); const session = await global.HalaFocus.start(); await global.HalaStudy?.bindFocus(session.id); }));
     $('focus-pause').addEventListener('click', () => void work($('focus-pause'), () =>
         global.HalaFocus.current()?.state === 'paused' ? global.HalaFocus.start() : global.HalaFocus.pause()));
     $('focus-finish').addEventListener('click', () => void work($('focus-finish'), async () => {
@@ -676,5 +694,6 @@
             showView();
         } finally { $('loading').hidden = true; }
     }
+    global.HalaPlatform = {context:()=>({user,state,progress}),refresh};
     void boot();
 })();

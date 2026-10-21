@@ -8,6 +8,8 @@ const { createDigetPayClient } = require('./digetpay-client');
 const { createDigetPayBilling } = require('./digetpay-billing');
 const { createProgress } = require('./progress');
 const { createCohorts } = require('./cohorts');
+const { createStudyPlanner } = require('./study-planner');
+const { createStudyCommunity } = require('./study-community');
 const { requireCondition, audit } = require('./common');
 
 /** @param {{userStateFile: string, secret: string, env?: any, logger?: any, isCurrentUser?: Function}} options */
@@ -15,7 +17,7 @@ function createPlatform({ userStateFile, secret, env = process.env, logger = con
     const enabled = env.PLATFORM_ENABLED !== 'false' && (env.NODE_ENV !== 'test' || env.PLATFORM_ENABLED === 'true');
     const mode = env.NODE_ENV === 'production' ? 'live' : env.BILLING_MODE === 'disabled' ? 'disabled' : 'test';
     const provider = env.BILLING_PROVIDER || (env.NODE_ENV === 'test' ? 'simulator' : 'digetpay');
-    const platform = { enabled, ready: null, db: null, access: null, entitlements: null, billing: null, progress: null, cohorts: null, mode };
+    const platform = { enabled, ready: null, db: null, access: null, entitlements: null, billing: null, progress: null, cohorts: null, study:null, studyCommunity:null, mode };
     platform.ready = enabled ? (async () => {
         platform.db = await createDatabase({
             url: env.PLATFORM_DATABASE_URL || '',
@@ -32,6 +34,8 @@ function createPlatform({ userStateFile, secret, env = process.env, logger = con
         platform.entitlements = createEntitlements(platform.db, mode, Date.now, billingInfo);
         platform.progress = createProgress(platform.db);
         platform.cohorts = createCohorts(platform.db, platform.entitlements);
+        platform.study = createStudyPlanner(platform.db);
+        platform.studyCommunity = createStudyCommunity(platform.db, platform.cohorts);
         platform.billing.start?.();
     })() : Promise.resolve();
     void platform.ready.catch(() => logger.error({ event: 'platform_start_failed' }));
@@ -55,14 +59,14 @@ function createPlatform({ userStateFile, secret, env = process.env, logger = con
         await platform.db.query(`INSERT INTO halastudy.rooms(id,owner_id,created_at) VALUES($1,$2,$3)`,
             [roomId, owner?.id || null, Date.now()]);
     }
-    async function canJoin(roomId, user) {
+    async function canJoin(roomId, user, tx = platform.db) {
         if (!enabled) return true;
         await platform.ready;
-        const room = (await platform.db.query('SELECT cohort_id FROM halastudy.rooms WHERE id=$1', [roomId])).rows[0];
+        const room = (await tx.query('SELECT cohort_id FROM halastudy.rooms WHERE id=$1', [roomId])).rows[0];
         if (!room?.cohort_id) return true;
         if (!user) return false;
         try {
-            await platform.cohorts.membership(user.id, room.cohort_id);
+            await platform.cohorts.membership(user.id, room.cohort_id, tx);
             return true;
         } catch {
             return false;

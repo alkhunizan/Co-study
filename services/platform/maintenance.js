@@ -2,19 +2,21 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { hash, requireCondition } = require('./common');
 
-const TABLES = [
+const V2_TABLES = [
     'users', 'accounts', 'room_records', 'store_metadata', 'mfa', 'organizations',
     'organization_members', 'role_assignments', 'cohorts', 'cohort_members', 'invitations',
     'rooms', 'room_hosts', 'scheduled_sessions', 'attendance', 'subscriptions', 'checkout_sessions',
     'focus_sessions', 'xp_ledger', 'achievements', 'cases', 'audit_events', 'outbox', 'digetpay_orders'
 ];
+const TABLES = [...V2_TABLES, 'study_projects', 'study_tasks', 'study_focus_links', 'study_distractions',
+    'study_routines', 'study_preferences', 'study_reflections', 'study_bookmarks', 'study_rsvps', 'study_resources'];
 
 async function snapshotDatabase(db) {
     return db.transaction(async (tx) => {
         await tx.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
         const tables = {};
         for (const table of TABLES) tables[table] = (await tx.query(`SELECT * FROM halastudy.${table}`)).rows;
-        return { format: 'halastudy-platform-v2', createdAt: new Date().toISOString(), checksum: hash(JSON.stringify(tables)), tables };
+        return { format: 'halastudy-platform-v3', createdAt: new Date().toISOString(), checksum: hash(JSON.stringify(tables)), tables };
     });
 }
 
@@ -27,9 +29,10 @@ async function backupDatabase(db, destination) {
 }
 
 async function restoreDatabase(db, snapshot) {
-    requireCondition(['halastudy-platform-v1', 'halastudy-platform-v2'].includes(snapshot?.format) && snapshot.tables
+    requireCondition(['halastudy-platform-v1', 'halastudy-platform-v2', 'halastudy-platform-v3'].includes(snapshot?.format) && snapshot.tables
         && snapshot.checksum === hash(JSON.stringify(snapshot.tables)), 'BACKUP_INVALID');
-    const sourceTables = snapshot.format === 'halastudy-platform-v1' ? TABLES.filter((name) => name !== 'digetpay_orders') : TABLES;
+    const sourceTables = snapshot.format === 'halastudy-platform-v1' ? V2_TABLES.filter((name) => name !== 'digetpay_orders')
+        : snapshot.format === 'halastudy-platform-v2' ? V2_TABLES : TABLES;
     requireCondition(Object.keys(snapshot.tables).length === sourceTables.length
         && sourceTables.every((table) => Array.isArray(snapshot.tables[table])), 'BACKUP_TABLES_INVALID');
     await db.transaction(async (tx) => {

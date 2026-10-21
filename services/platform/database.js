@@ -95,13 +95,13 @@ async function createDatabase({ url = '', directory, migrate = false, onFailure 
     }
     try {
         if (!url || migrate) {
-            for (const name of ['001-platform.sql', '002-digetpay.sql', '003-payment-review.sql']) {
+            for (const name of ['001-platform.sql', '002-digetpay.sql', '003-payment-review.sql', '004-study-tools.sql']) {
                 const migration = await fs.readFile(path.join(__dirname, '../../db/migrations', name), 'utf8');
                 if (url) await transaction((tx) => tx.query(migration));
                 else await driver.exec(migration);
             }
         }
-        const version = await query('SELECT version FROM halastudy.migrations WHERE version = 3');
+        const version = await query('SELECT version FROM halastudy.migrations WHERE version = 4');
         if (!version.rows.length) throw new Error('PLATFORM_MIGRATION_REQUIRED');
     } catch (error) {
         await close();

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl" data-theme="light">
 <head>
   <meta charset="UTF-8">
@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/design-system/colors_and_type.css?v=20261021-refinement">
   <link rel="stylesheet" href="/design-system/landing.css?v=20261021-refinement">
-  <script src="/js/halastudy-core.js"></script>
+  <script src="/js/halastudy-core.js?v=20261022-top20"></script>
   <script src="/js/safe-return.js?v=20261021-refinement"></script>
   <script src="/js/ui.js" defer></script>
   <style>
@@ -729,6 +729,7 @@
         if (!confirmed) return;
         try {
           await core.requestJson('DELETE', '/api/me', { password });
+          core.clearStudyStorage(currentUser?.id);
           window.HalaUI.toast(t('deletedToast'));
           setTimeout(() => location.assign('/'), 800);
         } catch (error) {
@@ -752,3 +753,4 @@
   </script>
 </body>
 </html>
+

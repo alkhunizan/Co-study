@@ -194,6 +194,7 @@ test('DigetPay sandbox payment lifecycle and trust boundaries', { timeout: 12000
             assert.equal((await restored.query('SELECT count(*) AS count FROM halastudy.digetpay_orders')).rows[0].count,
                 (await db.query('SELECT count(*) AS count FROM halastudy.digetpay_orders')).rows[0].count);
             delete snapshot.tables.digetpay_orders;
+            for (const table of Object.keys(snapshot.tables).filter(name => name.startsWith('study_'))) delete snapshot.tables[table];
             snapshot.format = 'halastudy-platform-v1';
             snapshot.checksum = hash(JSON.stringify(snapshot.tables));
             await restoreDatabase(legacy, snapshot);

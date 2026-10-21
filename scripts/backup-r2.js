@@ -70,7 +70,7 @@ async function main() {
         if (index < 0 || !process.argv[index + 1]) throw new Error('Platform storage is enabled. Supply --platform-file <fresh platform backup>; legacy JSON is no longer authoritative.');
         platformFile = path.resolve(process.argv[index + 1]);
         const snapshot = JSON.parse(fs.readFileSync(platformFile, 'utf8'));
-        if (snapshot.format !== 'halastudy-platform-v1' || !snapshot.tables || snapshot.checksum !== hash(JSON.stringify(snapshot.tables))) {
+        if (!['halastudy-platform-v1', 'halastudy-platform-v2', 'halastudy-platform-v3'].includes(snapshot.format) || !snapshot.tables || snapshot.checksum !== hash(JSON.stringify(snapshot.tables))) {
             throw new Error('Invalid platform backup.');
         }
         const age = Date.now() - Date.parse(snapshot.createdAt);

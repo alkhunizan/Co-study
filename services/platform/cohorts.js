@@ -99,6 +99,7 @@ function createCohorts(db, entitlements, now = Date.now) {
                 ? await tx.query('DELETE FROM halastudy.cohort_members WHERE cohort_id=$1 AND user_id=$2 RETURNING user_id', [cohortId, userId])
                 : await tx.query('UPDATE halastudy.cohort_members SET role=$3 WHERE cohort_id=$1 AND user_id=$2 RETURNING user_id', [cohortId, userId, role]);
             requireCondition(result.rows.length === 1, 'MEMBER_NOT_FOUND', 404);
+            if (role === 'remove') await tx.query('DELETE FROM halastudy.study_rsvps WHERE user_id=$1 AND session_id IN (SELECT id FROM halastudy.scheduled_sessions WHERE cohort_id=$2)', [userId, cohortId]);
             await audit(tx, actorId, 'cohort.member.updated', cohortId, { userId, role });
         });
     }
@@ -153,6 +154,7 @@ function createCohorts(db, entitlements, now = Date.now) {
             const cohort = await membership(userId, cohortId, tx);
             requireCondition(!cohort.canManage, 'OWNER_PROTECTED', 409);
             await tx.query('DELETE FROM halastudy.cohort_members WHERE cohort_id=$1 AND user_id=$2', [cohortId, userId]);
+            await tx.query('DELETE FROM halastudy.study_rsvps WHERE user_id=$1 AND session_id IN (SELECT id FROM halastudy.scheduled_sessions WHERE cohort_id=$2)', [userId, cohortId]);
             await audit(tx, userId, 'cohort.left', cohortId);
         });
     }

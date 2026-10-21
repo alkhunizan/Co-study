@@ -3,6 +3,9 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const crypto = require('node:crypto');
+const {createStudyCommunity}=require('../../services/platform/study-community');
+const {createStudyPlanner}=require('../../services/platform/study-planner');
 const { Client } = require('pg');
 const { createDatabase } = require('../../services/platform/database');
 const { backupDatabase, restoreDatabase } = require('../../services/platform/maintenance');
@@ -42,7 +45,7 @@ test('real PostgreSQL migration, lock timeout, rollback, lease loss, backup and 
     db = await createDatabase({ url });
     await assert.rejects(createDatabase({ url }), /PLATFORM_ALREADY_RUNNING/);
     await db.query("INSERT INTO halastudy.users(id,display_name,created_at) VALUES('outage-user','Original',1)");
-    assert.equal((await db.query('SELECT MAX(version) AS version FROM halastudy.migrations')).rows[0].version, 3);
+    assert.equal((await db.query('SELECT MAX(version) AS version FROM halastudy.migrations')).rows[0].version, 4);
     await db.query(`INSERT INTO halastudy.digetpay_orders(id,user_id,mode,status,amount_minor,currency,created_at,expires_at,next_check_at)
         VALUES('paid-review','outage-user','test','review',499,'USD',1,2,1),
               ('open-checkout','outage-user','test','pending',499,'USD',1,2,1)`);
@@ -79,6 +82,27 @@ test('real PostgreSQL migration, lock timeout, rollback, lease loss, backup and 
     await assert.rejects(db.query('SELECT pg_sleep(25)'), (error) => /** @type {any} */ (error).code === '57014');
     assert.equal((await db.query('SELECT 1 AS ok')).rows[0].ok, 1);
 
+    // Interleave the real bookmark operation with schedule's room -> creator
+    // FK lock order. Waiting on the room must not hold the account mutex.
+    await db.query("INSERT INTO halastudy.rooms(id,owner_id,created_at) VALUES('lock-room','outage-user',1)");
+    await control.query('BEGIN');
+    await control.query("SELECT id FROM halastudy.rooms WHERE id='lock-room' FOR UPDATE");
+    const community=createStudyCommunity(db,null);
+    const pendingBookmark=community.bookmark({id:'outage-user'},'lock-room',new Map([['lock-room',{name:'Lock fixture'}]]),async()=>true);
+    let waiting=false;
+    for(let attempt=0;attempt<40;attempt++){
+        waiting=(await control.query("SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'SELECT id FROM halastudy.rooms%FOR KEY SHARE'")).rows.length>0;
+        if(waiting)break;await pause(25);
+    }
+    assert.ok(waiting,'positive control: bookmark is blocked on the room');
+    await control.query("SET LOCAL lock_timeout='1500ms'");
+    await control.query("SELECT id FROM halastudy.users WHERE id='outage-user' FOR KEY SHARE");
+    await control.query('COMMIT');
+    assert.ok((await pendingBookmark).id);
+    const study=createStudyPlanner(db);
+    const project=await study.create('outage-user','projects',{name:'PG study',requestId:crypto.randomUUID()});
+    await study.create('outage-user','tasks',{title:'Restore this plan',project_id:project.id,priority:'normal',recurrence:'none',steps:[],estimate_minutes:25,requestId:crypto.randomUUID()});
+
     const folder = await fs.mkdtemp(path.join(os.tmpdir(), 'halastudy-pg-restore-'));
     const backup = path.join(folder, 'platform.json');
     await backupDatabase(db, backup);
@@ -92,6 +116,8 @@ test('real PostgreSQL migration, lock timeout, rollback, lease loss, backup and 
         await restoreDatabase(restoreDb, snapshot);
         assert.equal((await restoreDb.query("SELECT display_name FROM halastudy.users WHERE id='outage-user'")).rows[0].display_name, 'Original');
         assert.deepEqual((await restoreDb.query('SELECT status FROM halastudy.digetpay_orders ORDER BY id')).rows.map(row => row.status), ['pending', 'review']);
+        assert.equal((await restoreDb.query('SELECT title FROM halastudy.study_tasks')).rows[0].title,'Restore this plan');
+        assert.equal((await restoreDb.query('SELECT room_id FROM halastudy.study_bookmarks')).rows[0].room_id,'lock-room');
     } finally { await restoreDb.close(); }
 
     const lease = (await control.query("SELECT pid FROM pg_locks WHERE locktype='advisory' AND classid=190221 AND objid=1")).rows[0].pid;

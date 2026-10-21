@@ -142,13 +142,13 @@
     }
 
     /* ---------- fetch helper (same contract as video-client postJson) ---------- */
-    async function requestJson(method, url, body) {
+    async function requestJson(method, url, body, extraHeaders = {}) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
         /** @type {RequestInit & { headers: Record<string, string> }} */
         const options = {
             method: method,
-            headers: {},
+            headers: { ...extraHeaders },
             credentials: 'include',
             signal: controller.signal
         };
@@ -201,6 +201,14 @@
     function signout() {
         return requestJson('POST', '/api/auth/logout')
             .then(() => { userPromise = Promise.resolve(null); return null; });
+    }
+    function clearStudyStorage(userId) {
+        if (typeof userId !== 'string' || !userId) return;
+        try {
+            for (const key of Object.keys(localStorage)) {
+                if (key === `halastudy:routine:${userId}` || key.startsWith(`halastudy:reminder:${userId}:`)) localStorage.removeItem(key);
+            }
+        } catch { /* storage may be blocked */ }
     }
 
     function showUnavailable(target = null, retry = null) {
@@ -357,6 +365,7 @@
         setTheme: setTheme,
         toggleTheme: toggleTheme,
         requestJson: requestJson,
+        clearStudyStorage: clearStudyStorage,
         showUnavailable: showUnavailable,
         postJson: (url, body) => requestJson('POST', url, body)
     };

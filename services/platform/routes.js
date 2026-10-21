@@ -4,6 +4,7 @@ const { sanitizeUserText } = require('../auth');
 const { verifyReauth, COOKIE_NAME } = require('../auth/reauth');
 const { requireCondition, audit } = require('./common');
 const { dashboard } = require('./dashboard');
+const { createStudyRouter } = require('./study-routes');
 
 function createPlatformRouter(deps) {
     const { platform, requireUser, users, rooms, config, parseCookies, appendSetCookie, logger,
@@ -58,6 +59,7 @@ function createPlatformRouter(deps) {
             res.status(expired ? 401 : 503).json({ errorCode: expired ? 'AUTH_REQUIRED' : 'SERVICE_UNAVAILABLE' });
         }
     });
+    router.use('/study', createStudyRouter(deps));
     async function staff(req, permission) {
         const cookies = parseCookies(req.headers.cookie || '');
         requireCondition(await platform.access.verifyStaff(req.user.id, cookies.coStudyStaff, cookies.coStudyAuth), 'MFA_REQUIRED', 403);
