@@ -1,0 +1,63 @@
+﻿{
+    "status":  "complete-local",
+    "production":  "NO-GO pending owner-controlled external acceptance",
+    "branch":  "feat/2026-10-21-halastudy-refinement",
+    "implementationCommit":  "1d41e072b8198ce4623397aa059a6a698345602e",
+    "testCommit":  "db7a424b5fb18c4784e0dc35ac790ebd50009455",
+    "manifestSha256":  "7aef40534fdf114fa8419fd1966cbce17041e0d8f33a30f1dc38711c26d3428e",
+    "node":  "v22.23.3",
+    "gate":  {
+                 "label":  "verified-ci-2",
+                 "command":  "C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js run test:ci",
+                 "exitCode":  0,
+                 "seconds":  701.89,
+                 "runtime":  "C:/Users/alkhu/AppData/Local/Temp/halastudy-refinement-2026-10-21/candidate-final",
+                 "node":  "v22.23.3",
+                 "sourceManifestSha256":  "7aef40534fdf114fa8419fd1966cbce17041e0d8f33a30f1dc38711c26d3428e",
+                 "endManifestSha256":  "7aef40534fdf114fa8419fd1966cbce17041e0d8f33a30f1dc38711c26d3428e"
+             },
+    "onlineFontDiagnostic":  {
+                                 "label":  "verified-fonts-metrics",
+                                 "command":  "node_modules/@playwright/test/cli.js test tests/smoke/ux-return.smoke.spec.js --grep online fonts --reporter=list,json",
+                                 "exitCode":  0,
+                                 "seconds":  50.69,
+                                 "runtime":  "C:/Users/alkhu/AppData/Local/Temp/halastudy-refinement-2026-10-21/candidate-final",
+                                 "node":  "v22.23.3",
+                                 "sourceManifestSha256":  "7aef40534fdf114fa8419fd1966cbce17041e0d8f33a30f1dc38711c26d3428e",
+                                 "endManifestSha256":  "7aef40534fdf114fa8419fd1966cbce17041e0d8f33a30f1dc38711c26d3428e"
+                             },
+    "gallery":  {
+                    "label":  "verified-gallery",
+                    "command":  "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\docs\\refinement\\2026-10-21-halastudy\\scripts\\review-artifact.cjs",
+                    "exitCode":  0,
+                    "seconds":  3.13,
+                    "runtime":  "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-refinement-2026-10-21\\candidate",
+                    "node":  "v22.23.3",
+                    "sourceManifestSha256":  "7aef40534fdf114fa8419fd1966cbce17041e0d8f33a30f1dc38711c26d3428e",
+                    "endManifestSha256":  "7aef40534fdf114fa8419fd1966cbce17041e0d8f33a30f1dc38711c26d3428e"
+                },
+    "directHelperReceipts":  [
+                                 {
+                                     "evidence":  "evidence/artifact-parity.json",
+                                     "exitCode":  0,
+                                     "command":  "python scripts/verify-artifacts.py"
+                                 },
+                                 {
+                                     "evidence":  "evidence/performance.json",
+                                     "exitCode":  0,
+                                     "command":  "python scripts/extract-font-metrics.py"
+                                 },
+                                 {
+                                     "evidence":  "evidence/review-summary.json",
+                                     "exitCode":  0,
+                                     "command":  "python scripts/finalize-review.py"
+                                 },
+                                 {
+                                     "evidence":  "evidence/final-parity.json",
+                                     "exitCode":  0,
+                                     "command":  "powershell scripts/verify-source.ps1"
+                                 }
+                             ],
+    "preview":  "http://127.0.0.1:3495/app",
+    "productionRequests":  0
+}

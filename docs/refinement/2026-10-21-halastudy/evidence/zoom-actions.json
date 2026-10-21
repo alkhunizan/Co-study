@@ -1,0 +1,47 @@
+{
+  "browser": "155.0.8059.85",
+  "rows": [
+    {
+      "route": "/app",
+      "lang": "ar",
+      "unobstructed": true,
+      "withinViewport": true,
+      "overflow": false
+    },
+    {
+      "route": "/open",
+      "lang": "ar",
+      "unobstructed": true,
+      "withinViewport": true,
+      "overflow": false
+    },
+    {
+      "route": "/study?room=GE24WE",
+      "lang": "ar",
+      "unobstructed": true,
+      "withinViewport": true,
+      "overflow": false
+    },
+    {
+      "route": "/app",
+      "lang": "en",
+      "unobstructed": true,
+      "withinViewport": true,
+      "overflow": false
+    },
+    {
+      "route": "/open",
+      "lang": "en",
+      "unobstructed": true,
+      "withinViewport": true,
+      "overflow": false
+    },
+    {
+      "route": "/study?room=GE24WE",
+      "lang": "en",
+      "unobstructed": true,
+      "withinViewport": true,
+      "overflow": false
+    }
+  ]
+}

@@ -1,0 +1,334 @@
+{
+  "browser": "155.0.8059.85",
+  "rows": [
+    {
+      "label": "study",
+      "width": 390,
+      "lang": "ar",
+      "theme": "light",
+      "textZoom": 100,
+      "file": "study-390-ar-light.png",
+      "actualLang": "ar",
+      "actualTheme": "light",
+      "overflow": false,
+      "loaded": [
+        "Amiri",
+        "Newsreader",
+        "Tajawal"
+      ],
+      "fontErrors": [],
+      "serious": []
+    },
+    {
+      "label": "progress",
+      "width": 768,
+      "lang": "en",
+      "theme": "dark",
+      "textZoom": 100,
+      "file": "progress-768-en-dark.png",
+      "actualLang": "en",
+      "actualTheme": "dark",
+      "overflow": false,
+      "loaded": [
+        "Amiri",
+        "Inter",
+        "JetBrains Mono",
+        "Newsreader",
+        "Tajawal"
+      ],
+      "fontErrors": [],
+      "serious": []
+    },
+    {
+      "label": "groups",
+      "width": 390,
+      "lang": "en",
+      "theme": "light",
+      "textZoom": 100,
+      "file": "groups-390-en-light.png",
+      "actualLang": "en",
+      "actualTheme": "light",
+      "overflow": false,
+      "loaded": [
+        "Amiri",
+        "Inter",
+        "Newsreader",
+        "Tajawal"
+      ],
+      "fontErrors": [],
+      "serious": []
+    },
+    {
+      "label": "account",
+      "width": 390,
+      "lang": "ar",
+      "theme": "dark",
+      "textZoom": 100,
+      "file": "account-390-ar-dark.png",
+      "actualLang": "ar",
+      "actualTheme": "dark",
+      "overflow": false,
+      "loaded": [
+        "Amiri",
+        "Inter",
+        "JetBrains Mono",
+        "Newsreader",
+        "Tajawal"
+      ],
+      "fontErrors": [],
+      "serious": []
+    },
+    {
+      "label": "open",
+      "width": 320,
+      "lang": "ar",
+      "theme": "light",
+      "textZoom": 100,
+      "file": "open-320-ar-light.png",
+      "actualLang": "ar",
+      "actualTheme": "light",
+      "overflow": false,
+      "loaded": [
+        "Amiri",
+        "Inter",
+        "JetBrains Mono",
+        "Newsreader",
+        "Tajawal"
+      ],
+      "fontErrors": [],
+      "serious": []
+    },
+    {
+      "label": "lobby",
+      "width": 390,
+      "lang": "en",
+      "theme": "dark",
+      "textZoom": 100,
+      "file": "lobby-390-en-dark.png",
+      "actualLang": "en",
+      "actualTheme": "dark",
+      "overflow": false,
+      "loaded": [
+        "Inter",
+        "Newsreader",
+        "Tajawal",
+        "Amiri"
+      ],
+      "fontErrors": [],
+      "serious": []
+    },
+    {
+      "label": "room",
+      "width": 390,
+      "lang": "ar",
+      "theme": "dark",
+      "textZoom": 100,
+      "file": "room-390-ar-dark.png",
+      "actualLang": "ar",
+      "actualTheme": "dark",
+      "overflow": false,
+      "loaded": [
+        "Amiri",
+        "Inter",
+        "Tajawal"
+      ],
+      "fontErrors": [],
+      "serious": []
+    },
+    {
+      "label": "room",
+      "width": 1440,
+      "lang": "en",
+      "theme": "light",
+      "textZoom": 100,
+      "file": "room-1440-en-light.png",
+      "actualLang": "en",
+      "actualTheme": "light",
+      "overflow": false,
+      "loaded": [
+        "Inter",
+        "Newsreader"
+      ],
+      "fontErrors": [],
+      "serious": []
+    },
+    {
+      "label": "study",
+      "width": 390,
+      "lang": "ar",
+      "theme": "light",
+      "textZoom": 200,
+      "file": "study-390-ar-light-200.png",
+      "actualLang": "ar",
+      "actualTheme": "light",
+      "overflow": false,
+      "loaded": [
+        "Amiri",
+        "Newsreader",
+        "Tajawal"
+      ],
+      "fontErrors": [],
+      "serious": [],
+      "primary": true
+    },
+    {
+      "label": "room",
+      "width": 390,
+      "lang": "ar",
+      "theme": "light",
+      "textZoom": 200,
+      "file": "room-390-ar-light-200.png",
+      "actualLang": "ar",
+      "actualTheme": "light",
+      "overflow": false,
+      "loaded": [
+        "Amiri",
+        "Inter",
+        "Tajawal"
+      ],
+      "fontErrors": [],
+      "serious": [],
+      "primary": true
+    }
+  ],
+  "errors": [
+    {
+      "phase": "app",
+      "state": "room/1440/en/light/100",
+      "page": "http://127.0.0.1:3495/study?room=4KGF3D",
+      "url": "https://fonts.gstatic.com/s/tajawal/v12/Iurf6YBj_oCad4k1l5anHrRpiYlJ.woff2",
+      "type": "font",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "toolRequests": [
+    {
+      "phase": "axe",
+      "state": "study/390/ar/light/100",
+      "page": "http://127.0.0.1:3495/app?localReview=0",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "progress/768/en/dark/100",
+      "page": "http://127.0.0.1:3495/app?localReview=1#progress",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "groups/390/en/light/100",
+      "page": "http://127.0.0.1:3495/app?localReview=2#circles",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "account/390/ar/dark/100",
+      "page": "http://127.0.0.1:3495/account?localReview=3",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "account/390/ar/dark/100",
+      "page": "http://127.0.0.1:3495/account?localReview=3",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "open/320/ar/light/100",
+      "page": "http://127.0.0.1:3495/open?localReview=4",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "open/320/ar/light/100",
+      "page": "http://127.0.0.1:3495/open?localReview=4",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "lobby/390/en/dark/100",
+      "page": "http://127.0.0.1:3495/lobby?localReview=5",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "lobby/390/en/dark/100",
+      "page": "http://127.0.0.1:3495/lobby?localReview=5",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "room/390/ar/dark/100",
+      "page": "http://127.0.0.1:3495/study?room=4KGF3D",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "room/390/ar/dark/100",
+      "page": "http://127.0.0.1:3495/study?room=4KGF3D",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "room/1440/en/light/100",
+      "page": "http://127.0.0.1:3495/study?room=4KGF3D&localReview=7",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "room/1440/en/light/100",
+      "page": "http://127.0.0.1:3495/study?room=4KGF3D&localReview=7",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "study/390/ar/light/200",
+      "page": "http://127.0.0.1:3495/app?localReview=8",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "room/390/ar/light/200",
+      "page": "http://127.0.0.1:3495/study?room=4KGF3D&localReview=9",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    },
+    {
+      "phase": "axe",
+      "state": "room/390/ar/light/200",
+      "page": "http://127.0.0.1:3495/study?room=4KGF3D&localReview=9",
+      "url": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap",
+      "type": "xhr",
+      "error": "csp"
+    }
+  ]
+}

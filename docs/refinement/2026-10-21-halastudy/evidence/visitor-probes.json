@@ -1,0 +1,182 @@
+[
+  {
+    "route": "/",
+    "expected": 200,
+    "status": 200,
+    "noindex": null,
+    "cache": "private, max-age=0, must-revalidate",
+    "contentType": "text/html; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/api/health",
+    "expected": 200,
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "cache": "no-store",
+    "contentType": "application/json; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/api/ready",
+    "expected": 200,
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "cache": "no-store",
+    "contentType": "application/json; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/app",
+    "expected": 200,
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "cache": "public, max-age=0",
+    "contentType": "text/html; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/account",
+    "expected": 200,
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "cache": "public, max-age=0",
+    "contentType": "text/html; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/api/platform/progress",
+    "expected": 401,
+    "status": 401,
+    "noindex": "noindex, nofollow",
+    "cache": "no-store",
+    "contentType": "application/json; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/api/platform/staff/audit",
+    "expected": 401,
+    "status": 401,
+    "noindex": "noindex, nofollow",
+    "cache": "no-store",
+    "contentType": "application/json; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/api/me/stats",
+    "expected": 401,
+    "status": 401,
+    "noindex": "noindex, nofollow",
+    "cache": "no-store",
+    "contentType": "application/json; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/.env",
+    "expected": 404,
+    "status": 404,
+    "noindex": "noindex, nofollow",
+    "cache": "public, max-age=0",
+    "contentType": "text/html; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/.git/HEAD",
+    "expected": 404,
+    "status": 404,
+    "noindex": "noindex, nofollow",
+    "cache": "public, max-age=0",
+    "contentType": "text/html; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/package.json",
+    "expected": 404,
+    "status": 404,
+    "noindex": "noindex, nofollow",
+    "cache": "public, max-age=0",
+    "contentType": "text/html; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/node_modules/express/package.json",
+    "expected": 404,
+    "status": 404,
+    "noindex": "noindex, nofollow",
+    "cache": "public, max-age=0",
+    "contentType": "text/html; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/data/platform-preview/local-credentials.json",
+    "expected": 404,
+    "status": 404,
+    "noindex": "noindex, nofollow",
+    "cache": "public, max-age=0",
+    "contentType": "text/html; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/docs/refinement/2026-10-21-halastudy/PLAN.md",
+    "expected": 404,
+    "status": 404,
+    "noindex": "noindex, nofollow",
+    "cache": "public, max-age=0",
+    "contentType": "text/html; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/design-system/README.md",
+    "expected": 404,
+    "status": 404,
+    "noindex": null,
+    "cache": null,
+    "contentType": null,
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/api/debug",
+    "expected": 404,
+    "status": 404,
+    "noindex": "noindex, nofollow",
+    "cache": "no-store",
+    "contentType": "application/json; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/api/rooms/ZZZZZZ",
+    "expected": 404,
+    "status": 404,
+    "noindex": "noindex, nofollow",
+    "cache": "no-store",
+    "contentType": "application/json; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  },
+  {
+    "route": "/auth/google",
+    "expected": 404,
+    "status": 404,
+    "noindex": "noindex, nofollow",
+    "cache": "public, max-age=0",
+    "contentType": "text/html; charset=utf-8",
+    "csp": true,
+    "nosniff": "nosniff"
+  }
+]

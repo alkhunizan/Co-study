@@ -1,0 +1,8 @@
+{
+  "integrationTests": 152,
+  "browserPasses": 70,
+  "workspaceScreenshots": 64,
+  "extendedScreenshots": 86,
+  "onlineScreenshots": 14,
+  "sourceFiles": 279
+}

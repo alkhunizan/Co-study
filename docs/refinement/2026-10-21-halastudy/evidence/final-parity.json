@@ -1,0 +1,19 @@
+﻿{
+    "files":  279,
+    "source":  "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study",
+    "runtimes":  [
+                     "C:/Users/alkhu/AppData/Local/Temp/halastudy-refinement-2026-10-21/candidate-final",
+                     "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-refinement-2026-10-21\\candidate"
+                 ],
+    "manifestSha256":  "7aef40534fdf114fa8419fd1966cbce17041e0d8f33a30f1dc38711c26d3428e",
+    "mismatches":  [
+
+                   ],
+    "envFiles":  [
+
+                 ],
+    "protectedFiles":  15,
+    "changedProtected":  [
+
+                         ]
+}
