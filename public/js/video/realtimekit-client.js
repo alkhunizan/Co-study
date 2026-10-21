@@ -158,8 +158,13 @@
             }
         }
 
-        if (typeof meeting.join === 'function') {
-            await meeting.join();
+        try {
+            if (typeof meeting.join === 'function') {
+                await meeting.join();
+            }
+        } catch (error) {
+            await leaveMeeting();
+            throw error;
         }
         // Belt-and-braces: never emit audio from the Lobby.
         if (meeting.self && typeof meeting.self.disableAudio === 'function') {
