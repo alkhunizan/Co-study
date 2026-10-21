@@ -4,6 +4,8 @@ const { createDatabase } = require('./database');
 const { createEntitlements } = require('./catalog');
 const { createAccess } = require('./access');
 const { createBilling } = require('./billing');
+const { createDigetPayClient } = require('./digetpay-client');
+const { createDigetPayBilling } = require('./digetpay-billing');
 const { createProgress } = require('./progress');
 const { createCohorts } = require('./cohorts');
 const { requireCondition, audit } = require('./common');
@@ -12,6 +14,7 @@ const { requireCondition, audit } = require('./common');
 function createPlatform({ userStateFile, secret, env = process.env, logger = console }) {
     const enabled = env.PLATFORM_ENABLED !== 'false' && (env.NODE_ENV !== 'test' || env.PLATFORM_ENABLED === 'true');
     const mode = env.NODE_ENV === 'production' ? 'live' : env.BILLING_MODE === 'disabled' ? 'disabled' : 'test';
+    const provider = env.BILLING_PROVIDER || (env.NODE_ENV === 'test' ? 'simulator' : 'digetpay');
     const platform = { enabled, ready: null, db: null, access: null, entitlements: null, billing: null, progress: null, cohorts: null, mode };
     platform.ready = enabled ? (async () => {
         platform.db = await createDatabase({
@@ -20,10 +23,16 @@ function createPlatform({ userStateFile, secret, env = process.env, logger = con
             directory: env.PLATFORM_DATA_DIR || path.join(path.dirname(userStateFile), `${path.basename(userStateFile)}.platform`)
         });
         platform.access = createAccess(platform.db, secret);
-        platform.entitlements = createEntitlements(platform.db, mode);
-        platform.billing = createBilling(platform.db, mode);
+        platform.billing = provider === 'digetpay'
+            ? createDigetPayBilling(platform.db, createDigetPayClient(env), Date.now, logger)
+            : createBilling(platform.db, provider === 'simulator' ? mode : 'disabled');
+        const billingInfo = () => platform.billing.describe?.() || {
+            provider, environment: mode, checkoutAvailable: provider === 'simulator' && mode === 'test', automaticRenewal: false
+        };
+        platform.entitlements = createEntitlements(platform.db, mode, Date.now, billingInfo);
         platform.progress = createProgress(platform.db);
         platform.cohorts = createCohorts(platform.db, platform.entitlements);
+        platform.billing.start?.();
     })() : Promise.resolve();
     void platform.ready.catch(() => logger.error({ event: 'platform_start_failed' }));
 

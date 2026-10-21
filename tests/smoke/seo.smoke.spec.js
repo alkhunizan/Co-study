@@ -7,10 +7,10 @@ test('public locale links work without JavaScript and retain English content des
     try {
         const page = await plain.newPage();
         await page.goto('/en');
-        await expect(page.locator('h1')).toContainText('Study online.');
+        await expect(page.locator('h1')).toContainText('A quiet session.');
         await page.locator('a[data-lang-value="ar"]').click();
         await expect(page).toHaveURL(`${baseURL}/`);
-        await expect(page.locator('h1')).toContainText('ذاكر أونلاين.');
+        await expect(page.locator('h1')).toContainText('جلسة هادئة.');
         await page.goto('/en/blog');
         await expect(page.locator('h1')).toHaveText('From the Halastudy desk');
         await page.goto('/en/contact');
@@ -34,6 +34,7 @@ test('public locale links work without JavaScript and retain English content des
             await page.goto(route);
             await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
             await expect(page.locator('html')).toHaveAttribute('lang', route.startsWith('/en') ? 'en' : 'ar');
+            await expect(page.locator('a[data-lang-value][aria-pressed]')).toHaveCount(0);
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
             const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
             expect(audit.violations.map((issue) => ({ id: issue.id, nodes: issue.nodes.map((node) => node.target) }))).toEqual([]);

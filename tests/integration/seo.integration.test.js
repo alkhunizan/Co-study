@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const path = require('node:path');
+const fs = require('node:fs');
 const { startServer } = require('../helpers/server-control');
 
 test('sitemap exposes only canonical public pages with real HTML, valid schema and reachable images', async (t) => {
@@ -16,7 +17,9 @@ test('sitemap exposes only canonical public pages with real HTML, valid schema a
     assert.equal(sitemap.status, 200);
     assert.match(sitemap.headers['content-type'], /xml/);
     const urls = [...sitemap.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-    assert.equal(urls.length, 10);
+    assert.equal(urls.length, 12);
+    assert.ok(urls.includes('https://halastudy.com/en/privacy'));
+    assert.ok(urls.includes('https://halastudy.com/en/terms'));
     assert.equal(new Set(urls).size, urls.length);
     assert.doesNotMatch(sitemap.body, /<lastmod>|<priority>|\/(?:account|study|plans)<\/loc>|\.html/);
     for (const url of urls) {
@@ -45,7 +48,7 @@ test('sitemap exposes only canonical public pages with real HTML, valid schema a
     }
     const cli = await promisify(execFile)(process.execPath,
         [path.join(__dirname, '../../scripts/verify-seo.js'), server.baseUrl], { timeout: 30000 });
-    assert.match(cli.stdout, /SEO verified: 10 canonical public pages/);
+    assert.match(cli.stdout, /SEO verified: 12 canonical public pages/);
 });
 
 test('public aliases redirect once while session URLs stay functional and excluded from indexing', async (t) => {
@@ -78,7 +81,7 @@ test('public aliases redirect once while session URLs stay functional and exclud
 test('locale pages render translated content and reciprocal alternatives before JavaScript runs', async (t) => {
     const server = await startServer();
     t.after(() => server.stop());
-    for (const [arabic, english] of [['/', '/en'], ['/blog', '/en/blog'], ['/contact', '/en/contact']]) {
+    for (const [arabic, english] of [['/', '/en'], ['/blog', '/en/blog'], ['/contact', '/en/contact'], ['/privacy', '/en/privacy'], ['/terms', '/en/terms']]) {
         const ar = (await server.request(arabic)).body;
         const en = (await server.request(english)).body;
         assert.match(ar, /<html lang="ar" dir="rtl"/);
@@ -91,7 +94,7 @@ test('locale pages render translated content and reciprocal alternatives before 
         }
     }
     const englishHome = (await server.request('/en')).body;
-    assert.match(englishHome, /data-i18n="heroTitle1">Study online\.</);
+    assert.match(englishHome, /data-i18n="heroTitle1">A quiet session\.</);
     assert.match((await server.request('/en/blog')).body, /<h1 data-lang="blogTitle">From the Halastudy desk<\/h1>/);
     assert.match((await server.request('/en/contact')).body, /<h1 data-lang="heading">Contact Halastudy<\/h1>/);
     assert.match((await server.request('/contact')).body, /href="https:\/\/wa.me\/966599161315"/);
@@ -100,4 +103,13 @@ test('locale pages render translated content and reciprocal alternatives before 
     assert.doesNotMatch(article, /"@type": "FAQPage"/);
     assert.match(article, /<details>/, 'visible FAQ content remains');
     assert.match((await server.request('/blog/best-online-group-study-rooms-saudi')).body, /id="sources-heading"/);
+    for (const name of ['privacy', 'terms']) {
+        const approved = fs.readFileSync(path.resolve(__dirname, `../../${name}.html`), 'utf8');
+        const plain = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        for (const language of ['ar', 'en']) {
+            const section = new RegExp(`<section lang="${language}"[^>]*>([\\s\\S]*?)<\\/section>`);
+            const served = (await server.request(`${language === 'en' ? '/en' : ''}/${name}`)).body;
+            assert.equal(plain(served.match(section)[1]), plain(approved.match(section)[1]), `${name} ${language}: approved text preserved`);
+        }
+    }
 });

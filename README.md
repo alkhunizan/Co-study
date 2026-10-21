@@ -18,7 +18,7 @@ This release ships with:
 - Optional accounts (email + password, no verification wall): synced focus minutes and day streaks, My Rooms with one-click rejoin, reserved nickname, avatar accent + bio. Instant rooms stay guest-open; scheduled rooms require an account
 - Reauthenticated account deletion with durable failure handling and session revocation; shared content/backups are explained in the privacy policy
 - Member workspace at `/app`, private circles and assigned supervisors at `/supervisor`, and one VIP offer at `/plans`: USD 4.99/month
-- Local test checkout only; production checkout stays unavailable until a payment provider is integrated
+- DigetPay hosted checkout adapter for sandbox testing, with server-verified payments and refund reconciliation; production charges and automatic renewal remain disabled. [Setup and limits](docs/payments/2026-10-20-digetpay/IMPLEMENTATION.md)
 - Named staff roles with authenticator MFA, recovery codes, audit events, moderation and operating controls; first-owner bootstrap retires shared-admin access
 - Server-timed sessions, pause/resume, bounded heartbeat credit, deduplicated points and achievements
 - Cloudflare RealtimeKit video rooms with server-issued participant tokens, plus legacy mesh fallback

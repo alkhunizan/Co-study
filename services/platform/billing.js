@@ -69,4 +69,4 @@ function createBilling(db, mode, now = Date.now) {
     return { checkout, complete, cancel };
 }
 
-module.exports = { createBilling };
+module.exports = { createBilling, nextMonth };

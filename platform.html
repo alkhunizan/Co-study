@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="/design-system/colors_and_type.css">
   <link rel="stylesheet" href="/css/platform.css">
   <script src="/js/halastudy-core.js"></script>
+  <script src="/js/ux-insights.js"></script>
+  <script src="/js/schedule-display.js"></script>
   <script src="/js/focus-client.js" defer></script>
   <script src="/js/platform.js" defer></script>
 </head>
@@ -21,18 +23,15 @@
       <button type="button" data-lang-value="ar" lang="ar">عربي</button>
       <button type="button" data-lang-value="en" lang="en">EN</button>
       <button type="button" id="theme-toggle" data-lang="theme">المظهر</button>
-      <a href="/account" data-lang="account">حسابي</a>
+      <a href="/app#account" data-view="account" data-lang="account">حسابي</a>
     </div>
   </header>
   <div class="platform-shell">
     <nav class="platform-nav" aria-label="Workspace" data-lang-aria="workspaceNav">
-      <a href="/app#home" data-view="home" data-lang="home">مساحتي</a>
+      <a href="/app#home" data-view="home" data-lang="studyNav">المذاكرة</a>
       <a href="/app#progress" data-view="progress" data-lang="progress">تقدّمي</a>
-      <a href="/app#circles" data-view="circles" data-lang="circles">مجموعات الدراسة</a>
-      <a href="/plans" data-view="vip" data-lang="vip">عضوية VIP</a>
-      <a href="/app#security" data-view="security" data-lang="security">الأمان</a>
-      <a href="/app#staff" data-view="staff" data-lang="staff" id="staff-nav" hidden>الإدارة</a>
-      <a class="nav-study" href="/open" data-lang="openRoom">افتح غرفة</a>
+      <a href="/app#circles" data-view="circles" data-lang="groupsNav">المجموعات</a>
+      <a href="/app#account" data-view="account" data-lang="account">حسابي</a>
     </nav>
     <main id="main" tabindex="-1">
       <p id="feedback" class="feedback" role="status" aria-live="polite" hidden></p>
@@ -50,6 +49,9 @@
         <p class="lede" data-lang="homeBody">ابدأ جلسة هادئة، وخلّ التقدّم يجي خطوة بخطوة.</p>
         <a class="button primary" href="/open" data-lang="openRoom">افتح غرفة</a>
         <a class="button" href="/lobby" data-lang="lobby">ادخل الاستراحة</a>
+        <h2 data-lang="continueStudy">أكمل مذاكرتك</h2><div id="return-room" class="rows"></div>
+        <h2 data-lang="nextSession">موعدك القادم</h2><div id="next-session" class="rows"></div>
+        <p class="note" data-lang="todayRule">دقائق اليوم من الجلسات المكتملة، بتوقيت الرياض (Asia/Riyadh).</p>
         <div class="metrics" id="home-metrics"></div>
         <div class="section-heading"><h2 data-lang="yourRooms">الغرف التي تديرها</h2><a href="/account" data-lang="roomHistory">سجل الغرف</a></div>
         <div id="owned-rooms" class="rows"></div>
@@ -63,6 +65,10 @@
           <div class="actions"><button class="primary" id="focus-start" data-lang="start">ابدأ جلسة</button><button id="focus-pause" data-lang="pause" hidden>إيقاف مؤقت</button><button id="focus-finish" data-lang="finish" hidden>إنهاء الجلسة</button></div>
           <p class="note" data-lang="focusRule">دقيقة مكتملة = نقطة واحدة، حتى 240 نقطة يوميًا. الانقطاع الطويل لا يُحتسب، وبياناتك السابقة تبقى في حسابك.</p>
         </div>
+        <section id="focus-recap" class="focus-card recap" hidden tabindex="-1" aria-labelledby="recap-title">
+          <h2 id="recap-title" data-lang="recapTitle">انتهت جلستك</h2><p id="recap-values"></p><p id="recap-note" class="note"></p>
+          <button id="recap-next" class="primary" data-lang="anotherSession">ابدأ جلسة أخرى</button>
+        </section>
         <div class="metrics" id="progress-metrics"></div>
         <h2 data-lang="achievements">إنجازاتك</h2><div id="achievements" class="achievements"></div>
         <div class="section-heading"><h2 data-lang="recentSessions">جلساتك الأخيرة</h2><a id="export-progress" href="/api/platform/progress/export" hidden data-lang="export">تصدير CSV</a></div>
@@ -86,7 +92,7 @@
             <h3 data-lang="scheduleSession">جدولة جلسة للمجموعة</h3>
             <label><span data-lang="sessionTitle">عنوان الجلسة</span><input name="title" maxlength="80" required></label>
             <label><span data-lang="room">الغرفة</span><select name="roomId" id="session-room" required></select></label>
-            <label><span data-lang="startsAt">البدء بتوقيت جهازك</span><input name="startsAt" type="datetime-local" required></label>
+            <label><span data-lang="startsAt">البدء بتوقيت جهازك</span><small id="schedule-zone"></small><input name="startsAt" type="datetime-local" required></label>
             <label><span data-lang="minutes">الدقائق</span><input name="durationMinutes" type="number" min="5" max="240" value="25" required></label>
             <p class="note" data-lang="privateRoomNotice">ربط الغرفة بالمجموعة يجعل دخولها متاحًا لأعضاء المجموعة فقط، مع بقاء كلمة المرور إن وُجدت.</p>
             <button class="primary" data-lang="schedule">احفظ الموعد</button>
@@ -105,7 +111,35 @@
           <article class="plan featured"><h2>VIP</h2><p class="price" dir="ltr">US$4.99 <small data-lang="monthly">شهريًا</small></p><ul><li data-lang="vipHistory">سجل جلسات موثّق لمدة سنة</li><li data-lang="vipExport">تصدير تقدّمك بصيغة CSV</li><li data-lang="vipCircles">إنشاء 3 مجموعات خاصة، حتى 12 عضوًا لكل مجموعة</li><li data-lang="vipSupervision">تعيين مشرفين للمجموعة وجدولة الجلسات ومتابعة الحضور</li></ul><button class="primary" id="checkout-start" data-lang="tryCheckout">جرّب الاشتراك</button><p id="plan-status" class="note"></p></article>
         </div>
         <div id="billing-management" class="detail" hidden><h2 data-lang="membership">عضويتك</h2><p id="billing-status"></p><button id="billing-cancel" data-lang="cancelRenewal">إلغاء التجديد</button></div>
+        <form id="digetpay-checkout" class="form-grid" hidden>
+          <h2 data-lang="digetpayTitle">الدفع التجريبي عبر DigetPay</h2>
+          <p class="note" data-lang="digetpayBody">تجربة عضوية لمدة شهر بسعر 4.99 دولار أمريكي. لا يُخصم مبلغ فعلي ولا يوجد تجديد تلقائي. استخدم بيانات الاختبار فقط.</p>
+          <label><span data-lang="paymentPhone">رقم جوال سعودي</span><input name="phone" type="tel" dir="ltr" autocomplete="tel" inputmode="tel" required maxlength="14" pattern="(0?5[0-9]{8}|\+9665[0-9]{8}|9665[0-9]{8})" placeholder="0501234567"></label>
+          <button class="primary" type="submit" data-lang="continueDigetpay">متابعة إلى DigetPay التجريبي</button>
+        </form>
+        <div id="payment-result" class="detail" hidden aria-live="polite">
+          <h2 data-lang="paymentResultTitle">حالة الدفع</h2>
+          <p id="payment-result-text"></p>
+          <button id="payment-verify" type="button" data-lang="verifyPayment">تحقق من حالة الدفع</button>
+        </div>
         <div id="test-checkout" class="detail" hidden tabindex="-1"><h2 data-lang="checkoutTitle">محاكاة الدفع التجريبية</h2><p data-lang="checkoutBody">VIP — ‏4.99 دولار أمريكي شهريًا. اختر نتيجة اختبار. هذه المحاكاة لا تُنشئ دفعة أو تجديدًا فعليًا.</p><div class="actions"><button class="primary" data-checkout-outcome="success" data-lang="simulateSuccess">محاكاة نجاح الدفع</button><button data-checkout-outcome="declined" data-lang="simulateDecline">محاكاة رفض الدفع</button><button data-checkout-outcome="cancel" data-lang="cancel">إلغاء</button></div></div>
+      </section>
+      <section data-panel="account" hidden>
+        <p class="eyebrow" data-lang="account">حسابي</p><h1 data-lang="accountTitle">حسابك وخياراتك</h1>
+        <p class="lede" data-lang="accountBody">الملف الشخصي وسجل الغرف وإعدادات الأمان في مكان واحد.</p>
+        <div class="account-links">
+          <a class="button" href="/account" data-lang="profileHistory">الملف الشخصي وسجل الغرف</a>
+          <a class="button" href="/app#security" data-view="security" data-lang="security">الأمان</a>
+          <a class="button" href="/plans" data-view="vip" data-lang="vip">عضوية VIP</a>
+          <a class="button" href="/app#staff" data-view="staff" data-lang="staff" id="staff-nav" hidden>الإدارة</a>
+        </div>
+        <section class="detail" aria-labelledby="insights-title">
+          <h2 id="insights-title" data-lang="insightsTitle">عدادات استخدام اختيارية على جهازك</h2>
+          <p class="note" data-lang="insightsBody">معطّلة افتراضيًا. تُحفظ أعداد الإجراءات وفئات المدة فقط لمدة 7 أيام على هذا المتصفح، دون إرسالها إلى أي جهة. لا تتضمن أسماء أو رموز غرف أو محتوى. إيقافها يحذفها.</p>
+          <label class="consent-label"><input id="insights-consent" type="checkbox"><span data-lang="insightsEnable">اسمح بالعدادات المحلية على هذا المتصفح</span></label>
+          <p id="insights-status" role="status"></p><ul id="insights-summary"></ul>
+          <button id="insights-reset" data-lang="insightsReset">امسح العدادات وأوقفها</button>
+        </section>
       </section>
       <section data-panel="security" hidden>
         <p class="eyebrow" data-lang="peaceOfMind">اطمئنانك أولًا</p><h1 data-lang="securityTitle">حسابك بصلاحيات واضحة</h1>
@@ -148,7 +182,12 @@
             <form id="staff-grant" class="form-grid"><label><span data-lang="targetAccount">معرّف حساب الموظف</span><input name="userId" required dir="ltr"></label><label><span data-lang="role">الصلاحية</span><select name="role"><option value="moderator" data-lang="roleModerator">مشرف محتوى</option><option value="support" data-lang="roleSupport">الدعم</option><option value="billing_operator" data-lang="roleBilling">الفوترة</option><option value="admin" data-lang="roleAdmin">مسؤول المنصة</option><option value="super_admin" data-lang="roleSuperAdmin">مسؤول رئيسي</option></select></label><button data-lang="grant">امنح الصلاحية</button></form>
           </section>
           <section id="staff-cases-section" hidden><h2 data-lang="reports">البلاغات</h2><div id="staff-cases" class="rows"></div></section>
-          <section id="staff-billing-section" hidden><h2 data-lang="subscriptions">الاشتراكات</h2><div id="staff-billing" class="rows"></div></section>
+          <section id="staff-billing-section" hidden><h2 data-lang="subscriptions">الاشتراكات</h2><div id="staff-billing" class="rows"></div>
+            <div id="payment-review-section" hidden><h3 data-lang="unresolvedPayments">مدفوعات تجريبية تحتاج إلى مراجعة</h3>
+              <p data-lang="paymentReviewHelp">التحقق لا ينشئ خصمًا جديدًا. المحاولات بلا مرجع دفع تحتاج إلى مراجعة لدى المزوّد.</p>
+              <div id="payment-orders" class="rows"></div><div id="payment-orders-more"></div>
+            </div>
+          </section>
           <section id="staff-audit-section" hidden><h2 data-lang="audit">سجل الإجراءات</h2><div id="staff-audit" class="rows"></div></section>
         </div>
       </section>

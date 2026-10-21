@@ -1,0 +1,76 @@
+/* The room shell keeps the timer central and secondary tools within reach. */
+body { min-block-size: 100svh; }
+body > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px; flex: 0 0 auto; }
+body > .room-meta { padding: 0 24px 12px; flex: 0 0 auto; }
+body > main { display: grid; grid-template-columns: minmax(230px,280px) minmax(360px,1fr) minmax(230px,280px); gap: 18px; padding: 8px 24px 24px; flex: 1; min-block-size: 0; overflow: hidden; }
+main > *, .center-col > * { min-inline-size: 0; }
+main > .card { background: var(--card); border: 1px solid var(--line); border-radius: 24px; min-block-size: 0; }
+.room-tools { overflow: hidden; }
+.room-tools > summary { padding: 18px 20px; font-size: 16px; font-weight: 700; cursor: pointer; min-block-size: 52px; border-block-end: 1px solid var(--line); }
+.room-tool-content { padding: 20px; overflow-y: auto; min-block-size: 0; block-size: calc(100% - 60px); scrollbar-gutter: stable; }
+.room-tools:not([open]) > .room-tool-content { display: none; }
+.center-col { min-block-size: 0; gap: 16px; overflow-y: auto; scrollbar-gutter: stable; }
+.timer-box { padding: 20px; gap: 12px; }
+.room-heading { font: 500 24px/1.25 var(--font-display); margin: 0; align-self: start; }
+[lang="ar"] .room-heading { font-family: var(--font-display-ar); }
+.focus-intent { inline-size: 100%; text-align: start; }
+.focus-intent label { display: block; font-size: 14px; color: var(--ink-2); margin-block-end: 6px; }
+.focus-intent .status-input { inline-size: 100%; min-block-size: 44px; margin: 0; }
+.timer-tabs { margin: 0; }
+.timer-main-row { inline-size: 100%; justify-content: center; gap: 20px; }
+.timer-controls { margin: 0; gap: 20px; }
+.timer-config-bar { margin: 0; }
+.timer-presets { margin: 0; }
+.focus-summary { min-inline-size: 0; }
+.focus-summary-text { min-inline-size: 0; }
+.video-box { min-block-size: 180px; flex-shrink: 0; }
+.video-box.collapsed { min-block-size: 160px; }
+.video-box.collapsed #remote-cam, .video-box.collapsed .status-badge, .video-box.collapsed .ai-status { display: none; }
+.video-box.collapsed #local-cam { flex: 1; min-block-size: 160px; }
+.video-box-collapsed-banner { inset-block: 12px 68px; font-size: 14px; background: transparent; backdrop-filter: none; }
+.cam-controls { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+.video-box.collapsed .cam-placeholder { display: none; }
+.video-box.collapsed .cam-controls { position: absolute; inset-block-end: 12px; inset-inline: 12px; transform: none; }
+.camera-privacy { font-size: 13px; color: var(--ink-2); margin: 0; line-height: 1.5; }
+.camera-help { padding: 16px; border: 1px solid var(--line-strong); border-radius: 20px; background: var(--card); }
+.camera-help[hidden] { display: none; }
+.camera-help p { margin-block-end: 12px; line-height: 1.6; }
+.camera-help-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.camera-help-actions button { min-block-size: 44px; padding: 8px 16px; background: var(--inset); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 999px; cursor: pointer; font: inherit; }
+.cam-btn { min-block-size: 44px; padding-inline: 16px; white-space: nowrap; }
+.chat-container { min-block-size: 220px; block-size: min(48vh,420px); }
+.chat-input { min-block-size: 44px; min-inline-size: 0; }
+.btn-send { min-inline-size: 44px; min-block-size: 44px; }
+.room-tool-content .status-control { margin-block-end: 20px; }
+html[lang="ar"] body, html[lang="ar"] #shared-board-card { direction: rtl; text-align: start; }
+@media (min-width: 1025px) {
+  .room-tools[open] { display: flex; flex-direction: column; }
+  .room-tools > summary { flex: 0 0 auto; }
+  .room-tool-content { flex: 1; }
+}
+@media (max-width: 1024px) {
+  body { block-size: auto; overflow: auto; }
+  body > main { display: flex; flex-direction: column; overflow: visible; padding: 8px 20px 24px; gap: 16px; }
+  .center-col { order: -1; block-size: auto; overflow: visible; }
+  .timer-box { order: -1; }
+  .room-tool-content { block-size: auto; overflow: visible; }
+  .video-box { flex: 0 0 220px; }
+  .video-box.collapsed { flex-basis: 160px; }
+  .chat-container { block-size: 360px; }
+}
+@media (max-width: 640px) {
+  body > header { gap: 8px; padding: 10px 20px; }
+  body > .room-meta { gap: 6px; padding-inline: 20px; }
+  .room-meta .presence-names { display: none; }
+  .room-pill { padding: 6px 12px; font-size: 12px; }
+  .room-pill strong { font-size: 13px; }
+  .timer-box { padding: 18px; gap: 12px; }
+  .timer-main-row { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .timer-main-row .time-display { font-size: 48px; }
+  .timer-main-row .focus-summary { inline-size: 100%; padding: 10px 12px; }
+  .timer-main-row .focus-summary-text { flex-direction: row; align-items: center; gap: 8px; }
+  .timer-main-row .focus-summary strong { font-size: 20px; }
+  .timer-config-bar { gap: 8px; font-size: 13px; }
+  .timer-controls .btn-ctrl { inline-size: 56px; block-size: 56px; }
+  .focus-sync-hint { inline-size: 100%; }
+}

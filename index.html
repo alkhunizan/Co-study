@@ -207,8 +207,8 @@
             gap: 10px;
             padding: 12px 14px;
             border-radius: 18px;
-            background: rgba(255,255,255,0.45);
-            border: 1px solid rgba(255,255,255,0.4);
+            background: var(--paper-2);
+            border: 1px solid var(--line);
         }
         .user-dot {
             width: 10px;
@@ -246,7 +246,7 @@
             padding: 2px 10px;
             border-radius: 999px;
             background: rgba(111, 144, 255, 0.14);
-            color: var(--accent);
+            color: var(--accent-3);
             font-size: 0.72rem;
             font-weight: 800;
             letter-spacing: 0.01em;
@@ -296,6 +296,7 @@
             opacity: 0;
             pointer-events: none;
         }
+        .join-overlay[hidden] { display: none; }
         .join-card {
             width: min(420px, 90vw);
             background: var(--bg-card);
@@ -384,7 +385,7 @@
 
         .lang-switch { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9rem; background: var(--bg-card); padding: 4px 6px; border-radius: 20px; box-shadow: var(--shadow-card); user-select: none; }
         .lang-option { border: none; background: transparent; color: var(--text-sec); padding: 4px 8px; border-radius: 14px; cursor: pointer; font: inherit; }
-        .lang-option.active { color: var(--accent); background: rgba(224,176,139,0.12); }
+        .lang-option.active { color: var(--accent-3); background: rgba(224,176,139,0.12); }
         .board-goal-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
         .board-goal-label { font-size: 0.82rem; font-weight: 600; color: var(--text-sec); }
         .board-goal-input,
@@ -489,7 +490,7 @@
         .timer-box { background: var(--bg-card); padding: 25px; border-radius: var(--radius-card); box-shadow: var(--shadow-card); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
         .timer-tabs { display: flex; gap: 5px; background: var(--bg-input); padding: 4px; border-radius: 20px; margin-bottom: 15px; }
         .timer-tab { padding: 6px 16px; border-radius: 16px; font-size: 0.85rem; color: var(--text-sec); cursor: pointer; transition: 0.3s; }
-        .timer-tab.active { background: var(--bg-card); color: var(--accent); font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .timer-tab.active { background: var(--bg-card); color: var(--accent-3); font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .time-display { font-size: 4.5rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; margin: 5px 0 15px 0; color: var(--text-main); }
 
         .timer-main-row { width: 100%; display: flex; align-items: center; justify-content: center; gap: 30px; margin: 15px 0; }
@@ -509,7 +510,7 @@
         .timer-controls { display: flex; gap: 30px; align-items: center; margin-top: 10px; }
         .btn-ctrl { width: 64px; height: 64px; border-radius: 50%; border: none; background: var(--bg-card); color: var(--text-main); font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-btn); transition: all 0.2s ease; }
         .btn-ctrl:active { box-shadow: var(--shadow-btn-inset); transform: scale(0.95); }
-        .btn-ctrl.main { color: var(--accent); font-size: 1.8rem; }
+        .btn-ctrl.main { color: var(--accent-3); font-size: 1.8rem; }
 
         .focus-summary { width: 100%; margin-top: 15px; background: var(--bg-input); border-radius: 18px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-main); }
         .focus-summary-text { display: flex; flex-direction: column; gap: 4px; }
@@ -594,12 +595,15 @@
             .schedule-stats { grid-template-columns: 1fr; }
         }
     </style>
+    <link rel="stylesheet" href="/css/room-shell.css">
     <script src="/js/halastudy-core.js"></script>
+  <script src="/js/ux-insights.js"></script>
+  <script src="/js/schedule-display.js"></script>
     <script src="/js/focus-client.js" defer></script>
     <script src="/js/ui.js" defer></script>
 </head>
 <body>
-<div class="join-overlay" id="join-overlay">
+<div class="join-overlay" id="join-overlay" role="dialog" aria-modal="true" aria-labelledby="join-title">
     <form class="join-card" id="join-form">
         <div class="lang-switch" aria-label="Language selector">
             <button type="button" class="lang-option active" data-lang-value="ar">AR</button>
@@ -612,7 +616,7 @@
                 <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
             </svg>
         </div>
-        <h2 data-lang="joinTitle">Join the focus room</h2>
+        <h2 id="join-title" data-lang="joinTitle">Join the focus room</h2>
         <p class="join-sub" data-lang="joinSubtitle">Enter your nickname and room code to start focusing together.</p>
         <label class="join-label" for="join-name" data-lang="joinName">Your nickname</label>
         <input type="text" id="join-name" class="join-input" maxlength="20" autocomplete="nickname" data-lang-placeholder="joinNamePlaceholder" placeholder="Name shown to others">
@@ -621,7 +625,7 @@
         <input type="text" id="join-room" class="join-input" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" data-force-ltr data-lang-placeholder="joinRoomPlaceholder" placeholder="e.g. ABC123">
         <label class="join-label" for="join-password" data-lang="joinPassword">Room password (if required)</label>
         <input type="password" id="join-password" class="join-input" maxlength="64" autocomplete="current-password" data-lang-placeholder="joinPasswordPlaceholder" placeholder="Leave empty if no password">
-        <div class="join-error" id="join-error"></div>
+        <div class="join-error" id="join-error" role="alert"></div>
         <button class="join-submit" type="submit" data-lang="joinButton">Enter room</button>
     </form>
 </div>
@@ -667,7 +671,9 @@
 </div>
 
 <main>
-    <div class="card" id="shared-board-card">
+    <details class="card room-tools" id="shared-board-card" open>
+        <summary data-lang="roomTools">Members and shared board</summary>
+        <div class="room-tool-content" tabindex="0">
         <div class="user-panel">
             <div class="user-panel-header">
                 <span data-lang="userListTitle">Room members</span>
@@ -684,8 +690,7 @@
                 <button class="status-btn" type="button" data-status="working">💼 <span data-lang="statusWorking">Working</span></button>
             </div>
             <input type="text" id="status-custom" class="status-input" maxlength="20" data-lang-placeholder="statusCustomPlaceholder" placeholder="Custom status...">
-            <label class="status-label status-goal-label" for="status-goal" data-lang="goalLabel">Session goal</label>
-            <input type="text" id="status-goal" class="status-input" maxlength="80" data-lang-placeholder="goalPlaceholder" placeholder="What are you working on?">
+
             <div class="status-options">
                 <label class="status-toggle">
                     <input type="checkbox" id="status-auto-sync">
@@ -738,7 +743,7 @@
 
         <div class="todo-input-wrapper">
             <input type="text" class="todo-input" id="new-task" maxlength="120" data-lang-placeholder="todoPlaceholder" placeholder="Add shared task...">
-            <button class="btn-add" id="add-task-btn" type="button">+</button>
+            <button class="btn-add" id="add-task-btn" type="button" data-lang-title="addTaskLabel">+</button>
         </div>
         <div class="todo-priority-picker" id="todo-priority-picker">
             <button class="todo-priority-btn" type="button" data-priority="3" data-lang-title="priorityHigh" title="High priority" aria-label="High priority">
@@ -751,11 +756,13 @@
                 <span class="color-dot" style="background:var(--prio-low)"></span>
             </button>
         </div>
-        <div class="todo-feedback" id="board-feedback"></div>
+        <div class="todo-feedback" id="board-feedback" role="status" aria-live="polite"></div>
         <div class="todo-list" id="todo-list"></div>
-    </div>
+        </div>
+    </details>
 
     <div class="center-col">
+        <p class="camera-privacy" data-lang="cameraPrivacy">Camera optional. When enabled, people in your room can see it. You can turn it off at any time.</p>
         <div class="video-box">
             <div class="video-box-collapsed-banner" id="video-collapse-banner" hidden>📹 <span data-lang="videoCollapsedBanner">No video stream</span></div>
             <div class="cam-feed" id="local-cam">
@@ -774,7 +781,7 @@
                 <div class="cam-placeholder" id="remote-placeholder" data-lang="remoteWaiting">Waiting for your buddy to enable camera</div>
                 <div class="remote-status" id="remote-status"></div>
             </div>
-            <iframe id="sfu-frame" class="sfu-frame"
+            <iframe id="sfu-frame" class="sfu-frame" title="Study room video" data-lang-title="roomVideoTitle"
                     allow="camera; microphone; display-capture; fullscreen; autoplay"></iframe>
             <div id="realtimekit-container" class="realtimekit-container" hidden>
                 <rtk-meeting id="realtimekit-meeting" show-setup-screen="false"></rtk-meeting>
@@ -786,7 +793,19 @@
             </div>
         </div>
 
+        <section class="camera-help" id="camera-help" hidden>
+            <p id="camera-help-message" role="status" aria-live="polite"></p>
+            <div class="camera-help-actions">
+                <button type="button" id="camera-retry" data-lang="cameraRetry">Try camera again</button>
+                <button type="button" id="camera-continue" data-lang="cameraContinue">Continue without camera</button>
+            </div>
+        </section>
         <div class="timer-box">
+            <h1 class="room-heading" data-lang="roomHeading">Room for focus</h1>
+            <div class="focus-intent">
+            <label class="status-label status-goal-label" for="status-goal" data-lang="goalLabel">Session goal</label>
+            <input type="text" id="status-goal" class="status-input" maxlength="80" data-lang-placeholder="goalPlaceholder" placeholder="What are you working on?">
+            </div>
             <div class="timer-tabs">
                 <div class="timer-tab active" id="tab-focus" data-lang="focusMode">Focus mode</div>
                 <div class="timer-tab" id="tab-break" data-lang="breakMode">Break mode</div>
@@ -811,12 +830,12 @@
 
             <div class="timer-config-bar">
                 <div class="config-item">
-                    <span data-lang="timerSet">Focus</span>:
+                    <label for="cfg-f" data-lang="timerSet">Focus</label>:
                     <input type="number" id="cfg-f" value="25" class="config-input"> <span data-lang="minutesShort">m</span>
                 </div>
                 <div style="width:1px; height:15px; background:#ccc; margin:0 5px;"></div>
                 <div class="config-item">
-                    <span data-lang="timerBreak">Break</span>:
+                    <label for="cfg-b" data-lang="timerBreak">Break</label>:
                     <input type="number" id="cfg-b" value="5" class="config-input"> <span data-lang="minutesShort">m</span>
                 </div>
             </div>
@@ -828,19 +847,20 @@
             </div>
 
             <div class="timer-controls">
-                <button class="btn-ctrl" onclick="resetTimer()">↻</button>
-                <button class="btn-ctrl main" id="btn-toggle" onclick="toggleTimer()">▶</button>
+                <button class="btn-ctrl" data-lang-title="timerResetLabel" onclick="resetTimer()">↻</button>
+                <button class="btn-ctrl main" id="btn-toggle" aria-label="Start focus" onclick="toggleTimer()">▶</button>
             </div>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header"><div class="card-title" data-lang="chatTitle">Chat room</div></div>
+    <details class="card room-tools" id="chat-room-card" open>
+        <summary data-lang="chatTitle">Chat room</summary>
+        <div class="room-tool-content" tabindex="0">
         <div class="chat-container">
             <div class="chat-msgs" id="chat-msgs"></div>
             <form class="chat-input-area" id="chat-form">
                 <input type="text" class="chat-input" id="chat-input" maxlength="500" autocomplete="off" enterkeyhint="send" data-lang-placeholder="chatPlaceholder" placeholder="Type a message..." disabled>
-                <button class="btn-send" id="chat-send" type="submit" disabled>➤</button>
+                <button class="btn-send" id="chat-send" data-lang-title="chatSend" type="submit" disabled>➤</button>
             </form>
         </div>
         <div class="ambient-control">
@@ -869,7 +889,8 @@
                 </label>
             </div>
         </div>
-    </div>
+        </div>
+    </details>
 </main>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -912,7 +933,7 @@
             scheduleStreakStat: 'Streak',
             scheduleAddCalendar: 'Add to calendar',
             scheduleWhatsappInvite: 'WhatsApp invite',
-            scheduleTimezoneLabel: 'Riyadh time',
+            scheduleTimezoneLabel: 'Riyadh time (Asia/Riyadh, UTC+03:00)',
             scheduleNextLabel: 'Next session',
             scheduleLiveLabel: 'Live now',
             scheduleTimerPresetLabel: 'Timer',
@@ -930,7 +951,8 @@
             priorityMedium: 'Medium priority',
             priorityLow: 'Low priority',
             chatPlaceholder: 'Type a message...',
-            timerSet: 'Focus',
+            roomTools: 'Members and shared board', roomHeading: 'Room for focus', addTaskLabel: 'Add shared task', roomVideoTitle: 'Study room video',
+            timerSet: 'Focus', timerStartLabel: 'Start focus', timerPauseLabel: 'Pause focus', timerResetLabel: 'Reset timer', chatSend: 'Send message',
             timerBreak: 'Break',
             minutesShort: 'm',
             joinTitle: 'Join the focus room',
@@ -944,7 +966,7 @@
             joinButton: 'Enter room',
             roomLabel: 'Room',
             mediaModeLabel: 'Media',
-            mediaModeMeshBadge: 'Mesh room',
+            mediaModeMeshBadge: 'Study room',
             mediaModeSfuBadge: 'Large room',
             mediaModeRealtimeKitBadge: 'Study camera room',
             onlineLabel: 'Online',
@@ -967,6 +989,14 @@
             cameraToggleOff: 'Disable camera',
             cameraToggleStarting: 'Starting...',
             cameraError: 'Unable to access the camera.',
+            cameraBlurHelp: 'Privacy blur could not start. Your camera is off. Retry, or turn blur off only if you want to share unblurred video.',
+            cameraPermissionHelp: 'Camera access is blocked. Allow it in your browser site settings, then try again. You can keep studying without it.',
+            cameraDeviceHelp: 'No camera was found. Connect a camera and try again, or continue without one.',
+            cameraBusyHelp: 'The camera may be in use. Close the other camera app and try again, or keep studying without it.',
+            cameraGenericHelp: 'The camera could not start. Try again or continue your session without it.',
+            cameraBrowserHelp: 'Camera access is unavailable in this browser. Continue studying, or open the room in a supported browser using HTTPS.',
+            cameraRetry: 'Try camera again', cameraContinue: 'Continue without camera',
+            cameraPrivacy: 'Camera optional. When enabled, people in your room can see it. You can turn it off at any time.',
             aiReady: 'AI ready',
             aiFocused: 'Status: focused',
             aiAway: 'Status: possibly away',
@@ -1011,7 +1041,7 @@
             soundOcean: 'Ocean',
             soundNone: 'Off',
             soundListening: 'Listening to',
-            videoCollapsedBanner: 'No video stream',
+            videoCollapsedBanner: 'Camera off · study at your pace',
             statusHidden: 'Hidden',
             userJoined: 'joined the room',
             userLeft: 'left the room',
@@ -1046,6 +1076,7 @@
             videoRequestInvalid: 'Video join request was invalid. Refresh and try again.',
             messageRequired: 'Please enter a message.',
             boardTaskRequired: 'Please enter a task.',
+            boardTaskLimit: 'This board has reached its 100-task limit. Delete a task before adding another.',
             boardTaskNotFound: 'That task no longer exists.',
             boardReorderInvalid: 'Could not reorder tasks. Refresh the board and try again.',
             boardErrorGeneric: 'Board update failed.',
@@ -1084,7 +1115,7 @@
             scheduleStreakStat: 'السلسلة',
             scheduleAddCalendar: 'أضف إلى التقويم',
             scheduleWhatsappInvite: 'دعوة واتساب',
-            scheduleTimezoneLabel: 'توقيت الرياض',
+            scheduleTimezoneLabel: 'توقيت الرياض (Asia/Riyadh، UTC+03:00)',
             scheduleNextLabel: 'الجلسة القادمة',
             scheduleLiveLabel: 'الجلسة جارية الآن',
             scheduleTimerPresetLabel: 'المؤقت',
@@ -1102,7 +1133,8 @@
             priorityMedium: 'أولوية متوسطة',
             priorityLow: 'أولوية منخفضة',
             chatPlaceholder: 'اكتب رسالة...',
-            timerSet: 'تركيز',
+            roomTools: 'الأعضاء واللوحة المشتركة', roomHeading: 'مساحتك للتركيز', addTaskLabel: 'أضف مهمة مشتركة', roomVideoTitle: 'فيديو غرفة الدراسة',
+            timerSet: 'تركيز', timerStartLabel: 'ابدأ التركيز', timerPauseLabel: 'أوقف التركيز مؤقتًا', timerResetLabel: 'أعد ضبط المؤقت', chatSend: 'أرسل الرسالة',
             timerBreak: 'استراحة',
             minutesShort: 'د',
             joinTitle: 'الدخول إلى غرفة التركيز',
@@ -1116,7 +1148,7 @@
             joinButton: 'الدخول إلى الغرفة',
             roomLabel: 'الغرفة',
             mediaModeLabel: 'الوسائط',
-            mediaModeMeshBadge: 'غرفة Mesh',
+            mediaModeMeshBadge: 'غرفة مذاكرة',
             mediaModeSfuBadge: 'غرفة كبيرة',
             mediaModeRealtimeKitBadge: 'غرفة كاميرا للمذاكرة',
             onlineLabel: 'المتصلون',
@@ -1139,6 +1171,14 @@
             cameraToggleOff: 'إيقاف الكاميرا',
             cameraToggleStarting: 'جارٍ التشغيل...',
             cameraError: 'تعذر الوصول إلى الكاميرا.',
+            cameraBlurHelp: 'تعذر تشغيل تمويه الخصوصية، فأوقفنا الكاميرا. أعد المحاولة، أو أوقف التمويه فقط إذا أردت مشاركة الفيديو بدونه.',
+            cameraPermissionHelp: 'إذن الكاميرا مغلق. اسمح به من إعدادات الموقع في متصفحك، ثم أعد المحاولة. تقدر تكمل المذاكرة بدونها.',
+            cameraDeviceHelp: 'لم نعثر على كاميرا. وصّل كاميرا وأعد المحاولة، أو أكمل بدونها.',
+            cameraBusyHelp: 'قد تكون الكاميرا مستخدمة في تطبيق آخر. أغلقه وأعد المحاولة، أو أكمل المذاكرة بدونها.',
+            cameraGenericHelp: 'لم تعمل الكاميرا. أعد المحاولة أو أكمل جلستك بدونها.',
+            cameraBrowserHelp: 'الكاميرا غير متاحة في هذا المتصفح. أكمل المذاكرة، أو افتح الغرفة في متصفح يدعمها عبر HTTPS.',
+            cameraRetry: 'جرّب الكاميرا مجددًا', cameraContinue: 'أكمل بدون كاميرا',
+            cameraPrivacy: 'الكاميرا اختيارية. عند تشغيلها يشاهدها أعضاء غرفتك، وتقدر توقفها في أي وقت.',
             aiReady: 'الذكاء الاصطناعي جاهز',
             aiFocused: 'الحالة: مركز',
             aiAway: 'الحالة: قد يكون مبتعداً',
@@ -1183,7 +1223,7 @@
             soundOcean: 'بحر',
             soundNone: 'إيقاف',
             soundListening: 'يستمع إلى',
-            videoCollapsedBanner: 'لا يوجد بث فيديو',
+            videoCollapsedBanner: 'الكاميرا مغلقة · ذاكر على راحتك',
             statusHidden: 'مخفي',
             userJoined: 'دخل الغرفة',
             userLeft: 'غادر الغرفة',
@@ -1218,6 +1258,7 @@
             videoRequestInvalid: 'طلب دخول الفيديو غير صحيح. حدّث الصفحة وحاول مرة أخرى.',
             messageRequired: 'فضلاً اكتب رسالة.',
             boardTaskRequired: 'فضلاً اكتب مهمة.',
+            boardTaskLimit: 'وصلت اللوحة إلى حد 100 مهمة. احذف مهمة قبل إضافة أخرى.',
             boardTaskNotFound: 'هذه المهمة لم تعد موجودة.',
             boardReorderInvalid: 'تعذر إعادة ترتيب المهام. حدّث اللوحة وحاول مرة أخرى.',
             boardErrorGeneric: 'تعذر تحديث اللوحة.',
@@ -1261,6 +1302,7 @@
         MESSAGE_REQUIRED: 'messageRequired',
         RATE_LIMITED: 'rateLimited',
         BOARD_TASK_REQUIRED: 'boardTaskRequired',
+        BOARD_TASK_LIMIT: 'boardTaskLimit',
         BOARD_TASK_NOT_FOUND: 'boardTaskNotFound',
         BOARD_REORDER_INVALID: 'boardReorderInvalid'
     };
@@ -1510,11 +1552,16 @@
         } catch (_err) {}
     }
 
-    const DEBUG = true;
+    const DEBUG = false;
     function debugLog(category, message, data) {
         if (!DEBUG) return;
         const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
-        console.log(`[${timestamp}] [${category}]`, message, data || '');
+        // Never log raw ICE configuration, credentials, candidates or error bodies.
+        const safeData = data && typeof data === 'object' ? Object.fromEntries(
+            Object.entries(data).filter(([key, value]) => ['width', 'height', 'tracks', 'blurred', 'count'].includes(key)
+                && ['number', 'boolean'].includes(typeof value))
+        ) : undefined;
+        console.log(`[${timestamp}] [${category}]`, message, safeData || '');
     }
 
     function getStoredLanguage() {
@@ -1649,11 +1696,7 @@
     function formatRiyadhDateTime(timestamp) {
         if (!timestamp) return '';
         try {
-            return new Intl.DateTimeFormat(curLang === 'ar' ? 'ar-SA' : 'en-SA', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-                timeZone: DEFAULT_SCHEDULE_TIMEZONE
-            }).format(new Date(timestamp));
+            return window.HalaSchedule.format(timestamp, curLang, DEFAULT_SCHEDULE_TIMEZONE);
         } catch (_error) {
             return new Date(timestamp).toISOString();
         }
@@ -2258,22 +2301,37 @@
         }
     }
 
+    async function requireBlurredStream(stream) {
+        try {
+            if (!supportsCanvasFilter) throw new Error('Canvas blur unavailable');
+            const processed = await startBlurPipeline(stream);
+            if (stream !== rawStream || !stream.getVideoTracks().some(track => track.readyState === 'live')) {
+                stopBlurPipeline();
+                throw new Error('Camera ended while preparing blur');
+            }
+            return processed;
+        } catch (error) {
+            throw Object.assign(new Error('Privacy blur unavailable'), { name: 'BlurProcessingError', cause: error });
+        }
+    }
+
     async function toggleBlur() {
         blurEnabled = !blurEnabled;
         try { localStorage.setItem(BLUR_PREF_KEY, blurEnabled ? 'on' : 'off'); } catch (_) {}
         updateBlurToggleLabel();
         if (!cameraEnabled || !rawStream) return;
         try {
-            if (blurEnabled && supportsCanvasFilter) {
-                localStream = await startBlurPipeline(rawStream);
+            if (blurEnabled) {
+                localStream = await requireBlurredStream(rawStream);
             } else {
                 stopBlurPipeline({ keepRaw: true });
                 localStream = rawStream;
             }
         } catch (err) {
-            debugLog('ERROR', 'Blur toggle failed', err.message);
-            stopBlurPipeline({ keepRaw: true });
-            localStream = rawStream;
+            debugLog('ERROR', 'Blur toggle failed', err.name);
+            disableCamera();
+            showCameraHelp('cameraBlurHelp');
+            return;
         }
         localVideo.srcObject = localStream;
         // existingSender.replaceTrack path — swaps without renegotiation.
@@ -2285,7 +2343,7 @@
     function updateBlurToggleLabel() {
         const blurBtn = document.getElementById('blur-toggle');
         if (!blurBtn) return;
-        const showButton = supportsCanvasFilter && isMeshRoom();
+        const showButton = isMeshRoom();
         blurBtn.hidden = !showButton;
         if (!showButton) return;
         blurBtn.textContent = blurEnabled ? langDict[curLang].blurOn : langDict[curLang].blurOff;
@@ -2294,7 +2352,7 @@
 
     function disableCamera(options = {}) {
         const { notify = true, preserveStatusText = false } = options;
-        if (!cameraEnabled && !localStream) {
+        if (!cameraEnabled && !localStream && !rawStream) {
             if (!preserveStatusText && !isSfuRoom()) {
                 aiStatusEl.textContent = langDict[curLang].aiNeedCamera;
             }
@@ -2513,11 +2571,13 @@
         document.documentElement.dir = curLang === 'ar' ? 'rtl' : 'ltr';
         document.body.dataset.lang = curLang;
         document.title = text.pageTitle;
+        document.getElementById('btn-toggle').setAttribute('aria-label', timerRunning ? text.timerPauseLabel : text.timerStartLabel);
         // Mid-Pomodoro language switch: keep the countdown in the tab title.
         if (timerRunning) updateDisp();
 
         languageButtons.forEach((button) => {
             button.classList.toggle('active', button.dataset.langValue === curLang);
+            button.setAttribute('aria-pressed', String(button.dataset.langValue === curLang));
         });
 
         document.querySelectorAll('[data-lang]').forEach(el => {
@@ -2535,6 +2595,7 @@
                 el.setAttribute('aria-label', text[key]);
             }
         });
+        renderCameraHelp();
         updateRemotePlaceholder();
         const hasRemoteBuddy = hasRemoteBuddyOnline();
         if (!remoteVideoSlots.size && remoteStatusEl) {
@@ -3457,6 +3518,7 @@
         const m = Math.floor(timeLeft/60).toString().padStart(2,'0');
         const s = (timeLeft%60).toString().padStart(2,'0');
         document.getElementById('timer-disp').textContent = `${m}:${s}`;
+        document.getElementById('btn-toggle').setAttribute('aria-label', timerRunning ? currentCopy().timerPauseLabel : currentCopy().timerStartLabel);
         // Tab-title countdown while running (Western digits per DESIGN.md §5).
         document.title = timerRunning ? `${m}:${s} · Halastudy` : currentCopy().pageTitle;
     }
@@ -3730,8 +3792,29 @@
     function setChatEnabled(enabled) {
         chatInput.disabled = !enabled;
         chatSendBtn.disabled = !enabled;
-        if (enabled) chatInput.focus();
     }
+
+    function setJoinVisible(visible) {
+        joinOverlay.classList.toggle('hidden', !visible);
+        joinOverlay.hidden = !visible;
+        joinOverlay.inert = !visible;
+        document.querySelectorAll('body > header, body > .room-meta, body > main, body > .ambient-control').forEach(element => {
+            element.inert = visible;
+        });
+        requestAnimationFrame(() => {
+            const target = visible ? joinNameInput : document.getElementById('btn-toggle');
+            target?.focus({ preventScroll: true });
+        });
+    }
+
+    joinOverlay.addEventListener('keydown', event => {
+        if (event.key !== 'Tab' || joinOverlay.hidden) return;
+        const controls = [...joinOverlay.querySelectorAll('button, input, a[href]')].filter(element => !element.disabled && element.getClientRects().length);
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    });
 
     function showJoinError(msg = '') {
         joinError.textContent = msg;
@@ -3759,16 +3842,20 @@
         if (window.history && window.history.replaceState) {
             history.replaceState(null, '', `${baseUrl}?room=${roomId}`);
         }
-        joinOverlay.classList.add('hidden');
+        setJoinVisible(false);
         setChatEnabled(false);
         setBoardEnabled(false);
         connectSocket();
     }
 
     function connectSocket() {
+        const joinStartedAt = performance.now();
+        const joinTransition = {};
+        const measureJoin = (outcome) => window.HalaInsights?.record('join', { outcome, duration: window.HalaInsights.duration(performance.now() - joinStartedAt) }, joinTransition);
         if (!window.io) {
+            measureJoin('network');
             showJoinError(currentCopy().serviceError);
-            joinOverlay.classList.remove('hidden');
+            setJoinVisible(true);
             return;
         }
         if (socket) socket.disconnect();
@@ -3777,13 +3864,15 @@
         const joinActiveRoom = () => {
             socket.emit('join-room', { roomId, username, clientId: ensureClientId(), password: getRoomPassword() }, (res = {}) => {
                 if (!res.ok) {
+                    measureJoin(res.errorCode === 'ROOM_FULL' ? 'full' : /PASSWORD|FORBIDDEN|AUTH|COHORT/.test(res.errorCode || '') ? 'denied' : 'invalid');
                     setChatEnabled(false);
                     setBoardEnabled(false);
                     showJoinError(getErrorMessage(res.errorCode, 'joinFailed'));
-                    joinOverlay.classList.remove('hidden');
+                    setJoinVisible(true);
                     return;
                 }
                 storeRoomPassword(getRoomPassword());
+                measureJoin('success');
                 clearStoredRoomCode();
                 showJoinError('');
                 applyJoinedRoom(res.room || {});
@@ -3821,10 +3910,11 @@
             joinActiveRoom();
         });
         socket.on('connect_error', () => {
+            measureJoin('network');
             setChatEnabled(false);
             setBoardEnabled(false);
             showJoinError(currentCopy().connectError);
-            joinOverlay.classList.remove('hidden');
+            setJoinVisible(true);
         });
         socket.on('chat-message', msg => appendMessage(msg));
         socket.on('presence', list => updatePresenceList(list || []));
@@ -3869,7 +3959,7 @@
 
     function sendMessage() {
         if (!socket || !roomId) {
-            joinOverlay.classList.remove('hidden');
+            setJoinVisible(true);
             showJoinError(currentCopy().roomNotJoined);
             return;
         }
@@ -3883,7 +3973,7 @@
             const errorText = getErrorMessage(ack.errorCode, 'messageRequired');
             if (ack.errorCode === 'ROOM_NOT_JOINED' || ack.errorCode === 'ROOM_NOT_FOUND') {
                 showJoinError(errorText);
-                joinOverlay.classList.remove('hidden');
+                setJoinVisible(true);
             } else if (errorText) {
                 appendMessage({ type: 'system', text: errorText });
             }
@@ -4128,16 +4218,33 @@
         }, SFU_LOAD_TIMEOUT_MS);
     }
 
+    let cameraHelpKey = '';
+    let cameraStarting = false;
+    function renderCameraHelp() {
+        document.getElementById('camera-help').hidden = !cameraHelpKey;
+        document.getElementById('camera-help-message').textContent = currentCopy()[cameraHelpKey] || '';
+    }
+    function showCameraHelp(key) {
+        cameraHelpKey = key;
+        renderCameraHelp();
+        document.getElementById('camera-help').scrollIntoView({ block: 'nearest' });
+    }
+    document.getElementById('camera-retry').addEventListener('click', () => { void toggleCamera(); });
+    document.getElementById('camera-continue').addEventListener('click', () => {
+        cameraHelpKey = ''; renderCameraHelp(); document.getElementById('btn-toggle').focus();
+    });
     async function toggleCamera() {
-        if (!isMeshRoom()) return;
+        if (!isMeshRoom() || cameraStarting) return;
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert(langDict[curLang].cameraError);
+            showCameraHelp('cameraBrowserHelp');
             return;
         }
         if (cameraEnabled) {
             disableCamera();
             return;
         }
+        cameraStarting = true;
+        document.getElementById('camera-retry').disabled = true;
         updateCameraToggleLabel('loading');
         try {
             debugLog('CAMERA', 'Requesting camera access...');
@@ -4148,18 +4255,13 @@
             rawStream.getVideoTracks().forEach(track => {
                 track.onended = () => disableCamera();
             });
-            if (blurEnabled && supportsCanvasFilter) {
-                try {
-                    localStream = await startBlurPipeline(rawStream);
-                } catch (blurErr) {
-                    debugLog('ERROR', 'Blur pipeline failed, sending raw', blurErr.message);
-                    stopBlurPipeline({ keepRaw: true });
-                    localStream = rawStream;
-                }
+            if (blurEnabled) {
+                localStream = await requireBlurredStream(rawStream);
             } else {
                 localStream = rawStream;
             }
             cameraEnabled = true;
+            cameraHelpKey = ''; renderCameraHelp();
             debugLog('CAMERA', 'Camera enabled', {
                 streamId: localStream.id,
                 tracks: localStream.getTracks().length,
@@ -4180,12 +4282,16 @@
             }
             startAiMonitor();
         } catch (err) {
-            console.error('camera error', err);
-            debugLog('ERROR', 'Camera access failed', err.message);
-            cameraEnabled = false;
+            debugLog('ERROR', 'Camera access failed', err.name);
+            disableCamera();
+            const key = ['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(err.name) ? 'cameraPermissionHelp'
+                : ['NotFoundError', 'DevicesNotFoundError'].includes(err.name) ? 'cameraDeviceHelp'
+                : ['NotReadableError', 'TrackStartError'].includes(err.name) ? 'cameraBusyHelp' : 'cameraGenericHelp';
+            showCameraHelp(err.name === 'BlurProcessingError' ? 'cameraBlurHelp' : key);
+        } finally {
+            cameraStarting = false;
             updateCameraToggleLabel();
-            aiStatusEl.textContent = langDict[curLang].cameraError;
-            alert(langDict[curLang].cameraError);
+            document.getElementById('camera-retry').disabled = false;
         }
     }
 
@@ -4286,7 +4392,7 @@
                 debugLog('OFFER', `Created and set local offer for ${targetId}`);
                 socket.emit('rtc-offer', { targetId, sdp: pc.localDescription });
             } catch (err) {
-                console.error('negotiation error', err);
+                console.error('negotiation error', err.name);
                 debugLog('ERROR', `Negotiation failed for ${targetId}`, err.message);
             } finally {
                 meta.makingOffer = false;
@@ -4380,7 +4486,7 @@
             await pc.addIceCandidate(candidate);
             debugLog('ICE', 'Successfully added ICE candidate');
         } catch (err) {
-            console.error('Failed to add ICE candidate:', err);
+            console.error('Failed to add ICE candidate:', err.name);
             debugLog('ERROR', 'Failed to add ICE candidate', err.message);
         }
     }
@@ -4421,7 +4527,7 @@
             await pc.setLocalDescription(offer);
             socket.emit('rtc-offer', { targetId, sdp: pc.localDescription });
         } catch (err) {
-            console.error('offer error', err);
+            console.error('offer error', err.name);
         } finally {
             meta.makingOffer = false;
         }
@@ -4461,7 +4567,7 @@
             debugLog('ANSWER', `Created and set local answer for ${from}`);
             socket.emit('rtc-answer', { targetId: from, sdp: pc.localDescription });
         } catch (err) {
-            console.error('answer error', err);
+            console.error('answer error', err.name);
             debugLog('ERROR', `Failed to handle offer from ${from}`, err.message);
         }
     }
@@ -4483,7 +4589,7 @@
             await flushPendingIceCandidates(from, pc);
             attachLocalStream(pc);
         } catch (err) {
-            console.error('set answer error', err);
+            console.error('set answer error', err.name);
             debugLog('ERROR', `Failed to handle answer from ${from}`, err.message);
         } finally {
             meta.isSettingRemoteAnswerPending = false;
@@ -4820,11 +4926,18 @@
         setChatEnabled(false);
         setBoardEnabled(false);
 
+        const roomLayout = window.matchMedia('(min-width: 1025px)');
+        const syncRoomTools = () => {
+            document.querySelectorAll('main > details.room-tools').forEach((panel) => { panel.open = roomLayout.matches; });
+        };
+        syncRoomTools();
+        roomLayout.addEventListener('change', syncRoomTools);
+        setJoinVisible(true);
         if (savedName && incomingRoom) {
             username = savedName;
             roomId = incomingRoom;
             updateRoomBadge();
-            joinOverlay.classList.add('hidden');
+            setJoinVisible(false);
             connectSocket();
         }
     })();

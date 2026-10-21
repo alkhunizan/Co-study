@@ -715,6 +715,28 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 **Open questions for Aziz:**
 - Production mail provider, alert destination and hosting choices are still needed for live integration. Payment provider remains undecided; simulated purchases must stay disabled in production.
 
+## 2026-10-20 — DigetPay provider review
+
+**Goal for this session:** Assess DigetPay for the current VIP membership.
+
+**What worked:**
+- Reviewed public payment, recurring, onboarding, pricing, settlement and webhook documentation against local billing code.
+- Recurring payments are documented; recommendation is a conditional shortlist pending the commercial quote and demonstrated subscription lifecycle.
+
+**What broke:**
+- Documentation-index retrieval required PowerShell UseBasicParsing; the retry succeeded.
+- The attempted SAMA register fetch was unavailable; regulatory verification remains incomplete.
+
+**What I changed:**
+- Saved the review and draft provider questions in docs/payments/2026-10-20-digetpay/REVIEW.md, with resolved tooling errors in that folder's .learnings/ERRORS.md.
+- No runtime changes, provider selection, merchant registration, outgoing message, payment or deployment.
+
+**Next session starts with:**
+- Obtain DigetPay's quote and canonical hosted-recurring demonstration, including cancellation and payment-method eligibility.
+
+**Open questions for Aziz:**
+- No answer needed to complete the review; merchant-specific terms remain with the provider.
+
 ## 2026-10-20 — SEO structure and crawlable public pages
 
 **Goal for this session:** Audit the live SEO structure and implement verified local improvements without disrupting public article URLs or private workflows.
@@ -738,3 +760,81 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 
 **Open questions for Aziz:**
 - No input needed for these local SEO changes; production integrations from the earlier hardening handoff remain outstanding.
+
+## 2026-10-20 — DigetPay sandbox adaptation
+
+**Goal for this session:** Adapt the selected DigetPay provider to Halastudy's existing VIP flow.
+
+**What worked:**
+- Added hosted sandbox checkout, fixed USD 4.99 server pricing, account-bound verification, durable webhook work, reconciliation, duplicate protection and refund handling.
+- Added Arabic/English checkout and payment-status screens; mobile RTL, dark mode and accessibility checks passed.
+- Existing platform integration and member/staff browser journeys passed with the additive database migration.
+
+**What broke:**
+- Public status documentation conflicts on session versus transaction identifiers. Lookup is explicit configuration; missing transaction binding fails closed.
+- Playwright's bundled Chromium was unavailable; installed headless Chrome passed the browser tests.
+- Test-only type declarations needed correction; final checks are retained in the dedicated evidence directory.
+
+**What I changed:**
+- DigetPay client/billing modules, platform routes/configuration, database migration 002 and backup format v2 (with v1 restore support), checkout UI, provider tests and documentation.
+- Setup and limitations: docs/payments/2026-10-20-digetpay/IMPLEMENTATION.md. Evidence: VALIDATION.md and evidence/ in that folder.
+- No actual credentials, DigetPay API calls, recurring charge scheduler, live payment, remote migration, push or deployment. Unrelated contact-audit documentation preserved.
+
+**Next session starts with:**
+- Configure the merchant sandbox and confirm USD support plus the exact status lookup/binding contract; run real sandbox acceptance before adding automatic renewal or live support.
+
+**Open questions for Aziz:**
+- Merchant sandbox credentials and provider confirmation are needed for actual DigetPay testing. Secrets should be configured server-side, not committed.
+
+## 2026-10-20 — Full Viber gate after DigetPay adaptation
+
+**Goal for this session:** Run all nine Viber phases against the current candidate and record production readiness.
+
+**What worked:**
+- Final local candidate: 126 integration tests, 36 browser tests, real PostgreSQL 16 outage/restore scenario, syntax/types/lint/deadcode and zero-vulnerability production audit.
+- Real application HTTP payment flow with a fake external provider; scoped latest/verification, fixed price, duplicate protection and account isolation.
+- Explicit inventory and evidence for 84 of 103 API/socket surfaces (81.6%); 19 anonymous production GET/HEAD requests.
+
+**What broke:**
+- Twenty untrusted transaction hints created twenty durable verification jobs; a three-order delayed-approval timeline collided with the open-order uniqueness constraint.
+- Two older domain fixtures implicitly selected the new default provider and failed checkout setup. Explicit test/simulator configuration restores their unchanged assertions.
+- Payment worker errors were logged without operational alerts. The new alert rule passes its before/after regression.
+- A network-filesystem PostgreSQL run timed out; the unchanged local-disk run passed in 31.7 seconds.
+
+**What I changed:**
+- Local commits `31676dc` (payment worker alert) and `c1a29dd` (explicit simulator in two fixtures), on `viber/2026-10-20-digetpay-gate`.
+- Full report, coverage, reproductions and evidence: `docs/viber/2026-10-20-digetpay-gate/`.
+- No billing-rule changes, real charges, provider mutations, push or deployment. Earlier dirty work preserved.
+
+**Next session starts with:**
+- Address the two reproduced billing-state/queue defects and unresolved-order operations in a dedicated implementation pass, then assemble and validate the coherent payment release.
+
+**Open questions for Aziz:**
+- Production remains NO-GO until merchant acceptance, real recovery delivery, external monitoring/media acceptance and approved deployment are completed; the report contains the consolidated owner checklist.
+
+## 2026-10-21 — Full Viber gate and approved camera privacy fix
+
+**Goal for this session:** Run the nine-phase production gate against the current UX/payment candidate, preserving earlier dirty work.
+
+**What worked:**
+- Isolated Node 22 candidate without the real workspace .env; fresh locked dependencies, static checks and 133 integration tests passed. Real disposable PostgreSQL outage/restore scenario passed.
+- Four local commits fix headless media cleanup, media request deadlines, admin logout failure feedback and stalled admin requests (3907975, fa51864, de7d0e6, 55e5b8e).
+- User explicitly approved the blur patch in dirty index.html. It fails closed on processing failure/unsupported canvas, restores retry, and rejects a camera source that ended during preparation. Deterministic failure probes pass; unrelated UX edits are retained.
+
+**What broke / remains:**
+- Lobby has no heartbeat/page-exit lifecycle; shared board has no stored-task ceiling; ICE diagnostics are too verbose.
+- Two prior sandbox payment queue/reconciliation defects remain reproduced. Real merchant, mail, media revocation, hosted restore and external alert acceptance remain pending.
+- Starting Git, the dirty tested candidate and production are different artifacts. New public routes sampled in production still return 404.
+- Early test-created browser CDN traffic was not counted; final browser containment is stricter. The report does not claim an unmeasured production request total.
+
+**What I changed:**
+- Four focused fix commits on viber/2026-10-21; approved blur work remains uncommitted with existing UX. Audit report/scripts/patch are in docs/viber/2026-10-21; generated receipts are in its ignored evidence folder.
+- No payment-rule change, live write, paid provider call, push, merge or deployment. Final counts and NO-GO reasons are recorded in RUN.md.
+
+**Next session starts with:**
+- Read docs/viber/2026-10-21/RUN.md and coverage.md. Implement the full lobby lifecycle and sandbox billing fixes, then assemble a coherent release and repeat the gate.
+
+**Open questions for Aziz:**
+- Owner-controlled sandbox/service acceptance and an approved release are still required before real users/payments.
+
+**Final receipt:** 133 integration tests and 55 browser tests passed; one online-font diagnostic intentionally skipped. All five targeted probes passed. Final verdict remains NO-GO for the open release/payment/lobby and external acceptance items.

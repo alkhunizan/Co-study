@@ -24,6 +24,8 @@
   <link rel="stylesheet" href="/design-system/colors_and_type.css">
   <link rel="stylesheet" href="/design-system/landing.css">
   <script src="/js/halastudy-core.js"></script>
+  <script src="/js/ux-insights.js"></script>
+  <script src="/js/schedule-display.js"></script>
   <script src="/js/ui.js" defer></script>
 </head>
 <body class="is-open-page">
@@ -35,7 +37,7 @@
     </a>
     <div class="topbar-right">
       <a class="topbar-link" id="auth-entry" href="/account.html" data-lang="navSignIn">تسجيل الدخول</a>
-      <div class="lang-switch" role="tablist" aria-label="Language">
+      <div class="lang-switch" role="group" aria-label="Language">
         <button type="button" id="lang-en" data-lang-value="en">EN</button>
         <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
       </div>
@@ -84,14 +86,16 @@
               <label for="room-name" data-lang="labelRoomName">اسم الغرفة</label>
               <input type="text" id="room-name" name="roomName" maxlength="48" data-lang-placeholder="placeholderRoomName" placeholder="مثال: جلسة عمل عميق" autocomplete="organization" required>
             </div>
+            <details id="room-options" class="room-options">
+              <summary data-lang="roomOptions">إعدادات الغرفة والجدولة</summary>
             <div class="input-group">
-              <label data-lang="labelMediaMode">وضع وسائط الغرفة</label>
+              <label data-lang="labelMediaMode">حجم الغرفة</label>
               <div class="mode-picker" id="media-mode-picker" role="radiogroup" aria-label="Room media mode">
-                <button type="button" class="mode-option active" data-media-mode="mesh" aria-checked="true">
+                <button type="button" class="mode-option active" data-media-mode="mesh" role="radio" tabindex="0" aria-checked="true">
                   <span class="mode-option-title" data-lang="mediaModeMeshTitle">غرفة عادية</span>
                   <span class="mode-option-desc" id="media-mode-mesh-desc">موصى بها لما يصل إلى 4 أشخاص. تستخدم فيديو مباشرًا بين المتصفحات.</span>
                 </button>
-                <button type="button" class="mode-option" id="media-mode-sfu" data-media-mode="sfu" aria-checked="false" hidden>
+                <button type="button" class="mode-option" id="media-mode-sfu" data-media-mode="sfu" role="radio" tabindex="-1" aria-checked="false" hidden>
                   <span class="mode-option-title" data-lang="mediaModeSfuTitle">غرفة كبيرة</span>
                   <span class="mode-option-desc" data-lang="mediaModeSfuDesc">تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.</span>
                 </button>
@@ -117,7 +121,7 @@
                 <a class="btn btn-secondary" id="schedule-gate-cta" href="/account.html?signup=1&next=%2Fopen.html%3Fschedule%3D1" data-lang="scheduleGateCta">سجّل وارجع هنا</a>
               </div>
               <div id="schedule-fields-inner">
-              <p class="form-note schedule-note" data-lang="scheduleNote">تستخدم توقيت الرياض (غرينتش+3). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.</p>
+              <p class="form-note schedule-note" data-lang="scheduleNote">تستخدم توقيت الرياض (Asia/Riyadh، UTC+03:00). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.</p>
               <div class="schedule-grid">
                 <div class="input-group">
                   <label for="schedule-date" data-lang="labelScheduleDate">تاريخ أول جلسة</label>
@@ -151,6 +155,8 @@
               </div>
               </div>
             </div>
+            </details>
+            <p id="draft-restored" class="form-note" data-lang="draftRestored" hidden>رجعنا مسودتك. أدخل كلمة مرور الغرفة مجددًا إذا كنت فعّلتها.</p>
             <div class="form-actions">
               <button type="submit" class="btn btn-primary" data-lang="btnCreateRoom">افتح الغرفة</button>
             </div>
@@ -229,15 +235,15 @@
                 createDesc: 'Set a name, optional password, optional schedule.',
                 joinTitle: 'Join a room',
                 joinDesc: 'Got a code from your study group? Drop it in.',
-                createFormTitle: 'New focus room',
+                createFormTitle: 'New focus room', roomOptions: 'Room settings and schedule', draftRestored: 'Your draft is back. Re-enter the room password if you enabled it.',
                 labelRoomName: 'Room name',
                 placeholderRoomName: 'e.g. Deep work · 9pm crew',
-                labelMediaMode: 'Room media mode',
+                labelMediaMode: 'Room size',
                 mediaModeMeshTitle: 'Standard room',
                 mediaModeMeshDesc: 'Camera study rooms support up to {limit} people. Mic stays off by default.',
                 mediaModeSfuTitle: 'Large room',
                 mediaModeSfuDesc: 'Uses the room media service for larger groups.',
-                mediaModeMeshBadge: 'Mesh room',
+                mediaModeMeshBadge: 'Study room',
                 mediaModeSfuBadge: 'Large room',
                 mediaModeRealtimeKitBadge: 'Study camera room',
                 roomAccessOpen: 'Open access',
@@ -250,7 +256,7 @@
                 placeholderPassword: 'Set a room password',
                 notePassword: 'Only people with the password will be able to join this room.',
                 labelEnableSchedule: 'Make this a scheduled room',
-                scheduleNote: 'Uses Riyadh time (GMT+3). Weekdays follow the Saudi Sunday-Thursday workweek.',
+                scheduleNote: 'Uses Riyadh time (Asia/Riyadh, UTC+03:00). Weekdays follow the Saudi Sunday-Thursday workweek.',
                 labelScheduleDate: 'First session date',
                 labelScheduleTime: 'Start time',
                 labelScheduleCadence: 'Cadence',
@@ -267,7 +273,7 @@
                 btnWhatsappInvite: 'WhatsApp invite',
                 btnAddCalendar: 'Add to calendar',
                 btnEnterRoom: 'Enter room',
-                scheduleTimezoneLabel: 'Riyadh time',
+                scheduleTimezoneLabel: 'Riyadh time (Asia/Riyadh, UTC+03:00)',
                 scheduleNextLabel: 'Next session',
                 scheduleLiveLabel: 'Live now',
                 scheduleTimerPresetLabel: 'Timer',
@@ -321,15 +327,15 @@
                 createDesc: 'اسم، وكلمة مرور اختيارية، وجدولة اختيارية.',
                 joinTitle: 'ادخل غرفة',
                 joinDesc: 'عندك رمز من مجموعتك؟ ادخله هنا.',
-                createFormTitle: 'غرفة تركيز جديدة',
+                createFormTitle: 'غرفة تركيز جديدة', roomOptions: 'إعدادات الغرفة والجدولة', draftRestored: 'رجعنا مسودتك. أدخل كلمة مرور الغرفة مجددًا إذا كنت فعّلتها.',
                 labelRoomName: 'اسم الغرفة',
                 placeholderRoomName: 'مثال: جلسة عمل عميق',
-                labelMediaMode: 'وضع وسائط الغرفة',
+                labelMediaMode: 'حجم الغرفة',
                 mediaModeMeshTitle: 'غرفة عادية',
                 mediaModeMeshDesc: 'غرف كاميرا المذاكرة تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
                 mediaModeSfuTitle: 'غرفة كبيرة',
                 mediaModeSfuDesc: 'تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.',
-                mediaModeMeshBadge: 'غرفة Mesh',
+                mediaModeMeshBadge: 'غرفة مذاكرة',
                 mediaModeSfuBadge: 'غرفة كبيرة',
                 mediaModeRealtimeKitBadge: 'غرفة كاميرا للمذاكرة',
                 roomAccessOpen: 'دخول مفتوح',
@@ -342,7 +348,7 @@
                 placeholderPassword: 'ضع كلمة مرور للغرفة',
                 notePassword: 'لن يتمكن من دخول الغرفة إلا من يملك كلمة المرور.',
                 labelEnableSchedule: 'اجعلها غرفة مجدولة',
-                scheduleNote: 'تستخدم توقيت الرياض (غرينتش+3). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.',
+                scheduleNote: 'تستخدم توقيت الرياض (Asia/Riyadh، UTC+03:00). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.',
                 labelScheduleDate: 'تاريخ أول جلسة',
                 labelScheduleTime: 'وقت البداية',
                 labelScheduleCadence: 'التكرار',
@@ -359,7 +365,7 @@
                 btnWhatsappInvite: 'دعوة واتساب',
                 btnAddCalendar: 'أضف إلى التقويم',
                 btnEnterRoom: 'الدخول إلى الغرفة',
-                scheduleTimezoneLabel: 'توقيت الرياض',
+                scheduleTimezoneLabel: 'توقيت الرياض (Asia/Riyadh، UTC+03:00)',
                 scheduleNextLabel: 'الجلسة القادمة',
                 scheduleLiveLabel: 'الجلسة جارية الآن',
                 scheduleTimerPresetLabel: 'المؤقت',
@@ -460,6 +466,47 @@
         const scheduleFocusInput = document.getElementById('schedule-focus');
         const scheduleBreakInput = document.getElementById('schedule-break');
         const scheduleGoalTemplateInput = document.getElementById('schedule-goal-template');
+        const ROOM_DRAFT_KEY = 'halastudyRoomDraft:v1';
+        const DRAFT_TTL = 30 * 60 * 1000;
+        let roomDraftMediaMode = null;
+        function saveRoomDraft() {
+            const fields = ['room-name', 'schedule-date', 'schedule-time', 'schedule-cadence', 'schedule-focus', 'schedule-break', 'schedule-goal-template'];
+            const values = Object.fromEntries(fields.map((id) => [id, document.getElementById(id).value.slice(0, id === 'schedule-goal-template' ? 80 : 48)]));
+            values.requirePassword = requirePasswordCheckbox.checked;
+            values.scheduleEnabled = enableScheduleCheckbox.checked;
+            values.mediaMode = selectedMediaMode;
+            try { sessionStorage.setItem(ROOM_DRAFT_KEY, JSON.stringify({ version: 1, expiresAt: Date.now() + DRAFT_TTL, values })); } catch (_error) { /* A draft is optional. */ }
+        }
+        function restoreRoomDraft() {
+            try {
+                const draft = JSON.parse(sessionStorage.getItem(ROOM_DRAFT_KEY) || 'null');
+                if (!draft || draft.version !== 1 || !Number.isFinite(draft.expiresAt) || draft.expiresAt <= Date.now() || draft.expiresAt > Date.now() + DRAFT_TTL || !draft.values || typeof draft.values !== 'object') {
+                    sessionStorage.removeItem(ROOM_DRAFT_KEY); return;
+                }
+                const values = draft.values;
+                const restore = (id, check, max) => {
+                    const value = values[id];
+                    if (typeof value === 'string' && value.length <= max && check(value)) document.getElementById(id).value = value;
+                };
+                restore('room-name', () => true, 48);
+                restore('schedule-goal-template', () => true, 80);
+                restore('schedule-date', (v) => /^\d{4}-\d{2}-\d{2}$/.test(v), 10);
+                restore('schedule-time', (v) => /^\d{2}:\d{2}$/.test(v), 5);
+                restore('schedule-cadence', (v) => ['once','weekdays','daily','weekly'].includes(v), 8);
+                restore('schedule-focus', (v) => /^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 240, 3);
+                restore('schedule-break', (v) => /^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 120, 3);
+                requirePasswordCheckbox.checked = values.requirePassword === true;
+                roomPasswordInput.disabled = !requirePasswordCheckbox.checked;
+                roomPasswordInput.value = '';
+                enableScheduleCheckbox.checked = values.scheduleEnabled === true;
+                roomDraftMediaMode = normalizeMediaMode(values.mediaMode);
+                document.getElementById('room-options').open = true;
+                document.getElementById('draft-restored').hidden = false;
+            } catch (_error) { try { sessionStorage.removeItem(ROOM_DRAFT_KEY); } catch (_ignored) {} }
+        }
+        createForm.addEventListener('input', saveRoomDraft);
+        createForm.addEventListener('change', saveRoomDraft);
+        document.getElementById('schedule-gate-cta').addEventListener('click', saveRoomDraft);
         const joinCodeInput = document.getElementById('join-code');
         const mediaModeButtons = document.querySelectorAll('[data-media-mode]');
         const mediaModeMeshDesc = document.getElementById('media-mode-mesh-desc');
@@ -609,6 +656,7 @@
                 return;
             }
             scheduleFields.hidden = !enableScheduleCheckbox.checked;
+            if (enableScheduleCheckbox.checked) document.getElementById('room-options').open = true;
             // Guests see the sign-in gate where the schedule fields would be.
             const gate = document.getElementById('schedule-signin-gate');
             const inner = document.getElementById('schedule-fields-inner');
@@ -681,11 +729,7 @@
         function formatRiyadhDateTime(timestamp) {
             if (!timestamp) return '';
             try {
-                return new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-SA', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                    timeZone: DEFAULT_SCHEDULE_TIMEZONE
-                }).format(new Date(timestamp));
+                return window.HalaSchedule.format(timestamp, currentLang, DEFAULT_SCHEDULE_TIMEZONE);
             } catch (_error) {
                 return new Date(timestamp).toISOString();
             }
@@ -1107,6 +1151,7 @@
                 const active = mode === selectedMediaMode;
                 button.classList.toggle('active', active);
                 button.setAttribute('aria-checked', active ? 'true' : 'false');
+                button.tabIndex = active ? 0 : -1;
             });
             if (mediaModeSfuButton) {
                 mediaModeSfuButton.hidden = runtimeConfig.videoProvider !== VIDEO_PROVIDER_MESH || !runtimeConfig.sfuAvailable;
@@ -1191,7 +1236,7 @@
             };
             if (!runtimeConfig.sfuAvailable) {
                 selectedMediaMode = MEDIA_MODE_MESH;
-            }
+            } else if (roomDraftMediaMode) { selectedMediaMode = roomDraftMediaMode; }
             syncMediaModeUi();
             if (joinPreviewRoom) {
                 renderJoinPreview(joinPreviewRoom);
@@ -1253,6 +1298,7 @@
 
             languageButtons.forEach((button) => {
                 button.classList.toggle('is-on', button.dataset.langValue === currentLang);
+                button.setAttribute('aria-pressed', String(button.dataset.langValue === currentLang));
             });
 
             document.querySelectorAll('[data-lang]').forEach((element) => {
@@ -1334,6 +1380,16 @@
         mediaModeButtons.forEach((button) => {
             button.addEventListener('click', () => {
                 setSelectedMediaMode(button.dataset.mediaMode);
+            });
+            button.addEventListener('keydown', (event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const choices = [...mediaModeButtons].filter((control) => !control.hidden);
+                const direction = document.documentElement.dir === 'rtl' ? -1 : 1;
+                const delta = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : event.key === 'ArrowRight' ? direction : -direction;
+                const index = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : (choices.indexOf(button) + delta + choices.length) % choices.length;
+                const next = choices[index];
+                if (next) { setSelectedMediaMode(next.dataset.mediaMode); next.focus(); }
             });
         });
 
@@ -1485,6 +1541,8 @@
                 document.getElementById('result-code').textContent = createdRoomCode;
                 renderCreatedSchedule(createdRoomData);
                 result.hidden = false;
+                try { sessionStorage.removeItem(ROOM_DRAFT_KEY); } catch (_error) {}
+                document.getElementById('draft-restored').hidden = true;
             });
         });
 
@@ -1593,6 +1651,7 @@
 
         void loadRuntimeConfig();
         setDefaultScheduleFields();
+        restoreRoomDraft();
         toggleScheduleFields();
         initAccountFeatures();
         applyLanguage();

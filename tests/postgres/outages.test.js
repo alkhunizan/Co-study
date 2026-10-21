@@ -42,6 +42,13 @@ test('real PostgreSQL migration, lock timeout, rollback, lease loss, backup and 
     db = await createDatabase({ url });
     await assert.rejects(createDatabase({ url }), /PLATFORM_ALREADY_RUNNING/);
     await db.query("INSERT INTO halastudy.users(id,display_name,created_at) VALUES('outage-user','Original',1)");
+    assert.equal((await db.query('SELECT MAX(version) AS version FROM halastudy.migrations')).rows[0].version, 3);
+    await db.query(`INSERT INTO halastudy.digetpay_orders(id,user_id,mode,status,amount_minor,currency,created_at,expires_at,next_check_at)
+        VALUES('paid-review','outage-user','test','review',499,'USD',1,2,1),
+              ('open-checkout','outage-user','test','pending',499,'USD',1,2,1)`);
+    await assert.rejects(db.query(`INSERT INTO halastudy.digetpay_orders(id,user_id,mode,status,amount_minor,currency,created_at,expires_at,next_check_at)
+        VALUES('duplicate-checkout','outage-user','test','pending',499,'USD',1,2,1)`),
+    error => /** @type {any} */ (error).code === '23505');
 
     await control.query('BEGIN');
     await control.query("UPDATE halastudy.users SET display_name='Locked' WHERE id='outage-user'");
@@ -84,6 +91,7 @@ test('real PostgreSQL migration, lock timeout, rollback, lease loss, backup and 
     try {
         await restoreDatabase(restoreDb, snapshot);
         assert.equal((await restoreDb.query("SELECT display_name FROM halastudy.users WHERE id='outage-user'")).rows[0].display_name, 'Original');
+        assert.deepEqual((await restoreDb.query('SELECT status FROM halastudy.digetpay_orders ORDER BY id')).rows.map(row => row.status), ['pending', 'review']);
     } finally { await restoreDb.close(); }
 
     const lease = (await control.query("SELECT pid FROM pg_locks WHERE locktype='advisory' AND classid=190221 AND objid=1")).rows[0].pid;

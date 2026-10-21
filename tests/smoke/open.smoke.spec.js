@@ -43,6 +43,7 @@ test('created room password hands off to the workspace without a re-prompt', asy
         await expect(page.locator('#create-form')).toBeVisible();
 
         await page.fill('#room-name', 'Handoff Smoke Room');
+        await page.locator('#room-options > summary').click();
         await page.check('#require-password');
         await page.fill('#room-password', 'handoff123');
         await page.click('#create-form button[type="submit"]');

@@ -152,7 +152,7 @@
       <span class="ar" aria-hidden="true">هلا</span>
     </a>
     <div class="topbar-right">
-      <div class="lang-switch" role="tablist" aria-label="Language">
+      <div class="lang-switch" role="group" aria-label="Language">
         <button type="button" id="lang-en" data-lang-value="en">EN</button>
         <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
       </div>
@@ -502,11 +502,23 @@
         tabSignup.classList.toggle('is-on', !signin);
         tabSignin.setAttribute('aria-selected', String(signin));
         tabSignup.setAttribute('aria-selected', String(!signin));
+        tabSignin.tabIndex = signin ? 0 : -1;
+        tabSignup.tabIndex = signin ? -1 : 0;
         signinForm.classList.toggle('hidden', !signin);
         signupForm.classList.toggle('hidden', signin);
       }
       tabSignin.addEventListener('click', () => setTab('signin'));
       tabSignup.addEventListener('click', () => setTab('signup'));
+      [tabSignin, tabSignup].forEach((tab, index) => {
+        tab.addEventListener('keydown', (event) => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : 1 - index;
+          setTab(next ? 'signup' : 'signin');
+          [tabSignin, tabSignup][next].focus();
+        });
+      });
+      setTab('signin');
       if (new URLSearchParams(location.search).get('signup') === '1' || location.hash === '#signup') {
         setTab('signup');
       }

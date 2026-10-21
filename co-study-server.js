@@ -69,6 +69,7 @@ const NICKNAME_MAX_LENGTH = 20;
 const CHAT_MESSAGE_MAX_LENGTH = 500;
 const BOARD_GOAL_MAX_LENGTH = 80;
 const BOARD_TASK_MAX_LENGTH = 120;
+const BOARD_TASK_LIMIT = 100;
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const MEDIA_MODE_MESH = 'mesh';
 const MEDIA_MODE_SFU = 'sfu';
@@ -1708,7 +1709,7 @@ function createCoStudyServer(options = {}) {
             }
         });
         if (platform.enabled) {
-            try { await platform.ready; await platform.db.close(); } catch (_error) {}
+            try { await platform.ready; await platform.billing.close?.(); await platform.db.close(); } catch (_error) {}
         }
         // Persist incidents emitted by every other component's final cleanup.
         try { await operationalAlerts.close(); } catch (_error) {}
@@ -2715,6 +2716,7 @@ function createCoStudyServer(options = {}) {
             }
 
             const board = ensureRoomBoard(room);
+            if (board.tasks.length >= BOARD_TASK_LIMIT) return ackError(ack, 'BOARD_TASK_LIMIT');
             board.tasks.push({
                 id: crypto.randomUUID(),
                 text: cleanText,

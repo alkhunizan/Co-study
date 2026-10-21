@@ -36,9 +36,12 @@ function createPublicPages(root) {
             title: 'تواصل معنا | هلاستدي', description: 'تواصل مع فريق هلاستدي عبر info@halastudy.com أو الهاتف أو واتساب. معلومات التواصل لخدمة غرف المذاكرة والتركيز في الرياض.' },
         { path: '/en/contact', file: 'contact.html', kind: 'contact', lang: 'en', alternate: '/contact',
             title: 'Contact Us | Halastudy', description: 'Contact Halastudy by email at info@halastudy.com, phone or WhatsApp. Support for our online study and focus rooms, based in Riyadh.' },
-        ...['privacy', 'terms'].map((name) => ({
-            path: `/${name}`, file: `${name}.html`, kind: 'legal', lang: 'ar'
-        })),
+        ...['privacy', 'terms'].flatMap((name) => ['ar', 'en'].map((lang) => ({
+            path: `${lang === 'en' ? '/en' : ''}/${name}`, file: `${name}.html`, kind: 'legal', lang,
+            alternate: `${lang === 'en' ? '' : '/en'}/${name}`,
+            title: name === 'privacy' ? (lang === 'en' ? 'Privacy Policy | Halastudy' : 'سياسة الخصوصية | هلاستدي')
+                : (lang === 'en' ? 'Terms of Service | Halastudy' : 'شروط الاستخدام | هلاستدي')
+        }))),
         ...POSTS.map((post) => ({ ...post, kind: 'article', lang: 'ar' }))
     ];
     return pages.map((page) => {
@@ -70,6 +73,20 @@ function renderPage(page, pages) {
     const blog = english ? '/en/blog' : '/blog';
     const contact = english ? '/en/contact' : '/contact';
     let html = translate(page.html, copy[page.kind]?.[page.lang]);
+    if (page.kind === 'legal') {
+        html = html.replace('<body>', '<body class="is-legal-page">');
+        // Keep the approved paragraphs intact, presenting one language per route.
+        html = html.replace(/<section lang="(ar|en)"[^>]*>[\s\S]*?<\/section>/g,
+            (section, lang) => lang === page.lang ? section : '').replace(/<hr[^>]*class="lang-divider"[^>]*>/g, '');
+        html = html.replace(/<header class="topbar">[\s\S]*?<\/header>/, `<header class="topbar">
+<a class="legal-brand" href="${home}" aria-label="Halastudy home"><bdi>Halastudy</bdi></a>
+<nav aria-label="${english ? 'Page navigation' : 'التنقل'}"><a href="/open">${english ? 'Open a room' : 'افتح غرفة'}</a>
+<div class="lang-switch" role="group" aria-label="${english ? 'Language' : 'اللغة'}"><button type="button" data-lang-value="ar" lang="ar">عربي</button><button type="button" data-lang-value="en" lang="en">EN</button></div>
+<button type="button" id="theme-toggle" aria-label="${english ? 'Toggle theme' : 'تبديل المظهر'}">◐</button></nav></header>`);
+        html = html.replace(/<footer class="legal-footer">[\s\S]*?<\/footer>/, `<footer class="legal-footer">
+<a href="${english ? '/en' : ''}/privacy">${english ? 'Privacy' : 'الخصوصية'}</a><a href="${english ? '/en' : ''}/terms">${english ? 'Terms' : 'الشروط'}</a></footer>`);
+        html = html.replace('</head>', '<script src="/js/halastudy-core.js"></script><script src="/js/legal-shell.js" defer></script>\n</head>');
+    }
     html = html.replace(/<html\b[^>]*>/, `<html lang="${page.lang}" dir="${english ? 'ltr' : 'rtl'}" data-theme="light" data-route-lang="${page.lang}">`);
     html = html.replace(/<title>[\s\S]*?<\/title>|<meta\b[^>]*(?:name="(?:description|twitter:[^"]+)"|property="og:[^"]+")[^>]*>|<link\b[^>]*rel="(?:canonical|alternate)"[^>]*>/gi, '');
     const alternates = page.alternate ? [
@@ -98,6 +115,7 @@ ${page.image.includes('/images/og/') ? '<meta property="og:image:width" content=
     html = html.replace('</head>', `${metadata}\n</head>`);
     html = html.replace(/href="\/(?:blog|contact)?"/g, (match) =>
         match === 'href="/blog"' ? `href="${blog}"` : match === 'href="/contact"' ? `href="${contact}"` : `href="${home}"`);
+    if (english) html = html.replace(/href="\/(privacy|terms)"/g, 'href="/en/$1"');
     if (page.alternate) {
         html = html.replace(/<button([^>]*data-lang-value="(ar|en)"[^>]*)>([\s\S]*?)<\/button>/g,
             (_whole, attrs, lang, label) => `<a${attrs.replace(/type="button"|\sclass="is-on"/g, '')} href="${lang === page.lang ? page.path : page.alternate}" lang="${lang}" hreflang="${lang}"${lang === page.lang ? ' class="is-on" aria-current="page"' : ''}>${label}</a>`);

@@ -7,7 +7,9 @@ const FREE = Object.freeze({
     features: { 'progress.export': false, 'progress.history_days': 30, 'circles.max_owned': 0, 'circles.max_members': 12 }
 });
 
-function createEntitlements(db, mode, now = Date.now) {
+function createEntitlements(db, mode, now = Date.now, billingInfo = () => ({
+    provider: 'simulator', environment: mode, checkoutAvailable: mode === 'test', automaticRenewal: false
+})) {
     async function resolve(userId, tx = db) {
         const result = await tx.query(`SELECT * FROM halastudy.subscriptions
             WHERE user_id=$1 AND mode=$2 AND status='active' AND period_end>$3 ORDER BY created_at DESC LIMIT 1`,
@@ -16,7 +18,7 @@ function createEntitlements(db, mode, now = Date.now) {
         const plan = subscription ? VIP : FREE;
         return { plan, subscription, features: { ...plan.features } };
     }
-    return { resolve, catalog: () => ({ plans: [FREE, VIP], mode, checkoutAvailable: mode === 'test' }) };
+    return { resolve, catalog: () => ({ plans: [FREE, VIP], mode, ...billingInfo() }) };
 }
 
 module.exports = { createEntitlements };

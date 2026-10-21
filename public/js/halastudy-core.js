@@ -113,7 +113,14 @@
             if (copy[key] != null) el.setAttribute('aria-label', copy[key]);
         });
         document.querySelectorAll('[data-lang-value]').forEach((b) => {
-            b.classList.toggle('is-on', b.getAttribute('data-lang-value') === langState.lang);
+            const selected = b.getAttribute('data-lang-value') === langState.lang;
+            b.classList.toggle('is-on', selected);
+            if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(selected));
+            else {
+                b.removeAttribute('aria-pressed');
+                if (selected) b.setAttribute('aria-current', 'page');
+                else b.removeAttribute('aria-current');
+            }
         });
         langState.listeners.forEach((cb) => {
             try { cb(langState.lang, copy); } catch (_e) {}
@@ -127,6 +134,7 @@
             b.addEventListener('click', () => {
                 langState.lang = b.getAttribute('data-lang-value') === 'en' ? 'en' : 'ar';
                 setStoredLang(langState.lang);
+                if (b.tagName === 'A') return;
                 applyLangToDom();
             });
         });

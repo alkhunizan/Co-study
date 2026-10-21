@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Halastudy | هلا — A quiet room. Open all night.</title>
-  <meta name="description" content="A quiet room. Open all night. Body-doubling for GCC students — camera on, mic off, work alongside someone.">
+  <meta name="description" content="A quiet room. Open all night. Body-doubling for GCC students — camera optional, mic off, work alongside someone.">
   <link rel="canonical" href="https://halastudy.com/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Halastudy">
   <meta property="og:title" content="Halastudy | غرفة هادية. مفتوحة طول الليل.">
-  <meta property="og:description" content="غرف تركيز أونلاين للمذاكرة والعمل — الكاميرا شغّالة، المايك مقفول. ذاكر أو اشتغل لايف مع ناس جادّين.">
+  <meta property="og:description" content="غرف تركيز أونلاين للمذاكرة والعمل — الكاميرا اختيارية، المايك مقفول. ذاكر أو اشتغل لايف مع ناس جادّين.">
   <meta property="og:url" content="https://halastudy.com/">
   <meta property="og:image" content="https://halastudy.com/videos/hero/01-nouf-abdulaziz-poster.jpg">
   <meta property="og:locale" content="ar_SA">
@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="/design-system/landing.css">
   <script src="/js/marketing-copy.js"></script>
   <script src="/js/halastudy-core.js"></script>
+  <script src="/js/ux-insights.js"></script>
   <script src="/js/ui.js" defer></script>
 </head>
 <body class="is-landing-page">
@@ -47,7 +48,7 @@
     </nav>
     <div class="topbar-right">
       <a class="topbar-link" id="auth-entry" href="/account.html" data-i18n="navSignIn">تسجيل الدخول</a>
-      <div class="lang-switch" role="tablist" aria-label="Language">
+      <div class="lang-switch" role="group" aria-label="Language">
         <button type="button" id="lang-en" data-lang-value="en">EN</button>
         <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
       </div>
@@ -56,7 +57,7 @@
           <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
         </svg>
       </button>
-      <a class="btn btn-primary btn--compact" href="/open.html" data-i18n="ctaOpenShort">افتح غرفة</a>
+      <a class="btn btn-primary btn--compact" href="/open.html" data-ux-entry="create" data-i18n="ctaOpenShort">افتح غرفة</a>
       <button class="icon-btn nav-burger" id="nav-burger" type="button" aria-expanded="false" aria-controls="mobile-menu" data-i18n-aria="menuLabel" aria-label="القائمة">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <g class="i-menu"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></g>
@@ -75,7 +76,7 @@
     <a class="menu-link" href="/plans" data-i18n="navVip">عضوية VIP</a>
     <div class="mobile-menu-divider" aria-hidden="true"></div>
     <div class="mobile-menu-controls" id="mobile-menu-controls"></div>
-    <a class="btn btn-primary mobile-menu-cta" href="/open.html"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
+    <a class="btn btn-primary mobile-menu-cta" href="/open.html" data-ux-entry="create"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
   </nav>
 
   <main id="main-content">
@@ -91,8 +92,8 @@
         <div class="tile-glow"></div>
         <div class="tile-grain"></div>
         <div class="tile-vignette"></div>
-        <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
-        <div class="tile-name"><span data-tile-name="0">نوف عبدالعزيز</span><span class="city">Riyadh</span></div>
+        <div class="tile-chip"><span data-i18n="illustrativeNote">معاينة توضيحية</span></div>
+        <div class="tile-name"><span data-tile-name="0">جلسة قراءة</span><span class="city">Riyadh</span></div>
         <div class="tile-timer" data-tile-timer="0">32:14</div>
       </div>
 
@@ -113,24 +114,19 @@
           <span><span class="city-name">Lahore</span><span class="city-time" data-clock="Asia/Karachi">03:24</span></span>
         </div>
 
-        <div class="live-pill">
-          <span class="dot" aria-hidden="true"></span>
-          <span class="count" id="live-count">17,264</span>
-          <span data-i18n="livePillLabel">مصباح شغّال الآن</span>
-        </div>
-        <span class="illustrative-note" data-i18n="illustrativeNote">عرض توضيحي</span>
+        <div class="live-pill" data-i18n="livePillLabel">مساحة هادئة للمذاكرة معًا</div>
 
         <h1 class="hero-title">
-          <span data-i18n="heroTitle1">ادخل.</span>
-          <em data-i18n="heroTitle2">الكاميرا شغّالة.</em>
-          <span data-i18n="heroTitle3">اشتغل مع غيرك.</span>
+          <span data-i18n="heroTitle1">جلسة هادئة.</span>
+          <em data-i18n="heroTitle2">على إيقاعك.</em>
+          <span data-i18n="heroTitle3">ذاكر مع رفقة.</span>
         </h1>
-        <p class="hero-sub" data-i18n="heroSub">غرفة هادية، مفتوحة طول الليل. العالم كله يذاكر ويشتغل — قرّب كرسيك.</p>
+        <p class="hero-sub" data-i18n="heroSub">افتح غرفة تركيز للمذاكرة أو العمل. ادعُ رفاقك، وابدأ المؤقّت؛ الكاميرا اختيارية.</p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="/open.html"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
-          <a class="btn btn-secondary" href="/open.html#join"><span data-i18n="ctaJoin">ادخل غرفة</span></a>
+          <a class="btn btn-primary" href="/open.html" data-ux-entry="create"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
+          <a class="btn btn-secondary" href="/open.html#join" data-ux-entry="join"><span data-i18n="ctaJoin">عندي رمز غرفة</span></a>
         </div>
-        <div class="hero-foot" data-i18n="heroFoot">بدون تنزيل. بدون تسجيل. المايك مقفول.</div>
+        <div class="hero-foot" data-i18n="heroFoot">بدون تنزيل. ابدأ دون حساب. الكاميرا على راحتك.</div>
       </div>
 
       <!-- STRIP — 5 small looping cam tiles below the featured + copy row -->
@@ -143,8 +139,8 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
-          <div class="tile-name"><span data-tile-name="1">ريم سلطان</span><span class="city">Jeddah</span></div>
+          <div class="tile-chip"><span data-i18n="illustrativeNote">معاينة توضيحية</span></div>
+          <div class="tile-name"><span data-tile-name="1">مذاكرة هادئة</span><span class="city">Jeddah</span></div>
           <div class="tile-timer" data-tile-timer="1">47:02</div>
         </div>
         <div class="study-tile cam-night" data-priority="2">
@@ -155,8 +151,8 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
-          <div class="tile-name"><span data-tile-name="2">لمى فيصل</span><span class="city">Khobar</span></div>
+          <div class="tile-chip"><span data-i18n="illustrativeNote">معاينة توضيحية</span></div>
+          <div class="tile-name"><span data-tile-name="2">مراجعة اختبار</span><span class="city">Khobar</span></div>
           <div class="tile-timer" data-tile-timer="2">12:48</div>
         </div>
         <div class="study-tile cam-night" data-priority="2">
@@ -167,8 +163,8 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
-          <div class="tile-name"><span data-tile-name="3">جواهر خالد</span><span class="city">Medina</span></div>
+          <div class="tile-chip"><span data-i18n="illustrativeNote">معاينة توضيحية</span></div>
+          <div class="tile-name"><span data-tile-name="3">وقت للمشروع</span><span class="city">Medina</span></div>
           <div class="tile-timer" data-tile-timer="3">23:41</div>
         </div>
         <div class="study-tile cam-night" data-priority="2">
@@ -179,8 +175,8 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
-          <div class="tile-name"><span data-tile-name="4">دانة سعد</span><span class="city">Doha</span></div>
+          <div class="tile-chip"><span data-i18n="illustrativeNote">معاينة توضيحية</span></div>
+          <div class="tile-name"><span data-tile-name="4">جلسة تركيز</span><span class="city">Doha</span></div>
           <div class="tile-timer" data-tile-timer="4">08:22</div>
         </div>
         <div class="study-tile cam-night" data-priority="2">
@@ -191,8 +187,8 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
-          <div class="tile-name"><span data-tile-name="5">سعود عبدالله</span><span class="city">Manama</span></div>
+          <div class="tile-chip"><span data-i18n="illustrativeNote">معاينة توضيحية</span></div>
+          <div class="tile-name"><span data-tile-name="5">إنجاز مهمة</span><span class="city">Manama</span></div>
           <div class="tile-timer" data-tile-timer="5">19:07</div>
         </div>
       </div>
@@ -208,7 +204,7 @@
     <div class="steps-grid">
       <div class="step">
         <h3 data-i18n="why1H">ما انت لحالك على المكتب</h3>
-        <p data-i18n="why1P">المرافقة بالوجود تحوّل المذاكرة الفردية إلى زخم مشترك. لما فيه أحد شغّال قدامك والكاميرا مفتوحة، تكمّل معه.</p>
+        <p data-i18n="why1P">وجود رفيق يذاكر معك يساعدك ترجع لمهمتك. ادعُ مجموعتك وابدأوا جلسة تناسبكم، بالكاميرا أو بدونها.</p>
       </div>
       <div class="step">
         <h3 data-i18n="why2H">هادية بالتصميم</h3>
@@ -236,19 +232,19 @@
       <div class="step">
         <div class="step-num" data-i18n="stepNum1">٠١</div>
         <h3 data-i18n="step1H">افتح غرفة</h3>
-        <p data-i18n="step1P">اختر مدة التركيز — ٢٥ دقيقة، ٥٠ دقيقة، أو مفتوحة. تطلع لك كود من ست خانات تشاركه.</p>
+        <p data-i18n="step1P">افتح غرفتك وشارك رمزها المكوّن من 6 خانات. اختر إيقاع التركيز من داخل الغرفة.</p>
         <span class="step-divider" aria-hidden="true"></span>
       </div>
       <div class="step">
         <div class="step-num" data-i18n="stepNum2">٠٢</div>
-        <h3 data-i18n="step2H">الكاميرا شغّالة، المايك مقفول</h3>
-        <p data-i18n="step2P">هذا هو المربط. وجودك هو الاتفاق. ما فيه أحد يسمع؛ كل واحد قاعد يشتغل.</p>
+        <h3 data-i18n="step2H">الكاميرا على راحتك</h3>
+        <p data-i18n="step2P">ابدأ بالكاميرا أو بدونها. عند تشغيلها يشاهدك أعضاء الغرفة، والمايك مقفول افتراضيًا.</p>
         <span class="step-divider" aria-hidden="true"></span>
       </div>
       <div class="step">
         <div class="step-num" data-i18n="stepNum3">٠٣</div>
         <h3 data-i18n="step3H">اقعد لين يرنّ المنبه</h3>
-        <p data-i18n="step3P">لما تخلص البومودورو، كلكم تستريحون مع بعض. راحة هادية، ورجعة هادية.</p>
+        <p data-i18n="step3P">ركّز على مهمتك حتى نهاية المؤقّت. خذ استراحة، ثم ابدأ جولة جديدة عندما تكون جاهزًا.</p>
       </div>
     </div>
   </section>
@@ -257,7 +253,7 @@
     <div class="preview-shell">
       <div class="preview-bar">
         <div class="tl-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div class="room-meta" data-i18n="roomMeta">غرفة هادية · ٥٠ دقيقة تركيز</div>
+        <div class="room-meta" data-i18n="roomMeta">غرفة هادية · 50 دقيقة تركيز</div>
         <div class="room-code" dir="ltr">A7K-2QF</div>
       </div>
       <div class="preview-grid">
@@ -266,8 +262,8 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
-          <div class="tile-name"><span data-preview-name="0">هيا تركي</span><span class="city">Riyadh</span></div>
+          <div class="tile-chip"><span data-i18n="illustrativeNote">معاينة توضيحية</span></div>
+          <div class="tile-name"><span data-preview-name="0">جلسة قراءة</span><span class="city">Riyadh</span></div>
           <div class="tile-timer" data-preview-timer="0">32:14</div>
         </div>
         <div class="preview-tile" style="--g1:#3a2e22; --g2:#0c0805; --hot-x:64%; --hot-y:32%">
@@ -275,8 +271,8 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
-          <div class="tile-name"><span data-preview-name="1">ماجد فيصل</span><span class="city">Jeddah</span></div>
+          <div class="tile-chip"><span data-i18n="illustrativeNote">معاينة توضيحية</span></div>
+          <div class="tile-name"><span data-preview-name="1">وقت للمشروع</span><span class="city">Jeddah</span></div>
           <div class="tile-timer" data-preview-timer="1">12:48</div>
         </div>
         <div class="preview-tile" style="--g1:#574028; --g2:#16100a; --hot-x:28%; --hot-y:34%">
@@ -284,21 +280,21 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
-          <div class="tile-name"><span data-preview-name="2">رزان فهد</span><span class="city">Doha</span></div>
+          <div class="tile-chip"><span data-i18n="illustrativeNote">معاينة توضيحية</span></div>
+          <div class="tile-name"><span data-preview-name="2">جلسة تركيز</span><span class="city">Doha</span></div>
           <div class="tile-timer" data-preview-timer="2">47:02</div>
         </div>
         <div class="preview-tile you">
           <div class="tile-room"></div>
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-chip"><span data-i18n="illustrativeNote">معاينة توضيحية</span></div>
           <div class="tile-name"><span data-i18n="previewYou">انت</span><span class="city">—</span></div>
           <div class="tile-timer">00:12</div>
         </div>
       </div>
       <div class="preview-foot">
-        <span data-i18n="previewFootL">المايك مقفول · الكاميرا شغّالة</span>
+        <span data-i18n="previewFootL">كاميرا اختيارية · المايك مقفول</span>
         <span class="pomodoro">
           <span>POMODORO</span>
           <span class="big" id="preview-pomodoro">23:41</span>
@@ -316,51 +312,49 @@
         <span data-i18n="communityTitle1">مذاكرة </span>
         <em data-i18n="communityTitle2">بصمت واحد.</em>
       </h2>
-      <p class="community-sub" data-i18n="communitySub">طلاّب حقيقيّين. اختبارات جاية. المصابيح شغّالة — اقعد على الطاولة.</p>
+      <p class="community-sub" data-i18n="communitySub">مشاهد توضيحية لأجواء المذاكرة. ادعُ مجموعتك إلى غرفة تخصّكم.</p>
       <div class="community-stats">
-        <span class="stat"><span class="stat-num" id="stat-pictured">5</span><span class="stat-label" data-i18n="statPictured">في الصورة</span></span>
-        <span class="stat-rule" aria-hidden="true"></span>
-        <span class="stat"><span class="stat-num" id="stat-live">17,264</span><span class="stat-label" data-i18n="statRightNow">الآن</span></span>
-        <span class="stat-rule" aria-hidden="true"></span>
-        <span class="stat"><span class="stat-num">42</span><span class="stat-label" data-i18n="statCities">مدينة</span></span>
+        <span class="stat"><span class="stat-num" data-i18n="statFocusValue">25/5</span><span class="stat-label" data-i18n="statFocusLabel">إيقاع تبدأ به</span></span>
+        <span class="stat"><span class="stat-num" data-i18n="statGuestValue">ضيف</span><span class="stat-label" data-i18n="statGuestLabel">ابدأ دون حساب</span></span>
+        <span class="stat"><span class="stat-num" data-i18n="statCameraValue">اختيارية</span><span class="stat-label" data-i18n="statCameraLabel">الكاميرا على راحتك</span></span>
       </div>
-      <div class="illustrative-note" data-i18n="illustrativeNote">عرض توضيحي</div>
+      <div class="illustrative-note" data-i18n="illustrativeNote">معاينة توضيحية</div>
     </div>
     <div class="community-grid">
       <!-- DEVIATION §2: 5 portraits, single editorial row -->
       <figure class="community-card">
         <div class="community-photo"><picture><source srcset="/images/team/munira-abdullah.webp" type="image/webp"><img src="/images/team/munira-abdullah.jpg" alt="" loading="lazy"></picture></div>
         <figcaption>
-          <span class="community-name" data-i18n="member1Name">منيرة عبدالله</span>
-          <span class="community-major" data-i18n="member1Major">علوم الحاسب</span>
+          <span class="community-name" data-i18n="member1Name">جلسة قراءة</span>
+          <span class="community-major" data-i18n="member1Major">فكرة لغرفتك</span>
         </figcaption>
       </figure>
       <figure class="community-card">
         <div class="community-photo"><picture><source srcset="/images/team/shahad-nasser.webp" type="image/webp"><img src="/images/team/shahad-nasser.jpg" alt="" loading="lazy"></picture></div>
         <figcaption>
-          <span class="community-name" data-i18n="member2Name">شهد ناصر</span>
-          <span class="community-major" data-i18n="member2Major">إدارة أعمال</span>
+          <span class="community-name" data-i18n="member2Name">مراجعة اختبار</span>
+          <span class="community-major" data-i18n="member2Major">فكرة لغرفتك</span>
         </figcaption>
       </figure>
       <figure class="community-card">
         <div class="community-photo"><picture><source srcset="/images/team/turki-nasser.webp" type="image/webp"><img src="/images/team/turki-nasser.jpg" alt="" loading="lazy"></picture></div>
         <figcaption>
-          <span class="community-name" data-i18n="member3Name">تركي ناصر</span>
-          <span class="community-major" data-i18n="member3Major">عمارة</span>
+          <span class="community-name" data-i18n="member3Name">وقت للمشروع</span>
+          <span class="community-major" data-i18n="member3Major">فكرة لغرفتك</span>
         </figcaption>
       </figure>
       <figure class="community-card">
         <div class="community-photo"><picture><source srcset="/images/team/sarah-khalid.webp" type="image/webp"><img src="/images/team/sarah-khalid.jpg" alt="" loading="lazy"></picture></div>
         <figcaption>
-          <span class="community-name" data-i18n="member4Name">ساره خالد</span>
-          <span class="community-major" data-i18n="member4Major">إعلام واتّصال</span>
+          <span class="community-name" data-i18n="member4Name">إنجاز مهمة</span>
+          <span class="community-major" data-i18n="member4Major">فكرة لغرفتك</span>
         </figcaption>
       </figure>
       <figure class="community-card">
         <div class="community-photo"><picture><source srcset="/images/team/fahad-sultan.webp" type="image/webp"><img src="/images/team/fahad-sultan.jpg" alt="" loading="lazy"></picture></div>
         <figcaption>
-          <span class="community-name" data-i18n="member5Name">فهد سلطان</span>
-          <span class="community-major" data-i18n="member5Major">تقنية حيوية</span>
+          <span class="community-name" data-i18n="member5Name">مذاكرة مسائية</span>
+          <span class="community-major" data-i18n="member5Major">فكرة لغرفتك</span>
         </figcaption>
       </figure>
     </div>
@@ -373,8 +367,8 @@
       <span data-i18n="closerTitle1">مصباح واحد شغّال الساعة ١.</span>
       <em data-i18n="closerTitle2">انت مو لحالك.</em>
     </h2>
-    <p data-i18n="closerSub">هلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.</p>
-    <a class="btn btn-primary btn--push-top" href="/open.html"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
+    <p data-i18n="closerSub">غرفة هادئة للمذاكرة والعمل مع رفاقك. الكاميرا اختيارية، وإيقاع الجلسة تختاره أنت.</p>
+    <a class="btn btn-primary btn--push-top" href="/open.html" data-ux-entry="create"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
     <div class="city-marquee" aria-hidden="true">
       <div class="city-marquee-track" id="city-marquee-track"></div>
     </div>
@@ -429,7 +423,14 @@
         if (dict.previewNames && dict.previewNames[i]) el.textContent = dict.previewNames[i];
       });
       document.querySelectorAll('.lang-switch [data-lang-value]').forEach(function (b) {
-        b.classList.toggle('is-on', b.getAttribute('data-lang-value') === lang);
+        var selected = b.getAttribute('data-lang-value') === lang;
+        b.classList.toggle('is-on', selected);
+        if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(selected));
+        else {
+          b.removeAttribute('aria-pressed');
+          if (selected) b.setAttribute('aria-current', 'page');
+          else b.removeAttribute('aria-current');
+        }
       });
       // build city-marquee text in the active language
       buildMarquee(lang);
@@ -480,22 +481,6 @@
       });
     }
 
-    /* ---------- Live counter — random walk ---------- */
-    var liveN = 17264;
-    function tickLive() {
-      if (document.hidden) return;
-      var drift = Math.random() < 0.5 ? -1 : 1;
-      var mag = Math.floor(Math.random() * 5) + 1;
-      liveN = Math.max(15000, liveN + drift * mag);
-      // Western digits + grouping in both languages — counts are
-      // transactional numbers per DESIGN.md §5.
-      var formatted = liveN.toLocaleString('en-US');
-      var el = document.getElementById('live-count');
-      var stat = document.getElementById('stat-live');
-      if (el) el.textContent = formatted;
-      if (stat) stat.textContent = formatted;
-    }
-
     /* ---------- Preview pomodoro countdown ---------- */
     var pomSec = 23 * 60 + 41;
     function tickPomodoro() {
@@ -531,7 +516,11 @@
     document.addEventListener('DOMContentLoaded', function () {
       // Lang switch
       document.querySelectorAll('.lang-switch [data-lang-value]').forEach(function (b) {
-        b.addEventListener('click', function () { setLang(b.getAttribute('data-lang-value')); });
+        b.addEventListener('click', function () {
+          var lang = b.getAttribute('data-lang-value');
+          if (b.tagName === 'A') { try { localStorage.setItem(LANG_KEY, lang); } catch (e) {} return; }
+          setLang(lang);
+        });
       });
       // Theme toggle
       var themeBtn = document.getElementById('theme-toggle');
@@ -624,7 +613,6 @@
       // Timers
       updateClocks();
       setInterval(updateClocks, 30 * 1000);
-      setInterval(tickLive, 1100);
       if (!prefersReduced) {
         setInterval(tickPomodoro, 1000);
         setInterval(tickTimers, 1000);

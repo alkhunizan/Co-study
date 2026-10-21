@@ -103,6 +103,7 @@ test('member, VIP, supervisor and named staff journeys work in the browser', asy
         await expect(page.locator('#focus-state')).toHaveText('Paused');
         await page.locator('#focus-finish').click();
         await expect(page.locator('#session-history')).toContainText('Completed');
+        await page.locator('.platform-nav [data-view="account"]').click();
         await page.locator('[data-view="security"]').click();
         await page.locator('#mfa-password').fill('browser-pass-123');
         await page.locator('#mfa-enroll button').click();
@@ -113,6 +114,7 @@ test('member, VIP, supervisor and named staff journeys work in the browser', asy
         await expect(page.locator('#recovery')).toBeVisible();
         await page.locator('#bootstrap [name="password"]').fill('smoke-admin-password');
         await page.locator('#bootstrap button').click();
+        await page.locator('.platform-nav [data-view="account"]').click();
         await expect(page.locator('#staff-nav')).toBeVisible();
         await page.locator('#staff-nav').click();
         await expect(page.locator('#staff-roles')).toContainText('Super admin');

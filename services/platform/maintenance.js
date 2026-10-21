@@ -6,7 +6,7 @@ const TABLES = [
     'users', 'accounts', 'room_records', 'store_metadata', 'mfa', 'organizations',
     'organization_members', 'role_assignments', 'cohorts', 'cohort_members', 'invitations',
     'rooms', 'room_hosts', 'scheduled_sessions', 'attendance', 'subscriptions', 'checkout_sessions',
-    'focus_sessions', 'xp_ledger', 'achievements', 'cases', 'audit_events', 'outbox'
+    'focus_sessions', 'xp_ledger', 'achievements', 'cases', 'audit_events', 'outbox', 'digetpay_orders'
 ];
 
 async function snapshotDatabase(db) {
@@ -14,7 +14,7 @@ async function snapshotDatabase(db) {
         await tx.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
         const tables = {};
         for (const table of TABLES) tables[table] = (await tx.query(`SELECT * FROM halastudy.${table}`)).rows;
-        return { format: 'halastudy-platform-v1', createdAt: new Date().toISOString(), checksum: hash(JSON.stringify(tables)), tables };
+        return { format: 'halastudy-platform-v2', createdAt: new Date().toISOString(), checksum: hash(JSON.stringify(tables)), tables };
     });
 }
 
@@ -27,16 +27,17 @@ async function backupDatabase(db, destination) {
 }
 
 async function restoreDatabase(db, snapshot) {
-    requireCondition(snapshot?.format === 'halastudy-platform-v1' && snapshot.tables
+    requireCondition(['halastudy-platform-v1', 'halastudy-platform-v2'].includes(snapshot?.format) && snapshot.tables
         && snapshot.checksum === hash(JSON.stringify(snapshot.tables)), 'BACKUP_INVALID');
-    requireCondition(Object.keys(snapshot.tables).length === TABLES.length
-        && TABLES.every((table) => Array.isArray(snapshot.tables[table])), 'BACKUP_TABLES_INVALID');
+    const sourceTables = snapshot.format === 'halastudy-platform-v1' ? TABLES.filter((name) => name !== 'digetpay_orders') : TABLES;
+    requireCondition(Object.keys(snapshot.tables).length === sourceTables.length
+        && sourceTables.every((table) => Array.isArray(snapshot.tables[table])), 'BACKUP_TABLES_INVALID');
     await db.transaction(async (tx) => {
         for (const table of TABLES) {
             requireCondition(!(await tx.query(`SELECT 1 FROM halastudy.${table} LIMIT 1`)).rows.length, 'RESTORE_REQUIRES_EMPTY_DATABASE', 409);
         }
         for (const table of TABLES) {
-            for (const original of snapshot.tables[table]) {
+            for (const original of snapshot.tables[table] || []) {
                 const row = structuredClone(original);
                 if (table === 'accounts') row.payload.tokenEpoch = Number(row.payload.tokenEpoch || 1) + 1;
                 const columns = Object.keys(row);

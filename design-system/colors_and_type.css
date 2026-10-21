@@ -20,8 +20,8 @@
 
   /* Ink — warm-black, never pure */
   --ink:          #2D3436;   /* primary text */
-  --ink-2:        #636E72;   /* secondary text */
-  --ink-3:        #9AA0A4;   /* tertiary, captions, placeholders */
+  --ink-2:        #5B666A;   /* readable secondary text on paper and selected surfaces */
+  --ink-3:        #667075;   /* tertiary, captions, placeholders */
   --ink-inv:      #FAF7F1;   /* text on dark / accent fills */
 
   /* Borders / hairlines */
@@ -32,7 +32,7 @@
   /* Accent — Karak amber (Gulf qahwa light) */
   --accent:       #E0B08B;
   --accent-2:     #C28A62;   /* deeper, for press / strong text */
-  --accent-3:     #A56B43;   /* darkest, for tiny text on cream */
+  --accent-3:     #89542F;   /* darkest, for tiny text on cream */
   --accent-soft:  rgba(224, 176, 139, 0.12);
   --accent-glow:  rgba(224, 176, 139, 0.30);
 
@@ -158,7 +158,7 @@
 
   --ink:          #ECE6D8;   /* warm off-white — book paper at night */
   --ink-2:        #98A2B0;   /* cool grey-blue */
-  --ink-3:        #5A6573;
+  --ink-3:        #A8B2C0;
   --ink-inv:      #0E1218;
 
   --line:         #242D3B;
@@ -196,6 +196,11 @@
 /* ============================================================
    Semantic recipes — drop-in element styles
    ============================================================ */
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--sh-focus);
+}
 
 html[lang="ar"], [dir="rtl"] {
   font-family: var(--font-body-ar);
@@ -258,3 +263,14 @@ html[lang="ar"] .h-h2,
 /* Eastern Arabic numerals utility — opt-in for moments of warmth */
 .num-eastern  { font-feature-settings: "lnum" 0; }
 [lang="ar-u-nu-arab"] { font-feature-settings: "lnum" 0; }
+
+/* Standalone navigation targets; inline prose links retain natural wrapping. */
+footer a, .topbar a { display: inline-flex; align-items: center; justify-content: center; min-block-size: 44px; padding-inline: 8px; }
+.is-legal-page .topbar { flex-wrap: wrap; gap: 12px; }
+.is-legal-page .topbar nav { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.is-legal-page .topbar .lang-switch { display: flex; align-items: center; gap: 4px; }
+.is-legal-page .topbar button { font: inherit; background: var(--card); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 999px; min-block-size: 44px; min-inline-size: 44px; cursor: pointer; }
+.is-legal-page .topbar .is-on { background: var(--accent-soft); border-radius: 999px; }
+.is-legal-page .topbar .legal-brand { font: 500 26px var(--font-display); }
+html[lang="en"] .is-legal-page .topbar, html[lang="en"] .legal-footer { font-family: var(--font-body); }
+.legal-footer { flex-wrap: wrap; }

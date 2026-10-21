@@ -21,7 +21,7 @@ async function main() {
         PLATFORM_ENABLED: 'true', PLATFORM_DATABASE_URL: '', PLATFORM_DATA_DIR: path.join(directory, 'database'),
         ROOM_STATE_FILE: path.join(directory, 'rooms.json'), USER_STATE_FILE: path.join(directory, 'users.json'),
         ROOM_STATE_BACKUP_DIR: path.join(directory, 'backups'),
-        SESSION_SECRET: credentials.sessionSecret, BILLING_MODE: 'test',
+        SESSION_SECRET: credentials.sessionSecret, BILLING_MODE: 'test', BILLING_PROVIDER: 'simulator',
         SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '',
         VIDEO_PROVIDER: 'mesh', SFU_BASE_URL: '', CLOUDFLARE_REALTIMEKIT_API_TOKEN: '',
         ADMIN_PATH: '/local-operator-bootstrap', ADMIN_PASSWORD_HASH: await hashPassword(credentials.operatorPassword),

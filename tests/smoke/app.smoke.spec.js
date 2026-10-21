@@ -64,6 +64,9 @@ async function createRoomFromLanding(page, options = {}) {
     await expect(page.locator('#create-form')).toBeVisible();
 
     await page.fill('#room-name', roomName);
+    if (requirePassword || schedule || mediaMode === 'sfu') {
+        if (!(await page.locator('#room-options').evaluate((element) => element.open))) await page.locator('#room-options > summary').click();
+    }
     if (mediaMode === 'sfu') {
         await expect(page.locator('[data-media-mode="sfu"]')).toBeVisible();
         await page.click('[data-media-mode="sfu"]');
@@ -393,7 +396,7 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
     }
 });
 
-test('scheduled rooms expose timer defaults and invite actions', async ({ browser }) => {
+test('scheduled rooms expose timer defaults and invite actions', async ({ browser }, testInfo) => {
     const owner = await createSmokePage(browser);
 
     try {
@@ -407,6 +410,14 @@ test('scheduled rooms expose timer defaults and invite actions', async ({ browse
         await expect(owner.page.locator('#result-schedule')).toBeVisible();
         await expect(owner.page.locator('#result-whatsapp-link')).toHaveAttribute('href', /wa\.me/);
         await expect(owner.page.locator('#result-calendar-btn')).toBeVisible();
+        const calendarDownload = owner.page.waitForEvent('download');
+        await owner.page.locator('#result-calendar-btn').click();
+        const calendar = await calendarDownload;
+        const calendarPath = testInfo.outputPath('room-schedule.ics');
+        await calendar.saveAs(calendarPath);
+        const exported = require('node:fs').readFileSync(calendarPath, 'utf8');
+        const expectedUtc = new Date(`${schedule.startDate}T${schedule.startTime}:00+03:00`).toISOString().replace(/[-:]/g, '').replace('.000', '');
+        expect(exported).toContain(`DTSTART:${expectedUtc}`);
 
         await owner.page.click('#btn-enter-room');
         await joinRoom(owner.page, {

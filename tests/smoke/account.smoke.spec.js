@@ -74,6 +74,7 @@ test('schedule gate blocks guests and unlocks after sign-in; My Rooms lists crea
     const guest = await createAccountPage(browser);
     try {
         await guest.page.goto('/open.html');
+        await guest.page.locator('#room-options > summary').click();
         await guest.page.check('#enable-schedule');
         await expect(guest.page.locator('#schedule-signin-gate')).toBeVisible();
         await expect(guest.page.locator('#schedule-fields-inner')).toBeHidden();
@@ -98,11 +99,15 @@ test('schedule gate blocks guests and unlocks after sign-in; My Rooms lists crea
         await expect(guest.page.locator('#my-rooms-card')).toBeVisible();
         await expect(guest.page.locator('.my-room-code').first()).toHaveText(roomCode);
 
-        // One-click rejoin lands in the room with the reserved nickname prefilled.
+        // One-click rejoin uses the account nickname and closes the join dialog.
+        // Opacity alone previously made the invisible reserved-name label appear
+        // "visible" to this assertion without verifying the actual room state.
         await guest.page.click('.my-room-row .btn');
         await guest.page.waitForURL('**/study**');
         await expect(guest.page.locator('#join-name')).toHaveValue('Gated');
-        await expect(guest.page.locator('#join-name-reserved')).toBeVisible();
+        await expect(guest.page.locator('#join-overlay')).toBeHidden();
+        await expect(guest.page.locator('#user-list')).toContainText('Gated');
+        await expect(guest.page.locator('#chat-input')).toBeEnabled();
     } finally {
         await guest.context.close();
     }
@@ -147,10 +152,11 @@ test('guest focus-sync nudge appears after a focus session and dismissal sticks 
     const guest = await createAccountPage(browser);
     try {
         await guest.page.goto('/study');
-        // The full-screen join overlay would intercept clicks on the hint;
-        // this smoke tests the nudge mechanics, not the join flow.
+        // This test exercises the nudge in the normal closed-dialog state;
+        // the join flow and inert focus lifecycle have separate coverage.
         await guest.page.evaluate(() => {
-            document.getElementById('join-overlay').classList.add('hidden');
+            // @ts-expect-error page-scope dialog lifecycle
+            setJoinVisible(false);
         });
         // Drive the completion hook directly — waiting out a real Pomodoro
         // is not smoke-test material.

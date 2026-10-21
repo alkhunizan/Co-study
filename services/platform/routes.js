@@ -3,6 +3,7 @@ const { verifyPassword } = require('../auth/password');
 const { sanitizeUserText } = require('../auth');
 const { verifyReauth, COOKIE_NAME } = require('../auth/reauth');
 const { requireCondition, audit } = require('./common');
+const { dashboard } = require('./dashboard');
 
 function createPlatformRouter(deps) {
     const { platform, requireUser, users, rooms, config, parseCookies, appendSetCookie, logger,
@@ -28,6 +29,13 @@ function createPlatformRouter(deps) {
         await platform.ready;
         res.json(platform.entitlements.catalog());
     }));
+    router.post('/billing/digetpay/webhook', handle(async (req, res) => {
+        if (!applyHttpRateLimit(req, res, rateLimiters.platformMutation, `digetpay:${req.ip}`)) return;
+        await platform.ready;
+        requireCondition(platform.billing.notify, 'CHECKOUT_UNCONFIGURED', 503);
+        await platform.billing.notify(req.body);
+        res.json({ accepted: true });
+    }));
     router.use(requireUser);
     router.use(async (req, res, next) => {
         try {
@@ -51,7 +59,7 @@ function createPlatformRouter(deps) {
         ]);
         const cookies = parseCookies(req.headers.cookie || '');
         res.json({
-            benefits, roles, permissions, cohorts, mode: platform.mode,
+            benefits, roles, permissions, cohorts, mode: platform.mode, billing: platform.entitlements.catalog(),
             mfaEnabled: mfa.rows[0]?.enabled || false,
             staffVerified: await platform.access.verifyStaff(req.user.id, cookies.coStudyStaff, cookies.coStudyAuth),
             bootstrapAvailable: !!config.admin.passwordHash && !(await platform.access.hasStaff())
@@ -61,6 +69,7 @@ function createPlatformRouter(deps) {
         const { features } = await platform.entitlements.resolve(req.user.id);
         res.json(await platform.progress.summary(req.user.id, features['progress.history_days']));
     }));
+    router.get('/dashboard', handle(async (req, res) => res.json(await dashboard(platform, rooms, req.user))));
     router.post('/focus/start', handle(async (req, res) => res.json(await platform.progress.start(req.user.id))));
     router.post('/focus/:id/:action', handle(async (req, res) => res.json(await platform.progress.update(req.user.id, req.params.id, req.params.action))));
     router.get('/progress/export', handle(async (req, res) => {
@@ -76,7 +85,16 @@ function createPlatformRouter(deps) {
         res.setHeader('Content-Disposition', 'attachment; filename="halastudy-progress.csv"');
         res.type('text/csv').send(csv);
     }));
-    router.post('/billing/checkout', handle(async (req, res) => res.json(await platform.billing.checkout(req.user.id))));
+    router.post('/billing/checkout', handle(async (req, res) => res.json(await platform.billing.checkout(req.user.id, {
+        phone: req.body?.phone, name: req.user.displayName, email: req.user.email
+    }))));
+    router.get('/billing/latest', handle(async (req, res) => res.json({
+        order: platform.billing.latest ? await platform.billing.latest(req.user.id) : null
+    })));
+    router.post('/billing/checkout/:id/verify', handle(async (req, res) => {
+        requireCondition(platform.billing.status, 'CHECKOUT_UNCONFIGURED', 503);
+        res.json(await platform.billing.status(req.user.id, req.params.id));
+    }));
     router.post('/billing/checkout/:id/complete', handle(async (req, res) =>
         res.json(await platform.billing.complete(req.user.id, req.params.id, req.body?.token, req.body?.outcome))));
     router.post('/billing/cancellation', handle(async (req, res) => {
@@ -221,6 +239,18 @@ function createPlatformRouter(deps) {
     router.get('/staff/subscriptions', handle(async (req, res) => {
         await staff(req, 'billing.read');
         res.json({ subscriptions: (await platform.db.query('SELECT * FROM halastudy.subscriptions ORDER BY created_at DESC LIMIT 100')).rows });
+    }));
+    router.get('/staff/payment-orders', handle(async (req, res) => {
+        await staff(req, 'billing.read');
+        res.json(platform.billing.listReview ? await platform.billing.listReview(req.query.cursor) : { orders: [], nextCursor: null });
+    }));
+    router.post('/staff/payment-orders/:id/recheck', handle(async (req, res) => {
+        await staff(req, 'staff.manage');
+        requireCondition(platform.billing.review, 'CHECKOUT_UNCONFIGURED', 503);
+        res.json(await platform.billing.review(req.user.id, req.params.id, {
+            reason: sanitizeUserText(req.body?.reason, 250), transactionId: req.body?.transactionId,
+            activateReview: req.body?.activateReview
+        }));
     }));
     router.get('/staff/users', handle(async (req, res) => {
         await staff(req, 'cases.manage');
