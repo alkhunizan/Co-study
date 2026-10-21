@@ -1,0 +1,108 @@
+--- a/index.html
++++ b/index.html
+@@ -989,6 +989,7 @@
+             cameraToggleOff: 'Disable camera',
+             cameraToggleStarting: 'Starting...',
+             cameraError: 'Unable to access the camera.',
++            cameraBlurHelp: 'Privacy blur could not start. Your camera is off. Retry, or turn blur off only if you want to share unblurred video.',
+             cameraPermissionHelp: 'Camera access is blocked. Allow it in your browser site settings, then try again. You can keep studying without it.',
+             cameraDeviceHelp: 'No camera was found. Connect a camera and try again, or continue without one.',
+             cameraBusyHelp: 'The camera may be in use. Close the other camera app and try again, or keep studying without it.',
+@@ -1169,6 +1170,7 @@
+             cameraToggleOff: 'إيقاف الكاميرا',
+             cameraToggleStarting: 'جارٍ التشغيل...',
+             cameraError: 'تعذر الوصول إلى الكاميرا.',
++            cameraBlurHelp: 'تعذر تشغيل تمويه الخصوصية، فأوقفنا الكاميرا. أعد المحاولة، أو أوقف التمويه فقط إذا أردت مشاركة الفيديو بدونه.',
+             cameraPermissionHelp: 'إذن الكاميرا مغلق. اسمح به من إعدادات الموقع في متصفحك، ثم أعد المحاولة. تقدر تكمل المذاكرة بدونها.',
+             cameraDeviceHelp: 'لم نعثر على كاميرا. وصّل كاميرا وأعد المحاولة، أو أكمل بدونها.',
+             cameraBusyHelp: 'قد تكون الكاميرا مستخدمة في تطبيق آخر. أغلقه وأعد المحاولة، أو أكمل المذاكرة بدونها.',
+@@ -2291,22 +2293,37 @@
+         }
+     }
+ 
++    async function requireBlurredStream(stream) {
++        try {
++            if (!supportsCanvasFilter) throw new Error('Canvas blur unavailable');
++            const processed = await startBlurPipeline(stream);
++            if (stream !== rawStream || !stream.getVideoTracks().some(track => track.readyState === 'live')) {
++                stopBlurPipeline();
++                throw new Error('Camera ended while preparing blur');
++            }
++            return processed;
++        } catch (error) {
++            throw Object.assign(new Error('Privacy blur unavailable'), { name: 'BlurProcessingError', cause: error });
++        }
++    }
++
+     async function toggleBlur() {
+         blurEnabled = !blurEnabled;
+         try { localStorage.setItem(BLUR_PREF_KEY, blurEnabled ? 'on' : 'off'); } catch (_) {}
+         updateBlurToggleLabel();
+         if (!cameraEnabled || !rawStream) return;
+         try {
+-            if (blurEnabled && supportsCanvasFilter) {
+-                localStream = await startBlurPipeline(rawStream);
++            if (blurEnabled) {
++                localStream = await requireBlurredStream(rawStream);
+             } else {
+                 stopBlurPipeline({ keepRaw: true });
+                 localStream = rawStream;
+             }
+         } catch (err) {
+-            debugLog('ERROR', 'Blur toggle failed', err.message);
+-            stopBlurPipeline({ keepRaw: true });
+-            localStream = rawStream;
++            debugLog('ERROR', 'Blur toggle failed', err.name);
++            disableCamera();
++            showCameraHelp('cameraBlurHelp');
++            return;
+         }
+         localVideo.srcObject = localStream;
+         // existingSender.replaceTrack path — swaps without renegotiation.
+@@ -2318,7 +2335,7 @@
+     function updateBlurToggleLabel() {
+         const blurBtn = document.getElementById('blur-toggle');
+         if (!blurBtn) return;
+-        const showButton = supportsCanvasFilter && isMeshRoom();
++        const showButton = isMeshRoom();
+         blurBtn.hidden = !showButton;
+         if (!showButton) return;
+         blurBtn.textContent = blurEnabled ? langDict[curLang].blurOn : langDict[curLang].blurOff;
+@@ -2327,7 +2344,7 @@
+ 
+     function disableCamera(options = {}) {
+         const { notify = true, preserveStatusText = false } = options;
+-        if (!cameraEnabled && !localStream) {
++        if (!cameraEnabled && !localStream && !rawStream) {
+             if (!preserveStatusText && !isSfuRoom()) {
+                 aiStatusEl.textContent = langDict[curLang].aiNeedCamera;
+             }
+@@ -4230,14 +4247,8 @@
+             rawStream.getVideoTracks().forEach(track => {
+                 track.onended = () => disableCamera();
+             });
+-            if (blurEnabled && supportsCanvasFilter) {
+-                try {
+-                    localStream = await startBlurPipeline(rawStream);
+-                } catch (blurErr) {
+-                    debugLog('ERROR', 'Blur pipeline failed, sending raw', blurErr.message);
+-                    stopBlurPipeline({ keepRaw: true });
+-                    localStream = rawStream;
+-                }
++            if (blurEnabled) {
++                localStream = await requireBlurredStream(rawStream);
+             } else {
+                 localStream = rawStream;
+             }
+@@ -4268,9 +4279,10 @@
+             const key = ['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(err.name) ? 'cameraPermissionHelp'
+                 : ['NotFoundError', 'DevicesNotFoundError'].includes(err.name) ? 'cameraDeviceHelp'
+                 : ['NotReadableError', 'TrackStartError'].includes(err.name) ? 'cameraBusyHelp' : 'cameraGenericHelp';
+-            showCameraHelp(key);
++            showCameraHelp(err.name === 'BlurProcessingError' ? 'cameraBlurHelp' : key);
+         } finally {
+             cameraStarting = false;
++            updateCameraToggleLabel();
+             document.getElementById('camera-retry').disabled = false;
+         }
+     }
