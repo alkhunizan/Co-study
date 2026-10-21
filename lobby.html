@@ -164,6 +164,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/js/video/realtimekit-client.js"></script>
+  <script src="/js/video/video-client.js"></script>
   <script>
     const DICT = {
       en: {
@@ -225,13 +226,39 @@
     // are the grid source; on any failure the lobby degrades to socket presence.
     const rtk = { meeting: null, leave: null, connected: false, role: 'viewer' };
 
+    let mediaGeneration = 0;
+    let leavingPage = false;
+    const media = window.HalastudyVideoClient.createVideoClient({ onEnded: () => {
+      clearMediaState();
+      window.HalaUI.toast(t('joinFailed'), { kind: 'error' });
+    } });
+    function clearMediaState() {
+      mediaGeneration++;
+      rtk.connected = false; rtk.meeting = null; rtk.leave = null;
+      render();
+    }
+    function leaveMedia(options = {}) {
+      clearMediaState();
+      return media.leave(options);
+    }
+    window.addEventListener('pagehide', () => {
+      leavingPage = true;
+      void leaveMedia({ keepalive: true });
+      if (socket) socket.disconnect();
+    });
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted && state.myName) { leavingPage = false; joinLobby(state.myName); }
+    });
+    let cachedClientId;
     function clientId() {
+      if (cachedClientId) return cachedClientId;
       let id = null;
       try { id = localStorage.getItem(CLIENT_ID_KEY); } catch (_e) {}
       if (!id) {
         id = (crypto.randomUUID && crypto.randomUUID()) || ('c-' + Math.random().toString(36).slice(2));
         try { localStorage.setItem(CLIENT_ID_KEY, id); } catch (_e) {}
       }
+      cachedClientId = id;
       return id;
     }
 
@@ -356,10 +383,14 @@
         el('lobby-view').hidden = true;
         window.HalaUI.toast(t(code === 'ROOM_FULL' ? 'full' : 'joinFailed'), { kind: 'error' });
       }
+      if (socket) { socket.removeAllListeners(); socket.disconnect(); }
       socket = io({ auth: { clientId: clientId() } });
+      const connection = socket;
+      socket.on('disconnect', () => { void leaveMedia({ keepalive: true }); });
       socket.on('connect_error', () => joinFailed());
       socket.on('connect', () => {
         socket.emit('join-room', { roomId: 'LOBBY', username: name, clientId: clientId() }, (res = {}) => {
+          if (socket !== connection || leavingPage) return;
           if (!res.ok) {
             joinFailed(res.errorCode);
             return;
@@ -367,7 +398,7 @@
           setParticipants((res.room && res.room.participants) || []);
           // Now that we are a verified room member, connect to the SFU as a
           // watcher. Degrades silently to presence-only if video is unavailable.
-          connectRealtimeKit('viewer');
+          if (!leavingPage) void connectRealtimeKit('viewer');
         });
       });
       socket.on('presence', (list) => setParticipants(list || []));
@@ -375,37 +406,27 @@
       socket.on('room-closed', () => { location.href = '/'; });
     }
 
-    async function requestVideoToken(role) {
-      const res = await fetch('/api/rooms/LOBBY/video-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ displayName: state.myName, clientSessionId: clientId(), role })
-      });
-      return res.json().catch(() => ({}));
-    }
-
     async function connectRealtimeKit(role) {
-      if (!window.HalastudyRealtimeKitClient) return { ok: false };
-      let payload;
-      try { payload = await requestVideoToken(role); } catch (_e) { return { ok: false }; }
-      if (!payload || !payload.ok || !payload.authToken) return payload || { ok: false };
+      if (leavingPage) return { ok: false };
+      const requested = ++mediaGeneration;
+      rtk.connected = false; rtk.meeting = null;
       try {
-        const joined = await window.HalastudyRealtimeKitClient.joinHeadless({ authToken: payload.authToken });
-        rtk.meeting = joined.meeting; rtk.leave = joined.leave; rtk.connected = true;
-        rtk.role = payload.role || role;
+        const joined = await media.joinHeadlessRoom({ roomId: 'LOBBY', displayName: state.myName,
+          clientSessionId: clientId(), role });
+        if (requested !== mediaGeneration || leavingPage) return { ok: false, errorCode: 'VIDEO_JOIN_CANCELED' };
+        rtk.meeting = joined.meeting; rtk.connected = true;
+        rtk.role = joined.role || role;
         wireRealtimeKitEvents(rtk.meeting);
-        // Option A: let the SDK manage subscription in PAGINATED mode; density is
-        // pure CSS layout. Page hint kept in sync in the pager handlers.
         try {
           const parts = rtk.meeting.participants;
-          if (parts && typeof parts.setViewMode === 'function') await parts.setViewMode('PAGINATED');
+          if (parts && typeof parts.setViewMode === 'function') void Promise.resolve(parts.setViewMode('PAGINATED')).catch(() => {});
         } catch (_e) {}
+        if (requested !== mediaGeneration) return { ok: false, errorCode: 'VIDEO_JOIN_CANCELED' };
         render();
         return { ok: true };
-      } catch (_e) {
-        rtk.connected = false; rtk.meeting = null;
-        return { ok: false };
+      } catch (error) {
+        if (requested === mediaGeneration) clearMediaState();
+        return { ok: false, errorCode: error.code };
       }
     }
 
@@ -446,11 +467,12 @@
           if (self.videoEnabled && self.disableVideo) await self.disableVideo();
           else if (self.enableVideo) await self.enableVideo();
         } else {
-          if (rtk.leave) { try { await rtk.leave(); } catch (_e) {} }
-          rtk.connected = false; rtk.meeting = null;
+          await leaveMedia();
           const res = await connectRealtimeKit('publisher');
           if (res && res.ok && rtk.meeting && rtk.meeting.self && rtk.meeting.self.enableVideo) {
             await rtk.meeting.self.enableVideo();
+          } else if (res && res.errorCode === 'VIDEO_JOIN_CANCELED') {
+            return;
           } else if (res && res.errorCode === 'AUTH_REQUIRED') {
             location.href = '/account.html?next=%2Flobby';
           } else {

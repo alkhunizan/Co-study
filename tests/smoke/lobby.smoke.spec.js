@@ -1,5 +1,27 @@
 const { test, expect } = require('@playwright/test');
 
+test('lobby renews its media session and page exit tears it down', async ({ page }) => {
+    await page.goto('/lobby');
+    await page.clock.install();
+    await page.evaluate(async () => {
+        const w = /** @type {any} */ (window);
+        w.__mediaCalls = []; w.__mediaLeaves = 0;
+        w.fetch = async (url) => {
+            w.__mediaCalls.push(url);
+            return new Response(JSON.stringify({ ok: true, authToken: 'synthetic', role: 'viewer' }));
+        };
+        w.HalastudyRealtimeKitClient = { joinHeadless: async () => ({ meeting: { self: {}, participants: {} }, leave: async () => { w.__mediaLeaves++; } }) };
+        await w.connectRealtimeKit('viewer');
+    });
+    await page.clock.runFor(180000);
+    expect(await page.evaluate(() => /** @type {any} */ (window).__mediaCalls.filter(url => url.endsWith('video-heartbeat')).length)).toBe(4);
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+    await expect.poll(() => page.evaluate(() => /** @type {any} */ (window).__mediaLeaves)).toBe(1);
+    expect(await page.evaluate(() => /** @type {any} */ (window).__mediaCalls.some(url => url.endsWith('video-leave')))).toBe(true);
+    await page.clock.runFor(90000);
+    expect(await page.evaluate(() => /** @type {any} */ (window).__mediaCalls.filter(url => url.endsWith('video-heartbeat')).length)).toBe(4);
+});
+
 test('lobby query parameters cannot invent participants', async ({ page }) => {
     await page.goto('/lobby?demo=12');
     await page.evaluate(() => /** @type {any} */ (window).setParticipants([{ id: 'real-test-member', name: 'Real test member', cameraOn: false }]));
