@@ -24,6 +24,23 @@ test('failed admin signout stays explicit and can be retried', async ({ page }) 
 
 let adminIpCounter = 180;
 
+test('stalled admin signout times out and unlocks retry', async ({ page }) => {
+    await page.goto(ADMIN_PATH);
+    await page.fill('#admin-password', ADMIN_PASSWORD);
+    await page.click('#login-form button[type="submit"]');
+    await expect(page.locator('#ops-shell')).toBeVisible();
+    await page.clock.install();
+    await page.route(`**${ADMIN_PATH}/api/logout`, () => {});
+    await page.click('#btn-admin-signout');
+    await expect(page.locator('#btn-admin-signout')).toBeDisabled();
+    await page.clock.runFor(16000);
+    await expect(page.locator('#signout-feedback')).toContainText('still signed in');
+    await expect(page.locator('#btn-admin-signout')).toBeEnabled();
+    await page.unroute(`**${ADMIN_PATH}/api/logout`);
+    await page.click('#btn-admin-signout');
+    await expect(page.locator('#login-view')).toBeVisible();
+});
+
 async function createAdminPage(browser) {
     const forwardedIp = `203.0.113.${adminIpCounter}`;
     adminIpCounter += 1;
