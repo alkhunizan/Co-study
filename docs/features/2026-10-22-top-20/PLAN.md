@@ -1,4 +1,4 @@
-﻿# Twenty features — implementation plan
+# Twenty features — implementation plan
 
 Current baseline: 3091b0eefd0461163a15861d7fd67ddeb868e739, branch feat/2026-10-22-top-20. Existing unrelated untracked work is preserved. Outputs stay here; source/tests stay in their established locations. Local implementation only: no provider/dashboard changes, live messages/payments, production data, push, merge or deployment. Existing free access and VIP commercial terms stay unchanged.
 
@@ -31,7 +31,7 @@ Data/trust: server-owned accounts/permissions/focus ledger in PostgreSQL-compati
 | F19 | Opt-in reminders | Account preference plus in-app/browser reminder while open, no outbound messaging or closed-browser promise; dismiss deduplicates. |
 | F20 | Circle resource shelf | Owner/supervisor manages bounded HTTPS links/notes; only current members read; unsafe URLs and foreign writes fail. |
 
-Research: Focusmate features/favorites/calendar/quiet modes; Focus To-Do private tasks/projects/subtasks/recurrence/history; Flow Club intentions/session agendas/calendar/check-ins; Caveday guided work/break/check-out; Study Together quiet timed rooms. Raw primary-source results are in research/. Ranking and adaptation are product judgments, not a market-share claim. Existing room boards, timer presets, seven-day strip, readiness, recurring room schedules and individual ICS links are not counted again.
+Research: Focusmate features/favorites/calendar/quiet modes; Focus To-Do private tasks/projects/subtasks/recurrence/history; Flow Club intentions/session agendas/calendar/check-ins; Caveday guided work/break/check-out; Study Together quiet timed rooms. Primary-source metadata are in research/. Ranking and adaptation are product judgments, not a market-share claim. Existing room boards, timer presets, seven-day strip, readiness, recurring room schedules and individual ICS links are not counted again.
 
 ## Architecture and verification
 

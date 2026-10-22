@@ -1,0 +1,7 @@
+﻿{
+    "port":  3510,
+    "address":  "127.0.0.1",
+    "pid":  10728,
+    "command":  "\"C:\\Users\\alkhu\\AppData\\Local\\npm-cache\\_npx\\52027bd8fc0022aa\\node_modules\\node\\bin\\node.exe\" scripts/preview-platform.js",
+    "parent":  "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File docs/features/2026-10-22-top-20/scripts/run.ps1 -Label feature-preview -Preview"
+}

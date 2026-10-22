@@ -1,6 +1,6 @@
 # Research and feature selection
 
-Checked official product sources on 2026-10-22. Raw domain-restricted Tavily results are retained in research/. These are twenty selected additions suited to Halastudy, not a claim of market-share ranking or feature parity with every competitor.
+Checked official product sources on 2026-10-22. Domain-restricted Tavily source metadata is retained in research/; full page text is omitted from the review packet. These are twenty selected additions suited to Halastudy, not a claim of market-share ranking or feature parity with every competitor.
 
 | Official source | Observed pattern | Halastudy adaptation |
 |---|---|---|

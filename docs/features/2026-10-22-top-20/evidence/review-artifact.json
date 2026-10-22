@@ -1,0 +1,19 @@
+{
+  "browser": "155.0.8059.85",
+  "cards": 46,
+  "filters": true,
+  "rows": [
+    {
+      "width": 390,
+      "overflow": false,
+      "violations": [],
+      "file": "screenshots/review-390.png"
+    },
+    {
+      "width": 1440,
+      "overflow": false,
+      "violations": [],
+      "file": "screenshots/review-1440.png"
+    }
+  ]
+}

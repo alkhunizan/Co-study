@@ -1,0 +1,34 @@
+{
+  "query": "site.focusmate.com features favorite partners recurring sessions calendar goals",
+  "retrievedDate": "2026-10-22",
+  "request_id": "9a28b82a-913e-4642-8227-e071b5870bd5",
+  "originalResultSha256": "0bc2d120ee55380f06132accd10a7a4ce9323ca256c1e7a630ad8cda5420267c",
+  "note": "Official-source search metadata; full page text omitted from the review packet. See RESEARCH.md for the feature synthesis.",
+  "results": [
+    {
+      "url": "https://www.focusmate.com/features",
+      "title": "Features | Focusmate",
+      "score": 0.72814995
+    },
+    {
+      "url": "https://www.focusmate.com",
+      "title": "Focusmate—Virtual body doubling for getting anything done",
+      "score": 0.6501347
+    },
+    {
+      "url": "http://support.focusmate.com/en/articles/6365663-favorite-partners",
+      "title": "Favorite Partners | Focusmate Help Center",
+      "score": 0.5874941
+    },
+    {
+      "url": "https://www.focusmate.com/blog/guide-post",
+      "title": "Introducing Focusmate: A Guide for the Uninitiated",
+      "score": 0.5863576
+    },
+    {
+      "url": "https://www.focusmate.com/blog/tag/features",
+      "title": "features",
+      "score": 0.5746579
+    }
+  ]
+}

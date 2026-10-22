@@ -1,0 +1,100 @@
+{
+  "verdict": "GO for local review; production acceptance pending",
+  "sourceHead": "25fb696571180d47e081a65482c57262ae15f0d0",
+  "branch": "feat/2026-10-22-top-20",
+  "sourceFiles": 290,
+  "sourceManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf",
+  "node": "22.23.3",
+  "browser": "155.0.8059.85",
+  "integrationTests": 167,
+  "browserOfflinePassed": 76,
+  "browserOfflineFontSkipped": 1,
+  "browserOnlineFontPassed": 1,
+  "distinctBrowserCasesPassed": 77,
+  "actualFontViews": 20,
+  "actualFontAxeStates": 14,
+  "enlargedTextStates": 10,
+  "matchedProgressView": 1,
+  "beforeViews": 15,
+  "newToolLayoutStates": 80,
+  "preview": "http://127.0.0.1:3510/app#planner",
+  "merged": false,
+  "pushed": false,
+  "productionTouchedByThisTask": false,
+  "commands": {
+    "final-ci": {
+      "label": "final-ci",
+      "command": "C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js run test:ci",
+      "exitCode": 0,
+      "seconds": 724,
+      "runtime": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate",
+      "node": "v22.23.3",
+      "sourceManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf",
+      "endManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf"
+    },
+    "final-postgres": {
+      "label": "final-postgres",
+      "command": "scripts/test-postgres.ps1",
+      "exitCode": 0,
+      "seconds": 41.93,
+      "runtime": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate",
+      "node": "v22.23.3",
+      "sourceManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf",
+      "endManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf"
+    },
+    "final-seo-ready": {
+      "label": "final-seo-ready",
+      "command": "scripts/verify-seo.js http://127.0.0.1:3510",
+      "exitCode": 0,
+      "seconds": 0.83,
+      "runtime": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate",
+      "node": "v22.23.3",
+      "sourceManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf",
+      "endManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf"
+    },
+    "final-online-font": {
+      "label": "final-online-font",
+      "command": "node_modules/@playwright/test/cli.js test tests/smoke/ux-return.smoke.spec.js --grep online fonts diagnostic --reporter=list,json",
+      "exitCode": 0,
+      "seconds": 50.08,
+      "runtime": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate",
+      "node": "v22.23.3",
+      "sourceManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf",
+      "endManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf"
+    },
+    "final-browser-verified": {
+      "label": "final-browser-verified",
+      "command": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\docs\\features\\2026-10-22-top-20\\scripts\\final-browser-review.cjs",
+      "exitCode": 0,
+      "seconds": 17.87,
+      "runtime": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate",
+      "node": "v22.23.3",
+      "sourceManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf",
+      "endManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf"
+    },
+    "final-enlarged": {
+      "label": "final-enlarged",
+      "command": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\docs\\features\\2026-10-22-top-20\\scripts\\enlarged-text.cjs",
+      "exitCode": 0,
+      "seconds": 8.7,
+      "runtime": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate",
+      "node": "v22.23.3",
+      "sourceManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf",
+      "endManifestSha256": "97cef1e42776b74df0bb7f4a80d5caec68d339a8c5857eaaec849a93179703cf"
+    }
+  },
+  "externalAcceptance": [
+    "Separately authorized release, hosted migration and deployment.",
+    "Real media/provider, OAuth, mail and payment acceptance with approved accounts.",
+    "Real-device notification permission/delivery; reminders require an open page."
+  ],
+  "reviewArtifact": {
+    "cards": 46,
+    "widths": [
+      390,
+      1440
+    ],
+    "filtersPassed": true,
+    "axeViolations": 0
+  }
+}

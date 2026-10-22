@@ -1,0 +1,85 @@
+{
+  "method": "Computed text and control fonts doubled individually at a 390px viewport; current actual web fonts.",
+  "rows": [
+    {
+      "lang": "ar",
+      "label": "tasks",
+      "file": "after/tasks-390-ar-enlarged-text.png",
+      "overflow": false,
+      "unobstructed": true,
+      "withinViewport": true
+    },
+    {
+      "lang": "ar",
+      "label": "routines",
+      "file": "after/routines-390-ar-enlarged-text.png",
+      "overflow": false,
+      "unobstructed": true,
+      "withinViewport": true
+    },
+    {
+      "lang": "ar",
+      "label": "favorites",
+      "file": "after/favorites-390-ar-enlarged-text.png",
+      "overflow": false,
+      "unobstructed": true,
+      "withinViewport": true
+    },
+    {
+      "lang": "ar",
+      "label": "agenda",
+      "file": "after/agenda-390-ar-enlarged-text.png",
+      "overflow": false,
+      "unobstructed": true,
+      "withinViewport": true
+    },
+    {
+      "lang": "ar",
+      "label": "insights",
+      "file": "after/insights-390-ar-enlarged-text.png",
+      "overflow": false,
+      "unobstructed": true,
+      "withinViewport": true
+    },
+    {
+      "lang": "en",
+      "label": "tasks",
+      "file": "after/tasks-390-en-enlarged-text.png",
+      "overflow": false,
+      "unobstructed": true,
+      "withinViewport": true
+    },
+    {
+      "lang": "en",
+      "label": "routines",
+      "file": "after/routines-390-en-enlarged-text.png",
+      "overflow": false,
+      "unobstructed": true,
+      "withinViewport": true
+    },
+    {
+      "lang": "en",
+      "label": "favorites",
+      "file": "after/favorites-390-en-enlarged-text.png",
+      "overflow": false,
+      "unobstructed": true,
+      "withinViewport": true
+    },
+    {
+      "lang": "en",
+      "label": "agenda",
+      "file": "after/agenda-390-en-enlarged-text.png",
+      "overflow": false,
+      "unobstructed": true,
+      "withinViewport": true
+    },
+    {
+      "lang": "en",
+      "label": "insights",
+      "file": "after/insights-390-en-enlarged-text.png",
+      "overflow": false,
+      "unobstructed": true,
+      "withinViewport": true
+    }
+  ]
+}

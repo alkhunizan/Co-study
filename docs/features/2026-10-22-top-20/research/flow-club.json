@@ -1,0 +1,29 @@
+{
+  "query": "Flow Club features rituals intentions tasks distraction notes calendar recurring sessions official",
+  "retrievedDate": "2026-10-22",
+  "request_id": "c728f9cf-2401-48e1-beab-67381a070de1",
+  "originalResultSha256": "a427288488780b4995371d507a74a47f915106a469025042795a9365b0fd65d3",
+  "note": "Official-source search metadata; full page text omitted from the review packet. See RESEARCH.md for the feature synthesis.",
+  "results": [
+    {
+      "url": "https://www.flow.club/blog/when-you-cant-help-but-thrive",
+      "title": "When You Can’t Help But Thrive - Flow Club",
+      "score": 0.61196244
+    },
+    {
+      "url": "https://www.flow.club/blog/accountability-partner",
+      "title": "How to Be a Great Accountability Partner - Flow Club",
+      "score": 0.5473921
+    },
+    {
+      "url": "https://www.flow.club",
+      "title": "Flow Club",
+      "score": 0.5370662
+    },
+    {
+      "url": "https://www.flow.club/how-it-works",
+      "title": "How It Works",
+      "score": 0.52524763
+    }
+  ]
+}

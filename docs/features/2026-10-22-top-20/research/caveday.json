@@ -1,0 +1,29 @@
+{
+  "query": "Caveday features focus sessions intentions breaks membership calendar goals",
+  "retrievedDate": "2026-10-22",
+  "request_id": "bd3738fe-e26c-470f-b343-1ba0d6e325c0",
+  "originalResultSha256": "42f0891b7317e0aa665ed14f59629215fd59afacc67ee59354c721c296b74cd5",
+  "note": "Official-source search metadata; full page text omitted from the review packet. See RESEARCH.md for the feature synthesis.",
+  "results": [
+    {
+      "url": "https://www.caveday.org/try",
+      "title": "I recommend  — Caveday",
+      "score": 0.6030211
+    },
+    {
+      "url": "https://www.caveday.org",
+      "title": "Caveday",
+      "score": 0.5084226
+    },
+    {
+      "url": "https://www.caveday.org/research",
+      "title": "Research — Caveday",
+      "score": 0.46920466
+    },
+    {
+      "url": "https://www.caveday.org/faq",
+      "title": "Frequently Asked Questions — Caveday",
+      "score": 0.375043
+    }
+  ]
+}
