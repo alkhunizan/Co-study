@@ -1,5 +1,10 @@
 [
   {
+    "path": ".gitattributes",
+    "bytes": 168,
+    "sha256": "2a9f0b48780b775025c91cdc503a5e08342b6765eea21b685eabeccd9568c52f"
+  },
+  {
     "path": ".learnings/ERRORS.md",
     "bytes": 1987,
     "sha256": "9110681f996b9e9028da7f51f5b3ff89b74a1c0b25e97231203bb36e9276ba60"
