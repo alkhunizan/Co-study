@@ -1,0 +1,233 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\playwright.config.js",
+    "rootDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/candidate/tests/smoke",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\helpers\\playwright-global-setup.js",
+    "globalTeardown": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\helpers\\playwright-global-teardown.js",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/artifacts/before-account-errors/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/candidate/tests/smoke",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "account-errors.smoke.spec.js",
+      "file": "account-errors.smoke.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "account errors are useful in ar and keep signup details for retry",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 11528,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#signup-feedback')\nExpected: \u001b[32m\"تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.\"\u001b[39m\nReceived: \u001b[31m\"errPERSISTENCE_UNAVAILABLE\"\u001b[39m\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#signup-feedback')\u001b[22m\n\u001b[2m    13 × locator resolved to <p id=\"signup-feedback\" class=\"form-feedback error\">errPERSISTENCE_UNAVAILABLE</p>\u001b[22m\n\u001b[2m       - unexpected value \"errPERSISTENCE_UNAVAILABLE\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#signup-feedback')\nExpected: \u001b[32m\"تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.\"\u001b[39m\nReceived: \u001b[31m\"errPERSISTENCE_UNAVAILABLE\"\u001b[39m\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#signup-feedback')\u001b[22m\n\u001b[2m    13 × locator resolved to <p id=\"signup-feedback\" class=\"form-feedback error\">errPERSISTENCE_UNAVAILABLE</p>\u001b[22m\n\u001b[2m       - unexpected value \"errPERSISTENCE_UNAVAILABLE\"\u001b[22m\n\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js:17:56",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                      "column": 56,
+                      "line": 17
+                    },
+                    "snippet": "  15 |         const submit = page.locator('#signup-form button[type=\"submit\"]');\n  16 |         await submit.click();\n> 17 |         await expect(page.locator('#signup-feedback')).toHaveText(lang === 'en'\n     |                                                        ^\n  18 |             ? 'Your changes could not be saved. Try again shortly.'\n  19 |             : 'تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.');\n  20 |         await expect(page.locator('#signup-email')).toHaveValue('retry@example.invalid');"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                        "column": 56,
+                        "line": 17
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#signup-feedback')\nExpected: \u001b[32m\"تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.\"\u001b[39m\nReceived: \u001b[31m\"errPERSISTENCE_UNAVAILABLE\"\u001b[39m\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#signup-feedback')\u001b[22m\n\u001b[2m    13 × locator resolved to <p id=\"signup-feedback\" class=\"form-feedback error\">errPERSISTENCE_UNAVAILABLE</p>\u001b[22m\n\u001b[2m       - unexpected value \"errPERSISTENCE_UNAVAILABLE\"\u001b[22m\n\n\n  15 |         const submit = page.locator('#signup-form button[type=\"submit\"]');\n  16 |         await submit.click();\n> 17 |         await expect(page.locator('#signup-feedback')).toHaveText(lang === 'en'\n     |                                                        ^\n  18 |             ? 'Your changes could not be saved. Try again shortly.'\n  19 |             : 'تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.');\n  20 |         await expect(page.locator('#signup-email')).toHaveValue('retry@example.invalid');\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js:17:56"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:35:30.901Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-account-errors\\results\\account-errors.smoke-accou-6be8c-ep-signup-details-for-retry\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-account-errors\\results\\account-errors.smoke-accou-6be8c-ep-signup-details-for-retry\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-account-errors\\results\\account-errors.smoke-accou-6be8c-ep-signup-details-for-retry\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-account-errors\\results\\account-errors.smoke-accou-6be8c-ep-signup-details-for-retry\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                    "column": 56,
+                    "line": 17
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "1f6d0137b59327ef0f69-d504a022b08c6e246289",
+          "file": "account-errors.smoke.spec.js",
+          "line": 4,
+          "column": 5
+        },
+        {
+          "title": "account errors are useful in en and keep signup details for retry",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 11400,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#signup-feedback')\nExpected: \u001b[32m\"Your changes could not be saved. Try again shortly.\"\u001b[39m\nReceived: \u001b[31m\"errPERSISTENCE_UNAVAILABLE\"\u001b[39m\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#signup-feedback')\u001b[22m\n\u001b[2m    14 × locator resolved to <p id=\"signup-feedback\" class=\"form-feedback error\">errPERSISTENCE_UNAVAILABLE</p>\u001b[22m\n\u001b[2m       - unexpected value \"errPERSISTENCE_UNAVAILABLE\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#signup-feedback')\nExpected: \u001b[32m\"Your changes could not be saved. Try again shortly.\"\u001b[39m\nReceived: \u001b[31m\"errPERSISTENCE_UNAVAILABLE\"\u001b[39m\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#signup-feedback')\u001b[22m\n\u001b[2m    14 × locator resolved to <p id=\"signup-feedback\" class=\"form-feedback error\">errPERSISTENCE_UNAVAILABLE</p>\u001b[22m\n\u001b[2m       - unexpected value \"errPERSISTENCE_UNAVAILABLE\"\u001b[22m\n\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js:17:56",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                      "column": 56,
+                      "line": 17
+                    },
+                    "snippet": "  15 |         const submit = page.locator('#signup-form button[type=\"submit\"]');\n  16 |         await submit.click();\n> 17 |         await expect(page.locator('#signup-feedback')).toHaveText(lang === 'en'\n     |                                                        ^\n  18 |             ? 'Your changes could not be saved. Try again shortly.'\n  19 |             : 'تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.');\n  20 |         await expect(page.locator('#signup-email')).toHaveValue('retry@example.invalid');"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                        "column": 56,
+                        "line": 17
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#signup-feedback')\nExpected: \u001b[32m\"Your changes could not be saved. Try again shortly.\"\u001b[39m\nReceived: \u001b[31m\"errPERSISTENCE_UNAVAILABLE\"\u001b[39m\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#signup-feedback')\u001b[22m\n\u001b[2m    14 × locator resolved to <p id=\"signup-feedback\" class=\"form-feedback error\">errPERSISTENCE_UNAVAILABLE</p>\u001b[22m\n\u001b[2m       - unexpected value \"errPERSISTENCE_UNAVAILABLE\"\u001b[22m\n\n\n  15 |         const submit = page.locator('#signup-form button[type=\"submit\"]');\n  16 |         await submit.click();\n> 17 |         await expect(page.locator('#signup-feedback')).toHaveText(lang === 'en'\n     |                                                        ^\n  18 |             ? 'Your changes could not be saved. Try again shortly.'\n  19 |             : 'تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.');\n  20 |         await expect(page.locator('#signup-email')).toHaveValue('retry@example.invalid');\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js:17:56"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:35:43.961Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-account-errors\\results\\account-errors.smoke-accou-621ab-ep-signup-details-for-retry\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-account-errors\\results\\account-errors.smoke-accou-621ab-ep-signup-details-for-retry\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-account-errors\\results\\account-errors.smoke-accou-621ab-ep-signup-details-for-retry\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-account-errors\\results\\account-errors.smoke-accou-621ab-ep-signup-details-for-retry\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                    "column": 56,
+                    "line": 17
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "1f6d0137b59327ef0f69-312458230aa0e9498e6c",
+          "file": "account-errors.smoke.spec.js",
+          "line": 4,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-23T03:35:28.488Z",
+    "duration": 27332.563000000002,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

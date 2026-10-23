@@ -1,0 +1,7 @@
+﻿?? docs/contact-audit/
+?? docs/implementation/2026-10-20-deep-ux/
+?? docs/payments/2026-10-20-digetpay/.learnings/
+?? docs/prompts/
+?? docs/tester/
+?? docs/viber/2026-10-20-digetpay-gate/
+?? tester-reports/

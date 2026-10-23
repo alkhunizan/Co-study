@@ -1,0 +1,5 @@
+{"method":"GET","path":"/api/runtime-config","status":200}
+{"method":"POST","path":"/auth/signup","status":200}
+{"method":"GET","path":"/api/ready","status":503}
+{"method":"GET","path":"/api/health","status":200}
+{"method":"PATCH","path":"/me/profile","status":503}

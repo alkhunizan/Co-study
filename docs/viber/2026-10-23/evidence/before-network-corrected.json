@@ -1,0 +1,233 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\playwright.config.js",
+    "rootDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/candidate/tests/smoke",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\helpers\\playwright-global-setup.js",
+    "globalTeardown": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\helpers\\playwright-global-teardown.js",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/artifacts/before-network-corrected/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/candidate/tests/smoke",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "network-timeout.smoke.spec.js",
+      "file": "network-timeout.smoke.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "stalled room lookup releases Join with a useful error and preserves the draft",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 19828,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeEnabled\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#join-form button[type=\"submit\"]')\nExpected: enabled\nReceived: disabled\nTimeout:  18000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeEnabled\" with timeout 18000ms\u001b[22m\n\u001b[2m  - waiting for locator('#join-form button[type=\"submit\"]')\u001b[22m\n\u001b[2m    21 × locator resolved to <button disabled type=\"submit\" class=\"btn btn-primary\" data-lang=\"btnJoinRoom\">Join room</button>\u001b[22m\n\u001b[2m       - unexpected value \"disabled\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeEnabled\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#join-form button[type=\"submit\"]')\nExpected: enabled\nReceived: disabled\nTimeout:  18000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeEnabled\" with timeout 18000ms\u001b[22m\n\u001b[2m  - waiting for locator('#join-form button[type=\"submit\"]')\u001b[22m\n\u001b[2m    21 × locator resolved to <button disabled type=\"submit\" class=\"btn btn-primary\" data-lang=\"btnJoinRoom\">Join room</button>\u001b[22m\n\u001b[2m       - unexpected value \"disabled\"\u001b[22m\n\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js:11:68",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js",
+                      "column": 68,
+                      "line": 11
+                    },
+                    "snippet": "   9 |     await page.click('#join-form button[type=\"submit\"]');\n  10 |     await expect(page.locator('#join-form button[type=\"submit\"]')).toBeDisabled();\n> 11 |     await expect(page.locator('#join-form button[type=\"submit\"]')).toBeEnabled({ timeout: 18000 });\n     |                                                                    ^\n  12 |     await expect(page.locator('#join-feedback')).toHaveClass(/error/);\n  13 |     await expect(page.locator('#join-code')).toHaveValue('ABC123');\n  14 |     await expect(page.locator('#join-password')).toHaveValue('keep-my-draft');"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js",
+                        "column": 68,
+                        "line": 11
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeEnabled\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#join-form button[type=\"submit\"]')\nExpected: enabled\nReceived: disabled\nTimeout:  18000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeEnabled\" with timeout 18000ms\u001b[22m\n\u001b[2m  - waiting for locator('#join-form button[type=\"submit\"]')\u001b[22m\n\u001b[2m    21 × locator resolved to <button disabled type=\"submit\" class=\"btn btn-primary\" data-lang=\"btnJoinRoom\">Join room</button>\u001b[22m\n\u001b[2m       - unexpected value \"disabled\"\u001b[22m\n\n\n   9 |     await page.click('#join-form button[type=\"submit\"]');\n  10 |     await expect(page.locator('#join-form button[type=\"submit\"]')).toBeDisabled();\n> 11 |     await expect(page.locator('#join-form button[type=\"submit\"]')).toBeEnabled({ timeout: 18000 });\n     |                                                                    ^\n  12 |     await expect(page.locator('#join-feedback')).toHaveClass(/error/);\n  13 |     await expect(page.locator('#join-code')).toHaveValue('ABC123');\n  14 |     await expect(page.locator('#join-password')).toHaveValue('keep-my-draft');\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js:11:68"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:33:56.853Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-network-corrected\\results\\network-timeout.smoke-stal-7eace-ror-and-preserves-the-draft\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-network-corrected\\results\\network-timeout.smoke-stal-7eace-ror-and-preserves-the-draft\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-network-corrected\\results\\network-timeout.smoke-stal-7eace-ror-and-preserves-the-draft\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-network-corrected\\results\\network-timeout.smoke-stal-7eace-ror-and-preserves-the-draft\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js",
+                    "column": 68,
+                    "line": 11
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "47b951b3223b3b240d89-457ed0a372a6b667374f",
+          "file": "network-timeout.smoke.spec.js",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "stalled room runtime configuration settles and releases RTC readiness",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 19007,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoHaveProperty\u001b[2m(\u001b[22m\u001b[32mpath\u001b[39m\u001b[2m)\u001b[22m\n\n\u001b[1mMatcher error\u001b[22m: \u001b[31mreceived\u001b[39m value must not be null nor undefined\n\nReceived has value: \u001b[31mnull\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoHaveProperty\u001b[2m(\u001b[22m\u001b[32mpath\u001b[39m\u001b[2m)\u001b[22m\n\n\u001b[1mMatcher error\u001b[22m: \u001b[31mreceived\u001b[39m value must not be null nor undefined\n\nReceived has value: \u001b[31mnull\u001b[39m\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js:32:20",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js",
+                      "column": 20,
+                      "line": 32
+                    },
+                    "snippet": "  30 |         } finally { clearTimeout(timer); }\n  31 |     });\n> 32 |     expect(config).toHaveProperty('iceServers');\n     |                    ^\n  33 |     await page.unroute('**/api/runtime-config');\n  34 |     expect(await page.evaluate(() => (/** @type {any} */ (window)).loadRtcConfiguration())).toHaveProperty('iceServers');\n  35 | });"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js",
+                        "column": 20,
+                        "line": 32
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoHaveProperty\u001b[2m(\u001b[22m\u001b[32mpath\u001b[39m\u001b[2m)\u001b[22m\n\n\u001b[1mMatcher error\u001b[22m: \u001b[31mreceived\u001b[39m value must not be null nor undefined\n\nReceived has value: \u001b[31mnull\u001b[39m\n\n  30 |         } finally { clearTimeout(timer); }\n  31 |     });\n> 32 |     expect(config).toHaveProperty('iceServers');\n     |                    ^\n  33 |     await page.unroute('**/api/runtime-config');\n  34 |     expect(await page.evaluate(() => (/** @type {any} */ (window)).loadRtcConfiguration())).toHaveProperty('iceServers');\n  35 | });\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js:32:20"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:34:19.612Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-network-corrected\\results\\network-timeout.smoke-stal-00743--and-releases-RTC-readiness\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-network-corrected\\results\\network-timeout.smoke-stal-00743--and-releases-RTC-readiness\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-network-corrected\\results\\network-timeout.smoke-stal-00743--and-releases-RTC-readiness\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-network-corrected\\results\\network-timeout.smoke-stal-00743--and-releases-RTC-readiness\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js",
+                    "column": 20,
+                    "line": 32
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "47b951b3223b3b240d89-3ff6f1dfd05651c9900b",
+          "file": "network-timeout.smoke.spec.js",
+          "line": 20,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-23T03:33:54.422Z",
+    "duration": 44761.734,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

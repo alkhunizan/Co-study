@@ -1,0 +1,394 @@
+﻿diff --git a/account.html b/account.html
+index 00b25e4..663ea24 100644
+--- a/account.html
++++ b/account.html
+@@ -213,6 +213,7 @@
+ 
+       <!-- Google Sign-In — revealed only when the server reports the provider
+            is configured (runtime-config.googleAuthEnabled). Covers both tabs. -->
++      <div id="provider-unavailable" hidden></div>
+       <div class="auth-oauth" data-google-auth hidden>
+         <div class="oauth-divider"><span data-lang="orDivider">أو</span></div>
+         <a class="btn btn-oauth" href="/auth/google" role="button">
+@@ -366,6 +367,8 @@
+           errACCOUNT_BANNED: 'This account has been suspended.',
+           errRATE_LIMITED: 'Too many attempts. Wait a moment and try again.',
+           errAUTH_REQUIRED: 'Please sign in again.',
++          errPERSISTENCE_UNAVAILABLE: 'Your changes could not be saved. Try again shortly.',
++          errLAST_SUPER_ADMIN: 'Assign another super admin before deleting this account.',
+           errNETWORK: 'Connection hiccup. Try again.',
+           footerTag: 'Halastudy · Online focus rooms for studying and working — study or work live, with serious people.',
+           footerPrivacy: 'Privacy',
+@@ -427,6 +430,8 @@
+           errACCOUNT_BANNED: 'هذا الحساب موقوف.',
+           errRATE_LIMITED: 'محاولات كثيرة. انتظر شوي وجرّب.',
+           errAUTH_REQUIRED: 'سجّل دخولك من جديد.',
++          errPERSISTENCE_UNAVAILABLE: 'تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.',
++          errLAST_SUPER_ADMIN: 'عيّن مسؤولًا أعلى آخر قبل حذف هذا الحساب.',
+           errNETWORK: 'النت تعثّر. جرّب مرة ثانية.',
+           footerTag: 'هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.',
+           footerPrivacy: 'الخصوصية',
+@@ -451,14 +456,17 @@
+       if (themeBtn) themeBtn.addEventListener('click', core.toggleTheme);
+ 
+       // Reveal Google Sign-In only when the server has the provider configured.
+-      fetch('/api/runtime-config')
+-        .then((r) => r.json())
+-        .then((cfg) => {
+-          if (cfg && cfg.googleAuthEnabled) {
+-            document.querySelectorAll('[data-google-auth]').forEach((el) => el.removeAttribute('hidden'));
+-          }
+-        })
+-        .catch(() => {});
++      async function loadAuthProviders() {
++        const unavailable = document.getElementById('provider-unavailable');
++        try {
++          const cfg = await core.requestJson('GET', '/api/runtime-config');
++          document.querySelectorAll('[data-google-auth]').forEach((el) => { el.hidden = !cfg.googleAuthEnabled; });
++          unavailable.hidden = true;
++        } catch (_error) {
++          core.showUnavailable(unavailable, loadAuthProviders);
++        }
++      }
++      void loadAuthProviders();
+ 
+       const authView = document.getElementById('auth-view');
+       const accountView = document.getElementById('account-view');
+@@ -493,7 +501,7 @@
+         ar: { amber: 'كراك', sage: 'مريمية', terracotta: 'طيني', dusk: 'غسق', sand: 'رملي', stone: 'حجري' }
+       };
+       function errText(error) {
+-        return t(`err${error && error.code ? error.code : 'NETWORK'}`);
++        return core.t(`err${error && error.code ? error.code : 'NETWORK'}`) || t('errNETWORK');
+       }
+       function setFeedback(id, message, kind) {
+         const el = document.getElementById(id);
+diff --git a/index.html b/index.html
+index a65a094..f657af9 100644
+--- a/index.html
++++ b/index.html
+@@ -1672,6 +1672,7 @@
+ 
+         try {
+             const response = await fetch('/api/runtime-config', {
++                signal: AbortSignal.timeout(15000),
+                 headers: { Accept: 'application/json' }
+             });
+             if (!response.ok) {
+diff --git a/open.html b/open.html
+index f193198..fc609b6 100644
+--- a/open.html
++++ b/open.html
+@@ -1254,6 +1254,7 @@
+ 
+             try {
+                 const response = await fetch('/api/runtime-config', {
++                    signal: AbortSignal.timeout(15000),
+                     headers: { Accept: 'application/json' }
+                 });
+                 if (!response.ok) {
+@@ -1269,6 +1270,7 @@
+         async function fetchRoomDetails(code) {
+             try {
+                 const response = await fetch(`/api/rooms/${encodeURIComponent(code)}`, {
++                    signal: AbortSignal.timeout(15000),
+                     headers: { Accept: 'application/json' }
+                 });
+                 if (response.status === 404) {
+diff --git a/public/js/study-workspace.js b/public/js/study-workspace.js
+index a1a6167..af84c7c 100644
+--- a/public/js/study-workspace.js
++++ b/public/js/study-workspace.js
+@@ -1148,6 +1148,7 @@
+             if (owner !== account) return;
+             agenda = fresh.sessions;
+             data.preferences = prefs;
++            if (permissionStatus.textContent === t('studyUnavailable')) permissionStatus.textContent = '';
+             const s = agenda.find((s) => s.id === candidate.id && dueReminder(s, prefs));
+             if (!s || !prefs.reminders || dismissed(s)) {
+                 reminderBanner.hidden = true;
+@@ -1175,10 +1176,11 @@
+                     });
+                 } catch {}
+         } catch (error) {
+-            agenda = [];
+             reminderBanner.hidden = true;
+-            if (['AUTH_REQUIRED', 'AUTH_ACCOUNT_CHANGED'].includes(error?.code)) failure(error);
+-            else permissionStatus.textContent = t('studyUnavailable');
++            if (['AUTH_REQUIRED', 'AUTH_ACCOUNT_CHANGED'].includes(error?.code)) {
++                agenda = [];
++                failure(error);
++            } else permissionStatus.textContent = t('studyUnavailable');
+         } finally {
+             reminderBusy = false;
+         }
+diff --git a/services/supabase/client.js b/services/supabase/client.js
+index c865b0e..86f6d84 100644
+--- a/services/supabase/client.js
++++ b/services/supabase/client.js
+@@ -3,7 +3,7 @@
+ // service_role key bypasses RLS, so this must never run in the browser.
+ //
+ // Only the verbs the app needs: select / insert / upsert / remove. Errors
+-// surface as thrown Error with the PostgREST body attached for logging.
++// surface as thrown errors with status only; provider bodies may contain private data.
+ 
+ const REST_PATH = '/rest/v1/';
+ 
+@@ -44,6 +44,7 @@ function createSupabaseClient(options = {}) {
+         const controller = new AbortController();
+         const timer = setTimeout(() => controller.abort(), timeoutMs);
+         let res;
++        let text;
+         try {
+             res = await fetchImpl(`${base}${path}`, {
+                 method,
+@@ -51,12 +52,12 @@ function createSupabaseClient(options = {}) {
+                 body,
+                 signal: controller.signal
+             });
++            text = await res.text();
+         } finally {
+             clearTimeout(timer);
+         }
+-        const text = await res.text();
+         if (!res.ok) {
+-            const error = new Error(`Supabase ${method} ${path} failed: ${res.status} ${text.slice(0, 400)}`);
++            const error = new Error(`Supabase ${method} ${path.split('?')[0]} failed: ${res.status}`);
+             // @ts-expect-error attach for callers that want to branch on status
+             error.status = res.status;
+             throw error;
+diff --git a/tests/integration/supabase-deadline.integration.test.js b/tests/integration/supabase-deadline.integration.test.js
+new file mode 100644
+index 0000000..ec9dc63
+--- /dev/null
++++ b/tests/integration/supabase-deadline.integration.test.js
+@@ -0,0 +1,37 @@
++const assert = require('node:assert/strict');
++const http = require('node:http');
++const { test } = require('node:test');
++const { createSupabaseClient } = require('../../services/supabase/client');
++
++test('Supabase deadline covers response body after headers, with a successful control', async () => {
++    const server = http.createServer((req, res) => {
++        res.writeHead(200, { 'Content-Type': 'application/json' });
++        if (req.url.includes('/control?')) return res.end('[{"id":"synthetic"}]');
++        res.flushHeaders();
++        res.write('[');
++    });
++    await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(undefined)));
++    const client = createSupabaseClient({
++        url: `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`,
++        serviceKey: 'local-fixture-only',
++        timeoutMs: 100,
++    });
++    let deadline;
++    try {
++        assert.deepEqual(await client.select('control'), [{ id: 'synthetic' }]);
++        const outcome = await Promise.race([
++            client.select('stalled').then(
++                () => 'unexpected-success',
++                (error) => error.name,
++            ),
++            new Promise((resolve) => {
++                deadline = setTimeout(() => resolve('still-pending'), 800);
++            }),
++        ]);
++        assert.equal(outcome, 'AbortError', 'a streamed body must settle within the configured deadline');
++    } finally {
++        clearTimeout(deadline);
++        server.closeAllConnections();
++        await new Promise((resolve) => server.close(() => resolve(undefined)));
++    }
++});
+diff --git a/tests/integration/supabase-error-privacy.integration.test.js b/tests/integration/supabase-error-privacy.integration.test.js
+new file mode 100644
+index 0000000..fa3174a
+--- /dev/null
++++ b/tests/integration/supabase-error-privacy.integration.test.js
+@@ -0,0 +1,16 @@
++const assert = require('node:assert/strict');
++const { test } = require('node:test');
++const { createSupabaseClient } = require('../../services/supabase/client');
++
++test('Supabase errors retain status without copying provider response bodies into logs', async () => {
++    const client = createSupabaseClient({
++        url: 'http://127.0.0.1:1',
++        serviceKey: 'local-fixture-only',
++        fetchImpl: async () => new Response('{"detail":"PRIVATE_ROW_MARKER@example.invalid"}', { status: 400 }),
++    });
++    await assert.rejects(client.select('users'), (error) => {
++        assert.equal(/** @type {Error & {status: number}} */ (error).status, 400);
++        assert.doesNotMatch((/** @type {Error} */ (error)).message, /PRIVATE_ROW_MARKER|example\.invalid/);
++        return true;
++    });
++});
+diff --git a/tests/smoke/account-errors.smoke.spec.js b/tests/smoke/account-errors.smoke.spec.js
+new file mode 100644
+index 0000000..8b296c5
+--- /dev/null
++++ b/tests/smoke/account-errors.smoke.spec.js
+@@ -0,0 +1,54 @@
++const { test, expect } = require('@playwright/test');
++
++for (const lang of ['ar', 'en']) {
++    test(`provider discovery failures can be retried in ${lang} before revealing Google`, async ({ page }) => {
++        await page.addInitScript((language) => localStorage.setItem('halastudyLang', language), lang);
++        let unavailable = true;
++        await page.route('**/api/runtime-config', (route) =>
++            route.fulfill({
++                status: unavailable ? 503 : 200,
++                contentType: 'application/json',
++                body: JSON.stringify(unavailable ? { errorCode: 'SERVICE_UNAVAILABLE' } : { googleAuthEnabled: true }),
++            }),
++        );
++        await page.goto('/account');
++        const retry = page.locator('#provider-unavailable [data-core-unavailable=retry]');
++        await expect(retry).toBeVisible();
++        await expect(page.locator('[data-google-auth]')).toBeHidden();
++        unavailable = false;
++        await retry.click();
++        await expect(page.locator('[data-google-auth]')).toBeVisible();
++        await expect(page.locator('#provider-unavailable')).toBeHidden();
++    });
++
++    test(`account errors are useful in ${lang} and keep signup details for retry`, async ({ page }) => {
++        await page.addInitScript((language) => localStorage.setItem('halastudyLang', language), lang);
++        let code = 'PERSISTENCE_UNAVAILABLE';
++        await page.route('**/api/auth/signup', (route) =>
++            route.fulfill({
++                status: 503,
++                contentType: 'application/json',
++                body: JSON.stringify({ errorCode: code }),
++            }),
++        );
++        await page.goto('/account');
++        await page.click('#tab-signup');
++        await page.fill('#signup-nickname', 'Synthetic learner');
++        await page.fill('#signup-email', 'retry@example.invalid');
++        await page.fill('#signup-password', 'fixture-password-123');
++        const submit = page.locator('#signup-form button[type="submit"]');
++        await submit.click();
++        await expect(page.locator('#signup-feedback')).toHaveText(
++            lang === 'en'
++                ? 'Your changes could not be saved. Try again shortly.'
++                : 'تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.',
++        );
++        await expect(page.locator('#signup-email')).toHaveValue('retry@example.invalid');
++        code = 'UNRECOGNIZED_FAILURE';
++        await submit.click();
++        await expect(page.locator('#signup-feedback')).toHaveText(
++            lang === 'en' ? 'Connection hiccup. Try again.' : 'النت تعثّر. جرّب مرة ثانية.',
++        );
++        await expect(page.locator('#signup-password')).toHaveValue('fixture-password-123');
++    });
++}
+diff --git a/tests/smoke/network-timeout.smoke.spec.js b/tests/smoke/network-timeout.smoke.spec.js
+new file mode 100644
+index 0000000..370b39a
+--- /dev/null
++++ b/tests/smoke/network-timeout.smoke.spec.js
+@@ -0,0 +1,39 @@
++const { test, expect } = require('@playwright/test');
++
++test('stalled room lookup releases Join with a useful error and preserves the draft', async ({ page }) => {
++    await page.addInitScript(() => localStorage.setItem('halastudyLang', 'en'));
++    await page.goto('/open#join');
++    await page.route('**/api/rooms/ABC123', () => {});
++    await page.fill('#join-code', 'ABC123');
++    await page.fill('#join-password', 'keep-my-draft');
++    await page.click('#join-form button[type="submit"]');
++    await expect(page.locator('#join-form button[type="submit"]')).toBeDisabled();
++    await expect(page.locator('#join-form button[type="submit"]')).toBeEnabled({ timeout: 18000 });
++    await expect(page.locator('#join-feedback')).toHaveClass(/error/);
++    await expect(page.locator('#join-code')).toHaveValue('ABC123');
++    await expect(page.locator('#join-password')).toHaveValue('keep-my-draft');
++    await page.unroute('**/api/rooms/ABC123');
++    await page.click('#join-form button[type="submit"]');
++    await expect(page.locator('#join-feedback')).toHaveText('That room code does not exist.');
++});
++
++test('stalled room runtime configuration settles and releases RTC readiness', async ({ page }) => {
++    await page.route('**/api/runtime-config', () => {});
++    await page.goto('/study');
++    const config = await page.evaluate(async () => {
++        let timer;
++        try {
++            return await Promise.race([
++                /** @type {any} */ (window).ensureRtcConfigurationReady(),
++                new Promise((resolve) => {
++                    timer = setTimeout(() => resolve(null), 18000);
++                }),
++            ]);
++        } finally {
++            clearTimeout(timer);
++        }
++    });
++    expect(config).toHaveProperty('iceServers');
++    await page.unroute('**/api/runtime-config');
++    expect(await page.evaluate(() => /** @type {any} */ (window).loadRtcConfiguration())).toHaveProperty('iceServers');
++});
+diff --git a/tests/smoke/study-tools.smoke.spec.js b/tests/smoke/study-tools.smoke.spec.js
+index a1d12f6..4dce39c 100644
+--- a/tests/smoke/study-tools.smoke.spec.js
++++ b/tests/smoke/study-tools.smoke.spec.js
+@@ -3,6 +3,59 @@ const AxeBuilder = require('@axe-core/playwright').default;
+ const { startServer } = require('../helpers/server-control');
+ const { signupUser } = require('../helpers/auth-helpers');
+ 
++test('an opted-in reminder retries after a transient refresh failure without exposing stale details', async ({
++    browser,
++}) => {
++    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://' } });
++    let context;
++    try {
++        const f = await fixture(browser, server);
++        context = f.context;
++        const prefs = await server.request('/api/platform/study/preferences', {
++            method: 'PUT',
++            headers: { Cookie: f.account.cookie },
++            body: { version: 0, daily_target: 30, weekly_target: 150, reminders: true, reminder_minutes: 5 },
++        });
++        expect(prefs.status).toBe(200);
++        let calls = 0;
++        await f.page.route('**/api/platform/study/agenda', (route) => {
++            calls++;
++            return route.fulfill({
++                status: calls === 2 ? 503 : 200,
++                contentType: 'application/json',
++                body: JSON.stringify(
++                    calls === 2
++                        ? { error: 'PERSISTENCE_UNAVAILABLE' }
++                        : {
++                              sessions: [
++                                  {
++                                      id: 'synthetic-session',
++                                      title: 'Synthetic reminder recovery',
++                                      cohort_name: 'Fixture circle',
++                                      room_id: 'ABC123',
++                                      starts_at: Date.now() + 240000,
++                                      duration_minutes: 25,
++                                      status: 'going',
++                                  },
++                              ],
++                          },
++                ),
++            });
++        });
++        await f.page.reload();
++        await expect.poll(() => calls).toBeGreaterThanOrEqual(2);
++        await expect(f.page.locator('#study-reminder-banner')).toBeHidden();
++        await expect(f.page.locator('#study-reminder-banner')).toContainText('Synthetic reminder recovery', {
++            timeout: 5000,
++        });
++        await expect(f.page.locator('#study-reminder-banner')).toBeVisible();
++        expect(calls).toBeGreaterThanOrEqual(3);
++    } finally {
++        await context?.close();
++        await server.stop();
++    }
++});
++
+ test('a routine closed before another surface pauses keeps its remaining time on return', async ({ browser }) => {
+     test.setTimeout(60000);
+     const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://' } });

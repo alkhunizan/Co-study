@@ -1,0 +1,705 @@
+{
+  "productionRequestCount": 18,
+  "productionCap": 30,
+  "requests": [
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "private, max-age=0, must-revalidate",
+        "content-type": "text/html; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "GET",
+      "url": "http://127.0.0.1:3520/robots.txt",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "bodyBytes": 121,
+      "bodySha256": "f49021108fa968a007eda807e35b3b6bbedb7dacec83f5ddeb05070f73b832e8"
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "GET",
+      "url": "http://127.0.0.1:3520/sitemap.xml",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "content-type": "application/xml; charset=utf-8"
+      },
+      "bodyBytes": 805,
+      "bodySha256": "44c695ac704e87ab167c5ddf21c72a20d3f25861802c60392828f73931a634f7",
+      "privateRoutesInSitemap": false
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/.env",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "public, max-age=0",
+        "content-type": "text/html; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/.git/HEAD",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "public, max-age=0",
+        "content-type": "text/html; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/.git/config",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "public, max-age=0",
+        "content-type": "text/html; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/admin",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "public, max-age=0",
+        "content-type": "text/html; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/api/debug",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/api/test",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/api/seed",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/app",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "public, max-age=0",
+        "content-type": "text/html; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/account",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "public, max-age=0",
+        "content-type": "text/html; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/api/platform/progress",
+      "response": "HTTP/1.1 401 Unauthorized",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "HEAD",
+      "url": "http://127.0.0.1:3520/api/platform/study/tasks",
+      "response": "HTTP/1.1 401 Unauthorized",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "GET",
+      "url": "http://127.0.0.1:3520/viber-no-such-page-2026-10-23",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "public, max-age=0",
+        "content-type": "text/html; charset=utf-8"
+      },
+      "bodyBytes": 3658,
+      "bodySha256": "cafe2203bd515b68831a77c14b80dbc612e542ed08c1ece38ea437c79c1f62e5",
+      "htmlNoindex": false
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "GET",
+      "url": "http://127.0.0.1:3520/js/study-workspace.js",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=3600",
+        "content-type": "text/javascript; charset=utf-8"
+      },
+      "bodyBytes": 51556,
+      "bodySha256": "a4893148e41f05370a53dca470c58a9e3bb0dac9e1c73e9fb6394dc5835c5e2e"
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "GET",
+      "url": "http://127.0.0.1:3520/api/health",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "bodyBytes": 88,
+      "bodySha256": "2a7878948d68b91c4bcc3c46dbf08bd47c7ed4a7a2b55f42625ef9231812c1df",
+      "health": {
+        "status": "ok"
+      }
+    },
+    {
+      "number": null,
+      "target": "local",
+      "method": "GET",
+      "url": "http://127.0.0.1:3520/api/ready",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "bodyBytes": 107,
+      "bodySha256": "bb239fb98576ebf70300c164ac58a7659ad07504396240146a55c42049a0ba3f",
+      "health": {
+        "status": "ready",
+        "checks": {
+          "roomStore": true,
+          "userStore": true,
+          "socket": true,
+          "config": true,
+          "database": true
+        }
+      }
+    },
+    {
+      "number": 1,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": 2,
+      "target": "production",
+      "method": "GET",
+      "url": "https://halastudy.com/robots.txt",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 3658,
+      "bodySha256": "cafe2203bd515b68831a77c14b80dbc612e542ed08c1ece38ea437c79c1f62e5",
+      "htmlNoindex": false
+    },
+    {
+      "number": 3,
+      "target": "production",
+      "method": "GET",
+      "url": "https://halastudy.com/sitemap.xml",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 3658,
+      "bodySha256": "cafe2203bd515b68831a77c14b80dbc612e542ed08c1ece38ea437c79c1f62e5",
+      "htmlNoindex": false,
+      "privateRoutesInSitemap": false
+    },
+    {
+      "number": 4,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/.env",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": 5,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/.git/HEAD",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": 6,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/.git/config",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": 7,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/admin",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": 8,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/api/debug",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": 9,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/api/test",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": 10,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/api/seed",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": 11,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/app",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": 12,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/account",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "htmlNoindex": false
+    },
+    {
+      "number": 13,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/api/platform/progress",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": 14,
+      "target": "production",
+      "method": "HEAD",
+      "url": "https://halastudy.com/api/platform/study/tasks",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+      },
+      "bodyBytes": 0,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": 15,
+      "target": "production",
+      "method": "GET",
+      "url": "https://halastudy.com/viber-no-such-page-2026-10-23",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 3658,
+      "bodySha256": "cafe2203bd515b68831a77c14b80dbc612e542ed08c1ece38ea437c79c1f62e5",
+      "htmlNoindex": false
+    },
+    {
+      "number": 16,
+      "target": "production",
+      "method": "GET",
+      "url": "https://halastudy.com/js/study-workspace.js",
+      "response": "HTTP/1.1 404 Not Found",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        "cache-control": "public, max-age=0"
+      },
+      "bodyBytes": 3658,
+      "bodySha256": "cafe2203bd515b68831a77c14b80dbc612e542ed08c1ece38ea437c79c1f62e5",
+      "htmlNoindex": false
+    },
+    {
+      "number": 17,
+      "target": "production",
+      "method": "GET",
+      "url": "https://halastudy.com/api/health",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+      },
+      "bodyBytes": 92,
+      "bodySha256": "e564310254de8a7879fe90c5931ca9b723509ffb95b04ec64b88f83f5e0a7989",
+      "health": {
+        "status": "ok"
+      }
+    },
+    {
+      "number": 18,
+      "target": "production",
+      "method": "GET",
+      "url": "https://halastudy.com/api/ready",
+      "response": "HTTP/1.1 200 OK",
+      "exitCode": 0,
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "SAMEORIGIN",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+      },
+      "bodyBytes": 91,
+      "bodySha256": "645e5156066ca57855917154820c4826704d8587e7b139a4cafb1c38338a8a4d",
+      "health": {
+        "status": "ready",
+        "checks": {
+          "roomStore": true,
+          "userStore": true,
+          "socket": true,
+          "config": true
+        }
+      }
+    }
+  ]
+}

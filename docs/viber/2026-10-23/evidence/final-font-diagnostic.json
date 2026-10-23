@@ -1,0 +1,159 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\playwright.config.js",
+    "rootDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/candidate/tests/smoke",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\helpers\\playwright-global-setup.js",
+    "globalTeardown": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\helpers\\playwright-global-teardown.js",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/artifacts/final-font-diagnostic/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/candidate/tests/smoke",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "ux-return.smoke.spec.js",
+      "file": "ux-return.smoke.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "online fonts diagnostic and real-font layout stability",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 11902,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  -  1\u001b[39m\n\u001b[31m+ Received  + 34\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+ ]\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  -  1\u001b[39m\n\u001b[31m+ Received  + 34\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+ ]\u001b[39m\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\ux-return.smoke.spec.js:227:77",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\ux-return.smoke.spec.js",
+                      "column": 77,
+                      "line": 227
+                    },
+                    "snippet": "  225 |         expect.soft(measurement.lcp).toBeGreaterThan(0);\n  226 |         expect.soft(measurement.lcp).toBeLessThanOrEqual(2500);\n> 227 |         expect(measurement.fonts.filter((font) => font.status === 'error')).toEqual([]);\n      |                                                                             ^\n  228 |         if (width === 390) {\n  229 |             await expect(page.locator('.nav-links')).toBeHidden();\n  230 |             expect((await page.locator('.hero-actions .btn-primary').boundingBox()).y + (await page.locator('.hero-actions .btn-primary').boundingBox()).height).toBeLessThanOrEqual(664);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\ux-return.smoke.spec.js",
+                        "column": 77,
+                        "line": 227
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  -  1\u001b[39m\n\u001b[31m+ Received  + 34\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"JetBrains Mono\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"family\": \"Tajawal\",\u001b[39m\n\u001b[31m+     \"status\": \"error\",\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+ ]\u001b[39m\n\n  225 |         expect.soft(measurement.lcp).toBeGreaterThan(0);\n  226 |         expect.soft(measurement.lcp).toBeLessThanOrEqual(2500);\n> 227 |         expect(measurement.fonts.filter((font) => font.status === 'error')).toEqual([]);\n      |                                                                             ^\n  228 |         if (width === 390) {\n  229 |             await expect(page.locator('.nav-links')).toBeHidden();\n  230 |             expect((await page.locator('.hero-actions .btn-primary').boundingBox()).y + (await page.locator('.hero-actions .btn-primary').boundingBox()).height).toBeLessThanOrEqual(664);\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\ux-return.smoke.spec.js:227:77"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T04:12:10.619Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\final-font-diagnostic\\results\\ux-return.smoke-online-fon-1e44e--real-font-layout-stability\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\final-font-diagnostic\\results\\ux-return.smoke-online-fon-1e44e--real-font-layout-stability\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\final-font-diagnostic\\results\\ux-return.smoke-online-fon-1e44e--real-font-layout-stability\\error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\final-font-diagnostic\\results\\ux-return.smoke-online-fon-1e44e--real-font-layout-stability\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\final-font-diagnostic\\results\\ux-return.smoke-online-fon-1e44e--real-font-layout-stability\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\ux-return.smoke.spec.js",
+                    "column": 77,
+                    "line": 227
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "b5dca2b1045f23c06581-b64acb59081b5108b037",
+          "file": "ux-return.smoke.spec.js",
+          "line": 204,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-23T04:12:07.998Z",
+    "duration": 18641.908,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}
