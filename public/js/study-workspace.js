@@ -1148,6 +1148,7 @@
             if (owner !== account) return;
             agenda = fresh.sessions;
             data.preferences = prefs;
+            if (permissionStatus.textContent === t('studyUnavailable')) permissionStatus.textContent = '';
             const s = agenda.find((s) => s.id === candidate.id && dueReminder(s, prefs));
             if (!s || !prefs.reminders || dismissed(s)) {
                 reminderBanner.hidden = true;
@@ -1175,10 +1176,11 @@
                     });
                 } catch {}
         } catch (error) {
-            agenda = [];
             reminderBanner.hidden = true;
-            if (['AUTH_REQUIRED', 'AUTH_ACCOUNT_CHANGED'].includes(error?.code)) failure(error);
-            else permissionStatus.textContent = t('studyUnavailable');
+            if (['AUTH_REQUIRED', 'AUTH_ACCOUNT_CHANGED'].includes(error?.code)) {
+                agenda = [];
+                failure(error);
+            } else permissionStatus.textContent = t('studyUnavailable');
         } finally {
             reminderBusy = false;
         }

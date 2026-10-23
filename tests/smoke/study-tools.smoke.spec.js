@@ -3,6 +3,59 @@ const AxeBuilder = require('@axe-core/playwright').default;
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 
+test('an opted-in reminder retries after a transient refresh failure without exposing stale details', async ({
+    browser,
+}) => {
+    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://' } });
+    let context;
+    try {
+        const f = await fixture(browser, server);
+        context = f.context;
+        const prefs = await server.request('/api/platform/study/preferences', {
+            method: 'PUT',
+            headers: { Cookie: f.account.cookie },
+            body: { version: 0, daily_target: 30, weekly_target: 150, reminders: true, reminder_minutes: 5 },
+        });
+        expect(prefs.status).toBe(200);
+        let calls = 0;
+        await f.page.route('**/api/platform/study/agenda', (route) => {
+            calls++;
+            return route.fulfill({
+                status: calls === 2 ? 503 : 200,
+                contentType: 'application/json',
+                body: JSON.stringify(
+                    calls === 2
+                        ? { error: 'PERSISTENCE_UNAVAILABLE' }
+                        : {
+                              sessions: [
+                                  {
+                                      id: 'synthetic-session',
+                                      title: 'Synthetic reminder recovery',
+                                      cohort_name: 'Fixture circle',
+                                      room_id: 'ABC123',
+                                      starts_at: Date.now() + 240000,
+                                      duration_minutes: 25,
+                                      status: 'going',
+                                  },
+                              ],
+                          },
+                ),
+            });
+        });
+        await f.page.reload();
+        await expect.poll(() => calls).toBeGreaterThanOrEqual(2);
+        await expect(f.page.locator('#study-reminder-banner')).toBeHidden();
+        await expect(f.page.locator('#study-reminder-banner')).toContainText('Synthetic reminder recovery', {
+            timeout: 5000,
+        });
+        await expect(f.page.locator('#study-reminder-banner')).toBeVisible();
+        expect(calls).toBeGreaterThanOrEqual(3);
+    } finally {
+        await context?.close();
+        await server.stop();
+    }
+});
+
 test('a routine closed before another surface pauses keeps its remaining time on return', async ({ browser }) => {
     test.setTimeout(60000);
     const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://' } });
