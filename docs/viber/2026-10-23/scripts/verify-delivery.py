@@ -6,6 +6,8 @@ import zipfile
 from PIL import Image
 
 root=Path(__file__).resolve().parents[1]
+if str(root).startswith('\\\\') and not str(root).startswith('\\\\?\\'):
+    root=Path('\\\\?\\UNC\\'+str(root)[2:])
 html=(root/'review.html').read_text(encoding='utf-8')
 links=re.findall(r'(?:src|href)="([^"]+)"',html)
 missing=[link for link in links if not (root/link).is_file()]
@@ -34,7 +36,8 @@ files=[]
 for path in sorted(root.rglob('*')):
     if path.is_file() and path.relative_to(root).as_posix() not in excluded:
         data=path.read_bytes()
-        files.append({'path':path.relative_to(root).as_posix(),'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
+        files.append({'path':path.relative_to(root).as_posix(),'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest(),
+                      'gitBlobSha1':hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()})
 (root/'evidence/artifact-manifest.json').write_text(json.dumps(files,indent=2),encoding='utf-8')
 result={'sourceHead':manifest['head'],'sourceFiles':len(manifest['files']),'sourcePreviewMismatches':0,
         'artifactFilesHashed':len(files),'galleryLinks':len(links),'missingLinks':missing,'screenshots':len(images),
