@@ -366,6 +366,8 @@
           errACCOUNT_BANNED: 'This account has been suspended.',
           errRATE_LIMITED: 'Too many attempts. Wait a moment and try again.',
           errAUTH_REQUIRED: 'Please sign in again.',
+          errPERSISTENCE_UNAVAILABLE: 'Your changes could not be saved. Try again shortly.',
+          errLAST_SUPER_ADMIN: 'Assign another super admin before deleting this account.',
           errNETWORK: 'Connection hiccup. Try again.',
           footerTag: 'Halastudy · Online focus rooms for studying and working — study or work live, with serious people.',
           footerPrivacy: 'Privacy',
@@ -427,6 +429,8 @@
           errACCOUNT_BANNED: 'هذا الحساب موقوف.',
           errRATE_LIMITED: 'محاولات كثيرة. انتظر شوي وجرّب.',
           errAUTH_REQUIRED: 'سجّل دخولك من جديد.',
+          errPERSISTENCE_UNAVAILABLE: 'تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.',
+          errLAST_SUPER_ADMIN: 'عيّن مسؤولًا أعلى آخر قبل حذف هذا الحساب.',
           errNETWORK: 'النت تعثّر. جرّب مرة ثانية.',
           footerTag: 'هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.',
           footerPrivacy: 'الخصوصية',
@@ -493,7 +497,7 @@
         ar: { amber: 'كراك', sage: 'مريمية', terracotta: 'طيني', dusk: 'غسق', sand: 'رملي', stone: 'حجري' }
       };
       function errText(error) {
-        return t(`err${error && error.code ? error.code : 'NETWORK'}`);
+        return core.t(`err${error && error.code ? error.code : 'NETWORK'}`) || t('errNETWORK');
       }
       function setFeedback(id, message, kind) {
         const el = document.getElementById(id);
