@@ -213,6 +213,7 @@
 
       <!-- Google Sign-In — revealed only when the server reports the provider
            is configured (runtime-config.googleAuthEnabled). Covers both tabs. -->
+      <div id="provider-unavailable" hidden></div>
       <div class="auth-oauth" data-google-auth hidden>
         <div class="oauth-divider"><span data-lang="orDivider">أو</span></div>
         <a class="btn btn-oauth" href="/auth/google" role="button">
@@ -455,14 +456,17 @@
       if (themeBtn) themeBtn.addEventListener('click', core.toggleTheme);
 
       // Reveal Google Sign-In only when the server has the provider configured.
-      fetch('/api/runtime-config')
-        .then((r) => r.json())
-        .then((cfg) => {
-          if (cfg && cfg.googleAuthEnabled) {
-            document.querySelectorAll('[data-google-auth]').forEach((el) => el.removeAttribute('hidden'));
-          }
-        })
-        .catch(() => {});
+      async function loadAuthProviders() {
+        const unavailable = document.getElementById('provider-unavailable');
+        try {
+          const cfg = await core.requestJson('GET', '/api/runtime-config');
+          document.querySelectorAll('[data-google-auth]').forEach((el) => { el.hidden = !cfg.googleAuthEnabled; });
+          unavailable.hidden = true;
+        } catch (_error) {
+          core.showUnavailable(unavailable, loadAuthProviders);
+        }
+      }
+      void loadAuthProviders();
 
       const authView = document.getElementById('auth-view');
       const accountView = document.getElementById('account-view');

@@ -1,6 +1,26 @@
 const { test, expect } = require('@playwright/test');
 
 for (const lang of ['ar', 'en']) {
+    test(`provider discovery failures can be retried in ${lang} before revealing Google`, async ({ page }) => {
+        await page.addInitScript((language) => localStorage.setItem('halastudyLang', language), lang);
+        let unavailable = true;
+        await page.route('**/api/runtime-config', (route) =>
+            route.fulfill({
+                status: unavailable ? 503 : 200,
+                contentType: 'application/json',
+                body: JSON.stringify(unavailable ? { errorCode: 'SERVICE_UNAVAILABLE' } : { googleAuthEnabled: true }),
+            }),
+        );
+        await page.goto('/account');
+        const retry = page.locator('#provider-unavailable [data-core-unavailable=retry]');
+        await expect(retry).toBeVisible();
+        await expect(page.locator('[data-google-auth]')).toBeHidden();
+        unavailable = false;
+        await retry.click();
+        await expect(page.locator('[data-google-auth]')).toBeVisible();
+        await expect(page.locator('#provider-unavailable')).toBeHidden();
+    });
+
     test(`account errors are useful in ${lang} and keep signup details for retry`, async ({ page }) => {
         await page.addInitScript((language) => localStorage.setItem('halastudyLang', language), lang);
         let code = 'PERSISTENCE_UNAVAILABLE';
