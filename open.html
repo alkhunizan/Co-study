@@ -1254,6 +1254,7 @@
 
             try {
                 const response = await fetch('/api/runtime-config', {
+                    signal: AbortSignal.timeout(15000),
                     headers: { Accept: 'application/json' }
                 });
                 if (!response.ok) {
@@ -1269,6 +1270,7 @@
         async function fetchRoomDetails(code) {
             try {
                 const response = await fetch(`/api/rooms/${encodeURIComponent(code)}`, {
+                    signal: AbortSignal.timeout(15000),
                     headers: { Accept: 'application/json' }
                 });
                 if (response.status === 404) {
