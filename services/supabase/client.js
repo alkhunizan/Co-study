@@ -44,6 +44,7 @@ function createSupabaseClient(options = {}) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
         let res;
+        let text;
         try {
             res = await fetchImpl(`${base}${path}`, {
                 method,
@@ -51,10 +52,10 @@ function createSupabaseClient(options = {}) {
                 body,
                 signal: controller.signal
             });
+            text = await res.text();
         } finally {
             clearTimeout(timer);
         }
-        const text = await res.text();
         if (!res.ok) {
             const error = new Error(`Supabase ${method} ${path} failed: ${res.status} ${text.slice(0, 400)}`);
             // @ts-expect-error attach for callers that want to branch on status
