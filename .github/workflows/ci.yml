@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+# Cancel superseded PR checks; preserve independent push, scheduled and manual runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   quality:
     runs-on: ubuntu-latest
