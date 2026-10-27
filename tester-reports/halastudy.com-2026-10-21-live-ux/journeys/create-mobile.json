@@ -1,0 +1,31 @@
+{
+  "name": "Prepare a new study room on mobile",
+  "viewport": "mobile",
+  "auditGoal": "Reach and fill the guest creation form; stop before live creation.",
+  "auditOutcome": "safety-stop",
+  "steps": [
+    {
+      "goto": "https://halastudy.com/"
+    },
+    {
+      "click": "القائمة"
+    },
+    {
+      "click": "css=#mobile-menu a[href=\"/open.html\"]"
+    },
+    {
+      "expect": "غرفة تركيز جديدة"
+    },
+    {
+      "fill": {
+        "target": "اسم الغرفة",
+        "value": "اختبار تجربة - دون إنشاء"
+      }
+    },
+    {
+      "note": "Creation form reached. Stop before the submit button; no room is created."
+    }
+  ],
+  "allowSubmit": false,
+  "stepDelay": 800
+}

@@ -1,0 +1,7 @@
+﻿{
+    "path":  "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\archives\\committed-baseline.bundle",
+    "bytes":  235711425,
+    "sha256":  "111eb0bb84ecd7e55c01f0d4ded58ea13e323605de01059ad730571c5dfd888d",
+    "requiredCommit":  "c4d6c50553f55704b4d4a788db28b05fa983047a",
+    "note":  "Baseline history remains in the dedicated local isolation directory; it is not duplicated in this curated package."
+}

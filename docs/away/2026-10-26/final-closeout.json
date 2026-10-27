@@ -1,0 +1,29 @@
+{
+    "startedAt":  "2026-10-26T18:34:00.0000000+03:00",
+    "closedAt":  "2026-10-26T21:39:31.7956970+03:00",
+    "elapsedMinutes":  185.5,
+    "budgetMinutes":  1440,
+    "budgetUsedPercent":  12.9,
+    "stopReason":  "Eligible backlog and one permitted refill completed; remaining work requires owner decisions or held release gates.",
+    "localBranches":  8,
+    "cleanWorktrees":  8,
+    "applicationFixes":  7,
+    "fixtureRepairs":  1,
+    "focusedChecksPassed":  51,
+    "released":  0,
+    "remotePRs":  0,
+    "merges":  0,
+    "deploys":  0,
+    "liveRequests":  2,
+    "guardBlocks":  3,
+    "protectedFilesUnchanged":  22,
+    "bundleSha256":  "52c5b359e8793b571cb81130d5fa3f74febb0fd77d92e605b49356884d543d85",
+    "reviewHtmlSha256":  "a33c83fc4f679cd2a75e5f4c613cd57fdb72aee373a8908e0793dccb8a244fb5",
+    "reviewWidths":  [
+                         1440,
+                         390
+                     ],
+    "reviewImages":  14,
+    "fullGate":  "HELD: dependency audit, unresolved A11 integration fixture, combined and hosted acceptance",
+    "rawArtifacts":  "Preserved in dedicated local worktrees; curated package excludes large videos and traces."
+}

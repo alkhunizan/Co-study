@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-21",
+  "timeZone": "Asia/Riyadh",
+  "requiredOutputs": [
+    {
+      "path": "REPORT.md",
+      "bytes": 20850,
+      "sha256": "055b2bcec78424617d82e3d0444d17b7ff1fa07f4b8b6fad2082a81a2df0aaa9"
+    },
+    {
+      "path": "REPORT.ar.md",
+      "bytes": 29530,
+      "sha256": "c34afcfc0cedb2c81b77bf8fe75dcd67a6fb775bb7dbce17e7832dfd192f7c32"
+    },
+    {
+      "path": "PLAN.md",
+      "bytes": 19249,
+      "sha256": "cf091b9314a570a2c8e739cfa9b1b13325b9a4336b11104ec334ef6f79d7526d"
+    },
+    {
+      "path": "halastudy.com-ux-report-2026-10-21-en.pdf",
+      "bytes": 1804257,
+      "sha256": "270e82d937fecaca8febf59d8937b5aa2867b315941d7fb64dea83c354485cb5"
+    },
+    {
+      "path": "halastudy.com-ux-report-2026-10-21-ar.pdf",
+      "bytes": 1675235,
+      "sha256": "62dad3c894089adb721be539835ae74c470b55ab9064bf1a68d70f64626699ab"
+    }
+  ],
+  "bilingualStructure": "matching seven sections and nine finding IDs",
+  "planTasks": 7,
+  "journeyChecks": 8,
+  "readOnlyDestinationsReached": 5,
+  "goalsAbandoned": 3,
+  "pdfTextDatesFontsAndBounds": "verified in pdf-qa.json",
+  "screenshotsPresent": true,
+  "applicationEditsByAudit": false,
+  "publishedByAudit": false
+}

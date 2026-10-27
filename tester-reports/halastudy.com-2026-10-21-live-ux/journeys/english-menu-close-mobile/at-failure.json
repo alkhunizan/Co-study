@@ -1,0 +1,167 @@
+{
+  "url": "https://halastudy.com/",
+  "title": "Halastudy | A quiet room. Open all night.",
+  "headings": [
+    "H1: Drop in. Camera on. Work alongside someone.",
+    "H2: Presence beats willpower.",
+    "H3: You’re not alone at the desk",
+    "H3: Quiet by design",
+    "H3: Built for here",
+    "H3: No wall, no cost",
+    "H2: Three steps. No login wall.",
+    "H3: Open a room",
+    "H3: Camera on, mic off",
+    "H3: Stay until the timer rings",
+    "H2: Tonight’s quiet company.",
+    "H2: One lamp on at 1am. You are not the only one."
+  ],
+  "interactive": [
+    {
+      "tag": "a",
+      "name": "Halastudy home",
+      "href": "/",
+      "aboveFold": true,
+      "y": 24
+    },
+    {
+      "tag": "a",
+      "name": "Sign in",
+      "href": "/account.html",
+      "aboveFold": true,
+      "y": 30
+    },
+    {
+      "tag": "button",
+      "type": "button",
+      "name": "Menu",
+      "aboveFold": true,
+      "y": 18
+    },
+    {
+      "tag": "a",
+      "name": "Why Hala?",
+      "href": "#why",
+      "aboveFold": true,
+      "y": 80
+    },
+    {
+      "tag": "a",
+      "name": "How it works",
+      "href": "#how",
+      "aboveFold": true,
+      "y": 128
+    },
+    {
+      "tag": "a",
+      "name": "Rooms",
+      "href": "#rooms",
+      "aboveFold": true,
+      "y": 176
+    },
+    {
+      "tag": "a",
+      "name": "Tonight",
+      "href": "#community",
+      "aboveFold": true,
+      "y": 224
+    },
+    {
+      "tag": "a",
+      "name": "Blog",
+      "href": "/blog",
+      "aboveFold": true,
+      "y": 272
+    },
+    {
+      "tag": "button",
+      "type": "button",
+      "name": "EN",
+      "aboveFold": true,
+      "y": 350
+    },
+    {
+      "tag": "button",
+      "type": "button",
+      "name": "ع",
+      "aboveFold": true,
+      "y": 350
+    },
+    {
+      "tag": "button",
+      "type": "submit",
+      "name": "Toggle theme",
+      "aboveFold": true,
+      "y": 350
+    },
+    {
+      "tag": "a",
+      "name": "Open a room →",
+      "href": "/open.html",
+      "aboveFold": true,
+      "y": 419
+    },
+    {
+      "tag": "a",
+      "name": "Open a room →",
+      "href": "/open.html",
+      "aboveFold": false,
+      "y": 1031
+    },
+    {
+      "tag": "a",
+      "name": "See who’s live",
+      "href": "/open.html#join",
+      "aboveFold": false,
+      "y": 1031
+    },
+    {
+      "tag": "a",
+      "name": "Open a room →",
+      "href": "/open.html",
+      "aboveFold": false,
+      "y": 5617
+    },
+    {
+      "tag": "a",
+      "name": "Blog",
+      "href": "/blog",
+      "aboveFold": false,
+      "y": 6032
+    },
+    {
+      "tag": "a",
+      "name": "Privacy",
+      "href": "/privacy",
+      "aboveFold": false,
+      "y": 6032
+    },
+    {
+      "tag": "a",
+      "name": "Terms",
+      "href": "/terms",
+      "aboveFold": false,
+      "y": 6032
+    },
+    {
+      "tag": "a",
+      "name": "WhatsApp invite",
+      "href": "https://wa.me/?text=Try%20Halastudy%20%E2%80%94%20quiet%20focus%20rooms%20for%20studying%20and%20working%0Ahttps%3A%2F%2Fhalastudy.com",
+      "aboveFold": false,
+      "y": 6032
+    },
+    {
+      "tag": "a",
+      "name": "info@halastudy.com",
+      "href": "mailto:info@halastudy.com",
+      "aboveFold": false,
+      "y": 6076
+    },
+    {
+      "tag": "a",
+      "name": "+966 59 916 1315",
+      "href": "tel:+966599161315",
+      "aboveFold": false,
+      "y": 6076
+    }
+  ]
+}

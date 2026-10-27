@@ -1,0 +1,137 @@
+Act as the senior product designer, full-stack engineer, architect, and QA lead responsible for making Halastudy feel coherent, elegant, dependable, and worth returning to.
+
+Execute a complete refinement of the existing app: inspect it, use it, choose the best product and technical structure, implement the improvements, test them, inspect the rendered result, and repair what fails. Deliver working, reviewable software and evidence.
+
+EFFORT AND AUTONOMY
+
+I am setting no artificial token budget, time limit, or iteration cap for this work. Prioritize quality and completion. Use as much available reasoning, research, implementation, and verification as the task warrants. Actual platform limits still apply; this does not authorize purchases or paid infrastructure. Avoid repetitive analysis and testing that no longer changes the result.
+
+If persistent goals are available, create a goal using the completion criteria below, without inventing a numeric token budget. Continue autonomously through reversible local work. Make routine implementation decisions yourself and explain consequential tradeoffs briefly. Ask only for information or authority that genuinely blocks the next necessary action; continue independent work while waiting. Do not stop after an audit, plan, prototype, or first implementation.
+
+PROJECT CONTEXT
+
+Workspace: E:\D-Backup\OS\Claude-Projects\body_doubling_live_cam\workspace\Co-study
+Product: Halastudy, formerly Co-Study; an Arabic-first, bilingual body-doubling and study-room app for Saudi/GCC students.
+Product promise: help someone begin a focused session, feel quietly accompanied, make credible progress, and return easily.
+
+The repository currently describes vanilla HTML/CSS/JavaScript, Node 22, Express, Socket.IO, Cloudflare RealtimeKit with legacy mesh support, PostgreSQL-compatible persistence, and embedded PGlite for local development. Existing features include guest rooms, accounts, scheduled rooms, a lobby, timers, chat, shared boards, ambient audio, private circles, supervisors, progress, rewards, staff tools, and sandbox billing. Verify implementation and exposure instead of assuming every feature is complete or live.
+
+Use current code and observed behavior as evidence. Read applicable AGENTS.md instructions and relevant parts of CLAUDE.md, DESIGN.md, design-system/, README.md, and README_AR.md. Consult these existing records where relevant:
+- docs/architecture/2026-10-20-platform-review/
+- docs/implementation/2026-10-20-platform/
+- docs/implementation/2026-10-20-deep-ux/
+- docs/hardening/2026-10-21/
+- docs/viber/2026-10-21/
+- docs/tester/ and tester-reports/
+- docs/payments/2026-10-20-digetpay/
+
+These records contain completed work, older assumptions, and unresolved findings. Reconcile them against the current checkout. Reproduce claimed problems before fixing them; retain fixes already working. Do not reuse historical test counts as current evidence.
+
+1. ESTABLISH THE BASELINE AND CHOOSE THE WORK
+
+Record branch, commit, tracked and untracked changes, runtime configuration boundaries, and the exact source being tested. Preserve unrelated work. If isolation is needed, include relevant uncommitted product changes deliberately and record source parity; a clean HEAD archive may omit the app I am asking you to improve.
+
+Run the app in an isolated local environment and walk its actual screens. Map routes, primary actions, account states, component patterns, state ownership, HTTP/Socket.IO boundaries, persistence, and external integrations. Identify broken journeys, duplicated logic, conflicting navigation, inaccessible controls, visual inconsistency, misleading copy, and unnecessary complexity.
+
+Produce a concise prioritized backlog with evidence, user impact, dependencies, and acceptance criteria. Cover the whole app, then implement coherent improvements in dependency order: correctness and privacy, core journeys, structure, visual polish, community and rewards, final verification. Do not arbitrarily shrink the task to a few easy fixes. Keep speculative expansion separate from improvements that serve the current product.
+
+2. PICK THE BEST STRUCTURE
+
+Choose both the information architecture and the code architecture. For consequential structural changes, compare the viable options briefly, make a recommendation, and proceed with the best supported choice.
+
+Evaluate whether the current frontend can become clean and maintainable through shared components, modules, and clearer state boundaries, or whether a focused migration has a demonstrable benefit. Consider complexity, accessibility, performance, deployment, migration risk, and maintainability for a solo owner. Preserve working URLs, deep links, account data, and bilingual behavior. Use incremental migration with rollback when restructuring.
+
+Give identity, permissions, entitlements, billing, focus sessions, rewards, circles, and media lifecycle clear responsibilities. Enforce authorization on the server for HTTP and sockets. Payment status and achievement badges must never confer staff authority. Preserve transactional persistence, scoped access, idempotency, and clear failure handling.
+
+Reduce duplicated translations, UI patterns, and business rules. Improve the worst coupled files where doing so makes changes safer. Keep real-time state and reconnection behavior understandable. Infrastructure expansion must follow measured needs and supported concurrency semantics.
+
+3. MAKE THE USER JOURNEYS FEEL COMPLETE
+
+Walk each journey as a real user, including loading, empty, denied, expired, interrupted, and recovery states:
+- First visit: understand the promise and find an obvious start or join action.
+- Guest: create or join a room, set an intention, focus with or without a camera, take a break, and finish.
+- Invitation: open a shared link or room code, authenticate only when needed, and retain the intended destination and safe draft state.
+- Returning member: see the next useful action, resume an eligible room, find a scheduled session, and understand personal progress.
+- Circle member and owner: invite, join, schedule, attend, manage membership, leave, and archive without ambiguous permissions.
+- Supervisor and staff: reach only the assigned tools and data, with ordinary study navigation kept simple.
+- Account and billing: manage identity, language, security, recovery, deletion, plan information, and sandbox payment states honestly.
+
+Choose clear navigation labels and a restrained number of primary destinations. Study, Progress, Circles, and Account are a candidate to evaluate. Fix browser Back/Forward, deep links, focus management, draft preservation, and cross-page consistency.
+
+Make the focus action prominent on mobile. Keep chat and secondary tools available without taking attention from studying. Handle full rooms, invalid codes, ended sessions, lost connections, and unavailable cameras with a useful next step. Preserve guest access where it currently works. Explain optional camera behavior consistently.
+
+4. PRESERVE AND ELEVATE THE VISUAL IDENTITY
+
+Follow Halastudy's existing direction: a quiet, warm study space late at night. Retain the karak-amber accent, paper and night-sky surfaces, Tajawal/Amiri/Newsreader typography, authentic branding, and restrained line icons where the current design contract specifies them.
+
+Create hierarchy through typography, spacing, alignment, and deliberate emphasis. Consolidate reusable tokens and components. Give each screen an obvious primary action. Remove decorative clutter and redundant cards. Make the study room feel settled and personal, with compact secondary controls and readable status information.
+
+Arabic is the primary experience. Write natural, useful Arabic, with equally complete English. Verify RTL flow, logical CSS, mixed-direction room codes and links, numeral formatting, wrapping, and directional icons. Preserve language and theme preferences consistently.
+
+Polish forms, dialogs, navigation, toolbars, empty states, feedback, and responsive layouts. Support keyboard operation, visible focus, accessible names and announcements, readable contrast, zoom, reduced motion, and comfortable touch targets. Use motion sparingly and keep sounds user-controlled.
+
+Inspect actual screenshots at mobile, tablet, and desktop sizes in Arabic/English and light/dark modes. Make visual corrections after inspecting the render. Automated checks alone cannot establish elegance.
+
+5. BUILD A QUIET SENSE OF COMMUNITY
+
+Make users feel accompanied through trustworthy presence, familiar circles, shared intentions, recurring sessions, welcoming arrivals, and thoughtful session endings. Improve existing circles and room experiences before adding another social surface.
+
+Select and implement a cohesive set of lightweight interactions that strengthen belonging: for example, a shared session goal, an accessible readiness/status signal, a restrained appreciation action, or a useful next-session invitation. Explain why the chosen interactions fit Halastudy and how they behave in a room with zero, one, or many people.
+
+Community features must work with a small real community. Clearly label illustrative previews. Show real empty and unavailable states instead of fabricated people, messages, activity, or attendance. Keep quiet participation and camera-off participation welcoming.
+
+Make privacy, invitation scope, leaving, reporting, and moderation understandable. Respect private-circle boundaries. Do not publish member activity or expose private rooms to create the appearance of discovery. Keep the product centered on studying; a public feed or unsolicited messaging is outside this refinement.
+
+6. MAKE GAMIFICATION CREDIBLE AND SUPPORTIVE
+
+Inspect the existing server-timed sessions, reward ledger, achievements, and streak rules before changing them. Develop a coherent progression experience that rewards meaningful focus and makes progress understandable.
+
+Prefer useful session recaps, personal milestones, achievable goals, and forgiving return-after-a-break messaging. If a small opt-in circle challenge adds real value, implement it only after trusted accounting and privacy are established. Keep celebrations restrained and compatible with reduced motion.
+
+Explain what earns credit and what does not. Validate pause/resume, abandoned sessions, reconnection, multiple tabs, concurrent sessions, repeated completion, clock manipulation, daily caps, and timezone rollover. Deduplicate awards server-side. Keep imported/manual history distinct from verified reward eligibility.
+
+Camera usage, face detection, payments, and time spent clicking around must not determine whether legitimate study counts. Avoid shame, compulsory competition, punishment for rest, or incentives for unhealthy marathon sessions. Keep personal progress useful without public rankings.
+
+7. TIGHTEN RELIABILITY, PRIVACY, AND OPERATIONS
+
+Review authentication, recovery, account deletion, scoped authorization, session revocation, room ownership, invitation lifecycle, socket validation, abuse controls, and private-data handling. Test meaningful negative cases with synthetic local data.
+
+Treat camera privacy as an end-to-end behavior. Review permission denial, track replacement, blur failure, device loss, departure, reconnect, and revoked participant tokens. A blur failure must not silently publish an unprocessed camera feed. Check remote-observer behavior where the test environment supports it; clearly identify real-provider acceptance still needed.
+
+Verify that unavailable data stays distinguishable from zero data. Surface useful retry paths and prevent silent failures or duplicate actions. Check restart persistence, backup/restore, migration safety, capacity handling, and graceful provider failure. Retain practical observability without logging secrets or sensitive content.
+
+Measure performance before optimizing. Address observable bottlenecks, layout shifts, oversized assets, unnecessary video work, and leaks. Report the conditions and limits of lab measurements; real user retention and field performance require real observations.
+
+8. IMPLEMENT AND VERIFY THE FINISHED CANDIDATE
+
+Work in coherent slices. For each slice, implement, run relevant checks, exercise the journey in a real browser, inspect the result, and fix failures. Add focused regression tests for meaningful behavior and failure cases. Do not weaken assertions or disable failing coverage to obtain a green result.
+
+Use package.json as the current command source. The existing gate includes check, typecheck, lint, deadcode, audit:prod, test:integration, and test:smoke through npm run test:ci. Run the full applicable gate on the final candidate. Run the disposable PostgreSQL resilience checks and SEO verification where applicable. Do not invent a frontend build command for an app that has no compilation step.
+
+Cover guest/member/owner/supervisor/staff boundaries, public and protected routes, mobile and desktop, Arabic and English, and both themes. Include keyboard-only flows, accessibility checks, browser console/network errors, browser history, reload, duplicate tabs, reconnect, and provider/storage failures. Use separate browser contexts for multi-user behavior.
+
+Use representative viewports including 390px mobile, 768px tablet, and 1440px desktop. Check a narrower mobile width and text zoom. Require no obstructed primary actions, unexpected horizontal overflow, hidden focusable dialogs, or untranslated core states. Treat automated accessibility results as one part of verification.
+
+Record commands, exit codes, tested commit or source manifest, runtime URL, relevant conditions, and evidence paths. Confirm the final screenshots and tests represent the delivered code. Re-run affected verification after later edits.
+
+9. WORKING BOUNDARIES AND OUTPUTS
+
+This prompt authorizes local product changes, refactors, dependency changes justified by the work, disposable tests, and review artifacts. Preserve unrelated work and existing free access. Current repository documentation describes one VIP offer at USD 4.99/month and a sandbox DigetPay adapter; verify current facts and preserve commercial terms unless separately approved.
+
+Use synthetic accounts, disposable databases, and test provider fixtures. Keep workspace production credentials out of test runtimes. This task does not authorize live charges, production data changes, hosted migrations, external messages, provider dashboard changes, purchases, pushes, merges, or deployment. Complete all independent local work and prepare concrete review material before requesting any necessary external step.
+
+Save outputs in a dedicated folder: docs/refinement/<YYYY-MM-DD>-halastudy/. Keep reports, screenshots, test logs, source manifests, and helper scripts in appropriate subfolders there. Source code and regression tests belong in the app's established source/test locations. Avoid loose output files at the repository root.
+
+Maintain a concise PLAN.md and CHECKPOINT.md containing completed work, decisions, exact evidence, remaining work, and the next action. If context or runtime limits interrupt execution, leave a continuation-ready checkpoint and resume from it when execution becomes available. Never describe an unfinished run as complete.
+
+Deliver an architecture decision note, a concise journey/UX review, test evidence, and a browsable before/after review with real screenshots. Describe improvements in terms of what users can now do and what was verified. Instrument only useful, privacy-conscious product events where appropriate; define activation and return metrics without inventing measured improvements.
+
+COMPLETION CRITERIA
+
+Finish when the chosen architecture and prioritized refinement are implemented; all locally actionable critical/high-impact defects in scope are resolved; the core journeys work end-to-end; Arabic/English and responsive visual review is complete; community and rewards feel coherent and use trustworthy state; and applicable checks pass on the exact delivered candidate.
+
+Account for every finding as fixed, disproved, externally blocked, or explicitly deferred with evidence and a reason. Do not move essential work into a backlog simply to declare completion. Keep the finish line bounded by the agreed product purpose rather than chasing endless speculative features.
+
+Give me a concise final report linking the preview or its exact launch command, the dedicated output folder, the key changes, test results, and any remaining acceptance steps. State local, preview, merged, and production status separately. An external acceptance gap must remain visible in the release verdict.
+
+Begin by inspecting the current app and establishing the baseline. Then carry the work through implementation, browser review, correction, and final verification.

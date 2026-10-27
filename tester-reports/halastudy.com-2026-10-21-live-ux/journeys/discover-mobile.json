@@ -1,0 +1,28 @@
+{
+  "name": "Find people working now",
+  "viewport": "mobile",
+  "auditGoal": "Find an existing public room from the advertised discovery CTA.",
+  "auditOutcome": "abandoned",
+  "steps": [
+    {
+      "goto": "https://halastudy.com/"
+    },
+    {
+      "scroll": 900
+    },
+    {
+      "click": "شوف اللي شغّال"
+    },
+    {
+      "expect": "الدخول إلى غرفة مذاكرة"
+    },
+    {
+      "expect": "رمز الغرفة"
+    },
+    {
+      "note": "The discovery CTA leads to a code-only join form. No public-room list is offered; the browsing goal is abandoned. Do not join a room."
+    }
+  ],
+  "allowSubmit": false,
+  "stepDelay": 800
+}

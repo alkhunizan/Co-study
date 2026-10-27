@@ -1,0 +1,15 @@
+{
+  "name": "Close the mobile menu after switching to English",
+  "viewport": "mobile",
+  "allowSubmit": false,
+  "auditGoal": "Switch to English and close the navigation menu using its visible toggle.",
+  "auditOutcome": "abandoned",
+  "stepDelay": 800,
+  "steps": [
+    { "goto": "https://halastudy.com/" },
+    { "click": "القائمة" },
+    { "click": "EN" },
+    { "click": "css=#nav-burger" },
+    { "note": "Menu should close without overlap or horizontal scrolling. No form is submitted." }
+  ]
+}

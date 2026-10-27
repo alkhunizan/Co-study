@@ -41,8 +41,12 @@ async function restoreDatabase(db, snapshot) {
         }
         for (const table of TABLES) {
             for (const original of snapshot.tables[table] || []) {
+                if (table === 'outbox' && original.kind === 'recovery_request') continue;
                 const row = structuredClone(original);
-                if (table === 'accounts') row.payload.tokenEpoch = Number(row.payload.tokenEpoch || 1) + 1;
+                if (table === 'accounts') {
+                    row.payload.tokenEpoch = Number(row.payload.tokenEpoch || 1) + 1;
+                    row.payload.recovery = {};
+                }
                 const columns = Object.keys(row);
                 requireCondition(columns.every((column) => /^[a-z][a-z0-9_]*$/.test(column)), 'BACKUP_COLUMNS_INVALID');
                 const placeholders = columns.map((_column, index) => `$${index + 1}`).join(',');

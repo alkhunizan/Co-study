@@ -1,0 +1,28 @@
+{
+  "name": "Prepare a new study room on desktop",
+  "viewport": "desktop",
+  "auditGoal": "Reach and fill the guest creation form; stop before live creation.",
+  "auditOutcome": "safety-stop",
+  "steps": [
+    {
+      "goto": "https://halastudy.com/"
+    },
+    {
+      "click": "افتح غرفة"
+    },
+    {
+      "expect": "غرفة تركيز جديدة"
+    },
+    {
+      "fill": {
+        "target": "اسم الغرفة",
+        "value": "UX audit - do not create"
+      }
+    },
+    {
+      "note": "Creation form reached. Stop before submit; no room is created."
+    }
+  ],
+  "allowSubmit": false,
+  "stepDelay": 800
+}

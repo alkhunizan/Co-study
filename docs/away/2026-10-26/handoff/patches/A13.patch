@@ -1,0 +1,539 @@
+diff --git a/docs/away/2026-10-26/A13/ACCEPTANCE.md b/docs/away/2026-10-26/A13/ACCEPTANCE.md
+new file mode 100644
+index 0000000..dc772a6
+--- /dev/null
++++ b/docs/away/2026-10-26/A13/ACCEPTANCE.md
+@@ -0,0 +1,12 @@
++# A13: Circle refresh and delayed save feedback
++
++Recorded before application edits. Base: `c4d6c50553f55704b4d4a788db28b05fa983047a`.
++Scope: `public/js/platform.js` and one distinct circle-feedback browser test. A03 is not included in this branch.
++
++1. Open a private circle with two eligible rooms and enter a scheduling draft using the second room. Fail a circle-detail read during an Arabic/English switch. Show localized feedback and an actionable keyboard-accessible retry. Retain the mounted draft, selected room, title and time; recovering and retrying restores the circle without changing these values.
++2. Retry while the detail read still fails. Keep useful feedback and a usable retry. After network recovery, an explicit retry succeeds. A superseded circle response must not show recovery controls for the wrong circle.
++   Cross-review follow-up, recorded before its application edit: after a normal View failure, successful Retry also clears that failed read's global error. A newer error created while Retry is pending must remain visible, on either Circles or another view.
++3. Hold a schedule-save response, navigate from Circles to Account, then release the successful response. Account must not receive the Circles success notice. Independent server reads must show exactly one saved session. A same-view save must still show localized success.
++4. Cover Arabic/English and 390/1440px, inspect saved screenshots, and check controls remain readable, reachable and free of horizontal overflow. Preserve existing authentication, authorization, scheduling validation and provider boundaries.
++
++Evidence plan: demonstrate browser failures on unchanged base source, make the smallest bounded correction, rerun the focused cases, freeze source, then run the coordinated static/integration gates. Full browser qualification is centrally queued. No dependency, schema, configuration, provider, HTML or release changes are included.
+diff --git a/docs/away/2026-10-26/A13/RESULT.md b/docs/away/2026-10-26/A13/RESULT.md
+new file mode 100644
+index 0000000..8163750
+--- /dev/null
++++ b/docs/away/2026-10-26/A13/RESULT.md
+@@ -0,0 +1,56 @@
++# A13: Circle refresh recovery and schedule feedback
++
++Status: local qualification completed. All twelve A13 browser checks, final static checks and 169 integration tests pass. The full browser run records 94 passed, one known expired-date fixture failure and one external-font skip. The production dependency audit retains its existing advisory; this is not an all-green release gate.
++Source/tests freeze: `35cf9ba885bae99b32cb41ad4bdf4b542c5a67fb`; final application change: `a4cdf2c4e401595ef5fdbd7df2f4af3bc351db81`.
++Branch: `away/2026-10-26-1834-A13`, independently based on `c4d6c50`.
++
++## Changes and acceptance
++
++The circle panel now offers the existing localized core retry control when its detail refresh fails, including during translation. Retry keeps the mounted schedule form and selected room, and ignores obsolete circle failures. It uses the existing action wrapper to clear the old notice at retry initiation; its completion cannot erase newer feedback. Schedule saves capture their originating view so delayed success feedback cannot appear on Account. No A03 commit was imported; the three same-circle room-preservation lines necessarily overlap A03's independent correction.
++
++The only application file changed is `public/js/platform.js`. Existing callers still receive current read errors; the added recovery UI does not suppress their error handling. The retry is inside the Circles panel and uses the existing localized message, native button, status role and 44px minimum hit target. No HTML, CSS, backend, authorization, billing, dependency, provider or configuration change was made.
++
++| Acceptance | Before | After |
++| --- | --- | --- |
++| Failed detail refresh during translation offers localized retry and retains the draft. | No retry exists; the circle detail disappears silently. | Pass in AR/EN at both 390 and 1440px. |
++| Repeated failure stays recoverable; successful retry preserves mounted form, chosen room, title and start time. | The first missing-retry assertion fails. | All four localized/width cases pass, including keyboard Enter and explicit recovery. |
++| An older failure cannot replace the newly selected circle with recovery UI. | Positive control passes. | Pass. |
++| Delayed schedule success stays off Account; same-view success remains localized and one actual session persists. | Account visibly displays `Saved.` after the held save response. | Pass in EN1440 and AR390, with independent server reads. |
++| A normal View failure clears after successful Retry, while newer errors and another view remain protected. | Cross-review reproduction fails in EN1440/AR390: the global service-unavailable message remains beside loaded data. Both newer-feedback positive controls pass. | Both recoveries and newer-feedback controls pass. A separate rejected-retry-after-navigation control also passes; recovery remains available on Circles. |
++
++[Acceptance recorded before edits](ACCEPTANCE.md). Unchanged-base provenance: [before-source.json](before-source.json). Frozen final source: [source-hashes.json](source-hashes.json).
++
++## Evidence
++
++- `../evidence/a13-before.log`: two expected failures and one passing obsolete-circle control, 58.5 seconds. The application was unmodified. Screenshots, trace and video remain under `a13-before-results/`.
++- `../evidence/a13-after.log`: initial 7-case correction passed, no skips/flakes, 32.3 seconds. JSON: `a13-after-browser.json`; screenshots: `a13-after-results/`. The test bytes are identical in that initial before/after pair.
++- `../evidence/a13-view-before.log`: the normal View follow-up reproduces two failures and retains two positive controls (1.2 minutes). Application source remains `20108c2`; [provenance](view-before-source.json). The only subsequent test-style edit in those four cases changes equivalent selector concatenation to a template literal.
++- `../evidence/a13-final-targeted.log`: all 11 cases passed after the retry-wrapper correction, 40.3 seconds. `../evidence/a13-rejected-retry-control.log`: the added rejected-retry-after-navigation control passed, 13.3 seconds. This is twelve distinct passing focused checks across two runs, not a claimed single twelve-case run.
++- `../evidence/a13-final-browser.log`: all twelve A13 cases also pass together within the final full run. Its complete result is 94 passed, 1 failed, 1 skipped, zero not-run cases (10.6 minutes; launcher 636.84 seconds, exit 1). All app/lobby camera cases and the following app cases passed; no separate A13 camera run was needed.
++- The focused runs preceded the local source commit, so their launcher receipts name the base HEAD. `before-source.json` and `source-hashes.json` distinguish the actual tested application bytes; the latter identifies the frozen committed source.
++- Fixture uses one synthetic owner, the local simulator to obtain its existing circle entitlement, two local rooms and two private circles. The browser exercises the real local API; controlled reads and a held successful POST create the failures. No real payment/provider or production request was made.
++- [Owned server receipt](server.json). The final full run stopped fixture PID 18232. No remaining A13 Node process was observed afterward.
++
++## Visual and source review
++
++Inspected Arabic 390px retry/recovery, English 390px and 1440px retry, Arabic 1440px retry, the before English Account notice and the clean after Arabic 390px Account screenshot. The retry remains readable and reachable, RTL placement is correct, and the recovered form retains its chosen room and bilingual title. Browser assertions also check horizontal overflow. These are offline fallback-font screenshots, not proof of external font availability.
++
++Also inspected the normal View follow-up's Arabic 390px before/after screenshots: before, a red service-unavailable status remains above successfully loaded circle data; after, that stale status is absent and the recovered controls and persisted sessions remain readable.
++
++Reviewed the exact diff and flow-relevant one-hop code in `halastudy-core.js`, the mounted controls in `platform.html`, and the current circle request/view guards. No new endpoint, public data field, authorization bypass or unbounded request was introduced. The existing core request deadline and server access checks remain responsible for network and ownership enforcement.
++
++Cross-review identified the normal View feedback gap; the additional browser failures and correction are retained above. The final callback uses the existing `work()` origin capture, which is already in the base source. The rejected-Retry control confirms it does not leak an error to Progress. Integration note: A03 and A13 both preserve the selected room for the same circle, so future integration must keep one copy of that behavior.
++
++The parent's A11 guide correction was reviewed read-only against the base, including `storeRoutine`, reconciliation, `bindFocus`, the routine state machine and its four focused tests. No concrete issue was found: a successfully returned session and running guide are stored before task binding can reject; finalization persists and renders the actual state; a rejected Start leaves the ready guide unchanged.
++
++Read-only review of the shared review page's earlier 17:23 UTC snapshot found stale pending counts and the earlier A13 source identifier. Its 15 unique local HTML references and links from all eight branch reports resolved. The current packaging helper's UTF-16 decoder/count parser and dynamic source identifier correctly read the runtime evidence; the parent will regenerate the snapshot after final receipts. No shared review/helper file was edited.
++
++## Qualification and release boundaries
++
++Final syntax, type checking, lint and dead-code checks passed on `35cf9ba`; the receipt labels begin `a13-final3-`. Lint reports four existing informational findings. Final integration passed 169/169 once on the final source, with no skips or cancellations (261.5 seconds); `../evidence/a13-final3-integration.log`. Its launcher names documentation descendant `59a3a5f`, whose application/test bytes remain those of `35cf9ba`. The earlier integration pass is retained as historical evidence, not substituted for this final run.
++
++The full browser failure is the unchanged `ux-return.smoke.spec.js:118` fixture, whose October 24/25, 2026 dates are now past. A00 repairs that test independently; its change is not included here. The sole skip explicitly requires online fonts. The final production dependency audit exits 1 for the existing high-severity `body-parser` advisory GHSA-27r3-jxmh-p828; `../evidence/a13-final3-audit-prod.log`. Dependencies were not changed under the away constraints. No frontend build command exists. All browser loads are local and offline; hosted providers and real fonts are outside this qualification.
++
++[Final source equality receipt](final-source-equality.json) independently recomputes and compares both captured manifests and every entry. All 183 files match before/after the full browser run, both tracked-source states are clean, both `.env` presence checks are false, and the application/test hashes match the frozen source. Exact manifest: `8b79c64da687c2b172ea2aea09c11ec95796790cbe1a572ad37db0032e69265d`. Both captures name documentation descendant `455f72d4e7d663076823b26e825e086e3abea7f3` of source freeze `35cf9ba`; `allChecksPass` is true.
++
++Local commits only. No push, merge or deployment. The existing protected HTML script version and one-hour JS cache window remain a release integration concern, as in A03. The original working checkout and unrelated work were untouched.
+diff --git a/docs/away/2026-10-26/A13/before-source.json b/docs/away/2026-10-26/A13/before-source.json
+new file mode 100644
+index 0000000..5ebda60
+--- /dev/null
++++ b/docs/away/2026-10-26/A13/before-source.json
+@@ -0,0 +1,8 @@
++{
++  "head": "c4d6c50553f55704b4d4a788db28b05fa983047a",
++  "applicationUnmodified": true,
++  "sha256": {
++    "public/js/platform.js": "cadfefc38e714e1a85dcc73280772221c20423b9c607f340bb5b51c0f911a9b3",
++    "tests/smoke/circle-feedback-away.smoke.spec.js": "d394019a31017720e7feae652bf71c0f5873f09effa8b91d39d138da0274c446"
++  }
++}
+diff --git a/docs/away/2026-10-26/A13/final-source-equality.json b/docs/away/2026-10-26/A13/final-source-equality.json
+new file mode 100644
+index 0000000..2485d35
+--- /dev/null
++++ b/docs/away/2026-10-26/A13/final-source-equality.json
+@@ -0,0 +1,36 @@
++{
++  "checkedAt": "2026-10-26T18:23:48.514Z",
++  "sourceFreeze": "35cf9ba885bae99b32cb41ad4bdf4b542c5a67fb",
++  "beforeFile": "docs/away/2026-10-26/evidence/a13-final-browser-source-before.json",
++  "afterFile": "docs/away/2026-10-26/evidence/a13-final-browser-source-after.json",
++  "headBefore": "455f72d4e7d663076823b26e825e086e3abea7f3",
++  "headAfter": "455f72d4e7d663076823b26e825e086e3abea7f3",
++  "filesBefore": 183,
++  "filesAfter": 183,
++  "manifestBefore": "8b79c64da687c2b172ea2aea09c11ec95796790cbe1a572ad37db0032e69265d",
++  "manifestAfter": "8b79c64da687c2b172ea2aea09c11ec95796790cbe1a572ad37db0032e69265d",
++  "manifestEqual": true,
++  "entriesEqual": true,
++  "recordedManifestsValid": true,
++  "trackedSourceCleanBefore": true,
++  "trackedSourceCleanAfter": true,
++  "noEnvFileBefore": true,
++  "noEnvFileAfter": true,
++  "sources": [
++    {
++      "path": "public/js/platform.js",
++      "expected": "1f09d77a612a69b2c548e054aa67ddb78d13ad265054984fba76f10555e74e6c",
++      "before": "1f09d77a612a69b2c548e054aa67ddb78d13ad265054984fba76f10555e74e6c",
++      "after": "1f09d77a612a69b2c548e054aa67ddb78d13ad265054984fba76f10555e74e6c",
++      "equal": true
++    },
++    {
++      "path": "tests/smoke/circle-feedback-away.smoke.spec.js",
++      "expected": "01367888212e39c949e940044a32493954f18cc3a949999a1ae3473ed1df435b",
++      "before": "01367888212e39c949e940044a32493954f18cc3a949999a1ae3473ed1df435b",
++      "after": "01367888212e39c949e940044a32493954f18cc3a949999a1ae3473ed1df435b",
++      "equal": true
++    }
++  ],
++  "allChecksPass": true
++}
+diff --git a/docs/away/2026-10-26/A13/server.json b/docs/away/2026-10-26/A13/server.json
+new file mode 100644
+index 0000000..07ae117
+--- /dev/null
++++ b/docs/away/2026-10-26/A13/server.json
+@@ -0,0 +1 @@
++{"pid":18232,"baseUrl":"http://127.0.0.1:62029","state":"stopped"}
+\ No newline at end of file
+diff --git a/docs/away/2026-10-26/A13/source-hashes.json b/docs/away/2026-10-26/A13/source-hashes.json
+new file mode 100644
+index 0000000..26af01c
+--- /dev/null
++++ b/docs/away/2026-10-26/A13/source-hashes.json
+@@ -0,0 +1,7 @@
++{
++  "sourceCommit": "35cf9ba885bae99b32cb41ad4bdf4b542c5a67fb",
++  "sha256": {
++    "public/js/platform.js": "1f09d77a612a69b2c548e054aa67ddb78d13ad265054984fba76f10555e74e6c",
++    "tests/smoke/circle-feedback-away.smoke.spec.js": "01367888212e39c949e940044a32493954f18cc3a949999a1ae3473ed1df435b"
++  }
++}
+diff --git a/docs/away/2026-10-26/A13/view-before-source.json b/docs/away/2026-10-26/A13/view-before-source.json
+new file mode 100644
+index 0000000..5cf2269
+--- /dev/null
++++ b/docs/away/2026-10-26/A13/view-before-source.json
+@@ -0,0 +1,8 @@
++{
++  "applicationCommit": "20108c27644ab8d276a29e81ab9bd22c2e3e7926",
++  "applicationUnmodifiedFromCommit": true,
++  "sha256": {
++    "public/js/platform.js": "bed985ff82d0e6a71362ae2fa14fc21dc46e31a08895bdd9dcddf7e75fc53e71",
++    "tests/smoke/circle-feedback-away.smoke.spec.js": "ae464e101d91db09803962493b04f80236ced7358e88cfd50fa539e70c5c42d1"
++  }
++}
+diff --git a/public/js/platform.js b/public/js/platform.js
+index d471672..18ff188 100644
+--- a/public/js/platform.js
++++ b/public/js/platform.js
+@@ -188,6 +188,10 @@
+             return row(room.name, room.id, room.can_manage ? [link, rename] : [link]);
+         }), 'emptyRooms');
+     }
++    const circleUnavailable = node('div', '');
++    circleUnavailable.id = 'circle-unavailable';
++    circleUnavailable.hidden = true;
++    $('circle-detail').before(circleUnavailable);
+     function renderCircles() {
+         const vip = state?.benefits.plan.id === 'vip';
+         $('circle-create').hidden = !vip;
+@@ -199,14 +203,25 @@
+     }
+     async function showCircle(circle) {
+         const request = ++circleRequest;
++        const sameCircle = requestedCircleId === circle.id;
++        const selectedRoom = sameCircle ? $('session-room').value : '';
+         requestedCircleId = circle.id;
+         selectedCircle = null;
++        circleUnavailable.hidden = true;
+         window.dispatchEvent(new CustomEvent('halacirclechange', { detail: null }));
+         $('circle-detail').hidden = true;
+         $('invite-result').hidden = true;
+         $('invite-code').textContent = '';
+         $('attendance').replaceChildren();
+-        const [members, sessions] = await Promise.all([api('GET', `/cohorts/${circle.id}/members`), api('GET', `/cohorts/${circle.id}/sessions`)]);
++        let members, sessions;
++        try {
++            [members, sessions] = await Promise.all([api('GET', `/cohorts/${circle.id}/members`), api('GET', `/cohorts/${circle.id}/sessions`)]);
++        } catch (error) {
++            if (request !== circleRequest) return;
++            core.showUnavailable(circleUnavailable, () =>
++                work(circleUnavailable.querySelector('button'), () => showCircle(circle)));
++            throw error;
++        }
+         if (request !== circleRequest) return;
+         selectedCircle = circle;
+         window.dispatchEvent(new CustomEvent('halacirclechange', { detail: circle }));
+@@ -222,6 +237,7 @@
+         $('session-room').replaceChildren(...ownedRooms.filter((room) => room.exists && (!room.cohort_id || room.cohort_id === circle.id)).map((room) => {
+             const option = node('option', room.name); option.value = room.id; return option;
+         }));
++        if (sameCircle) $('session-room').value = selectedRoom;
+         $('session-create').hidden = !supervisor || !$('session-room').options.length;
+         $('session-room-hint').hidden = !supervisor || !!$('session-room').options.length;
+         fill('circle-members', members.members.map((member) => {
+@@ -595,11 +611,12 @@
+         await refresh(); notice('saved');
+     }));
+     bindForm('session-create', async (data, form) => {
++        const view = currentView;
+         const circle = selectedCircle;
+         if (!circle) return;
+         await api('POST', `/cohorts/${circle.id}/sessions`, { ...data, startsAt: new Date(String(data.startsAt)).getTime(), durationMinutes: Number(data.durationMinutes) });
+         if (selectedCircle?.id === circle.id) { form.reset(); await showCircle(circle); }
+-        notice('saved');
++        notice('saved', false, view);
+     });
+     $('checkout-start').addEventListener('click', () => void work($('checkout-start'), async () => {
+         if (!user) { location.assign('/account?next=%2Fplans'); return; }
+diff --git a/tests/smoke/circle-feedback-away.smoke.spec.js b/tests/smoke/circle-feedback-away.smoke.spec.js
+new file mode 100644
+index 0000000..f92d7e9
+--- /dev/null
++++ b/tests/smoke/circle-feedback-away.smoke.spec.js
+@@ -0,0 +1,298 @@
++const { test, expect } = require('@playwright/test');
++const fs = require('node:fs');
++const path = require('node:path');
++const { startServer } = require('../helpers/server-control');
++const { signupUser } = require('../helpers/auth-helpers');
++const { connectSocket, emitAck, closeSocket } = require('../helpers/socket-client');
++
++const evidence = path.resolve('docs/away/2026-10-26/A13');
++let server, account, circle, otherCircle, socket;
++
++test.beforeAll(async () => {
++    fs.mkdirSync(evidence, { recursive: true });
++    server = await startServer({ env: {
++        PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh',
++        BILLING_MODE: 'test', BILLING_PROVIDER: 'simulator',
++    } });
++    fs.writeFileSync(path.join(evidence, 'server.json'), JSON.stringify({ pid: server.pid, baseUrl: server.baseUrl, state: 'running' }));
++    account = await signupUser(server, { displayName: 'Circle feedback fixture' });
++    const headers = { Cookie: account.cookie };
++    const checkout = await server.request('/api/platform/billing/checkout', { method: 'POST', headers, body: {} });
++    expect(checkout.status).toBe(200);
++    const activated = await server.request(`/api/platform/billing/checkout/${checkout.body.id}/complete`, {
++        method: 'POST', headers, body: { token: checkout.body.token, outcome: 'success' },
++    });
++    expect(activated.status).toBe(200);
++    for (const name of ['Circle recovery fixture', 'Other circle fixture']) {
++        const result = await server.request('/api/platform/cohorts', { method: 'POST', headers, body: { name } });
++        expect(result.status).toBe(200);
++        if (!circle) circle = result.body;
++        else otherCircle = result.body;
++    }
++    socket = await connectSocket(server.baseUrl, { extraHeaders: headers, clientId: `circle-away-${Date.now()}` });
++    for (const roomName of ['First fixture room', 'Chosen fixture room']) {
++        const room = await emitAck(socket, 'create-room', { roomName });
++        expect(room.ok).toBe(true);
++    }
++});
++
++test.afterAll(async () => {
++    if (socket) await closeSocket(socket);
++    if (server) {
++        await server.stop();
++        fs.writeFileSync(path.join(evidence, 'server.json'), JSON.stringify({ pid: server.pid, baseUrl: server.baseUrl, state: 'stopped' }));
++    }
++});
++
++async function openCircle(page, language, width) {
++    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
++    await page.context().addCookies(account.cookie.split(';').map((part) => {
++        const [name, ...value] = part.trim().split('=');
++        return { name, value: value.join('='), url: server.baseUrl };
++    }));
++    await page.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language);
++    await page.goto(`${server.baseUrl}/app#circles`);
++    await expect(page.locator('#loading')).toBeHidden();
++    await page.locator('#circle-list .row').filter({ hasText: circle.name }).getByRole('button').click();
++    await expect(page.locator('#circle-detail')).toBeVisible();
++    await expect(page.locator('#session-room option')).toHaveCount(2);
++    await expect(page.locator('#study-status')).toBeHidden();
++    await page.evaluate(() => {
++        const g = /** @type {any} */ (window);
++        const request = g.HalaCore.requestJson;
++        g.circleAwayRequests = [];
++        g.HalaCore.requestJson = (...args) => {
++            const pending = request(...args);
++            if (String(args[1]).includes('/cohorts/')) g.circleAwayRequests.push(pending.catch(() => null));
++            return pending;
++        };
++    });
++}
++
++async function settleCircle(page) {
++    await page.evaluate(async () => {
++        await Promise.all(/** @type {any} */ (window).circleAwayRequests);
++        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
++    });
++}
++
++async function draft(page, title, days = 2) {
++    const room = await page.locator('#session-room option').nth(1).getAttribute('value');
++    await page.locator('#session-room').selectOption(room);
++    await page.locator('#session-create [name=title]').fill(title);
++    const start = await page.evaluate((offset) => {
++        const date = new Date(Date.now() + offset * 86400000);
++        const pad = (n) => String(n).padStart(2, '0');
++        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
++    }, days);
++    await page.locator('#session-create [name=startsAt]').fill(start);
++    await page.locator('#session-create').evaluate((form) => form.setAttribute('data-away-mounted', 'retained'));
++    return { room, start, title };
++}
++
++async function expectDraft(page, saved) {
++    await expect(page.locator('#session-create')).toHaveAttribute('data-away-mounted', 'retained');
++    await expect(page.locator('#session-room')).toHaveValue(saved.room);
++    await expect(page.locator('#session-create [name=title]')).toHaveValue(saved.title);
++    await expect(page.locator('#session-create [name=startsAt]')).toHaveValue(saved.start);
++}
++
++for (const [language, width] of [['en', 1440], ['ar', 390], ['en', 390], ['ar', 1440]]) {
++    test(`translated circle failure retains draft and retries (${language}, ${width})`, async ({ page }, info) => {
++        await openCircle(page, language === 'ar' ? 'en' : 'ar', width);
++        const saved = await draft(page, 'مراجعة المجموعة · Circle draft');
++        let unavailable = true;
++        let failures = 0;
++        await page.route(`**/api/platform/cohorts/${circle.id}/members`, async (route) => {
++            if (!unavailable) return route.continue();
++            failures++;
++            return route.fulfill({ status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}' });
++        });
++        await page.locator(`[data-lang-value=${language}]`).click();
++        await settleCircle(page);
++        await page.screenshot({ path: info.outputPath('circle-refresh-error.png'), fullPage: true });
++        const retry = page.locator('#circle-unavailable [data-core-unavailable=retry]');
++        await expect(retry).toBeVisible();
++        await expect(retry).toHaveText(language === 'ar' ? 'إعادة المحاولة' : 'Retry');
++        await expect(page.locator('#circle-unavailable [data-core-unavailable=message]')).toHaveText(
++            language === 'ar' ? 'تعذّر تحميل البيانات. حاول مرة أخرى.' : 'Data is unavailable. Please try again.',
++        );
++        await expectDraft(page, saved);
++        await retry.focus();
++        await page.keyboard.press('Enter');
++        await expect.poll(() => failures).toBe(2);
++        await settleCircle(page);
++        await expect(retry).toBeVisible();
++        await expect(retry).toBeEnabled();
++        unavailable = false;
++        await retry.click();
++        await settleCircle(page);
++        await expect(page.locator('#circle-detail')).toBeVisible();
++        await expect(page.locator('#circle-unavailable')).toBeHidden();
++        await expectDraft(page, saved);
++        await page.screenshot({ path: info.outputPath('circle-refresh-recovered.png'), fullPage: true });
++        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
++        const result = await server.request(`/api/platform/cohorts/${circle.id}/sessions`, { headers: { Cookie: account.cookie } });
++        expect(result.status).toBe(200);
++        expect(result.body.sessions.filter((session) => session.title === saved.title)).toHaveLength(0);
++    });
++}
++
++for (const [language, width] of [['en', 1440], ['ar', 390]]) {
++    test(`schedule save feedback follows its originating view (${language}, ${width})`, async ({ page }, info) => {
++        await openCircle(page, language, width);
++        const saved = await draft(page, `Delayed ${language} schedule`);
++        let release = () => {};
++        const held = new Promise((resolve) => { release = () => resolve(undefined); });
++        let committed = false;
++        const routePattern = `**/api/platform/cohorts/${circle.id}/sessions`;
++        await page.route(routePattern, async (route) => {
++            if (route.request().method() !== 'POST') return route.continue();
++            const response = await route.fetch();
++            expect(response.status()).toBe(200);
++            committed = true;
++            await held;
++            await route.fulfill({ response });
++        });
++        try {
++            await page.locator('#session-create button').click();
++            await expect.poll(() => committed).toBe(true);
++            await page.locator('.platform-nav [data-view=account]').click();
++            await expect(page.locator('[data-panel=account]')).toBeVisible();
++            release();
++            await expect(page.locator('#session-create button')).toBeEnabled();
++            await settleCircle(page);
++            await page.screenshot({ path: info.outputPath('account-after-circle-save.png'), fullPage: true });
++            await expect(page.locator('#feedback')).toBeHidden();
++            const persisted = await server.request(`/api/platform/cohorts/${circle.id}/sessions`, { headers: { Cookie: account.cookie } });
++            const matches = persisted.body.sessions.filter((session) => session.title === saved.title);
++            expect(matches).toHaveLength(1);
++            expect(matches[0].room_id).toBe(saved.room);
++            await page.unroute(routePattern);
++            await page.locator('.platform-nav [data-view=circles]').click();
++            await expect(page.locator('#circle-sessions')).toContainText(saved.title);
++            const sameView = await draft(page, `Current ${language} schedule`, 3);
++            await page.locator('#session-create button').click();
++            await expect(page.locator('#feedback')).toHaveText(language === 'ar' ? 'تم الحفظ.' : 'Saved.');
++            await expect(page.locator('#circle-sessions')).toContainText(sameView.title);
++            await page.screenshot({ path: info.outputPath('circle-save-confirmed.png'), fullPage: true });
++            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
++        } finally { release(); }
++    });
++}
++
++test('an obsolete circle failure cannot replace a newly selected circle with retry', async ({ page }) => {
++    await openCircle(page, 'en', 1440);
++    let release = () => {};
++    const held = new Promise((resolve) => { release = () => resolve(undefined); });
++    let requested = false;
++    await page.route(`**/api/platform/cohorts/${circle.id}/members`, async (route) => {
++        requested = true;
++        await held;
++        await route.fulfill({ status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}' });
++    });
++    try {
++        await page.locator('[data-lang-value=ar]').click();
++        await expect.poll(() => requested).toBe(true);
++        await page.locator('#circle-list .row').filter({ hasText: otherCircle.name }).getByRole('button').click();
++        await expect(page.locator('#circle-title')).toHaveText(otherCircle.name);
++        release();
++        await settleCircle(page);
++        await expect(page.locator('#circle-detail')).toBeVisible();
++        await expect(page.locator('#circle-title')).toHaveText(otherCircle.name);
++        await expect(page.locator('#circle-unavailable')).toBeHidden();
++    } finally { release(); }
++});
++
++for (const [language, width] of [['en', 1440], ['ar', 390]]) {
++    test(`normal View retry clears its failed-read feedback after recovery (${language}, ${width})`, async ({ page }, info) => {
++        await openCircle(page, language, width);
++        let unavailable = true;
++        await page.route(`**/api/platform/cohorts/${circle.id}/members`, (route) => unavailable
++            ? route.fulfill({ status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}' })
++            : route.continue());
++        await page.locator('#circle-list .row').filter({ hasText: circle.name }).getByRole('button').click();
++        await expect(page.locator('#feedback')).toBeVisible();
++        await expect(page.locator('#feedback')).toHaveClass(/error/);
++        await expect(page.locator('#circle-unavailable')).toBeVisible();
++        unavailable = false;
++        await page.locator('#circle-unavailable [data-core-unavailable=retry]').click();
++        await settleCircle(page);
++        await expect(page.locator('#circle-detail')).toBeVisible();
++        await page.screenshot({ path: info.outputPath('view-retry-recovered.png'), fullPage: true });
++        await expect(page.locator('#feedback')).toBeHidden();
++        await expect(page.locator('#circle-unavailable')).toBeHidden();
++    });
++}
++
++for (const view of ['circles', 'progress']) {
++    test(`circle retry preserves newer feedback on ${view}`, async ({ page }) => {
++        await openCircle(page, 'en', 1440);
++        let reads = 0;
++        let release = () => {};
++        const held = new Promise((resolve) => { release = () => resolve(undefined); });
++        await page.route(`**/api/platform/cohorts/${circle.id}/members`, async (route) => {
++            if (++reads === 1) return route.fulfill({
++                status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}',
++            });
++            const response = await route.fetch();
++            await held;
++            return route.fulfill({ response });
++        });
++        try {
++            await page.locator('#circle-list .row').filter({ hasText: circle.name }).getByRole('button').click();
++            await expect(page.locator('#feedback')).toHaveClass(/error/);
++            await page.locator('#circle-unavailable [data-core-unavailable=retry]').click();
++            await expect.poll(() => reads).toBe(2);
++            if (view === 'progress') {
++                await page.locator('.platform-nav [data-view=progress]').click();
++                await page.route('**/api/platform/focus/start', (route) => route.fulfill({
++                    status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}',
++                }));
++                await page.locator('#focus-start').click();
++                await expect(page.locator('#focus-start')).toBeEnabled();
++            } else {
++                await page.route('**/api/platform/cohorts', (route) => route.fulfill({
++                    status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}',
++                }));
++                await page.locator('#circle-name').fill('Newer failed action');
++                await page.locator('#circle-create button').click();
++                await expect(page.locator('#circle-create button')).toBeEnabled();
++            }
++            await expect(page.locator('#feedback')).toBeVisible();
++            await expect(page.locator('#feedback')).toHaveClass(/error/);
++            release();
++            await settleCircle(page);
++            await expect(page.locator(`[data-panel=${view}]`)).toBeVisible();
++            await expect(page.locator('#feedback')).toBeVisible();
++            await expect(page.locator('#feedback')).toHaveClass(/error/);
++        } finally { release(); }
++    });
++}
++
++test('a rejected circle retry keeps feedback in its originating view after navigation', async ({ page }) => {
++    await openCircle(page, 'en', 1440);
++    let reads = 0;
++    let release = () => {};
++    const held = new Promise((resolve) => { release = () => resolve(undefined); });
++    await page.route(`**/api/platform/cohorts/${circle.id}/members`, async (route) => {
++        if (++reads > 1) await held;
++        return route.fulfill({ status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}' });
++    });
++    try {
++        await page.locator('#circle-list .row').filter({ hasText: circle.name }).getByRole('button').click();
++        await expect(page.locator('#feedback')).toHaveClass(/error/);
++        await page.locator('#circle-unavailable [data-core-unavailable=retry]').click();
++        await expect.poll(() => reads).toBe(2);
++        await page.locator('.platform-nav [data-view=progress]').click();
++        await expect(page.locator('#feedback')).toBeHidden();
++        release();
++        await settleCircle(page);
++        await expect(page.locator('[data-panel=progress]')).toBeVisible();
++        await expect(page.locator('#feedback')).toBeHidden();
++        await expect(page.locator('#circle-unavailable')).toBeHidden();
++        await page.locator('.platform-nav [data-view=circles]').click();
++        await expect(page.locator('#circle-unavailable [data-core-unavailable=retry]')).toBeVisible();
++        await expect(page.locator('#circle-unavailable [data-core-unavailable=retry]')).toBeEnabled();
++    } finally { release(); }
++});

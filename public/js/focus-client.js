@@ -34,25 +34,35 @@
         synchronized = false;
         window.dispatchEvent(new CustomEvent('halafocuserror', { detail: error.code || 'SERVICE_UNAVAILABLE' }));
     }
-    async function action(name) {
+    async function action(name, expectedSessionId = null) {
         return run(async () => {
+            let attemptedSessionId = null;
             try {
                 if (name === 'complete' && pendingCompletion) {
+                    attemptedSessionId = pendingCompletion;
                     const completed = await global.HalaCore.postJson(`/api/platform/focus/${encodeURIComponent(pendingCompletion)}/complete`, {});
                     pendingCompletion = null;
                     return publish(completed, true);
                 }
                 if (name === 'resume') {
                     // Always consult the server: another tab may have finished it.
-                    publish(await global.HalaCore.postJson('/api/platform/focus/start', {}), true);
+                    const started = await global.HalaCore.postJson('/api/platform/focus/start', {});
+                    // An acknowledged new session supersedes the older completion retry.
+                    if (pendingCompletion && started.id !== pendingCompletion) pendingCompletion = null;
+                    publish(started, true);
                     if (current.state === 'active') return current;
                 } else if (!current) await readCurrent();
                 if (!current || !['active', 'paused'].includes(current.state)) return current;
+                // A retried pause belongs to the session the user originally paused.
+                if (expectedSessionId && current.id !== expectedSessionId) return current;
                 if (name === 'complete') pendingCompletion = current.id;
+                attemptedSessionId = current.id;
                 const result = await global.HalaCore.postJson(`/api/platform/focus/${encodeURIComponent(current.id)}/${name}`, {});
                 if (name === 'complete') pendingCompletion = null;
                 return publish(result, true);
             } catch (error) {
+                // Preserve the request target, even when a preceding queued Start created it.
+                if (attemptedSessionId) error.focusSessionId = attemptedSessionId;
                 if (['SESSION_EXPIRED', 'SESSION_CLOSED', 'SESSION_NOT_FOUND', 'AUTH_REQUIRED'].includes(error.code)) {
                     if (name === 'complete' || error.code === 'AUTH_REQUIRED') pendingCompletion = null;
                     publish(null);
@@ -73,7 +83,7 @@
     window.addEventListener('focus', () => { if (enabled) void reconcile().catch(failed); });
     document.addEventListener('visibilitychange', () => { if (enabled && !document.hidden) void reconcile().catch(failed); });
     global.HalaFocus = {
-        start: () => action('resume'), pause: () => action('pause'), complete: () => action('complete'),
+        start: () => action('resume'), pause: (sessionId) => action('pause', sessionId), complete: () => action('complete'),
         restore: publish, reconcile, hasPendingCompletion: () => !!pendingCompletion, current: () => current,
         // Smooth visual clock only. The server alone persists time and awards XP.
         displaySeconds: () => Math.floor(Math.min(240 * 60000, Number(current?.credited_ms || 0)

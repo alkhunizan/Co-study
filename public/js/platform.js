@@ -9,6 +9,7 @@
     let ownedRooms = [];
     let selectedCircle = null;
     let identityKnown = false;
+    let refreshRequest = 0;
     let circleRequest = 0;
     let requestedCircleId = null;
     let checkout = null;
@@ -188,6 +189,10 @@
             return row(room.name, room.id, room.can_manage ? [link, rename] : [link]);
         }), 'emptyRooms');
     }
+    const circleUnavailable = node('div', '');
+    circleUnavailable.id = 'circle-unavailable';
+    circleUnavailable.hidden = true;
+    $('circle-detail').before(circleUnavailable);
     function renderCircles() {
         const vip = state?.benefits.plan.id === 'vip';
         $('circle-create').hidden = !vip;
@@ -199,14 +204,25 @@
     }
     async function showCircle(circle) {
         const request = ++circleRequest;
+        const sameCircle = requestedCircleId === circle.id;
+        const selectedRoom = sameCircle ? $('session-room').value : '';
         requestedCircleId = circle.id;
         selectedCircle = null;
+        circleUnavailable.hidden = true;
         window.dispatchEvent(new CustomEvent('halacirclechange', { detail: null }));
         $('circle-detail').hidden = true;
         $('invite-result').hidden = true;
         $('invite-code').textContent = '';
         $('attendance').replaceChildren();
-        const [members, sessions] = await Promise.all([api('GET', `/cohorts/${circle.id}/members`), api('GET', `/cohorts/${circle.id}/sessions`)]);
+        let members, sessions;
+        try {
+            [members, sessions] = await Promise.all([api('GET', `/cohorts/${circle.id}/members`), api('GET', `/cohorts/${circle.id}/sessions`)]);
+        } catch (error) {
+            if (request !== circleRequest) return;
+            core.showUnavailable(circleUnavailable, () =>
+                work(circleUnavailable.querySelector('button'), () => showCircle(circle)));
+            throw error;
+        }
         if (request !== circleRequest) return;
         selectedCircle = circle;
         window.dispatchEvent(new CustomEvent('halacirclechange', { detail: circle }));
@@ -222,6 +238,7 @@
         $('session-room').replaceChildren(...ownedRooms.filter((room) => room.exists && (!room.cohort_id || room.cohort_id === circle.id)).map((room) => {
             const option = node('option', room.name); option.value = room.id; return option;
         }));
+        if (sameCircle) $('session-room').value = selectedRoom;
         $('session-create').hidden = !supervisor || !$('session-room').options.length;
         $('session-room-hint').hidden = !supervisor || !!$('session-room').options.length;
         fill('circle-members', members.members.map((member) => {
@@ -480,17 +497,31 @@
             if (heading instanceof HTMLElement) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
         }
         if (currentView === 'staff' && state) void renderStaff().catch((error) => noticeError(error, 'staff'));
-        if (focus && user && ['home','circles'].includes(currentView)) void refresh().catch((error) => noticeError(error,currentView));
+        if (focus && user && ['home','circles'].includes(currentView)) {
+            const view = currentView;
+            void refresh().catch((error) => noticeError(error, view));
+        }
         if (focus && user && currentView === 'planner') window.dispatchEvent(new CustomEvent('halastudyrefresh'));
     }
     async function refresh() {
         if (!user) return;
-        [state, progress, { rooms: ownedRooms }, dashboard] = await Promise.all([api('GET', '/me'), api('GET', '/progress'), api('GET', '/rooms'), api('GET', '/dashboard')]);
+        const request = ++refreshRequest;
+        const focusAtStart = global.HalaFocus.current();
+        let result;
+        try {
+            result = await Promise.all([api('GET', '/me'), api('GET', '/progress'), api('GET', '/rooms'), api('GET', '/dashboard')]);
+        } catch (error) {
+            if (request !== refreshRequest) return;
+            throw error;
+        }
+        if (request !== refreshRequest) return;
+        [state, progress, { rooms: ownedRooms }, dashboard] = result;
         if (selectedCircle && !state.cohorts.some(circle => circle.id === selectedCircle.id)) {
             selectedCircle = null; circleRequest++; requestedCircleId = null; $('circle-detail').hidden = true;
             window.dispatchEvent(new CustomEvent('halacirclechange', { detail:null }));
         }
-        global.HalaFocus.restore(progress.current);
+        // A focus action or heartbeat can finish while an unrelated workspace read is pending.
+        if (global.HalaFocus.current() === focusAtStart) global.HalaFocus.restore(progress.current);
         render();
         showView();
     }
@@ -595,11 +626,12 @@
         await refresh(); notice('saved');
     }));
     bindForm('session-create', async (data, form) => {
+        const view = currentView;
         const circle = selectedCircle;
         if (!circle) return;
         await api('POST', `/cohorts/${circle.id}/sessions`, { ...data, startsAt: new Date(String(data.startsAt)).getTime(), durationMinutes: Number(data.durationMinutes) });
         if (selectedCircle?.id === circle.id) { form.reset(); await showCircle(circle); }
-        notice('saved');
+        notice('saved', false, view);
     });
     $('checkout-start').addEventListener('click', () => void work($('checkout-start'), async () => {
         if (!user) { location.assign('/account?next=%2Fplans'); return; }

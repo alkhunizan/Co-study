@@ -1,0 +1,248 @@
+{
+    "kind":  "source-review",
+    "checkpoint":  "c4d6c50553f55704b4d4a788db28b05fa983047a",
+    "recordedAtUtc":  "2026-10-23T07:27:01.9201736Z",
+    "files":  [
+                  {
+                      "file":  "services/seo/public-pages.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-195"
+                                 ],
+                      "sha256ObservedAtReport":  "4c9c2786980828b4262207f7d66b8b26238526fb508dff5d19e66a3a87fa7c65"
+                  },
+                  {
+                      "file":  "public/js/focus-client.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-82"
+                                 ],
+                      "sha256ObservedAtReport":  "3023f868945d15a78b19572ac636a42b92e5088a8740d5f7dadd0b9e381e4a21"
+                  },
+                  {
+                      "file":  "public/js/legal-shell.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-4"
+                                 ],
+                      "sha256ObservedAtReport":  "5cce5deb1fa9ba0ecf97eb67ce03400e9410f8690709056dde02dd80c9d9df7e"
+                  },
+                  {
+                      "file":  "public/js/marketing-copy.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-247"
+                                 ],
+                      "sha256ObservedAtReport":  "9258d95329a15616c94409392875204fc5374b4e30405c94e5f968a827b109e0"
+                  },
+                  {
+                      "file":  "public/js/platform-copy.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-296"
+                                 ],
+                      "sha256ObservedAtReport":  "9f28abc7046abcbc528e1eb23c5cfd1442852f35c0239f2b93dc0c74fefd3d0d"
+                  },
+                  {
+                      "file":  "public/js/platform.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-699"
+                                 ],
+                      "sha256ObservedAtReport":  "cadfefc38e714e1a85dcc73280772221c20423b9c607f340bb5b51c0f911a9b3"
+                  },
+                  {
+                      "file":  "public/js/room-focus.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-87"
+                                 ],
+                      "sha256ObservedAtReport":  "921e01964a0c83e463557162b0e8777385df6cfdf3f4c90f1d50e189eb251d51"
+                  },
+                  {
+                      "file":  "public/js/schedule-display.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-12"
+                                 ],
+                      "sha256ObservedAtReport":  "bdadf065780628c2cc6c4f9c3c6de7635e5fab659f07551ae0fcebabf84c8151"
+                  },
+                  {
+                      "file":  "public/js/study-copy.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-361"
+                                 ],
+                      "sha256ObservedAtReport":  "63abe5cbd9ee367a904db263b5b29769771b92c6578b78882a227bbdf7f3e5e3"
+                  },
+                  {
+                      "file":  "public/js/study-routine.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-60"
+                                 ],
+                      "sha256ObservedAtReport":  "768d209949c782a02e426fb73bea7bc92bd11617bcdcb1ec94aa78c8c6140fcf"
+                  },
+                  {
+                      "file":  "public/js/study-workspace.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-1254"
+                                 ],
+                      "sha256ObservedAtReport":  "a4893148e41f05370a53dca470c58a9e3bb0dac9e1c73e9fb6394dc5835c5e2e"
+                  },
+                  {
+                      "file":  "public/js/ui.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-284"
+                                 ],
+                      "sha256ObservedAtReport":  "65701d3108a6d16e32236dbcddda6580e0a73ecfb039be78730efff0b880d32c"
+                  },
+                  {
+                      "file":  "public/js/ux-insights.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-69"
+                                 ],
+                      "sha256ObservedAtReport":  "0c7bad807138f494e5edf1e6a1e1770e216fa60c5a41a58eeb95e01f15c70d95"
+                  },
+                  {
+                      "file":  "public/js/video/realtimekit-client.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-181"
+                                 ],
+                      "sha256ObservedAtReport":  "f7c403e6abc70ae328e58cbba62f9c5f23316ff6292a5d39dfe5c9e4ed483568"
+                  },
+                  {
+                      "file":  "public/js/video/video-client.js",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-142"
+                                 ],
+                      "sha256ObservedAtReport":  "5a7e75234e859453c66e030e77e036093b610ba6d4f932f81dfa578c0f0e0d2b"
+                  },
+                  {
+                      "file":  "404.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-92"
+                                 ],
+                      "sha256ObservedAtReport":  "3c42319ffeb07f6b847a300005999c092baf44ad3ee66d7db8bcbf779b9e0ee4"
+                  },
+                  {
+                      "file":  "account.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-767"
+                                 ],
+                      "sha256ObservedAtReport":  "c26cdf0139723f8dff0feac5772473f66b82fd41f2b9c376651108d835540838"
+                  },
+                  {
+                      "file":  "admin.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-692"
+                                 ],
+                      "sha256ObservedAtReport":  "e03e3011e0c0f292ce04d47ce518178289d0e6b19061064c224fb123e00c1a60"
+                  },
+                  {
+                      "file":  "blog-best-study-rooms.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-413"
+                                 ],
+                      "sha256ObservedAtReport":  "d3a8a716be613d5259ae1faec91154bc1721f0e1640180f222267e72fea07313"
+                  },
+                  {
+                      "file":  "blog-study-with-me.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-403"
+                                 ],
+                      "sha256ObservedAtReport":  "5d05a53edc22554fff62d7e6c307f48fcb1ffd684158cc06f336b52d1c78fc2d"
+                  },
+                  {
+                      "file":  "blog.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-120"
+                                 ],
+                      "sha256ObservedAtReport":  "27ebd49bc9e39741a85701b870bbc209e43359bb4d7beb29d7c71f6e16b6fef8"
+                  },
+                  {
+                      "file":  "contact.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-43"
+                                 ],
+                      "sha256ObservedAtReport":  "8769d05bf8cad847e903d19dc06de5535119e530d91c2d85b014965315fd259d"
+                  },
+                  {
+                      "file":  "index.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-4976"
+                                 ],
+                      "sha256ObservedAtReport":  "9fb9cb7247ec23ea67ed8bd722f5d1bdae064a85a5062148fe524fc7bd478f9b"
+                  },
+                  {
+                      "file":  "landing.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-624"
+                                 ],
+                      "sha256ObservedAtReport":  "867a402b02b4a58ab84ede0fd82be285bca1b0c2d59c4c3862e189d7760a3597"
+                  },
+                  {
+                      "file":  "lobby.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-546"
+                                 ],
+                      "sha256ObservedAtReport":  "824e8384481f15311b340e90b9847543b2e62190db60737633f7c25b946ea3dc"
+                  },
+                  {
+                      "file":  "open.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-1667"
+                                 ],
+                      "sha256ObservedAtReport":  "8a7f470b73d894d908dc1e0c02bd08a1940691421f6c0b1a2dfee6dc8bc8346d"
+                  },
+                  {
+                      "file":  "platform.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-227"
+                                 ],
+                      "sha256ObservedAtReport":  "61afd6e11591022a54d69083c71f4ce687fc97f73c83c8c8fd2398a92ed8627e"
+                  },
+                  {
+                      "file":  "privacy.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-263"
+                                 ],
+                      "sha256ObservedAtReport":  "1347c81e1b08043c8dbb5b123c30b763f3a9b01cf0b2838aae7428d8488f764d"
+                  },
+                  {
+                      "file":  "recovery.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-44"
+                                 ],
+                      "sha256ObservedAtReport":  "c2d6d3072e649a302cc79269ffd0b46dd3e649a6fbb08992a46f7d7540f2c29d"
+                  },
+                  {
+                      "file":  "terms.html",
+                      "read":  "full",
+                      "ranges":  [
+                                     "1-243"
+                                 ],
+                      "sha256ObservedAtReport":  "d99831b0ccee61b37054496e5f663593eacab30cc57a5dd5095fce6bffbbac6f"
+                  }
+              ],
+    "note":  "All assigned baseline lines inspected. Account heading/branding delta reread with git diff during parent edits. Hashes record current working-tree state at report creation and are not a claim of runtime acceptance."
+}

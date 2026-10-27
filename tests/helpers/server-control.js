@@ -369,5 +369,6 @@ async function startServer(options = {}) {
 
 module.exports = {
     delay,
+    request,
     startServer
 };

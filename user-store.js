@@ -3,6 +3,7 @@ const fsPromises = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { sanitizeUserText, normalizeEmail, normalizeAvatarColor } = require('./services/auth');
+const { sanitizeDelivery } = require('./services/auth/recovery-delivery');
 
 const SAVE_DEBOUNCE_MS = 250;
 const DISPLAY_NAME_MAX_LENGTH = 20;
@@ -199,7 +200,8 @@ function sanitizeUser(raw = {}) {
             const record = raw.recovery?.[purpose];
             return record && /^[a-f0-9]{64}$/.test(record.hash) && Number.isSafeInteger(record.expiresAt)
                 && Number.isInteger(record.epoch) && record.email === email
-                ? [[purpose, { hash: record.hash, expiresAt: record.expiresAt, epoch: record.epoch, email }]] : [];
+                ? [[purpose, { hash: record.hash, expiresAt: record.expiresAt, epoch: record.epoch, email,
+                    ...(sanitizeDelivery(record.delivery) ? { delivery: sanitizeDelivery(record.delivery) } : {}) }]] : [];
         })),
         focusStats,
         streak: sanitizeStreak(raw.streak, focusStats),

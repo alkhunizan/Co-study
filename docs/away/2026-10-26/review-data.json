@@ -1,0 +1,272 @@
+{
+  "generatedAt": "2026-10-26T18:36:17.198Z",
+  "records": [
+    {
+      "id": "A00",
+      "title": "Future timezone coverage",
+      "code": "a85fb87",
+      "description": "The scheduling test selects a future London daylight-saving transition while retaining the real future-date guard.",
+      "runtime": "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A00",
+      "label": "a00-final-browser",
+      "counts": {
+        "passed": 78,
+        "failed": 1,
+        "skipped": 1,
+        "notRun": 4
+      },
+      "appIsolation": {
+        "item": "A00",
+        "label": "a00-app-isolated",
+        "started": "2026-10-26T21:21:21.6881966+03:00",
+        "finished": "2026-10-26T21:22:16.2537950+03:00",
+        "exitCode": 0,
+        "counts": {
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "notRun": 0
+        },
+        "remaining": null,
+        "sourceStable": true,
+        "manifest": "a11e3e387f282d70e78526701547f6aaef577fcd354de8e5de6a9177c9f9b204",
+        "headBefore": "a16881856c37b3b324d07f97f7444af75957b065",
+        "headAfter": "a16881856c37b3b324d07f97f7444af75957b065"
+      },
+      "report": "branches/A00/A00/RESULT.md",
+      "images": []
+    },
+    {
+      "id": "A01",
+      "title": "Checklist state survives edits",
+      "code": "88ef3d2",
+      "description": "Reordering unchanged steps preserves completion. A rejected checkbox change returns to its confirmed state.",
+      "runtime": "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\repository",
+      "label": "a01-final-browser",
+      "counts": {
+        "passed": 86,
+        "failed": 1,
+        "skipped": 1,
+        "notRun": 0
+      },
+      "appIsolation": null,
+      "report": "branches/A01/A01-RESULT.md",
+      "images": [
+        {
+          "url": "branches/A01/evidence/a01-final-browser-results/planner-away.smoke-checkli-4843e-and-repeated-labels-ar-390-/checklist-ar-390.png",
+          "caption": "checklist ar 390"
+        },
+        {
+          "url": "branches/A01/evidence/a01-final-browser-results/planner-away.smoke-checkli-46193-nd-repeated-labels-en-1440-/checklist-en-1440.png",
+          "caption": "checklist en 1440"
+        }
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Retry the intended focus action",
+      "code": "bc7f2ec",
+      "description": "Retry repeats the failed Start or Pause and protects a newer session, including rapid queued input.",
+      "runtime": "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A02",
+      "label": "a02-final2-browser",
+      "counts": {
+        "passed": 85,
+        "failed": 2,
+        "skipped": 1,
+        "notRun": 4
+      },
+      "appIsolation": {
+        "item": "A02",
+        "label": "a02-app-isolated",
+        "started": "2026-10-26T21:23:01.7553762+03:00",
+        "finished": "2026-10-26T21:23:45.5595100+03:00",
+        "exitCode": 0,
+        "counts": {
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "notRun": 0
+        },
+        "remaining": null,
+        "sourceStable": true,
+        "manifest": "a9bff54e58249995ad39e480d8583a0f10b29ba3f92cd42e3fab8ae87c7604c6",
+        "headBefore": "81b2df5bf0b33918e6ab0fa5c28b734dce9e80fb",
+        "headAfter": "81b2df5bf0b33918e6ab0fa5c28b734dce9e80fb"
+      },
+      "report": "branches/A02/A02/CHECKPOINT.md",
+      "images": [
+        {
+          "url": "branches/A02/evidence/a02-final2-browser-results/focus-recovery-away.smoke--99b93-d-start-and-pause-ar-390px-/pause-recovered-ar-390.png",
+          "caption": "pause recovered ar 390"
+        },
+        {
+          "url": "branches/A02/evidence/a02-final2-browser-results/focus-recovery-away.smoke--a1b68--start-and-pause-en-1440px-/pause-recovered-en-1440.png",
+          "caption": "pause recovered en 1440"
+        }
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "Keep workspace responses in order",
+      "code": "eceecdd",
+      "description": "Late refreshes cannot replace newer room data or a newly started focus session. Schedule room choices survive translation.",
+      "runtime": "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A03",
+      "label": "a03-final-browser",
+      "counts": {
+        "passed": 90,
+        "failed": 1,
+        "skipped": 1,
+        "notRun": 0
+      },
+      "appIsolation": null,
+      "report": "branches/A03/A03/RESULT.md",
+      "images": [
+        {
+          "url": "branches/A03/evidence/a03-final-browser-results/workspace-away-refresh.smo-c6801-w-and-retries-ar-390-light-/active-view-error.png",
+          "caption": "active view error"
+        },
+        {
+          "url": "branches/A03/evidence/a03-final-browser-results/workspace-away-refresh.smo-67ed0--and-retries-en-1440-light-/active-view-error.png",
+          "caption": "active view error"
+        }
+      ]
+    },
+    {
+      "id": "A04",
+      "title": "Truthful planner feedback",
+      "code": "7a1a11f",
+      "description": "A saved item with a failed refresh is reported accurately. Draft errors translate, and obsolete results cannot overwrite newer feedback.",
+      "runtime": "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A04",
+      "label": "a04-final-browser",
+      "counts": {
+        "passed": 85,
+        "failed": 2,
+        "skipped": 1,
+        "notRun": 4
+      },
+      "appIsolation": {
+        "item": "A04",
+        "label": "a04-app-isolated",
+        "started": "2026-10-26T21:22:16.5820323+03:00",
+        "finished": "2026-10-26T21:23:01.4537540+03:00",
+        "exitCode": 0,
+        "counts": {
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "notRun": 0
+        },
+        "remaining": null,
+        "sourceStable": true,
+        "manifest": "1725dea00f96338555109c2c40d67dff77b73d528ad7ad3f17e64c7efb56c461",
+        "headBefore": "bb9784b97334e15aca55b01cdeda794da964e060",
+        "headAfter": "bb9784b97334e15aca55b01cdeda794da964e060"
+      },
+      "report": "branches/A04/A04/RESULT.md",
+      "images": [
+        {
+          "url": "branches/A04/evidence/a04-final-browser-results/planner-feedback-away.smok-41841-the-language-switch-ar-390-/translated-error-en-390.png",
+          "caption": "translated error en 390"
+        },
+        {
+          "url": "branches/A04/evidence/a04-final-browser-results/planner-feedback-away.smok-4860f-he-language-switch-en-1440-/translated-error-ar-1440.png",
+          "caption": "translated error ar 1440"
+        }
+      ]
+    },
+    {
+      "id": "A11",
+      "title": "Keep guided focus recoverable",
+      "code": "19c4c5b",
+      "description": "A failed task attachment leaves the acknowledged focus session controllable and recoverable through retry and reload.",
+      "runtime": "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A11",
+      "label": "a11-final-browser",
+      "counts": {
+        "passed": 81,
+        "failed": 2,
+        "skipped": 1,
+        "notRun": 4
+      },
+      "appIsolation": {
+        "item": "A11",
+        "label": "a11-app-isolated",
+        "started": "2026-10-26T21:23:45.9065374+03:00",
+        "finished": "2026-10-26T21:24:32.0700819+03:00",
+        "exitCode": 0,
+        "counts": {
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "notRun": 0
+        },
+        "remaining": null,
+        "sourceStable": true,
+        "manifest": "d7620e77ad1530b72e00155f9f1e0bb9defee4db13f89f93511e06ecb4e36700",
+        "headBefore": "f167dce68ba4cb650f1d0d7c109f2c14c638ef06",
+        "headAfter": "f167dce68ba4cb650f1d0d7c109f2c14c638ef06"
+      },
+      "report": "branches/A11/A11/RESULT.md",
+      "images": [
+        {
+          "url": "branches/A11/evidence/a11-final-browser-results/guide-recovery-away.smoke--f5fd9-en-attachment-fails-ar-390-/guide-link-error-ar-390.png",
+          "caption": "guide link error ar 390"
+        },
+        {
+          "url": "branches/A11/evidence/a11-final-browser-results/guide-recovery-away.smoke--47cd2-n-attachment-fails-en-1440-/guide-link-error-en-1440.png",
+          "caption": "guide link error en 1440"
+        }
+      ]
+    },
+    {
+      "id": "A12",
+      "title": "Finish the newly started session",
+      "code": "0a8b1a0",
+      "description": "An acknowledged new session retires the older completion retry. A failed Start preserves that retry.",
+      "runtime": "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A12",
+      "label": "a12-final-browser",
+      "counts": {
+        "passed": 88,
+        "failed": 1,
+        "skipped": 1,
+        "notRun": 0
+      },
+      "appIsolation": null,
+      "report": "branches/A12/A12/CHECKPOINT.md",
+      "images": [
+        {
+          "url": "branches/A12/evidence/a12-final-browser-results/focus-completion-away.smok-bdc9f--older-completion-ar-390px-/finished-new-ar-390.png",
+          "caption": "finished new ar 390"
+        },
+        {
+          "url": "branches/A12/evidence/a12-final-browser-results/focus-completion-away.smok-39d10-older-completion-en-1440px-/finished-new-en-1440.png",
+          "caption": "finished new en 1440"
+        }
+      ]
+    },
+    {
+      "id": "A13",
+      "title": "Recover circle feedback",
+      "code": "35cf9ba",
+      "description": "A failed circle refresh offers a localized retry with the draft retained. Recovery clears the old error, and delayed feedback stays with its originating view.",
+      "runtime": "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A13",
+      "label": "a13-final-browser",
+      "counts": {
+        "passed": 94,
+        "failed": 1,
+        "skipped": 1,
+        "notRun": 0
+      },
+      "appIsolation": null,
+      "report": "branches/A13/A13/RESULT.md",
+      "images": [
+        {
+          "url": "branches/A13/evidence/a13-final-browser-results/circle-feedback-away.smoke-7e3e5-back-after-recovery-ar-390-/view-retry-recovered.png",
+          "caption": "view retry recovered"
+        },
+        {
+          "url": "branches/A13/evidence/a13-final-browser-results/circle-feedback-away.smoke-010e0--draft-and-retries-en-1440-/circle-refresh-error.png",
+          "caption": "circle refresh error"
+        }
+      ]
+    }
+  ]
+}

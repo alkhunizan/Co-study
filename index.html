@@ -633,7 +633,7 @@
 </div>
 
 <header>
-    <a href="/" class="logo" aria-label="Halastudy home" style="text-decoration:none;color:inherit;">
+    <a href="/" class="logo" style="text-decoration:none;color:inherit;">
         <span class="logo-mark" aria-hidden="true">H</span>
         <span class="logo-word">Hala<em>study</em></span>
     </a>
@@ -1001,6 +1001,7 @@
             cameraPermissionHelp: 'Camera access is blocked. Allow it in your browser site settings, then try again. You can keep studying without it.',
             cameraDeviceHelp: 'No camera was found. Connect a camera and try again, or continue without one.',
             cameraBusyHelp: 'The camera may be in use. Close the other camera app and try again, or keep studying without it.',
+            cameraStoppedHelp: 'The camera stopped. Reconnect it and try again, or continue studying without it.',
             cameraGenericHelp: 'The camera could not start. Try again or continue your session without it.',
             cameraBrowserHelp: 'Camera access is unavailable in this browser. Continue studying, or open the room in a supported browser using HTTPS.',
             cameraRetry: 'Try camera again', cameraContinue: 'Continue without camera',
@@ -1183,6 +1184,7 @@
             cameraPermissionHelp: 'إذن الكاميرا مغلق. اسمح به من إعدادات الموقع في متصفحك، ثم أعد المحاولة. تقدر تكمل المذاكرة بدونها.',
             cameraDeviceHelp: 'لم نعثر على كاميرا. وصّل كاميرا وأعد المحاولة، أو أكمل بدونها.',
             cameraBusyHelp: 'قد تكون الكاميرا مستخدمة في تطبيق آخر. أغلقه وأعد المحاولة، أو أكمل المذاكرة بدونها.',
+            cameraStoppedHelp: 'توقفت الكاميرا. أعد توصيلها وحاول مرة أخرى، أو أكمل المذاكرة بدونها.',
             cameraGenericHelp: 'لم تعمل الكاميرا. أعد المحاولة أو أكمل جلستك بدونها.',
             cameraBrowserHelp: 'الكاميرا غير متاحة في هذا المتصفح. أكمل المذاكرة، أو افتح الغرفة في متصفح يدعمها عبر HTTPS.',
             cameraRetry: 'جرّب الكاميرا مجددًا', cameraContinue: 'أكمل بدون كاميرا',
@@ -4224,7 +4226,7 @@
             room: roomCode,
             name: displayName || '',
             audio: 'false',
-            video: 'true',
+            video: 'false',
             screen: 'false',
             chat: 'false',
             hide: 'false',
@@ -4283,7 +4285,11 @@
                 audio: false
             });
             rawStream.getVideoTracks().forEach(track => {
-                track.onended = () => disableCamera();
+                track.onended = () => {
+                    if (!rawStream?.getVideoTracks().includes(track)) return;
+                    disableCamera();
+                    showCameraHelp('cameraStoppedHelp');
+                };
             });
             if (blurEnabled) {
                 localStream = await requireBlurredStream(rawStream);

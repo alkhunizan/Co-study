@@ -1,0 +1,64 @@
+{
+  "name": "Close the mobile menu after switching to English",
+  "viewport": "mobile",
+  "completed": false,
+  "failedAt": 4,
+  "steps": 4,
+  "totalMs": 21129,
+  "slowSteps": [
+    2,
+    3,
+    4
+  ],
+  "errors": [],
+  "log": [
+    {
+      "n": 1,
+      "step": {
+        "goto": "https://halastudy.com/"
+      },
+      "ok": true,
+      "ms": 2892,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\english-menu-close-mobile\\step-01.png"
+    },
+    {
+      "n": 2,
+      "step": {
+        "click": "القائمة"
+      },
+      "ok": true,
+      "targetSize": "44x44",
+      "ms": 4109,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\english-menu-close-mobile\\step-02.png"
+    },
+    {
+      "n": 3,
+      "step": {
+        "click": "EN"
+      },
+      "ok": true,
+      "targetSize": "40x44",
+      "ms": 4095,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\english-menu-close-mobile\\step-03.png"
+    },
+    {
+      "n": 4,
+      "step": {
+        "click": "css=#nav-burger"
+      },
+      "ok": false,
+      "targetSize": "44x44",
+      "error": "locator.click: Timeout 10000ms exceeded.",
+      "ms": 10033,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\english-menu-close-mobile\\step-04.png"
+    }
+  ]
+}

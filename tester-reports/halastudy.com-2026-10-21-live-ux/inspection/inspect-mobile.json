@@ -1,0 +1,105 @@
+{
+  "url": "https://halastudy.com/",
+  "title": "هلاستدي | غرفة هادية. مفتوحة طول الليل.",
+  "headings": [
+    "H1: ادخل. الكاميرا شغّالة. اشتغل مع غيرك.",
+    "H2: الوجود أقوى من العزيمة.",
+    "H3: ما انت لحالك على المكتب",
+    "H3: هادية بالتصميم",
+    "H3: مبنية لنا",
+    "H3: بدون حاجز، بدون تكلفة",
+    "H2: ثلاث خطوات. بدون تسجيل.",
+    "H3: افتح غرفة",
+    "H3: الكاميرا شغّالة، المايك مقفول",
+    "H3: اقعد لين يرنّ المنبه",
+    "H2: مذاكرة بصمت واحد.",
+    "H2: مصباح واحد شغّال الساعة ١. انت مو لحالك."
+  ],
+  "interactive": [
+    {
+      "tag": "a",
+      "name": "Halastudy home",
+      "href": "/",
+      "aboveFold": true,
+      "y": 24
+    },
+    {
+      "tag": "a",
+      "name": "تسجيل الدخول",
+      "href": "/account.html",
+      "aboveFold": true,
+      "y": 30
+    },
+    {
+      "tag": "button",
+      "type": "button",
+      "name": "القائمة",
+      "aboveFold": true,
+      "y": 18
+    },
+    {
+      "tag": "a",
+      "name": "افتح غرفة →",
+      "href": "/open.html",
+      "aboveFold": false,
+      "y": 952
+    },
+    {
+      "tag": "a",
+      "name": "شوف اللي شغّال",
+      "href": "/open.html#join",
+      "aboveFold": false,
+      "y": 952
+    },
+    {
+      "tag": "a",
+      "name": "افتح غرفة →",
+      "href": "/open.html",
+      "aboveFold": false,
+      "y": 5325
+    },
+    {
+      "tag": "a",
+      "name": "المدونة",
+      "href": "/blog",
+      "aboveFold": false,
+      "y": 5740
+    },
+    {
+      "tag": "a",
+      "name": "الخصوصية",
+      "href": "/privacy",
+      "aboveFold": false,
+      "y": 5740
+    },
+    {
+      "tag": "a",
+      "name": "الشروط",
+      "href": "/terms",
+      "aboveFold": false,
+      "y": 5740
+    },
+    {
+      "tag": "a",
+      "name": "دعوة واتساب",
+      "href": "https://wa.me/?text=%D8%AC%D8%B1%D9%91%D8%A8%20%D9%87%D9%84%D8%A7%D8%B3%D8%AA%D8%AF%D9%8A%20%E2%80%94%20%D8%BA%D8%B1%D9%81%20%D8%AA%D8%B1%D9%83%D9%8A%D8%B2%20%D9%87%D8%A7%D8%AF%D9%8A%D8%A9%20%D9%84%D9%84%D9%85%D8%B0%D8%A7%D9%83%D8%B1%D8%A9%20%D9%88%D8%A7%D9%84%D8%B9%D9%85%D9%84%0Ahttps%3A%2F%2Fhalastudy.com",
+      "aboveFold": false,
+      "y": 5740
+    },
+    {
+      "tag": "a",
+      "name": "info@halastudy.com",
+      "href": "mailto:info@halastudy.com",
+      "aboveFold": false,
+      "y": 5784
+    },
+    {
+      "tag": "a",
+      "name": "+966 59 916 1315",
+      "href": "tel:+966599161315",
+      "aboveFold": false,
+      "y": 5784
+    }
+  ],
+  "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\inspection\\inspect-mobile.png"
+}

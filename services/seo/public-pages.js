@@ -79,7 +79,7 @@ function renderPage(page, pages) {
         html = html.replace(/<section lang="(ar|en)"[^>]*>[\s\S]*?<\/section>/g,
             (section, lang) => lang === page.lang ? section : '').replace(/<hr[^>]*class="lang-divider"[^>]*>/g, '');
         html = html.replace(/<header class="topbar">[\s\S]*?<\/header>/, `<header class="topbar">
-<a class="legal-brand" href="${home}" aria-label="Halastudy home"><bdi>Halastudy</bdi></a>
+<a class="legal-brand" href="${home}"><bdi>Halastudy</bdi></a>
 <nav aria-label="${english ? 'Page navigation' : 'التنقل'}"><a href="/open">${english ? 'Open a room' : 'افتح غرفة'}</a>
 <div class="lang-switch" role="group" aria-label="${english ? 'Language' : 'اللغة'}"><button type="button" data-lang-value="ar" lang="ar">عربي</button><button type="button" data-lang-value="en" lang="en">EN</button></div>
 <button type="button" id="theme-toggle" aria-label="${english ? 'Toggle theme' : 'تبديل المظهر'}">◐</button></nav></header>`);
@@ -124,7 +124,10 @@ ${page.image.includes('/images/og/') ? '<meta property="og:image:width" content=
     html = html.replace(/href="\/(open|account|lobby)\.html/g, 'href="/$1');
     const contactLinks = `<a href="${contact}">${english ? 'Contact us' : 'تواصل معنا'}</a>
 <a href="https://wa.me/966599161315" target="_blank" rel="noopener">${english ? 'WhatsApp support' : 'تواصل عبر واتساب'}</a>`;
-    html = html.replace('</footer>', `${contactLinks}\n</footer>`);
+    const footer = html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/i)?.[0] || '';
+    const supportEmail = footer.includes('href="mailto:info@halastudy.com"') ? ''
+        : '<a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>';
+    html = html.replace('</footer>', `${contactLinks}\n${supportEmail}\n</footer>`);
     if (page.kind === 'article') {
         html = html.replace(/<div class="table-wrap">/g,
             '<div class="table-wrap" tabindex="0" role="region" aria-label="جدول المقارنة">');

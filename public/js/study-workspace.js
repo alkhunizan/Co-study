@@ -20,6 +20,7 @@
     };
     const number = (value) => Number(value).toLocaleString(core.getLang() === 'ar' ? 'ar-SA' : 'en-US');
     const date = (value) => g.HalaSchedule.format(value, core.getLang());
+    const obsolete = Symbol('obsolete-study-response');
     let owner = null,
         data = null,
         agenda = [],
@@ -54,6 +55,8 @@
     retry.hidden = true;
     status.after(retry);
     function message(key, error = false) {
+        if (key) status.setAttribute('data-lang', key);
+        else status.removeAttribute('data-lang');
         status.textContent = key ? t(key) : '';
         status.hidden = !key;
         status.classList.toggle('error', error);
@@ -110,7 +113,7 @@
         form.querySelector('.study-fields').append(wrap);
         return input;
     }
-    function form(parent, id, key, action) {
+    function form(parent, id, key, action, successKey = 'studySaved') {
         const f = n('form', '', 'form-grid');
         f.id = id;
         f.append(n('div', '', 'study-fields'));
@@ -120,8 +123,9 @@
         f.addEventListener('submit', (e) => {
             e.preventDefault();
             void work(b, async () => {
-                await action(Object.fromEntries(new FormData(f)), f);
-                message('studySaved');
+                const refreshed = await action(Object.fromEntries(new FormData(f)), f);
+                if (refreshed !== obsolete)
+                    message(refreshed === false ? 'studySavedRefreshFailed' : successKey, refreshed === false);
             });
         });
         parent.append(f);
@@ -171,6 +175,7 @@
     }
     const nav = n('div', '', 'study-tabs');
     nav.setAttribute('aria-label', t('planStudy'));
+    nav.setAttribute('data-lang-aria', 'planStudy');
     root.append(nav);
     for (const [key, label] of Object.entries({
         tasks: 'tasksTab',
@@ -206,12 +211,22 @@
             .split(/\r?\n/)
             .map((s) => s.trim())
             .filter(Boolean);
-        const steps = lines.map((text, i) => {
-            const previous = editing?.steps[i];
+        const remaining = [...(editing?.steps || [])];
+        const usedIds = new Set(remaining.map((step) => step.id));
+        let sequence = 0;
+        const steps = lines.map((text) => {
+            const index = remaining.findIndex((step) => step.text === text);
+            const previous = index < 0 ? null : remaining.splice(index, 1)[0];
+            let id = previous?.id;
+            if (!id) {
+                // The form key keeps newly inserted steps stable after a lost response.
+                do { id = `${requestId(f)}-${sequence++}`; } while (usedIds.has(id));
+                usedIds.add(id);
+            }
             return {
-                id: String(i + 1),
+                id,
                 text,
-                done: previous?.text === text ? previous.done : false,
+                done: previous?.done || false,
             };
         });
         const payload = { ...values, steps, project_id: values.project_id || null };
@@ -226,7 +241,7 @@
         taskForm.querySelector('button[type=submit]').setAttribute('data-lang', 'addTask');
         taskForm.querySelector('button[type=submit]').textContent = t('addTask');
         cancelEdit.hidden = true;
-        await load();
+        return load();
     });
     const taskTitle = field(taskForm, 'taskTitle', 'title');
     taskTitle.required = true;
@@ -293,7 +308,7 @@
     const projectForm = form(projects, 'study-project', 'addProject', async (values, f) => {
         await api('POST', '/projects', { ...values, requestId: requestId(f) });
         resetForm(f);
-        await load();
+        return load();
     });
     const projectName = field(projectForm, 'projectName', 'name');
     projectName.maxLength = 60;
@@ -309,7 +324,7 @@
             requestId: requestId(f),
         });
         resetForm(f);
-        await load();
+        return load();
     });
     const thought = field(thoughtForm, 'thought', 'text', 'textarea');
     thought.maxLength = 500;
@@ -392,14 +407,19 @@
                         check.addEventListener(
                             'change',
                             () =>
-                                void work(check, () =>
-                                    patch('tasks', task, {
-                                        steps: task.steps.map((s) => ({
-                                            ...s,
-                                            done: s.id === step.id ? check.checked : s.done,
-                                        })),
-                                    }),
-                                ),
+                                void work(check, async () => {
+                                    try {
+                                        await patch('tasks', task, {
+                                            steps: task.steps.map((s) => ({
+                                                ...s,
+                                                done: s.id === step.id ? check.checked : s.done,
+                                            })),
+                                        });
+                                    } catch (error) {
+                                        check.checked = step.done;
+                                        throw error;
+                                    }
+                                }),
                         );
                     }
                     e.querySelector('.row-main').append(ul);
@@ -439,7 +459,7 @@
     const routineForm = form(routinesSection, 'study-routine', 'addRoutine', async (values, f) => {
         await api('POST', '/routines', { ...values, requestId: requestId(f) });
         resetForm(f);
-        await load();
+        return load();
     });
     const routineName = field(routineForm, 'routineName', 'name');
     routineName.maxLength = 60;
@@ -568,6 +588,14 @@
             renderFocus();
         }
     }
+    async function startGuidedFocus() {
+        const session = await g.HalaFocus.start();
+        // Starting focus and attaching its task are separate server operations.
+        routine.sessionId = session.id;
+        routine = g.HalaRoutine.transition(routine, 'start', Date.now());
+        storeRoutine();
+        await bindFocus(session.id);
+    }
     async function routineAction(action) {
         if (!routine || routineBusy) return;
         routineBusy = true;
@@ -584,11 +612,8 @@
             if (action === 'start') {
                 if (routine.phase === 'focus') {
                     if (routine.status === 'ready' && activeFocus()) throw { code: 'routineBusy' };
-                    const session = await g.HalaFocus.start();
-                    await bindFocus(session.id);
-                    routine.sessionId = session.id;
-                }
-                routine = g.HalaRoutine.transition(routine, 'start', Date.now());
+                    await startGuidedFocus();
+                } else routine = g.HalaRoutine.transition(routine, 'start', Date.now());
             } else if (action === 'pause') {
                 if (routine.phase === 'focus' && current?.id === routine.sessionId && current.state === 'active')
                     await g.HalaFocus.pause();
@@ -598,10 +623,7 @@
                     await g.HalaFocus.complete();
                 routine = g.HalaRoutine.transition(routine, 'next', Date.now());
                 if (routine.phase === 'focus' && routine.status === 'ready') {
-                    const session = await g.HalaFocus.start();
-                    await bindFocus(session.id);
-                    routine.sessionId = session.id;
-                    routine = g.HalaRoutine.transition(routine, 'start', Date.now());
+                    await startGuidedFocus();
                 }
                 await g.HalaPlatform.refresh();
             } else if (action === 'stop') {
@@ -610,10 +632,10 @@
                 routine = null;
                 focusRoutine.value = '';
             }
-            storeRoutine();
-            renderGuide();
         } finally {
             routineBusy = false;
+            storeRoutine();
+            renderGuide();
         }
     }
     function renderGuide() {
@@ -690,7 +712,13 @@
             version: reflectionVersion,
         });
         reflectionRoot.hidden = true;
-        await loadJournal();
+        try {
+            return await loadJournal();
+        } catch (error) {
+            failure(error);
+            retry.hidden = false;
+            return false;
+        }
     });
     field(reflectionForm, 'outcome', 'outcome', 'text', 'partial', [
         ['done', 'done'],
@@ -713,7 +741,7 @@
     const bookmarkForm = form(favorites, 'study-bookmark', 'saveRoom', async (values, f) => {
         await api('POST', '/bookmarks', { roomId: String(values.roomId).trim() });
         resetForm(f);
-        await load();
+        return load();
     });
     const roomId = field(bookmarkForm, 'roomCode', 'roomId');
     roomId.required = true;
@@ -735,11 +763,12 @@
     const reminders = section(sections.agenda, 'remindersTitle');
     reminders.append(tr('p', 'reminderHint', 'note'));
     const reminderForm = form(reminders, 'study-reminders', 'savePreferences', async (values, f) => {
-        await savePreferences({
+        const refreshed = await savePreferences({
             reminders: values.reminders === 'on',
             reminder_minutes: Number(values.reminder_minutes),
         });
         delete f.dataset.dirty;
+        return refreshed;
     });
     const reminderOn = field(reminderForm, 'remindersOn', 'reminders', 'checkbox');
     reminderOn.parentElement.className = 'study-check';
@@ -775,11 +804,12 @@
     const targetSection = section(insightsSection, 'goalsTitle');
     targetSection.append(tr('p', 'goalsHint', 'note'));
     const targetForm = form(targetSection, 'study-targets', 'savePreferences', async (values, f) => {
-        await savePreferences({
+        const refreshed = await savePreferences({
             daily_target: Number(values.daily_target),
             weekly_target: Number(values.weekly_target),
         });
         delete f.dataset.dirty;
+        return refreshed;
     });
     for (const [key, name, max] of [
         ['dailyTarget', 'daily_target', 240],
@@ -799,7 +829,7 @@
             ...data.preferences,
             ...changes,
         });
-        await load();
+        return load();
     }
     const insightNumbers = n('div', '', 'metrics'),
         targetBars = n('div'),
@@ -811,7 +841,7 @@
     const journalSection = section(sections.insights, 'journalTitle');
     const historyLimit = n('p', '', 'note');
     journalSection.append(historyLimit);
-    const journalForm = form(journalSection, 'study-journal', 'journalSearch', async () => loadJournal());
+    const journalForm = form(journalSection, 'study-journal', 'journalSearch', async () => loadJournal(), '');
     const search = field(journalForm, 'searchJournal', 'q', 'search');
     search.maxLength = 80;
     field(journalForm, 'fromDate', 'from', 'date');
@@ -841,12 +871,19 @@
             params = new URLSearchParams();
         for (const [k, v] of new FormData(journalForm)) if (String(v)) params.set(k, String(v));
         if (append && next) for (const [k, v] of Object.entries(next)) params.set(k, String(v));
-        const result = await api('GET', `/journal?${params}`);
-        if (request !== journalRequest || owner !== account) return;
+        let result;
+        try {
+            result = await api('GET', `/journal?${params}`);
+        } catch (error) {
+            if (request !== journalRequest || owner !== account) return obsolete;
+            throw error;
+        }
+        if (request !== journalRequest || owner !== account) return obsolete;
         journal = append ? [...journal, ...result.sessions] : result.sessions;
         next = result.next;
         historyLimit.textContent = `${t('historyLimit')}: ${number(result.historyDays)}`;
         renderJournal();
+        return true;
     }
     function renderJournal() {
         rows(
@@ -1005,7 +1042,7 @@
         if (!user) {
             owner = null;
             data = null;
-            return;
+            return obsolete;
         }
         const request = ++loadRequest;
         busy = true;
@@ -1018,7 +1055,7 @@
                 api('GET', '/bookmarks'),
                 api('GET', '/insights'),
             ]);
-            if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id) return;
+            if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id) return obsolete;
             const changed = owner !== user.id;
             owner = user.id;
             [data, { sessions: agenda }, { bookmarks: saved }, insights] = results;
@@ -1028,13 +1065,16 @@
                 restoreRoutine();
             }
             render();
-            await loadJournal();
+            const journalResult = await loadJournal();
+            if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id || journalResult === obsolete)
+                return obsolete;
             message('');
+            return true;
         } catch (error) {
-            if (request === loadRequest) {
-                failure(error);
-                retry.hidden = false;
-            }
+            if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id) return obsolete;
+            failure(error);
+            retry.hidden = false;
+            return false;
         } finally {
             if (request === loadRequest) busy = false;
         }
@@ -1051,12 +1091,12 @@
         const request = ++resourceRequest;
         circle = selected;
         resourcesRoot.replaceChildren();
-        if (!circle) return;
+        if (!circle) return obsolete;
         const circleId = circle.id;
         resourcesRoot.append(tr('h3', 'resourcesTitle'), tr('p', 'resourcesHint', 'note'));
         try {
             const result = await api('GET', `/circles/${circleId}/resources`);
-            if (request !== resourceRequest || circle?.id !== circleId) return;
+            if (request !== resourceRequest || circle?.id !== circleId) return obsolete;
             const list = n('div');
             list.id = 'study-resource-list';
             resourcesRoot.append(list);
@@ -1088,7 +1128,7 @@
                     });
                     resetForm(f);
                     resourceDraft = null;
-                    await loadResources(circle);
+                    return loadResources(circle);
                 });
                 const title = field(f, 'resourceTitle', 'title');
                 title.required = true;
@@ -1105,14 +1145,15 @@
                     if (resourceDraft.requestId) f.dataset.request = resourceDraft.requestId;
                 }
             }
+            return true;
         } catch (error) {
-            if (request === resourceRequest) {
-                resourcesRoot.append(
-                    empty('studyUnavailable'),
-                    btn('studyRetry', () => loadResources(circle)),
-                );
-                failure(error);
-            }
+            if (request !== resourceRequest || circle?.id !== circleId) return obsolete;
+            resourcesRoot.append(
+                empty('studyUnavailable'),
+                btn('studyRetry', () => loadResources(circle)),
+            );
+            failure(error);
+            return false;
         }
     }
     const notified = new Set();
@@ -1217,8 +1258,13 @@
         }
         if (event.key === reminderBanner.dataset.key) reminderBanner.hidden = true;
     });
+    let platformSnapshot = null;
     window.addEventListener('halaplatformcontext', () => {
-        if (!busy) void load();
+        const context = g.HalaPlatform.context();
+        const changed = context.state !== platformSnapshot || context.user?.id !== owner;
+        platformSnapshot = context.state;
+        // A language-only render must not clear feedback from a failed save.
+        if (!busy && (changed || !data)) void load();
     });
     window.addEventListener('halastudyrefresh', () => {
         if (!busy) void load();

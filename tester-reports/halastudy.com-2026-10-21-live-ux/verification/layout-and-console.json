@@ -1,0 +1,577 @@
+{
+  "target": "https://halastudy.com",
+  "checks": [],
+  "homeIdle": {
+    "shifts": [
+      {
+        "value": 0.028765198005079734,
+        "recent": false,
+        "time": 1237.3999999985099,
+        "sources": [
+          {
+            "before": {
+              "x": 668.3125,
+              "y": 369.953125,
+              "width": 641.6875,
+              "height": 133,
+              "top": 369.953125,
+              "right": 1310,
+              "bottom": 502.953125,
+              "left": 668.3125
+            },
+            "after": {
+              "x": 668.3125,
+              "y": 345.953125,
+              "width": 641.6875,
+              "height": 133,
+              "top": 345.953125,
+              "right": 1310,
+              "bottom": 478.953125,
+              "left": 668.3125
+            }
+          },
+          {
+            "before": {
+              "x": 668.3125,
+              "y": 282.5625,
+              "width": 641.6875,
+              "height": 133,
+              "top": 282.5625,
+              "right": 1310,
+              "bottom": 415.5625,
+              "left": 668.3125
+            },
+            "after": {
+              "x": 668.3125,
+              "y": 258.5625,
+              "width": 641.6875,
+              "height": 133,
+              "top": 258.5625,
+              "right": 1310,
+              "bottom": 391.5625,
+              "left": 668.3125
+            }
+          },
+          {
+            "node": "NAV",
+            "id": "",
+            "className": "nav-links",
+            "before": {
+              "x": 619.84375,
+              "y": 29,
+              "width": 352.359375,
+              "height": 21,
+              "top": 29,
+              "right": 972.203125,
+              "bottom": 50,
+              "left": 619.84375
+            },
+            "after": {
+              "x": 627.109375,
+              "y": 29,
+              "width": 364.25,
+              "height": 21,
+              "top": 29,
+              "right": 991.359375,
+              "bottom": 50,
+              "left": 627.109375
+            }
+          },
+          {
+            "before": {
+              "x": 1272.546875,
+              "y": 27,
+              "width": 111.90625,
+              "height": 39,
+              "top": 27,
+              "right": 1384.453125,
+              "bottom": 66,
+              "left": 1272.546875
+            },
+            "after": {
+              "x": 1294.59375,
+              "y": 19.5,
+              "width": 91.3125,
+              "height": 39,
+              "top": 19.5,
+              "right": 1385.90625,
+              "bottom": 58.5,
+              "left": 1294.59375
+            }
+          },
+          {
+            "before": {
+              "x": 483.484375,
+              "y": 641.5,
+              "width": 92.515625,
+              "height": 27,
+              "top": 641.5,
+              "right": 576,
+              "bottom": 668.5,
+              "left": 483.484375
+            },
+            "after": {
+              "x": 482.859375,
+              "y": 635.5,
+              "width": 93.140625,
+              "height": 27,
+              "top": 635.5,
+              "right": 576,
+              "bottom": 662.5,
+              "left": 482.859375
+            }
+          }
+        ]
+      },
+      {
+        "value": 0.0015233748405885632,
+        "recent": false,
+        "time": 1271.8999999985099,
+        "sources": [
+          {
+            "before": {
+              "x": 668.3125,
+              "y": 258.5625,
+              "width": 641.6875,
+              "height": 133,
+              "top": 258.5625,
+              "right": 1310,
+              "bottom": 391.5625,
+              "left": 668.3125
+            },
+            "after": {
+              "x": 668.3125,
+              "y": 258.5625,
+              "width": 641.6875,
+              "height": 133,
+              "top": 258.5625,
+              "right": 1310,
+              "bottom": 391.5625,
+              "left": 668.3125
+            }
+          },
+          {
+            "node": "DIV",
+            "id": "",
+            "className": "lang-switch",
+            "before": {
+              "x": 203.625,
+              "y": 21.5,
+              "width": 74.71875,
+              "height": 36,
+              "top": 21.5,
+              "right": 278.34375,
+              "bottom": 57.5,
+              "left": 203.625
+            },
+            "after": {
+              "x": 210.609375,
+              "y": 21.5,
+              "width": 77.375,
+              "height": 36,
+              "top": 21.5,
+              "right": 287.984375,
+              "bottom": 57.5,
+              "left": 210.609375
+            }
+          },
+          {
+            "before": {
+              "x": 1294.59375,
+              "y": 19.5,
+              "width": 91.3125,
+              "height": 22,
+              "top": 19.5,
+              "right": 1385.90625,
+              "bottom": 41.5,
+              "left": 1294.59375
+            },
+            "after": {
+              "x": 1292.515625,
+              "y": 28.5,
+              "width": 93.390625,
+              "height": 22,
+              "top": 28.5,
+              "right": 1385.90625,
+              "bottom": 50.5,
+              "left": 1292.515625
+            }
+          },
+          {
+            "before": {
+              "x": 1032.9375,
+              "y": 578.9375,
+              "width": 103.640625,
+              "height": 19,
+              "top": 578.9375,
+              "right": 1136.578125,
+              "bottom": 597.9375,
+              "left": 1032.9375
+            },
+            "after": {
+              "x": 1015.875,
+              "y": 579.9375,
+              "width": 114,
+              "height": 19,
+              "top": 579.9375,
+              "right": 1129.875,
+              "bottom": 598.9375,
+              "left": 1015.875
+            }
+          },
+          {
+            "node": "A",
+            "id": "auth-entry",
+            "className": "topbar-link",
+            "before": {
+              "x": 288.34375,
+              "y": 29,
+              "width": 87.765625,
+              "height": 21,
+              "top": 29,
+              "right": 376.109375,
+              "bottom": 50,
+              "left": 288.34375
+            },
+            "after": {
+              "x": 297.984375,
+              "y": 29,
+              "width": 87.171875,
+              "height": 21,
+              "top": 29,
+              "right": 385.15625,
+              "bottom": 50,
+              "left": 297.984375
+            }
+          }
+        ]
+      }
+    ],
+    "errors": []
+  },
+  "homeAfterScroll": {
+    "shifts": [
+      {
+        "value": 0.028765198005079734,
+        "recent": false,
+        "time": 1237.3999999985099,
+        "sources": [
+          {
+            "before": {
+              "x": 668.3125,
+              "y": 369.953125,
+              "width": 641.6875,
+              "height": 133,
+              "top": 369.953125,
+              "right": 1310,
+              "bottom": 502.953125,
+              "left": 668.3125
+            },
+            "after": {
+              "x": 668.3125,
+              "y": 345.953125,
+              "width": 641.6875,
+              "height": 133,
+              "top": 345.953125,
+              "right": 1310,
+              "bottom": 478.953125,
+              "left": 668.3125
+            }
+          },
+          {
+            "before": {
+              "x": 668.3125,
+              "y": 282.5625,
+              "width": 641.6875,
+              "height": 133,
+              "top": 282.5625,
+              "right": 1310,
+              "bottom": 415.5625,
+              "left": 668.3125
+            },
+            "after": {
+              "x": 668.3125,
+              "y": 258.5625,
+              "width": 641.6875,
+              "height": 133,
+              "top": 258.5625,
+              "right": 1310,
+              "bottom": 391.5625,
+              "left": 668.3125
+            }
+          },
+          {
+            "node": "NAV",
+            "id": "",
+            "className": "nav-links",
+            "before": {
+              "x": 619.84375,
+              "y": 29,
+              "width": 352.359375,
+              "height": 21,
+              "top": 29,
+              "right": 972.203125,
+              "bottom": 50,
+              "left": 619.84375
+            },
+            "after": {
+              "x": 627.109375,
+              "y": 29,
+              "width": 364.25,
+              "height": 21,
+              "top": 29,
+              "right": 991.359375,
+              "bottom": 50,
+              "left": 627.109375
+            }
+          },
+          {
+            "before": {
+              "x": 1272.546875,
+              "y": 27,
+              "width": 111.90625,
+              "height": 39,
+              "top": 27,
+              "right": 1384.453125,
+              "bottom": 66,
+              "left": 1272.546875
+            },
+            "after": {
+              "x": 1294.59375,
+              "y": 19.5,
+              "width": 91.3125,
+              "height": 39,
+              "top": 19.5,
+              "right": 1385.90625,
+              "bottom": 58.5,
+              "left": 1294.59375
+            }
+          },
+          {
+            "before": {
+              "x": 483.484375,
+              "y": 641.5,
+              "width": 92.515625,
+              "height": 27,
+              "top": 641.5,
+              "right": 576,
+              "bottom": 668.5,
+              "left": 483.484375
+            },
+            "after": {
+              "x": 482.859375,
+              "y": 635.5,
+              "width": 93.140625,
+              "height": 27,
+              "top": 635.5,
+              "right": 576,
+              "bottom": 662.5,
+              "left": 482.859375
+            }
+          }
+        ]
+      },
+      {
+        "value": 0.0015233748405885632,
+        "recent": false,
+        "time": 1271.8999999985099,
+        "sources": [
+          {
+            "before": {
+              "x": 668.3125,
+              "y": 258.5625,
+              "width": 641.6875,
+              "height": 133,
+              "top": 258.5625,
+              "right": 1310,
+              "bottom": 391.5625,
+              "left": 668.3125
+            },
+            "after": {
+              "x": 668.3125,
+              "y": 258.5625,
+              "width": 641.6875,
+              "height": 133,
+              "top": 258.5625,
+              "right": 1310,
+              "bottom": 391.5625,
+              "left": 668.3125
+            }
+          },
+          {
+            "node": "DIV",
+            "id": "",
+            "className": "lang-switch",
+            "before": {
+              "x": 203.625,
+              "y": 21.5,
+              "width": 74.71875,
+              "height": 36,
+              "top": 21.5,
+              "right": 278.34375,
+              "bottom": 57.5,
+              "left": 203.625
+            },
+            "after": {
+              "x": 210.609375,
+              "y": 21.5,
+              "width": 77.375,
+              "height": 36,
+              "top": 21.5,
+              "right": 287.984375,
+              "bottom": 57.5,
+              "left": 210.609375
+            }
+          },
+          {
+            "before": {
+              "x": 1294.59375,
+              "y": 19.5,
+              "width": 91.3125,
+              "height": 22,
+              "top": 19.5,
+              "right": 1385.90625,
+              "bottom": 41.5,
+              "left": 1294.59375
+            },
+            "after": {
+              "x": 1292.515625,
+              "y": 28.5,
+              "width": 93.390625,
+              "height": 22,
+              "top": 28.5,
+              "right": 1385.90625,
+              "bottom": 50.5,
+              "left": 1292.515625
+            }
+          },
+          {
+            "before": {
+              "x": 1032.9375,
+              "y": 578.9375,
+              "width": 103.640625,
+              "height": 19,
+              "top": 578.9375,
+              "right": 1136.578125,
+              "bottom": 597.9375,
+              "left": 1032.9375
+            },
+            "after": {
+              "x": 1015.875,
+              "y": 579.9375,
+              "width": 114,
+              "height": 19,
+              "top": 579.9375,
+              "right": 1129.875,
+              "bottom": 598.9375,
+              "left": 1015.875
+            }
+          },
+          {
+            "node": "A",
+            "id": "auth-entry",
+            "className": "topbar-link",
+            "before": {
+              "x": 288.34375,
+              "y": 29,
+              "width": 87.765625,
+              "height": 21,
+              "top": 29,
+              "right": 376.109375,
+              "bottom": 50,
+              "left": 288.34375
+            },
+            "after": {
+              "x": 297.984375,
+              "y": 29,
+              "width": 87.171875,
+              "height": 21,
+              "top": 29,
+              "right": 385.15625,
+              "bottom": 50,
+              "left": 297.984375
+            }
+          }
+        ]
+      }
+    ],
+    "errors": []
+  },
+  "homeAxe": [
+    {
+      "id": "aria-required-children",
+      "impact": "critical",
+      "nodes": [
+        {
+          "target": [
+            ".lang-switch"
+          ],
+          "html": "<div class=\"lang-switch\" role=\"tablist\" aria-label=\"Language\">\n        <button type=\"button\" id=\"lang-en\" data-lang-value=\"en\">EN</button>\n        <button type=\"button\" id=\"lang-ar\" data-lang-value=\"ar\" class=\"is-on\">ع</button>\n      </div>",
+          "summary": "Fix any of the following:\n  Element has children which are not allowed: button"
+        }
+      ]
+    },
+    {
+      "id": "color-contrast",
+      "impact": "serious",
+      "nodes": [
+        {
+          "target": [
+            "span:nth-child(1) > em"
+          ],
+          "html": "<em>study</em>",
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.92 (foreground color: #a56b43, background color: #f5f2eb, font size: 16.5pt (22px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "span[data-i18n=\"member1Major\"]"
+          ],
+          "html": "<span class=\"community-major\" data-i18n=\"member1Major\">علوم الحاسب</span>",
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.92 (foreground color: #a56b43, background color: #f5f2eb, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "span[data-i18n=\"member2Major\"]"
+          ],
+          "html": "<span class=\"community-major\" data-i18n=\"member2Major\">إدارة أعمال</span>",
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.92 (foreground color: #a56b43, background color: #f5f2eb, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "span[data-i18n=\"member3Major\"]"
+          ],
+          "html": "<span class=\"community-major\" data-i18n=\"member3Major\">عمارة</span>",
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.92 (foreground color: #a56b43, background color: #f5f2eb, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+        }
+      ]
+    }
+  ],
+  "homeAfterAxe": {
+    "errors": [
+      {
+        "phase": "axe",
+        "text": "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap' violates the following Content Security Policy directive: \"connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com\". The action has been blocked."
+      },
+      {
+        "phase": "axe",
+        "text": "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap' violates the following Content Security Policy directive: \"connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com https://*.cloudflarestream.com wss://*.cloudflarestream.com\". The action has been blocked."
+      }
+    ]
+  },
+  "tables": [
+    {
+      "tabIndex": -1,
+      "role": null,
+      "clientWidth": 348,
+      "scrollWidth": 460,
+      "text": "احتياجك\tالخيار الأنسب\nتبي غرفة عربية صامتة للقدرات، التحصيلي، الجامعة، أو الثانوي\tHalastudy\nتبي مجتمع عالمي كبير ومفتوح 24/7\tStudyStream / Study Toget"
+    },
+    {
+      "tabIndex": -1,
+      "role": null,
+      "clientWidth": 348,
+      "scrollWidth": 460,
+      "text": "الخيار\tالأفضل فيه\tنقطة الضعف\nHalastudy\tعربي، صامت، مناسب للسعودية والخليج، قريب من اختبارات الطلاب\tيحتاج يبني المجتمع بسرعة لأنه جديد\nStudyStream / St"
+    }
+  ]
+}

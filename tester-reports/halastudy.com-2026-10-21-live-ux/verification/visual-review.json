@@ -1,0 +1,117 @@
+{
+  "review": "All 16 fold images reviewed; key full pages and all journey steps reviewed in contact sheets.",
+  "folds": [
+    {
+      "url": "https://halastudy.com/",
+      "view": "desktop",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\01-home-desktop-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/",
+      "view": "mobile",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\01-home-mobile-fold.png",
+      "reviewed": true,
+      "notes": "Purpose and main CTA below initial screen"
+    },
+    {
+      "url": "https://halastudy.com/blog",
+      "view": "desktop",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\02-blog-desktop-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/blog",
+      "view": "mobile",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\02-blog-mobile-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/account.html",
+      "view": "desktop",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\03-account_html-desktop-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/account.html",
+      "view": "mobile",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\03-account_html-mobile-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/open.html",
+      "view": "desktop",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\04-open_html-desktop-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/open.html",
+      "view": "mobile",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\04-open_html-mobile-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/privacy",
+      "view": "desktop",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\05-privacy-desktop-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/privacy",
+      "view": "mobile",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\05-privacy-mobile-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/terms",
+      "view": "desktop",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\06-terms-desktop-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/terms",
+      "view": "mobile",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\06-terms-mobile-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/blog/best-online-group-study-rooms-saudi",
+      "view": "desktop",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\07-blog_best_online_group_study_rooms_saudi-desktop-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/blog/best-online-group-study-rooms-saudi",
+      "view": "mobile",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\07-blog_best_online_group_study_rooms_saudi-mobile-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/blog/study-with-me-online-arabic",
+      "view": "desktop",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\08-blog_study_with_me_online_arabic-desktop-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    },
+    {
+      "url": "https://halastudy.com/blog/study-with-me-online-arabic",
+      "view": "mobile",
+      "fold": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\08-blog_study_with_me_online_arabic-mobile-fold.png",
+      "reviewed": true,
+      "notes": "Reviewed visual hierarchy, clipping, overlays and CTA context."
+    }
+  ]
+}

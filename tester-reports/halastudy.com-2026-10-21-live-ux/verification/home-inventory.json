@@ -1,0 +1,527 @@
+{
+  "slug": "home",
+  "status": 200,
+  "initial": {
+    "url": "https://halastudy.com/",
+    "title": "هلاستدي | غرفة هادية. مفتوحة طول الليل.",
+    "lang": "ar",
+    "dir": "rtl",
+    "width": 390,
+    "height": 664,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "scrollHeight": 5843,
+    "headings": [
+      {
+        "tag": "H1",
+        "id": "",
+        "text": "ادخل. الكاميرا شغّالة. اشتغل مع غيرك.",
+        "href": null,
+        "x": 20,
+        "y": 752.2,
+        "width": 350,
+        "height": 92,
+        "fontSize": "40px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H2",
+        "id": "",
+        "text": "الوجود أقوى من العزيمة.",
+        "href": null,
+        "x": 20,
+        "y": 1386.9,
+        "width": 350,
+        "height": 30.8,
+        "fontSize": "28px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H3",
+        "id": "",
+        "text": "ما انت لحالك على المكتب",
+        "href": null,
+        "x": 44,
+        "y": 1473.7,
+        "width": 326,
+        "height": 26.4,
+        "fontSize": "22px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H3",
+        "id": "",
+        "text": "هادية بالتصميم",
+        "href": null,
+        "x": 44,
+        "y": 1634.9,
+        "width": 326,
+        "height": 26.4,
+        "fontSize": "22px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H3",
+        "id": "",
+        "text": "مبنية لنا",
+        "href": null,
+        "x": 44,
+        "y": 1770.5,
+        "width": 326,
+        "height": 26.4,
+        "fontSize": "22px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H3",
+        "id": "",
+        "text": "بدون حاجز، بدون تكلفة",
+        "href": null,
+        "x": 44,
+        "y": 1906.1,
+        "width": 326,
+        "height": 26.4,
+        "fontSize": "22px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H2",
+        "id": "",
+        "text": "ثلاث خطوات. بدون تسجيل.",
+        "href": null,
+        "x": 20,
+        "y": 2315.9,
+        "width": 350,
+        "height": 30.8,
+        "fontSize": "28px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H3",
+        "id": "",
+        "text": "افتح غرفة",
+        "href": null,
+        "x": 44,
+        "y": 2455.7,
+        "width": 326,
+        "height": 26.4,
+        "fontSize": "22px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H3",
+        "id": "",
+        "text": "الكاميرا شغّالة، المايك مقفول",
+        "href": null,
+        "x": 44,
+        "y": 2644.3,
+        "width": 326,
+        "height": 26.4,
+        "fontSize": "22px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H3",
+        "id": "",
+        "text": "اقعد لين يرنّ المنبه",
+        "href": null,
+        "x": 44,
+        "y": 2832.8,
+        "width": 326,
+        "height": 26.4,
+        "fontSize": "22px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H2",
+        "id": "",
+        "text": "مذاكرة بصمت واحد.",
+        "href": null,
+        "x": 20,
+        "y": 3688.7,
+        "width": 350,
+        "height": 30.8,
+        "fontSize": "28px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "H2",
+        "id": "",
+        "text": "مصباح واحد شغّال الساعة ١. انت مو لحالك.",
+        "href": null,
+        "x": 20,
+        "y": 5156.9,
+        "width": 350,
+        "height": 61.6,
+        "fontSize": "28px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      }
+    ],
+    "controls": [
+      {
+        "tag": "A",
+        "id": "",
+        "type": "",
+        "text": "Halastudy home",
+        "href": "/",
+        "x": 278.5,
+        "y": 23.5,
+        "width": 91.5,
+        "height": 33,
+        "fontSize": "22px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "A",
+        "id": "auth-entry",
+        "type": "",
+        "text": "تسجيل الدخول",
+        "href": "/account.html",
+        "x": 72,
+        "y": 29.5,
+        "width": 87.2,
+        "height": 21,
+        "fontSize": "14px",
+        "color": "rgb(99, 110, 114)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "nav-burger",
+        "type": "button",
+        "text": "القائمة",
+        "href": null,
+        "x": 20,
+        "y": 18,
+        "width": 44,
+        "height": 44,
+        "fontSize": "13.3333px",
+        "color": "rgb(99, 110, 114)",
+        "background": "rgb(255, 255, 255)"
+      },
+      {
+        "tag": "A",
+        "id": "",
+        "type": "",
+        "text": "افتح غرفة →",
+        "href": "/open.html",
+        "x": 215.7,
+        "y": 951.8,
+        "width": 139.9,
+        "height": 52.5,
+        "fontSize": "15px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgb(224, 176, 139)"
+      },
+      {
+        "tag": "A",
+        "id": "",
+        "type": "",
+        "text": "شوف اللي شغّال",
+        "href": "/open.html#join",
+        "x": 34.4,
+        "y": 951.8,
+        "width": 167.2,
+        "height": 52.5,
+        "fontSize": "15px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "A",
+        "id": "",
+        "type": "",
+        "text": "افتح غرفة →",
+        "href": "/open.html",
+        "x": 125.1,
+        "y": 5324.5,
+        "width": 139.9,
+        "height": 52.5,
+        "fontSize": "15px",
+        "color": "rgb(45, 52, 54)",
+        "background": "rgb(224, 176, 139)"
+      },
+      {
+        "tag": "A",
+        "id": "",
+        "type": "",
+        "text": "المدونة",
+        "href": "/blog",
+        "x": 331,
+        "y": 5740,
+        "width": 39,
+        "height": 19.5,
+        "fontSize": "13px",
+        "color": "rgb(99, 110, 114)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "A",
+        "id": "",
+        "type": "",
+        "text": "الخصوصية",
+        "href": "/privacy",
+        "x": 252.2,
+        "y": 5740,
+        "width": 58.8,
+        "height": 19.5,
+        "fontSize": "13px",
+        "color": "rgb(99, 110, 114)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "A",
+        "id": "",
+        "type": "",
+        "text": "الشروط",
+        "href": "/terms",
+        "x": 188.6,
+        "y": 5740,
+        "width": 43.6,
+        "height": 19.5,
+        "fontSize": "13px",
+        "color": "rgb(99, 110, 114)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "A",
+        "id": "footer-whatsapp",
+        "type": "",
+        "text": "دعوة واتساب",
+        "href": "https://wa.me/?text=%D8%AC%D8%B1%D9%91%D8%A8%20%D9%87%D9%84%D8%A7%D8%B3%D8%AA%D8%AF%D9%8A%20%E2%80%94%20%D8%BA%D8%B1%D9%81%20%D8%AA%D8%B1%D9%83%D9%8A%D8%B2%20%D9%87%D8%A7%D8%AF%D9%8A%D8%A9%20%D9%84%D9%84%D9%85%D8%B0%D8%A7%D9%83%D8%B1%D8%A9%20%D9%88%D8%A7%D9%84%D8%B9%D9%85%D9%84%0Ahttps%3A%2F%2Fhalastudy.com",
+        "x": 97,
+        "y": 5740,
+        "width": 71.6,
+        "height": 19.5,
+        "fontSize": "13px",
+        "color": "rgb(99, 110, 114)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "A",
+        "id": "",
+        "type": "",
+        "text": "info@halastudy.com",
+        "href": "mailto:info@halastudy.com",
+        "x": 260.8,
+        "y": 5783.5,
+        "width": 109.2,
+        "height": 19.5,
+        "fontSize": "13px",
+        "color": "rgb(99, 110, 114)",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "tag": "A",
+        "id": "",
+        "type": "",
+        "text": "+966 59 916 1315",
+        "href": "tel:+966599161315",
+        "x": 149.5,
+        "y": 5783.5,
+        "width": 91.4,
+        "height": 19.5,
+        "fontSize": "13px",
+        "color": "rgb(99, 110, 114)",
+        "background": "rgba(0, 0, 0, 0)"
+      }
+    ],
+    "body": "Halastudy.\nتسجيل الدخول\nLIVE\nنوف عبدالعزيز\nRIYADH\n32:15\nRiyadh21:28\n·\nCairo21:28\n·\nDubai22:28\n·\nIstanbul21:28\n·\nLondon19:28\n·\nLahore23:28\n17,261\nمصباح شغّال الآن\nعرض توضيحي\nادخل. الكاميرا شغّالة. اشتغل مع غيرك.\n\nغرفة هادية، مفتوحة طول الليل. العالم كله يذاكر ويشتغل — قرّب كرسيك.\n\nافتح غرفة\n→\nشوف اللي شغّال\nبدون تنزيل. بدون تسجيل. المايك مقفول.\nLIVE\nريم سلطان\nJEDDAH\n47:03\nLIVE\nلمى فيصل\nKHOBAR\n12:49\nLIVE\nجواهر خالد\nMEDINA\n23:42\nLIVE\nدانة سعد\nDOHA\n08:23\nLIVE\nسعود عبدالله\nMANAMA\n19:08\nليش هلاستدي\nالوجود أقوى من العزيمة.\nما انت لحالك على المكتب\n\nالمرافقة بالوجود تحوّل المذاكرة الفردية إلى زخم مشترك. لما فيه أحد شغّال قدامك والكاميرا مفتوحة، تكمّل معه.\n\nهادية بالتصميم\n\nالمايك مقفول افتراضياً. لا كلام ولا استعراض — وجودك هو الاتفاق كله.\n\nمبنية لنا\n\nعربية أول، جداول بتوقيت الرياض، وإيقاع مذاكرة الخليج بالليل — مو تطبيق غربي مركّب عليه عربي.\n\nبدون حاجز، بدون تكلفة\n\nبدون تنزيل، وبدون تسجيل عشان تبدأ، ومجانية في التجربة. افتح غرفة بثوانٍ.\n\n✦\nكيف الغرفة\nثلاث خطوات. بدون تسجيل.\n٠١\nافتح غرفة\n\nاختر مدة التركيز — 25 دقيقة، 50 دقيقة، أو مفتوحة. تطلع لك كود من ست خانات تشاركه.\n\n٠٢\nالكاميرا شغّالة، المايك مقفول\n\nهذا هو المربط. وجودك هو الاتفاق. ما فيه أحد يسمع؛ كل واحد قاعد يشتغل.\n\n٠٣\nاقعد لين يرنّ المنبه\n\nلما تخلص البومودورو، كلكم تستريحون مع بعض. راحة هادية، ورجعة هادية.\n\nغرفة هادية · 50 دقيقة تركيز\nA7K-2QF\nLIVE\nهيا تركي\nRIYADH\n32:15\nLIVE\nماجد فيصل\nJEDDAH\n12:49\nLIVE\nرزان فهد\nDOHA\n47:03\nLIVE\nانت\n—\n00:12\nالمايك مقفول · الكاميرا شغّالة\nPOMODORO\n23:40\nمشفّر · WebRTC\n✦\nاللي معاك الليلة\nمذاكرة بصمت واحد.\n\nطلاّب حقيقيّين. اختبارات جاية. المصابيح شغّالة — اقعد على الطاولة.\n\n5\nفي الصورة\n17,261\nالآن\n42\nمدينة\nعرض توضيحي\nمنيرة عبدالله\nعلوم الحاسب\nشهد ناصر\nإدارة أعمال\nتركي ناصر\nعمارة\nساره خالد\nإعلام واتّصال\nفهد سلطان\nتقنية حيوية\n✦\nمصباح واحد شغّال الساعة ١. انت مو لحالك.\n\nهلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.\n\nافتح غرفة\n→\nالرياض 1:24\nالقاهرة 12:24\nدبي 2:24\nإسطنبول 1:24\nلندن 10:24\nلاهور 3:24\nالدوحة 1:24\nالمنامة 1:24\nمسقط 2:24\nبيروت 12:24\nالرياض 1:24\nالقاهرة 12:24\nدبي 2:24\nإسطنبول 1:24\nلندن 10:24\nلاهور 3:24\nالدوحة 1:24\nالمنامة 1:24\nمسقط 2:24\nبيروت 12:24\nهلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.\nالمدونة\nالخصوصية\nالشروط\nدعوة واتساب\ninfo@halastudy.com\n+966 59 916 1315",
+    "images": [
+      {
+        "src": "https://halastudy.com/images/tiles/haya-turki.webp",
+        "complete": true,
+        "width": 800,
+        "alt": "",
+        "visible": true
+      },
+      {
+        "src": "https://halastudy.com/images/tiles/majed-faisal.webp",
+        "complete": true,
+        "width": 800,
+        "alt": "",
+        "visible": true
+      },
+      {
+        "src": "https://halastudy.com/images/tiles/razan-fahad.webp",
+        "complete": true,
+        "width": 1067,
+        "alt": "",
+        "visible": true
+      },
+      {
+        "src": "https://halastudy.com/images/team/munira-abdullah.jpg",
+        "complete": false,
+        "width": 0,
+        "alt": "",
+        "visible": true
+      },
+      {
+        "src": "https://halastudy.com/images/team/shahad-nasser.jpg",
+        "complete": false,
+        "width": 0,
+        "alt": "",
+        "visible": true
+      },
+      {
+        "src": "https://halastudy.com/images/team/turki-nasser.jpg",
+        "complete": false,
+        "width": 0,
+        "alt": "",
+        "visible": true
+      },
+      {
+        "src": "https://halastudy.com/images/team/sarah-khalid.jpg",
+        "complete": false,
+        "width": 0,
+        "alt": "",
+        "visible": true
+      },
+      {
+        "src": "https://halastudy.com/images/team/fahad-sultan.jpg",
+        "complete": false,
+        "width": 0,
+        "alt": "",
+        "visible": true
+      }
+    ],
+    "videos": [
+      {
+        "src": "https://halastudy.com/videos/hero/01-nouf-abdulaziz.webm",
+        "preload": "metadata",
+        "autoplay": true,
+        "muted": true,
+        "paused": false,
+        "readyState": 4
+      },
+      {
+        "src": "https://halastudy.com/videos/hero/02-reem-sultan.webm",
+        "preload": "metadata",
+        "autoplay": true,
+        "muted": true,
+        "paused": true,
+        "readyState": 4
+      },
+      {
+        "src": "https://halastudy.com/videos/hero/03-lama-faisal.webm",
+        "preload": "metadata",
+        "autoplay": true,
+        "muted": true,
+        "paused": true,
+        "readyState": 4
+      },
+      {
+        "src": "https://halastudy.com/videos/hero/04-jawaher-khalid.webm",
+        "preload": "metadata",
+        "autoplay": true,
+        "muted": true,
+        "paused": true,
+        "readyState": 4
+      },
+      {
+        "src": "https://halastudy.com/videos/hero/05-danah-saad.webm",
+        "preload": "metadata",
+        "autoplay": true,
+        "muted": true,
+        "paused": true,
+        "readyState": 4
+      },
+      {
+        "src": "https://halastudy.com/videos/hero/06-saud-abdullah.webm",
+        "preload": "metadata",
+        "autoplay": true,
+        "muted": true,
+        "paused": true,
+        "readyState": 4
+      }
+    ],
+    "resources": [
+      {
+        "url": "https://halastudy.com/videos/hero/01-nouf-abdulaziz-poster.jpg",
+        "transfer": 23676,
+        "encoded": 23376,
+        "duration": 202
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/02-reem-sultan-poster.jpg",
+        "transfer": 10437,
+        "encoded": 10137,
+        "duration": 155
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/03-lama-faisal-poster.jpg",
+        "transfer": 12127,
+        "encoded": 11827,
+        "duration": 207
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/04-jawaher-khalid-poster.jpg",
+        "transfer": 10456,
+        "encoded": 10156,
+        "duration": 256
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/05-danah-saad-poster.jpg",
+        "transfer": 17688,
+        "encoded": 17388,
+        "duration": 258
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/06-saud-abdullah-poster.jpg",
+        "transfer": 14814,
+        "encoded": 14514,
+        "duration": 372
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/01-nouf-abdulaziz.webm",
+        "transfer": 261497,
+        "encoded": 261197,
+        "duration": 211
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/02-reem-sultan.webm",
+        "transfer": 74114,
+        "encoded": 73814,
+        "duration": 166
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/03-lama-faisal.webm",
+        "transfer": 96742,
+        "encoded": 96442,
+        "duration": 257
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/04-jawaher-khalid.webm",
+        "transfer": 88512,
+        "encoded": 88212,
+        "duration": 216
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/05-danah-saad.webm",
+        "transfer": 126866,
+        "encoded": 126566,
+        "duration": 214
+      },
+      {
+        "url": "https://halastudy.com/videos/hero/06-saud-abdullah.webm",
+        "transfer": 114329,
+        "encoded": 114029,
+        "duration": 262
+      }
+    ],
+    "recoveryLinks": []
+  }
+}

@@ -147,7 +147,7 @@
 </head>
 <body class="is-open-page">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="Halastudy home">
+    <a class="brand" href="/">
       <span>Hala<em>study</em><span class="dot">.</span></span>
       <span class="divider" aria-hidden="true"></span>
       <span class="ar" aria-hidden="true">هلا</span>
@@ -174,7 +174,7 @@
       </div>
 
       <form class="form-card" id="signin-form" autocomplete="on" novalidate>
-        <h3 class="form-title" data-lang="signinTitle">أهلاً من جديد</h3>
+        <h1 class="form-title" data-lang="signinTitle">أهلاً من جديد</h1>
         <div class="input-group">
           <label for="signin-email" data-lang="labelEmail">البريد الإلكتروني</label>
           <input type="email" id="signin-email" name="email" maxlength="254" data-force-ltr dir="ltr" autocomplete="email" placeholder="you@example.com" required>
@@ -191,7 +191,7 @@
       </form>
 
       <form class="form-card hidden" id="signup-form" autocomplete="on" novalidate>
-        <h3 class="form-title" data-lang="signupTitle">احجز مقعدك</h3>
+        <h1 class="form-title" data-lang="signupTitle">احجز مقعدك</h1>
         <div class="input-group">
           <label for="signup-nickname" data-lang="labelNickname">اسمك في الغرفة</label>
           <input type="text" id="signup-nickname" name="nickname" maxlength="20" autocomplete="nickname" required>
@@ -230,9 +230,10 @@
 
     <!-- Signed-in view: account hub -->
     <section id="account-view" class="hidden">
+      <h1 class="form-title" data-lang="accountTitle">حسابك وخياراتك</h1>
       <div class="form-actions"><a class="btn btn-primary" href="/app" data-lang="workspaceLink">مساحتي وتقدّمي</a><a class="btn btn-secondary" href="/plans">VIP · US$4.99</a></div>
       <div class="form-card">
-        <h3 class="form-title" data-lang="statsTitle">سجلك السابق على الحساب</h3>
+        <h2 class="form-title" data-lang="statsTitle">سجلك السابق على الحساب</h2>
         <p class="form-hint" data-lang="legacyHistoryNote">يشمل المؤقّت القديم والبيانات المستوردة. لا يمنح نقاطًا موثّقة. راجع تقدّمك الموثّق في مساحتك.</p>
         <a href="/app#progress" class="btn btn-secondary" data-lang="verifiedProgress">تقدّمي الموثّق</a>
         <div id="stats-unavailable" hidden></div>
@@ -253,7 +254,7 @@
       </div>
 
       <form class="form-card" id="profile-form" novalidate>
-        <h3 class="form-title" data-lang="profileTitle">ملفك</h3>
+        <h2 class="form-title" data-lang="profileTitle">ملفك</h2>
         <div class="input-group">
           <label for="profile-nickname" data-lang="labelNickname">اسمك في الغرفة</label>
           <input type="text" id="profile-nickname" maxlength="20" autocomplete="nickname">
@@ -274,14 +275,14 @@
       </form>
 
       <div class="form-card">
-        <h3 class="form-title" data-lang="roomsTitle">غرفك</h3>
+        <h2 class="form-title" data-lang="roomsTitle">غرفك</h2>
         <div class="rooms-list" id="rooms-list"></div>
         <div id="rooms-unavailable" hidden></div>
         <p class="form-note hidden" id="rooms-empty" data-lang="roomsEmpty">أول ما تفتح غرفة أو تدخل وحدة، بتلقاها هنا.</p>
       </div>
 
       <div class="form-card danger-card" id="danger-card">
-        <h3 class="form-title" data-lang="dangerTitle">إدارة الحساب</h3>
+        <h2 class="form-title" data-lang="dangerTitle">إدارة الحساب</h2>
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" id="btn-signout" data-lang="btnSignOutFull">تسجيل الخروج</button>
         </div>
@@ -302,10 +303,12 @@
   <footer class="footer">
     <div><span data-lang="footerTag">هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.</span></div>
     <div class="links">
-      <a href="/" aria-label="Halastudy home"><span class="back-arrow" aria-hidden="true">←</span> Halastudy</a>
+      <a href="/"><span class="back-arrow" aria-hidden="true">←</span> Halastudy</a>
       <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
       <a href="/terms" data-lang="footerTerms">الشروط</a>
     </div>
+  
+    <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
   </footer>
 
   <script>
@@ -313,6 +316,7 @@
       const dict = {
         en: {
           pageTitle: 'Halastudy | Your account',
+          accountTitle: 'Your account and preferences',
           themeToggleTitle: 'Toggle theme',
           tabSignIn: 'Sign in',
           tabSignUp: 'New account',
@@ -376,6 +380,7 @@
         },
         ar: {
           pageTitle: 'هلاستدي | حسابك',
+          accountTitle: 'حسابك وخياراتك',
           themeToggleTitle: 'تبديل المظهر',
           tabSignIn: 'دخول',
           tabSignUp: 'حساب جديد',
@@ -476,6 +481,30 @@
       const signupForm = document.getElementById('signup-form');
 
       function t(key) { return core.t(key) || key; }
+      async function accountRequest(method, path, body) {
+        try {
+          return await core.requestJson(method, path, body, { 'X-Halastudy-Account': currentUser?.id || '' });
+        } catch (error) {
+          if (['AUTH_ACCOUNT_CHANGED', 'AUTH_REQUIRED'].includes(error.code)) {
+            accountView.classList.add('hidden');
+            signinForm.reset(); signupForm.reset();
+            document.getElementById('profile-form').reset();
+            document.getElementById('delete-password').value = '';
+            location.reload();
+          }
+          throw error;
+        }
+      }
+      async function checkAccountIdentity() {
+        if (!currentUser) return;
+        try {
+          const user = await auth.refreshUser();
+          if (user?.id !== currentUser.id) { accountView.classList.add('hidden'); location.reload(); }
+        } catch { /* Existing draft stays; server pin still rejects stale writes. */ }
+      }
+      window.addEventListener('focus', checkAccountIdentity);
+      window.addEventListener('pageshow', checkAccountIdentity);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) void checkAccountIdentity(); });
 
       // Surface a Google-callback failure, then scrub the query param so a
       // reload doesn't re-show it. Success (?auth=google) just falls through to
@@ -668,7 +697,7 @@
       }
       async function loadStats() {
         try {
-          const stats = await core.requestJson('GET', '/api/me/stats');
+          const stats = await accountRequest('GET', '/api/me/stats');
           if (!Number.isFinite(stats.focusStats?.totalFocusMinutes)
               || !Number.isFinite(stats.streak?.current) || !Number.isFinite(stats.streak?.best)) throw new Error('RESPONSE_INVALID');
           renderStats(stats.focusStats, stats.streak);
@@ -679,7 +708,7 @@
       }
       async function loadRooms() {
         try {
-          const mine = await core.requestJson('GET', '/api/me/rooms');
+          const mine = await accountRequest('GET', '/api/me/rooms');
           if (!Array.isArray(mine.rooms)) throw new Error('RESPONSE_INVALID');
           renderRooms(mine.rooms);
           document.getElementById('rooms-unavailable').hidden = true;
@@ -693,7 +722,7 @@
         setFeedback('profile-feedback', '');
         const selectedSwatch = document.querySelector('#swatch-row input:checked');
         try {
-          const payload = await core.requestJson('PATCH', '/api/me/profile', {
+          const payload = await accountRequest('PATCH', '/api/me/profile', {
             displayName: document.getElementById('profile-nickname').value,
             avatarColor: selectedSwatch ? selectedSwatch.value : 'amber',
             bio: document.getElementById('profile-bio').value
@@ -736,7 +765,7 @@
         });
         if (!confirmed) return;
         try {
-          await core.requestJson('DELETE', '/api/me', { password });
+          await accountRequest('DELETE', '/api/me', { password });
           core.clearStudyStorage(currentUser?.id);
           window.HalaUI.toast(t('deletedToast'));
           setTimeout(() => location.assign('/'), 800);

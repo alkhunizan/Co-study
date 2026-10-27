@@ -1,0 +1,28 @@
+{
+  "name": "Use English and reach account sign in",
+  "viewport": "mobile",
+  "auditGoal": "Switch to English through the mobile menu and preserve it on account navigation.",
+  "auditOutcome": "safety-stop",
+  "steps": [
+    {
+      "goto": "https://halastudy.com/"
+    },
+    {
+      "click": "القائمة"
+    },
+    {
+      "click": "EN"
+    },
+    {
+      "click": "css=#auth-entry"
+    },
+    {
+      "expect": "Welcome back"
+    },
+    {
+      "note": "English account entry reached. Stop before authentication; no login or OAuth action."
+    }
+  ],
+  "allowSubmit": false,
+  "stepDelay": 800
+}

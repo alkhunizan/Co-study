@@ -42,6 +42,11 @@ function createAuthRouter(deps) {
 
     const router = express.Router();
     router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+    router.use('/me', requireUser, (req, res, next) => {
+        const expected = req.get('X-Halastudy-Account');
+        if (expected !== undefined && expected !== req.user?.id) return res.status(401).json({ errorCode: 'AUTH_ACCOUNT_CHANGED' });
+        next();
+    });
     const mutations = new Map();
     function mutateAccount(req, res, fields, change) {
         const user = req.user;

@@ -1,0 +1,82 @@
+﻿{
+    "createdAt":  "2026-10-26T21:36:15.7698262+03:00",
+    "basePrerequisite":  "c4d6c50553f55704b4d4a788db28b05fa983047a",
+    "bundle":  "away-work.bundle",
+    "bundleSha256":  "52c5b359e8793b571cb81130d5fa3f74febb0fd77d92e605b49356884d543d85",
+    "bundleBytes":  99767,
+    "verified":  true,
+    "branches":  [
+                     {
+                         "item":  "A00",
+                         "branch":  "refs/heads/away/2026-10-26-1834-A00",
+                         "tip":  "cd9549c22cd4e7f85bb6c769e9d9445bde1af0c5",
+                         "applicationAndTests":  "a85fb875bdcaec734a965cd79804b7c0472ce2ec",
+                         "runtime":  "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A00",
+                         "patch":  "patches/A00.patch",
+                         "patchSha256":  "74913c2ab7a49dc658ffb6a7183e6cf8fc9602a414d003be48c9d081f25f59c9"
+                     },
+                     {
+                         "item":  "A01",
+                         "branch":  "refs/heads/away/2026-10-26-1834-A01",
+                         "tip":  "3d37e3ca1fd0b983ffa77a15fbb8f5d0d50dfee0",
+                         "applicationAndTests":  "88ef3d26c5fdb0463ce665cf2755138bfd30b179",
+                         "runtime":  "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\repository",
+                         "patch":  "patches/A01.patch",
+                         "patchSha256":  "2d6a69b62c6abd0d03f387e4010455097a375725ac66c8f3230cc55a12037ab8"
+                     },
+                     {
+                         "item":  "A02",
+                         "branch":  "refs/heads/away/2026-10-26-1834-A02",
+                         "tip":  "bf07189b0e7c19db2c69863c633553e39dd4d199",
+                         "applicationAndTests":  "bc7f2ec6f7f55cce923fe0258ae18e739d4c4728",
+                         "runtime":  "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A02",
+                         "patch":  "patches/A02.patch",
+                         "patchSha256":  "7e28cef79725039991eccfa44141839f732de5fc5f397a09092c4cc3296ae9e3"
+                     },
+                     {
+                         "item":  "A03",
+                         "branch":  "refs/heads/away/2026-10-26-1834-A03",
+                         "tip":  "7ed9897d3b935620b3007e5fda727157cd7b081d",
+                         "applicationAndTests":  "eceecddba8e089274a8c206fef0a406bfa3ee09a",
+                         "runtime":  "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A03",
+                         "patch":  "patches/A03.patch",
+                         "patchSha256":  "7b4984847b9d0c46527550b335c93f56da7b72e80a8b488e161b8f1dbe6547b5"
+                     },
+                     {
+                         "item":  "A04",
+                         "branch":  "refs/heads/away/2026-10-26-1834-A04",
+                         "tip":  "daa9347b5bc9351196d56a61d80dfdebcb9ec8ff",
+                         "applicationAndTests":  "7a1a11fb162df83419b2a50c390fa3ae265175b5",
+                         "runtime":  "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A04",
+                         "patch":  "patches/A04.patch",
+                         "patchSha256":  "f51196c44c6bfdd56aaa2d0daff46f5dfaeb6f06613d88dfba758bf8185d764d"
+                     },
+                     {
+                         "item":  "A11",
+                         "branch":  "refs/heads/away/2026-10-26-1834-A11",
+                         "tip":  "57908d6ef2bb65ad828d94b4a95886112310c125",
+                         "applicationAndTests":  "19c4c5b68f25b930a810ee7c7fd54f3d4ecd2c6f",
+                         "runtime":  "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A11",
+                         "patch":  "patches/A11.patch",
+                         "patchSha256":  "bce2cd4fc9b65e449b4e4d916419b0761dfff331acd4bd9a9fd75a0f81d3b2f0"
+                     },
+                     {
+                         "item":  "A12",
+                         "branch":  "refs/heads/away/2026-10-26-1834-A12",
+                         "tip":  "22d43d5d39e6d2306ca838cd2de7c24b3fe56e2b",
+                         "applicationAndTests":  "0a8b1a05c386aa61d9ed66c54b93794255515b40",
+                         "runtime":  "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A12",
+                         "patch":  "patches/A12.patch",
+                         "patchSha256":  "21a3f1cd531dbcb066379b7e589a5da4022f04a7292faa213d0777a5ced4a435"
+                     },
+                     {
+                         "item":  "A13",
+                         "branch":  "refs/heads/away/2026-10-26-1834-A13",
+                         "tip":  "8bff10782d9cc7dae315213a201409e2971148bf",
+                         "applicationAndTests":  "35cf9ba885bae99b32cb41ad4bdf4b542c5a67fb",
+                         "runtime":  "C:\\Users\\alkhu\\Documents\\Codex\\2026-10-26\\halastudy-away\\worktrees\\A13",
+                         "patch":  "patches/A13.patch",
+                         "patchSha256":  "cc001ec4c6bf84b6cdb3c720e0a8798847582c1b3738476cee648af175f70b1b"
+                     }
+                 ]
+}

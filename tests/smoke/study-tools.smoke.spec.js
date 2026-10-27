@@ -8,6 +8,8 @@ test('an opted-in reminder retries after a transient refresh failure without exp
 }) => {
     const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://' } });
     let context;
+    let releaseRecovery = () => {};
+    const recovery = new Promise((resolve) => { releaseRecovery = () => resolve(undefined); });
     try {
         const f = await fixture(browser, server);
         context = f.context;
@@ -18,8 +20,9 @@ test('an opted-in reminder retries after a transient refresh failure without exp
         });
         expect(prefs.status).toBe(200);
         let calls = 0;
-        await f.page.route('**/api/platform/study/agenda', (route) => {
+        await f.page.route('**/api/platform/study/agenda', async (route) => {
             calls++;
+            if (calls >= 3) await recovery;
             return route.fulfill({
                 status: calls === 2 ? 503 : 200,
                 contentType: 'application/json',
@@ -43,14 +46,17 @@ test('an opted-in reminder retries after a transient refresh failure without exp
             });
         });
         await f.page.reload();
-        await expect.poll(() => calls).toBeGreaterThanOrEqual(2);
+        // Keep the recovery response pending while checking the failed refresh.
+        await expect.poll(() => calls).toBeGreaterThanOrEqual(3);
         await expect(f.page.locator('#study-reminder-banner')).toBeHidden();
+        releaseRecovery();
         await expect(f.page.locator('#study-reminder-banner')).toContainText('Synthetic reminder recovery', {
             timeout: 5000,
         });
         await expect(f.page.locator('#study-reminder-banner')).toBeVisible();
         expect(calls).toBeGreaterThanOrEqual(3);
     } finally {
+        releaseRecovery();
         await context?.close();
         await server.stop();
     }

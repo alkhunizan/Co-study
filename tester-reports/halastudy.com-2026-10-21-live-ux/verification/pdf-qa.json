@@ -1,0 +1,45 @@
+[
+  {
+    "lang": "en",
+    "pages": 13,
+    "appendixFirstPage": 8,
+    "citedScreenshots": 24,
+    "missingScreenshots": [],
+    "dateSearchMatches": 17,
+    "textOutOfPage": [],
+    "replacementGlyphs": 0,
+    "arabicLetters": 79,
+    "fontNames": [
+      "",
+      "EAAAAA+Consolas",
+      "JAAAAA+ArialMT",
+      "LAAAAA+SegoeUISymbol",
+      "MAAAAA+SegoeUI-Semibold",
+      "NAAAAA+SegoeUI"
+    ]
+  },
+  {
+    "lang": "ar",
+    "pages": 12,
+    "appendixFirstPage": 7,
+    "citedScreenshots": 24,
+    "missingScreenshots": [],
+    "dateSearchMatches": 16,
+    "textOutOfPage": [],
+    "replacementGlyphs": 0,
+    "arabicLetters": 10969,
+    "fontNames": [
+      "",
+      "AAAAAA+IBMPlexSansArabic-Bold",
+      "BAAAAA+IBMPlexSansArabic-Bold",
+      "CAAAAA+IBMPlexSansArabic-Regular",
+      "DAAAAA+IBMPlexSansArabic-Regular",
+      "EAAAAA+Consolas",
+      "FAAAAA+IBMPlexSansArabic-SemiBold",
+      "GAAAAA+IBMPlexSansArabic-SemiBold",
+      "HAAAAA+ArialMT",
+      "IAAAAA+SegoeUISymbol",
+      "KAAAAA+SegoeUI"
+    ]
+  }
+]

@@ -1,0 +1,71 @@
+{
+  "name": "Prepare a new study room on desktop",
+  "viewport": "desktop",
+  "completed": true,
+  "failedAt": null,
+  "steps": 5,
+  "totalMs": 4016,
+  "slowSteps": [],
+  "errors": [],
+  "log": [
+    {
+      "n": 1,
+      "step": {
+        "goto": "https://halastudy.com/"
+      },
+      "ok": true,
+      "ms": 2729,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-desktop\\step-01.png"
+    },
+    {
+      "n": 2,
+      "step": {
+        "click": "افتح غرفة"
+      },
+      "ok": true,
+      "targetSize": "99x43",
+      "ms": 1249,
+      "url": "https://halastudy.com/open.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-desktop\\step-02.png"
+    },
+    {
+      "n": 3,
+      "step": {
+        "expect": "غرفة تركيز جديدة"
+      },
+      "ok": true,
+      "ms": 16,
+      "url": "https://halastudy.com/open.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-desktop\\step-03.png"
+    },
+    {
+      "n": 4,
+      "step": {
+        "fill": {
+          "target": "اسم الغرفة",
+          "value": "UX audit - do not create"
+        }
+      },
+      "ok": true,
+      "ms": 22,
+      "url": "https://halastudy.com/open.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-desktop\\step-04.png"
+    },
+    {
+      "n": 5,
+      "step": {
+        "note": "Creation form reached. Stop before submit; no room is created."
+      },
+      "ok": true,
+      "ms": 0,
+      "url": "https://halastudy.com/open.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-desktop\\step-05.png"
+    }
+  ]
+}

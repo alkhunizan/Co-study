@@ -1,0 +1,8 @@
+{
+  "applicationCommit": "20108c27644ab8d276a29e81ab9bd22c2e3e7926",
+  "applicationUnmodifiedFromCommit": true,
+  "sha256": {
+    "public/js/platform.js": "bed985ff82d0e6a71362ae2fa14fc21dc46e31a08895bdd9dcddf7e75fc53e71",
+    "tests/smoke/circle-feedback-away.smoke.spec.js": "ae464e101d91db09803962493b04f80236ced7358e88cfd50fa539e70c5c42d1"
+  }
+}

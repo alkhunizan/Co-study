@@ -5,6 +5,8 @@
     let member = false;
     let unavailable = false;
     let recap = null;
+    let failedAction = null;
+    let actionRequest = 0;
     const copy = {
         ar: { guest: 'وقت المؤقّت على هذا الجهاز فقط. الحساب يحفظ الجلسات الموثّقة.', idle: 'ابدأ المؤقّت لحفظ جلسة موثّقة. الكاميرا لا تؤثر على احتسابها.',
             active: 'جارٍ حفظ وقت التركيز:', paused: 'الجلسة متوقفة مؤقتًا:', minutes: 'دقيقة موثّقة', points: 'نقطة',
@@ -46,20 +48,50 @@
             if (!member) { unavailable = false; render(); return; }
         }
         const summary = await global.HalaFocus.reconcile();
-        unavailable = false;
+        unavailable = !!failedAction;
         window.dispatchEvent(new CustomEvent('halaprogress', { detail: summary }));
         render();
     }
-    async function action(name) {
+    async function action(name, expectedSessionId = null) {
         if (!member) return null;
+        const request = ++actionRequest;
+        const intended = { name, sessionId: expectedSessionId || global.HalaFocus.current()?.id || null };
+        let acknowledged = false;
         try {
-            const result = await global.HalaFocus[name]();
+            const result = await global.HalaFocus[name](expectedSessionId);
+            acknowledged = true;
+            if (request !== actionRequest) return result;
+            failedAction = null;
             unavailable = false;
             if (name === 'complete' && result?.state === 'completed') { recap = result; await reconcile(); }
             else if (name === 'start') recap = null;
             render();
             return result;
-        } catch { unavailable = true; render(); return null; }
+        } catch (error) {
+            if (request === actionRequest) {
+                // A failed follow-up refresh must not replay an acknowledged mutation.
+                failedAction = acknowledged ? null : { ...intended, sessionId: error.focusSessionId || intended.sessionId };
+                unavailable = true;
+                render();
+            }
+            return null;
+        }
+    }
+    async function retry() {
+        if (global.HalaFocus.hasPendingCompletion()) return action('complete');
+        const pending = failedAction;
+        const request = actionRequest;
+        await reconcile();
+        if (!pending || failedAction !== pending || request !== actionRequest) return;
+        const session = global.HalaFocus.current();
+        if ((pending.sessionId && session?.id !== pending.sessionId) || (!pending.sessionId && session)) {
+            // Another surface replaced this session. Adopt its state without changing it.
+            failedAction = null;
+            unavailable = false;
+            render();
+            return;
+        }
+        return action(pending.name, pending.sessionId);
     }
     $('room-focus-finish').addEventListener('click', async () => {
         window.dispatchEvent(new Event('halaroomfinish'));
@@ -69,13 +101,20 @@
         control.disabled = false;
         if (result) $('room-session-recap').focus({ preventScroll: true });
     });
-    $('room-focus-retry').addEventListener('click', () => {
-        if (global.HalaFocus.hasPendingCompletion()) void action('complete');
-        else void reconcile().catch(() => { unavailable = true; render(); });
+    $('room-focus-retry').addEventListener('click', async () => {
+        const control = /** @type {HTMLButtonElement} */ ($('room-focus-retry'));
+        const request = actionRequest;
+        control.disabled = true;
+        try { await retry(); }
+        catch { if (request === actionRequest) { unavailable = true; render(); } }
+        finally { control.disabled = false; }
     });
     window.addEventListener('halafocuschange', () => {
-        unavailable = false;
-        if (member && global.HalaFocus.current()?.state === 'completed') recap = global.HalaFocus.current();
+        const session = global.HalaFocus.current();
+        const intendedState = { start: 'active', pause: 'paused', complete: 'completed' }[failedAction?.name];
+        if (failedAction && session?.state === intendedState && (!failedAction.sessionId || session.id === failedAction.sessionId)) failedAction = null;
+        unavailable = !!failedAction;
+        if (member && session?.state === 'completed') recap = session;
         render();
     });
     window.addEventListener('halafocuserror', () => { unavailable = true; render(); });

@@ -1,0 +1,37 @@
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const http = require('node:http');
+const { hashPassword } = require('../services/auth/password');
+
+async function main() {
+    const directory = path.resolve(__dirname, '../data/platform-preview');
+    await fs.mkdir(directory, { recursive: true });
+    const credentialsPath = path.join(directory, 'local-credentials.json');
+    let credentials;
+    try {
+        credentials = JSON.parse(await fs.readFile(credentialsPath, 'utf8'));
+    } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        credentials = { sessionSecret: crypto.randomBytes(32).toString('hex'), operatorPassword: crypto.randomBytes(18).toString('base64url') };
+        await fs.writeFile(credentialsPath, JSON.stringify(credentials, null, 2), { mode: 0o600, flag: 'wx' });
+    }
+    Object.assign(process.env, {
+        NODE_ENV: 'development', PORT: process.env.PLATFORM_PREVIEW_PORT || '3470',
+        PLATFORM_ENABLED: 'true', PLATFORM_DATABASE_URL: '', PLATFORM_DATA_DIR: path.join(directory, 'database'),
+        ROOM_STATE_FILE: path.join(directory, 'rooms.json'), USER_STATE_FILE: path.join(directory, 'users.json'),
+        ROOM_STATE_BACKUP_DIR: path.join(directory, 'backups'),
+        SESSION_SECRET: credentials.sessionSecret, BILLING_MODE: 'test', BILLING_PROVIDER: 'simulator',
+        SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '',
+        VIDEO_PROVIDER: 'mesh', SFU_BASE_URL: '', CLOUDFLARE_REALTIMEKIT_API_TOKEN: '',
+        ADMIN_PATH: '/local-operator-bootstrap', ADMIN_PASSWORD_HASH: await hashPassword(credentials.operatorPassword),
+        TRUST_PROXY: '0', ALLOWED_ORIGINS: `http://127.0.0.1:${process.env.PLATFORM_PREVIEW_PORT || '3470'}`
+    });
+    const { createCoStudyServer } = require('../co-study-server');
+    const app = createCoStudyServer({ mode: 'http', createServer: (handler) => http.createServer(handler) });
+    app.server.listen(Number(process.env.PORT), '127.0.0.1', () => {
+        console.log(`Local test workspace: http://127.0.0.1:${process.env.PORT}/app`);
+        console.log('Sign up, enable authenticator verification, then use the operatorPassword in data/platform-preview/local-credentials.json to bootstrap the first super admin.');
+    });
+}
+void main().catch((error) => { console.error(error.message); process.exitCode = 1; });

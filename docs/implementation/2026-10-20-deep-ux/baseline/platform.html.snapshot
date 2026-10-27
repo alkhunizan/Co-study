@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#F5F2EB">
+  <title>مساحتك — Halastudy</title>
+  <link rel="icon" href="/images/icons/favicon.svg">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/css/platform.css">
+  <script src="/js/halastudy-core.js"></script>
+  <script src="/js/focus-client.js" defer></script>
+  <script src="/js/platform.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-lang="skip">انتقل إلى المحتوى</a>
+  <header class="platform-header">
+    <a class="brand" href="/" aria-label="Halastudy home"><span lang="en" dir="ltr">Halastudy</span><span aria-hidden="true">هلا</span></a>
+    <div class="header-actions">
+      <button type="button" data-lang-value="ar" lang="ar">عربي</button>
+      <button type="button" data-lang-value="en" lang="en">EN</button>
+      <button type="button" id="theme-toggle" data-lang="theme">المظهر</button>
+      <a href="/account" data-lang="account">حسابي</a>
+    </div>
+  </header>
+  <div class="platform-shell">
+    <nav class="platform-nav" aria-label="Workspace" data-lang-aria="workspaceNav">
+      <a href="/app#home" data-view="home" data-lang="home">مساحتي</a>
+      <a href="/app#progress" data-view="progress" data-lang="progress">تقدّمي</a>
+      <a href="/app#circles" data-view="circles" data-lang="circles">مجموعات الدراسة</a>
+      <a href="/plans" data-view="vip" data-lang="vip">عضوية VIP</a>
+      <a href="/app#security" data-view="security" data-lang="security">الأمان</a>
+      <a href="/app#staff" data-view="staff" data-lang="staff" id="staff-nav" hidden>الإدارة</a>
+      <a class="nav-study" href="/open" data-lang="openRoom">افتح غرفة</a>
+    </nav>
+    <main id="main" tabindex="-1">
+      <p id="feedback" class="feedback" role="status" aria-live="polite" hidden></p>
+      <p id="loading" data-lang="loading">نجهّز مساحتك…</p>
+      <section id="guest" hidden>
+        <p class="eyebrow" data-lang="welcome">مكان لهدوئك وتركيزك</p>
+        <h1 data-lang="guestTitle">كل جلسة، خطوة أقرب</h1>
+        <p class="lede" data-lang="guestBody">سجّل دخولك لحفظ تقدّمك، ومتابعة مجموعتك، وإدارة عضويتك.</p>
+        <a class="button primary" href="/account?next=%2Fapp" data-lang="signIn">سجّل الدخول</a>
+        <a class="button" href="/open" data-lang="continueGuest">ادخل غرفة كضيف</a>
+      </section>
+      <section data-panel="home" hidden>
+        <p class="eyebrow" id="greeting"></p>
+        <h1 data-lang="homeTitle">فسحة للتركيز</h1>
+        <p class="lede" data-lang="homeBody">ابدأ جلسة هادئة، وخلّ التقدّم يجي خطوة بخطوة.</p>
+        <a class="button primary" href="/open" data-lang="openRoom">افتح غرفة</a>
+        <a class="button" href="/lobby" data-lang="lobby">ادخل الاستراحة</a>
+        <div class="metrics" id="home-metrics"></div>
+        <div class="section-heading"><h2 data-lang="yourRooms">الغرف التي تديرها</h2><a href="/account" data-lang="roomHistory">سجل الغرف</a></div>
+        <div id="owned-rooms" class="rows"></div>
+      </section>
+      <section data-panel="progress" hidden>
+        <p class="eyebrow" data-lang="yourRhythm">على إيقاعك</p>
+        <h1 data-lang="progressTitle">وقت يستحق أن يُحسب</h1>
+        <p class="lede" data-lang="progressBody">تُحسب الجلسات أثناء اتصالك. الكاميرا اختيارية، والنقاط لا تعتمد على العضوية.</p>
+        <div class="focus-card">
+          <div><p data-lang="currentSession">جلسة التركيز</p><output id="focus-clock" class="focus-clock" dir="ltr">00:00</output><p id="focus-state"></p></div>
+          <div class="actions"><button class="primary" id="focus-start" data-lang="start">ابدأ جلسة</button><button id="focus-pause" data-lang="pause" hidden>إيقاف مؤقت</button><button id="focus-finish" data-lang="finish" hidden>إنهاء الجلسة</button></div>
+          <p class="note" data-lang="focusRule">دقيقة مكتملة = نقطة واحدة، حتى 240 نقطة يوميًا. الانقطاع الطويل لا يُحتسب، وبياناتك السابقة تبقى في حسابك.</p>
+        </div>
+        <div class="metrics" id="progress-metrics"></div>
+        <h2 data-lang="achievements">إنجازاتك</h2><div id="achievements" class="achievements"></div>
+        <div class="section-heading"><h2 data-lang="recentSessions">جلساتك الأخيرة</h2><a id="export-progress" href="/api/platform/progress/export" hidden data-lang="export">تصدير CSV</a></div>
+        <div id="session-history" class="rows"></div>
+      </section>
+      <section data-panel="circles" hidden>
+        <p class="eyebrow" data-lang="together">رفقة تعينك</p>
+        <h1 data-lang="circlesTitle">موعدكم مع التركيز</h1>
+        <p class="lede" data-lang="circlesBody">مجموعات خاصة بدعوات فردية، ومشرفون تختارهم المجموعة، وحضور واضح لكل جلسة.</p>
+        <form id="circle-create" class="inline-form"><label for="circle-name" data-lang="circleName">اسم المجموعة</label><input id="circle-name" maxlength="60" required><button class="primary" data-lang="createCircle">أنشئ مجموعة</button></form>
+        <p id="circle-vip-note" class="note" hidden data-lang="circleVipNote">إنشاء المجموعات من مزايا VIP. يمكنك قبول الدعوات والمشاركة بحساب مجاني.</p>
+        <form id="invite-accept" class="inline-form"><label for="invite-token" data-lang="inviteCode">رمز الدعوة</label><input id="invite-token" dir="ltr" autocomplete="off" required maxlength="200"><button data-lang="joinCircle">انضم للمجموعة</button></form>
+        <div id="circle-list" class="rows"></div>
+        <section id="circle-detail" class="detail" hidden>
+          <h2 id="circle-title"></h2>
+          <button id="circle-exit"></button>
+          <button id="create-invite" data-lang="createInvite" hidden>أنشئ دعوة لشخص واحد</button>
+          <div id="invite-result" hidden><p class="note" data-lang="inviteReady">رمز لشخص واحد، صالح لمدة 48 ساعة:</p><code id="invite-code" class="copy-value" dir="ltr"></code></div>
+          <h3 data-lang="members">الأعضاء</h3><div id="circle-members" class="rows"></div>
+          <form id="session-create" class="form-grid" hidden>
+            <h3 data-lang="scheduleSession">جدولة جلسة للمجموعة</h3>
+            <label><span data-lang="sessionTitle">عنوان الجلسة</span><input name="title" maxlength="80" required></label>
+            <label><span data-lang="room">الغرفة</span><select name="roomId" id="session-room" required></select></label>
+            <label><span data-lang="startsAt">البدء بتوقيت جهازك</span><input name="startsAt" type="datetime-local" required></label>
+            <label><span data-lang="minutes">الدقائق</span><input name="durationMinutes" type="number" min="5" max="240" value="25" required></label>
+            <p class="note" data-lang="privateRoomNotice">ربط الغرفة بالمجموعة يجعل دخولها متاحًا لأعضاء المجموعة فقط، مع بقاء كلمة المرور إن وُجدت.</p>
+            <button class="primary" data-lang="schedule">احفظ الموعد</button>
+          </form>
+          <h3 data-lang="scheduledSessions">مواعيد المجموعة</h3><div id="circle-sessions" class="rows"></div>
+          <div id="attendance" class="rows" aria-live="polite"></div>
+        </section>
+      </section>
+      <section data-panel="vip" hidden>
+        <p class="eyebrow" data-lang="simpleMembership">عضوية واحدة، مزايا واضحة</p>
+        <h1 data-lang="vipTitle">مساحة أوسع مع VIP</h1>
+        <p class="lede" data-lang="vipBody">غرف الدراسة والمؤقّت والتقدّم الأساسي تبقى مجانية. أضف مزايا التنظيم والمتابعة عندما تحتاجها.</p>
+        <p class="test-notice" id="test-notice" hidden data-lang="testNotice">وضع تجريبي محلي — لا تُطلب بيانات دفع، ولا يُخصم أي مبلغ.</p>
+        <div class="plan-grid">
+          <article class="plan"><h2 data-lang="free">مجاني</h2><p class="price">$0</p><ul><li data-lang="freeStudy">غرف الدراسة والمؤقّت والجدولة الحالية</li><li data-lang="freeProgress">نقاط وإنجازات مع سجل جلسات موثّق لمدة 30 يومًا</li><li data-lang="freeInvites">قبول دعوات مجموعات الدراسة</li></ul><a class="button" href="/open" data-lang="openRoom">افتح غرفة</a></article>
+          <article class="plan featured"><h2>VIP</h2><p class="price" dir="ltr">US$4.99 <small data-lang="monthly">شهريًا</small></p><ul><li data-lang="vipHistory">سجل جلسات موثّق لمدة سنة</li><li data-lang="vipExport">تصدير تقدّمك بصيغة CSV</li><li data-lang="vipCircles">إنشاء 3 مجموعات خاصة، حتى 12 عضوًا لكل مجموعة</li><li data-lang="vipSupervision">تعيين مشرفين للمجموعة وجدولة الجلسات ومتابعة الحضور</li></ul><button class="primary" id="checkout-start" data-lang="tryCheckout">جرّب الاشتراك</button><p id="plan-status" class="note"></p></article>
+        </div>
+        <div id="billing-management" class="detail" hidden><h2 data-lang="membership">عضويتك</h2><p id="billing-status"></p><button id="billing-cancel" data-lang="cancelRenewal">إلغاء التجديد</button></div>
+        <form id="digetpay-checkout" class="form-grid" hidden>
+          <h2 data-lang="digetpayTitle">الدفع التجريبي عبر DigetPay</h2>
+          <p class="note" data-lang="digetpayBody">تجربة عضوية لمدة شهر بسعر 4.99 دولار أمريكي. لا يُخصم مبلغ فعلي ولا يوجد تجديد تلقائي. استخدم بيانات الاختبار فقط.</p>
+          <label><span data-lang="paymentPhone">رقم جوال سعودي</span><input name="phone" type="tel" dir="ltr" autocomplete="tel" inputmode="tel" required maxlength="14" pattern="(0?5[0-9]{8}|\+9665[0-9]{8}|9665[0-9]{8})" placeholder="0501234567"></label>
+          <button class="primary" type="submit" data-lang="continueDigetpay">متابعة إلى DigetPay التجريبي</button>
+        </form>
+        <div id="payment-result" class="detail" hidden aria-live="polite">
+          <h2 data-lang="paymentResultTitle">حالة الدفع</h2>
+          <p id="payment-result-text"></p>
+          <button id="payment-verify" type="button" data-lang="verifyPayment">تحقق من حالة الدفع</button>
+        </div>
+        <div id="test-checkout" class="detail" hidden tabindex="-1"><h2 data-lang="checkoutTitle">محاكاة الدفع التجريبية</h2><p data-lang="checkoutBody">VIP — ‏4.99 دولار أمريكي شهريًا. اختر نتيجة اختبار. هذه المحاكاة لا تُنشئ دفعة أو تجديدًا فعليًا.</p><div class="actions"><button class="primary" data-checkout-outcome="success" data-lang="simulateSuccess">محاكاة نجاح الدفع</button><button data-checkout-outcome="declined" data-lang="simulateDecline">محاكاة رفض الدفع</button><button data-checkout-outcome="cancel" data-lang="cancel">إلغاء</button></div></div>
+      </section>
+      <section data-panel="security" hidden>
+        <p class="eyebrow" data-lang="peaceOfMind">اطمئنانك أولًا</p><h1 data-lang="securityTitle">حسابك بصلاحيات واضحة</h1>
+        <p class="lede" data-lang="securityBody">المصادقة الثنائية مطلوبة للموظفين. صلاحيات الإشراف مرتبطة بالمجموعات المسندة فقط.</p>
+        <p class="note" data-lang="accountId">معرّف حسابك</p><code id="account-id" class="copy-value"></code>
+        <a id="google-security" class="button" href="/auth/google?purpose=security" hidden data-lang="googleVerify">أعد التحقق عبر Google</a>
+        <form id="mfa-enroll" class="form-grid"><h2 data-lang="setupMfa">إعداد تطبيق المصادقة</h2><label id="mfa-password-label"><span data-lang="password">كلمة المرور الحالية</span><input id="mfa-password" name="password" type="password" autocomplete="current-password" required maxlength="64"></label><button data-lang="beginSetup">ابدأ الإعداد</button></form>
+        <div id="mfa-secret" class="detail" hidden><img id="mfa-qr" alt="Authenticator setup QR code" width="240" height="240"><p data-lang="secretInstruction">امسح الرمز بتطبيق المصادقة، أو أدخل المفتاح يدويًا. لا تشاركه.</p><code id="mfa-key" class="copy-value"></code></div>
+        <form id="mfa-verify" class="form-grid"><h2 data-lang="verifyMfa">تأكيد رمز المصادقة</h2><label><span data-lang="otp">الرمز أو رمز الاسترداد</span><input name="code" inputmode="text" autocomplete="one-time-code" required maxlength="40" dir="ltr"></label><button class="primary" data-lang="verify">تحقّق</button><p class="note" data-lang="staffSession">تأكيد الموظفين صالح لمدة 15 دقيقة. كل تغيير حساس يُسجّل باسم صاحبه.</p></form>
+        <div id="recovery" class="detail" hidden><h2 data-lang="recoveryTitle">احفظ رموز الاسترداد</h2><p data-lang="recoveryBody">تظهر الآن فقط. كل رمز يُستخدم مرة واحدة. احفظها في مكان آمن قبل مغادرة الصفحة.</p><pre id="recovery-codes" dir="ltr"></pre></div>
+        <form id="bootstrap" class="form-grid" hidden><h2 data-lang="bootstrapTitle">إعداد المالك الأول</h2><p class="note" data-lang="bootstrapBody">بعد تفعيل المصادقة، أدخل كلمة مرور الإدارة الحالية لربط الإدارة بحسابك. تُغلق هذه الخطوة بعد إعداد أول مسؤول رئيسي.</p><label><span data-lang="adminPassword">كلمة مرور الإدارة الحالية</span><input name="password" type="password" autocomplete="off" required></label><button data-lang="bootstrapAction">اربط حساب المسؤول الرئيسي</button></form>
+      </section>
+      <section data-panel="staff" hidden>
+        <p class="eyebrow" data-lang="staffWorkspace">مساحة الفريق</p><h1 data-lang="staffTitle">إدارة بمسؤولية واضحة</h1>
+        <p id="staff-lock" class="note" data-lang="staffLock">أكّد رمز المصادقة في صفحة الأمان للوصول إلى أدوات الإدارة.</p>
+        <div id="staff-content" hidden>
+          <div id="staff-overview" class="metrics"></div>
+          <section id="staff-operations-section" hidden>
+            <h2 data-lang="alertsTitle">تنبيهات التشغيل الأخيرة</h2>
+            <p id="staff-monitoring-status" role="status"></p>
+            <div id="staff-alerts" class="rows"></div>
+            <h2 data-lang="operationsTitle">تشغيل المنصة</h2>
+            <p class="note" data-lang="operationsNote">إعداد الفيديو والإعلانات مؤقتان حتى إعادة تشغيل الخادم. تغيير الفيديو يخص الاتصالات الجديدة.</p>
+            <div class="actions"><button id="video-gate"></button><button id="platform-backup" hidden data-lang="backupNow">إنشاء نسخة احتياطية</button></div>
+            <form id="announcement-form" class="form-grid" hidden>
+              <label><span data-lang="announcementAr">الإعلان بالعربية</span><input name="messageAr" maxlength="200" dir="rtl"></label>
+              <label><span data-lang="announcementEn">الإعلان بالإنجليزية</span><input name="messageEn" maxlength="200" dir="ltr"></label>
+              <label><span data-lang="announcementDuration">مدة الظهور بالدقائق</span><input name="durationMinutes" type="number" min="1" max="1440" value="60" required></label>
+              <button data-lang="publishAnnouncement">عرض الإعلان</button>
+              <button type="button" id="clear-announcement" data-lang="clearAnnouncement">إزالة الإعلان</button>
+            </form>
+            <div id="staff-live-rooms" class="rows"></div>
+          </section>
+          <section id="staff-users-section" hidden>
+            <h2 data-lang="accountModeration">إدارة الحسابات</h2>
+            <form id="staff-user-search" class="inline-form"><label for="staff-query" data-lang="searchAccounts">اسم أو بريد أو معرّف الحساب</label><input id="staff-query" maxlength="100"><button data-lang="search">بحث</button></form>
+            <div id="staff-users" class="rows"></div>
+          </section>
+          <section id="staff-roles-section" hidden><h2 data-lang="roleAssignments">صلاحيات الفريق</h2><div id="staff-roles" class="rows"></div>
+            <form id="staff-grant" class="form-grid"><label><span data-lang="targetAccount">معرّف حساب الموظف</span><input name="userId" required dir="ltr"></label><label><span data-lang="role">الصلاحية</span><select name="role"><option value="moderator" data-lang="roleModerator">مشرف محتوى</option><option value="support" data-lang="roleSupport">الدعم</option><option value="billing_operator" data-lang="roleBilling">الفوترة</option><option value="admin" data-lang="roleAdmin">مسؤول المنصة</option><option value="super_admin" data-lang="roleSuperAdmin">مسؤول رئيسي</option></select></label><button data-lang="grant">امنح الصلاحية</button></form>
+          </section>
+          <section id="staff-cases-section" hidden><h2 data-lang="reports">البلاغات</h2><div id="staff-cases" class="rows"></div></section>
+          <section id="staff-billing-section" hidden><h2 data-lang="subscriptions">الاشتراكات</h2><div id="staff-billing" class="rows"></div></section>
+          <section id="staff-audit-section" hidden><h2 data-lang="audit">سجل الإجراءات</h2><div id="staff-audit" class="rows"></div></section>
+        </div>
+      </section>
+    </main>
+  </div>
+  <footer><span lang="en">Halastudy</span><a href="/privacy" data-lang="privacy">الخصوصية</a><a href="/terms" data-lang="terms">الشروط</a></footer>
+</body>
+</html>

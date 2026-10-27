@@ -1,0 +1,335 @@
+const express = require('express');
+const { verifyPassword } = require('../auth/password');
+const { sanitizeUserText } = require('../auth');
+const { verifyReauth, COOKIE_NAME } = require('../auth/reauth');
+const { requireCondition, audit } = require('./common');
+
+function createPlatformRouter(deps) {
+    const { platform, requireUser, users, rooms, config, parseCookies, appendSetCookie, logger,
+        applyHttpRateLimit, rateLimiters, disconnectUser, flushUsers, flushRooms,
+        io, clearRoomCleanupTimer, deleteRoom, runtimeFlags, isVideoJoinDisabled, announcementState, backupScheduler,
+        operationalAlerts, videoRevocations } = deps;
+    const router = express.Router();
+    const handle = (handler) => async (req, res) => {
+        try {
+            await handler(req, res);
+        } catch (error) {
+            const known = typeof error.errorCode === 'string';
+            if (!known) logger.error({ event: 'platform_request_failed', path: req.path });
+            res.status(known ? error.status : 503).json({ errorCode: known ? error.errorCode : 'SERVICE_UNAVAILABLE' });
+        }
+    };
+    router.use((_req, res, next) => {
+        res.setHeader('Cache-Control', 'no-store');
+        if (!platform.enabled) return res.status(503).json({ errorCode: 'PLATFORM_DISABLED' });
+        next();
+    });
+    router.get('/catalog', handle(async (_req, res) => {
+        await platform.ready;
+        res.json(platform.entitlements.catalog());
+    }));
+    router.post('/billing/digetpay/webhook', handle(async (req, res) => {
+        if (!applyHttpRateLimit(req, res, rateLimiters.platformMutation, `digetpay:${req.ip}`)) return;
+        await platform.ready;
+        requireCondition(platform.billing.notify, 'CHECKOUT_UNCONFIGURED', 503);
+        await platform.billing.notify(req.body);
+        res.json({ accepted: true });
+    }));
+    router.use(requireUser);
+    router.use(async (req, res, next) => {
+        try {
+            await platform.ensureUser(req.user);
+            if (req.method !== 'GET' && !applyHttpRateLimit(req, res, rateLimiters.platformMutation, req.user.id)) return;
+            next();
+        } catch {
+            res.status(503).json({ errorCode: 'SERVICE_UNAVAILABLE' });
+        }
+    });
+    async function staff(req, permission) {
+        const cookies = parseCookies(req.headers.cookie || '');
+        requireCondition(await platform.access.verifyStaff(req.user.id, cookies.coStudyStaff, cookies.coStudyAuth), 'MFA_REQUIRED', 403);
+        if (permission) await platform.access.requirePermission(req.user.id, permission);
+    }
+    router.get('/me', handle(async (req, res) => {
+        const [benefits, roles, permissions, cohorts, mfa] = await Promise.all([
+            platform.entitlements.resolve(req.user.id), platform.access.roles(req.user.id),
+            platform.access.permissions(req.user.id), platform.cohorts.list(req.user.id),
+            platform.db.query('SELECT enabled FROM halastudy.mfa WHERE user_id=$1', [req.user.id])
+        ]);
+        const cookies = parseCookies(req.headers.cookie || '');
+        res.json({
+            benefits, roles, permissions, cohorts, mode: platform.mode, billing: platform.entitlements.catalog(),
+            mfaEnabled: mfa.rows[0]?.enabled || false,
+            staffVerified: await platform.access.verifyStaff(req.user.id, cookies.coStudyStaff, cookies.coStudyAuth),
+            bootstrapAvailable: !!config.admin.passwordHash && !(await platform.access.hasStaff())
+        });
+    }));
+    router.get('/progress', handle(async (req, res) => {
+        const { features } = await platform.entitlements.resolve(req.user.id);
+        res.json(await platform.progress.summary(req.user.id, features['progress.history_days']));
+    }));
+    router.post('/focus/start', handle(async (req, res) => res.json(await platform.progress.start(req.user.id))));
+    router.post('/focus/:id/:action', handle(async (req, res) => res.json(await platform.progress.update(req.user.id, req.params.id, req.params.action))));
+    router.get('/progress/export', handle(async (req, res) => {
+        const { features } = await platform.entitlements.resolve(req.user.id);
+        requireCondition(features['progress.export'], 'VIP_REQUIRED', 403);
+        const result = await platform.db.query(`SELECT started_at,completed_at,credited_ms,xp FROM halastudy.focus_sessions
+            WHERE user_id=$1 AND state='completed' AND started_at>=$2 ORDER BY started_at DESC LIMIT 10000`,
+        [req.user.id, Date.now() - features['progress.history_days'] * 86400000]);
+        const csv = ['started_utc,completed_utc,validated_minutes,xp', ...result.rows.map((row) => [
+            new Date(Number(row.started_at)).toISOString(), new Date(Number(row.completed_at)).toISOString(),
+            Math.floor(Number(row.credited_ms) / 60000), row.xp
+        ].join(','))].join('\r\n');
+        res.setHeader('Content-Disposition', 'attachment; filename="halastudy-progress.csv"');
+        res.type('text/csv').send(csv);
+    }));
+    router.post('/billing/checkout', handle(async (req, res) => res.json(await platform.billing.checkout(req.user.id, {
+        phone: req.body?.phone, name: req.user.displayName, email: req.user.email
+    }))));
+    router.get('/billing/latest', handle(async (req, res) => res.json({
+        order: platform.billing.latest ? await platform.billing.latest(req.user.id) : null
+    })));
+    router.post('/billing/checkout/:id/verify', handle(async (req, res) => {
+        requireCondition(platform.billing.status, 'CHECKOUT_UNCONFIGURED', 503);
+        res.json(await platform.billing.status(req.user.id, req.params.id));
+    }));
+    router.post('/billing/checkout/:id/complete', handle(async (req, res) =>
+        res.json(await platform.billing.complete(req.user.id, req.params.id, req.body?.token, req.body?.outcome))));
+    router.post('/billing/cancellation', handle(async (req, res) => {
+        requireCondition(typeof req.body?.cancelAtPeriodEnd === 'boolean', 'VALUE_INVALID');
+        res.json(await platform.billing.cancel(req.user.id, req.body.cancelAtPeriodEnd));
+    }));
+    router.post('/cohorts', handle(async (req, res) => res.json(await platform.cohorts.create(req.user.id, req.body?.name))));
+    router.post('/cohorts/accept', handle(async (req, res) => res.json(await platform.cohorts.accept(req.user.id, req.body?.token))));
+    router.post('/cohorts/:id/invitations', handle(async (req, res) => res.json(await platform.cohorts.invite(req.user.id, req.params.id))));
+    router.get('/cohorts/:id/members', handle(async (req, res) => res.json({ members: await platform.cohorts.members(req.user.id, req.params.id) })));
+    router.patch('/cohorts/:id/members/:userId', handle(async (req, res) => {
+        await platform.cohorts.setRole(req.user.id, req.params.id, req.params.userId, req.body?.role);
+        // End existing room connections so a removed member cannot retain
+        // private-cohort access through an old socket.
+        if (req.body?.role === 'remove') disconnectUser(req.params.userId);
+        res.json({ ok: true });
+    }));
+    router.get('/cohorts/:id/sessions', handle(async (req, res) => res.json({ sessions: await platform.cohorts.sessions(req.user.id, req.params.id) })));
+    router.post('/cohorts/:id/archive', handle(async (req, res) => {
+        await platform.cohorts.archive(req.user.id, req.params.id);
+        for (const room of rooms.values()) {
+            if (room.cohortId !== req.params.id) continue;
+            for (const socketId of room.users.keys()) io.sockets.sockets.get(socketId)?.disconnect(true);
+            deleteRoom(room.id);
+        }
+        await flushRooms();
+        res.json({ ok: true });
+    }));
+    router.post('/cohorts/:id/leave', handle(async (req, res) => {
+        await platform.cohorts.leave(req.user.id, req.params.id);
+        disconnectUser(req.user.id);
+        res.json({ ok: true });
+    }));
+    router.delete('/cohorts/:id/sessions/:sessionId', handle(async (req, res) => {
+        await platform.cohorts.cancelSession(req.user.id, req.params.id, req.params.sessionId);
+        res.json({ ok: true });
+    }));
+    router.post('/cohorts/:id/sessions', handle(async (req, res) => {
+        requireCondition(rooms.has(req.body?.roomId), 'ROOM_NOT_FOUND', 404);
+        const result = await platform.cohorts.schedule(req.user.id, req.params.id, req.body || {});
+        const room = rooms.get(req.body.roomId);
+        room.cohortId = req.params.id;
+        clearRoomCleanupTimer(room);
+        // Revoke receivers synchronously after committing private scope, before
+        // any further fallible await. Outgoing-event checks do not stop listening.
+        const allowed = new Set(result.allowedUserIds);
+        for (const socketId of room.users.keys()) {
+            const socket = io.sockets.sockets.get(socketId);
+            if (socket && !allowed.has(socket.data.userId)) socket.disconnect(true);
+        }
+        await flushRooms();
+        res.json({ id: result.id });
+    }));
+    router.get('/cohorts/:id/sessions/:sessionId/attendance', handle(async (req, res) =>
+        res.json({ attendance: await platform.cohorts.attendance(req.user.id, req.params.id, req.params.sessionId) })));
+    router.get('/rooms', handle(async (req, res) => {
+        const result = await platform.db.query(`SELECT DISTINCT r.id,r.owner_id,r.cohort_id,
+            (r.owner_id=$1 OR h.user_id=$1) AS can_manage FROM halastudy.rooms r
+            LEFT JOIN halastudy.room_hosts h ON h.room_id=r.id AND h.user_id=$1
+            LEFT JOIN halastudy.cohort_members m ON m.cohort_id=r.cohort_id AND m.user_id=$1
+            WHERE r.owner_id=$1 OR h.user_id=$1 OR m.role='supervisor'`, [req.user.id]);
+        res.json({ rooms: result.rows.map((row) => ({
+            ...row, name: rooms.get(row.id)?.name || row.id, exists: rooms.has(row.id)
+        })) });
+    }));
+    router.patch('/rooms/:id', handle(async (req, res) => {
+        const row = (await platform.db.query(`SELECT r.* FROM halastudy.rooms r LEFT JOIN halastudy.room_hosts h
+            ON h.room_id=r.id AND h.user_id=$2 WHERE r.id=$1 AND (r.owner_id=$2 OR h.user_id=$2)`, [req.params.id, req.user.id])).rows[0];
+        requireCondition(row, 'ROOM_NOT_FOUND', 404);
+        const room = rooms.get(req.params.id);
+        requireCondition(room, 'ROOM_NOT_FOUND', 404);
+        const name = sanitizeUserText(req.body?.name, 48);
+        requireCondition(name, 'NAME_REQUIRED');
+        await platform.db.transaction((tx) => audit(tx, req.user.id, 'room.renamed', room.id, { name }));
+        room.name = name;
+        await flushRooms();
+        res.json({ ok: true });
+    }));
+    router.post('/security/mfa/enroll', handle(async (req, res) => {
+        if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, `mfa-enroll:${req.user.id}`)) return;
+        const cookies = parseCookies(req.headers.cookie || '');
+        const verified = req.user.authProvider === 'google'
+            ? verifyReauth(cookies[COOKIE_NAME], req.user, cookies.coStudyAuth, config.sessionSecret, Date.now(), 'setup-mfa')
+            : await verifyPassword(String(req.body?.password || ''), req.user.passwordHash);
+        requireCondition(verified, 'INVALID_CREDENTIALS', 401);
+        res.json(await platform.access.enroll(req.user));
+    }));
+    router.post('/security/mfa/verify', handle(async (req, res) => {
+        if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, `mfa:${req.user.id}`)) return;
+        const cookies = parseCookies(req.headers.cookie || '');
+        const verified = await platform.access.verify(req.user.id, req.body?.code, cookies.coStudyAuth, req.body?.activate === true);
+        appendSetCookie(res, `coStudyStaff=${verified.session}; Path=/api/platform; HttpOnly; SameSite=Strict; Max-Age=900${req.secure ? '; Secure' : ''}`);
+        res.json({ ok: true, recoveryCodes: verified.recoveryCodes, expiresAt: verified.expiresAt });
+    }));
+    router.post('/staff/bootstrap', handle(async (req, res) => {
+        await staff(req);
+        if (!applyHttpRateLimit(req, res, rateLimiters.adminLogin, 'platform-bootstrap')) return;
+        requireCondition(config.admin.passwordHash && await verifyPassword(String(req.body?.password || ''), config.admin.passwordHash), 'INVALID_CREDENTIALS', 401);
+        await platform.access.bootstrap(req.user.id);
+        res.json({ ok: true });
+    }));
+    router.get('/staff', handle(async (req, res) => {
+        await staff(req, 'staff.read');
+        const result = await platform.db.query(`SELECT r.*,u.display_name FROM halastudy.role_assignments r JOIN halastudy.users u ON u.id=r.user_id ORDER BY r.created_at`);
+        res.json({ assignments: result.rows });
+    }));
+    router.post('/staff/roles', handle(async (req, res) => {
+        await staff(req, 'staff.manage');
+        const target = users.get(req.body?.userId);
+        requireCondition(target, 'USER_NOT_FOUND', 404);
+        await platform.ensureUser(target);
+        await platform.access.assign(req.user.id, target.id, req.body?.role, req.body?.remove === true);
+        disconnectUser(target.id);
+        res.json({ ok: true });
+    }));
+    router.get('/staff/audit', handle(async (req, res) => {
+        await staff(req, 'audit.read');
+        res.json({ events: (await platform.db.query('SELECT * FROM halastudy.audit_events ORDER BY created_at DESC LIMIT 100')).rows });
+    }));
+    router.get('/staff/overview', handle(async (req, res) => {
+        await staff(req, 'operations.read');
+        res.json({ staffCount: users.size, roomCount: rooms.size,
+            participants: Array.from(rooms.values()).reduce((sum, room) => sum + room.users.size, 0) });
+    }));
+    router.get('/staff/cases', handle(async (req, res) => {
+        await staff(req, 'cases.read');
+        res.json({ cases: (await platform.db.query('SELECT * FROM halastudy.cases ORDER BY created_at DESC LIMIT 100')).rows });
+    }));
+    router.patch('/staff/cases/:id', handle(async (req, res) => {
+        await staff(req, 'cases.manage');
+        const status = req.body?.status;
+        const reason = sanitizeUserText(req.body?.disposition, 500);
+        requireCondition(['investigating', 'resolved', 'dismissed'].includes(status) && reason, 'DISPOSITION_REQUIRED');
+        await platform.db.transaction(async (tx) => {
+            const result = await tx.query(`UPDATE halastudy.cases SET status=$2,disposition=$3,assigned_to=$4,resolved_at=$5 WHERE id=$1 RETURNING id`,
+                [req.params.id, status, reason, req.user.id, status === 'investigating' ? null : Date.now()]);
+            requireCondition(result.rows.length === 1, 'CASE_NOT_FOUND', 404);
+            await audit(tx, req.user.id, 'case.updated', req.params.id, { status });
+        });
+        res.json({ ok: true });
+    }));
+    router.get('/staff/subscriptions', handle(async (req, res) => {
+        await staff(req, 'billing.read');
+        res.json({ subscriptions: (await platform.db.query('SELECT * FROM halastudy.subscriptions ORDER BY created_at DESC LIMIT 100')).rows });
+    }));
+    router.get('/staff/users', handle(async (req, res) => {
+        await staff(req, 'cases.manage');
+        const query = String(req.query.q || '').trim().toLowerCase().slice(0, 100);
+        const list = Array.from(users.values()).filter((user) => !query || user.id === query
+            || user.email.includes(query) || user.displayName.toLowerCase().includes(query));
+        res.json({ users: list.slice(0, 50).map(({ id, displayName, banned }) => ({ id, displayName, banned: !!banned })) });
+    }));
+    router.post('/staff/users/:id/status', handle(async (req, res) => {
+        await staff(req, 'cases.manage');
+        const target = users.get(req.params.id);
+        const reason = sanitizeUserText(req.body?.reason, 250);
+        requireCondition(target && reason && target.id !== req.user.id && typeof req.body?.banned === 'boolean', 'ACTION_INVALID');
+        requireCondition(!(await platform.access.roles(target.id)).includes('super_admin'), 'SUPER_ADMIN_PROTECTED', 403);
+        await platform.db.transaction((tx) => audit(tx, req.user.id, req.body.banned ? 'account.ban.requested' : 'account.unban.requested', target.id, { reason }));
+        const previous = target.banned;
+        target.banned = req.body.banned;
+        target.tokenEpoch += 1;
+        disconnectUser(target.id);
+        try {
+            await flushUsers();
+        } catch (error) {
+            target.banned = previous;
+            throw error;
+        }
+        res.json({ ok: true });
+    }));
+    router.get('/staff/rooms', handle(async (req, res) => {
+        await staff(req, 'operations.read');
+        res.json({ rooms: Array.from(rooms.values()).slice(0, 100).map((room) => ({
+            id: room.id, name: room.name, participants: Array.from(room.users.values()).map((user) => ({ socketId: user.socketId, name: user.name }))
+        })) });
+    }));
+    router.post('/staff/rooms/:id/:action', handle(async (req, res) => {
+        await staff(req, 'operations.manage');
+        const room = rooms.get(req.params.id);
+        const reason = sanitizeUserText(req.body?.reason, 250);
+        const action = req.params.action;
+        requireCondition(room && reason && ['close', 'kick'].includes(action), 'ACTION_INVALID');
+        requireCondition(action !== 'close' || room.id !== 'LOBBY', 'LOBBY_PROTECTED', 403);
+        if (action === 'kick') requireCondition(room.users.has(req.body?.socketId), 'PARTICIPANT_NOT_FOUND', 404);
+        await platform.db.transaction((tx) => audit(tx, req.user.id, `room.${action}.requested`, room.id, { reason }));
+        const socketIds = action === 'close' ? [...room.users.keys()] : [req.body.socketId];
+        for (const id of socketIds) {
+            const socket = io.sockets.sockets.get(id);
+            socket?.emit(action === 'close' ? 'room-closed' : 'kicked', { reason: 'admin' });
+            socket?.disconnect(true);
+        }
+        if (action === 'close') { deleteRoom(room.id); await flushRooms(); }
+        res.json({ ok: true });
+    }));
+    router.get('/staff/operations', handle(async (req, res) => {
+        await staff(req, 'operations.read');
+        res.json({ videoDisabled: isVideoJoinDisabled(),
+            backup: { lastRunAt: backupScheduler.status.lastRunAt, failed: !!backupScheduler.status.lastError },
+            monitoring: operationalAlerts?.status(), alerts: operationalAlerts?.list() || [],
+            media: videoRevocations?.status()
+        });
+    }));
+    router.post('/staff/video', handle(async (req, res) => {
+        await staff(req, 'operations.manage');
+        requireCondition(typeof req.body?.disabled === 'boolean', 'VALUE_INVALID');
+        await platform.db.transaction((tx) => audit(tx, req.user.id, 'video.gate.changed', 'platform', { disabled: req.body.disabled }));
+        runtimeFlags.videoJoinDisabled = req.body.disabled;
+        res.json({ ok: true, disabled: isVideoJoinDisabled() });
+    }));
+    router.post('/staff/announcement', handle(async (req, res) => {
+        await staff(req, 'operations.manage');
+        const messageAr = sanitizeUserText(req.body?.messageAr, 200);
+        const messageEn = sanitizeUserText(req.body?.messageEn, 200);
+        const duration = Number(req.body?.durationMinutes);
+        requireCondition((messageAr || messageEn) && Number.isInteger(duration) && duration >= 1 && duration <= 1440, 'VALUE_INVALID');
+        await platform.db.transaction((tx) => audit(tx, req.user.id, 'announcement.created', 'platform'));
+        const announcement = { id: require('node:crypto').randomUUID(), messageAr, messageEn, createdAt: Date.now(), expiresAt: Date.now() + duration * 60000 };
+        announcementState.current = announcement;
+        io.emit('announcement', announcement);
+        res.json({ ok: true });
+    }));
+    router.delete('/staff/announcement', handle(async (req, res) => {
+        await staff(req, 'operations.manage');
+        await platform.db.transaction((tx) => audit(tx, req.user.id, 'announcement.cleared', 'platform'));
+        const previous = announcementState.current;
+        announcementState.current = null;
+        io.emit('announcement-clear', { id: previous?.id || null });
+        res.json({ ok: true });
+    }));
+    router.post('/staff/backup', handle(async (req, res) => {
+        await staff(req, 'backups.manage');
+        await platform.db.transaction((tx) => audit(tx, req.user.id, 'backup.requested', 'platform'));
+        const result = await backupScheduler.runBackup();
+        res.json({ ok: true, entries: result.entries });
+    }));
+    return router;
+}
+
+module.exports = { createPlatformRouter };

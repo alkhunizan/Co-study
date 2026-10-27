@@ -3,15 +3,18 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { normalizeEmail, validatePassword } = require('./index');
 const { hashPassword } = require('./password');
+const { createResendMail } = require('./recovery-delivery');
+const { createRecoveryQueue } = require('./recovery-queue');
 
 const digest = (value) => crypto.createHash('sha256').update(value).digest('hex');
 
-function createRecoveryMail({ env, directory }) {
+function createRecoveryMail({ env, directory, platform = null, isReady = () => true }) {
+    if (env.AUTH_MAIL_MODE === 'resend') return createResendMail({ env, platform, isReady });
     // Local outbox is explicitly opt-in and impossible in production. It is
     // private operator data, never exposed through HTTP or application logs.
     const enabled = env.NODE_ENV !== 'production' && env.AUTH_MAIL_MODE === 'local';
     return {
-        enabled,
+        enabled, mode: 'local',
         async send({ email, purpose, token }) {
             if (!enabled) throw new Error('MAIL_UNAVAILABLE');
             const origin = new URL(env.AUTH_PUBLIC_ORIGIN || 'http://localhost:3000');
@@ -33,7 +36,9 @@ function registerRecoveryRoutes(router, deps, mutateAccount) {
         getRequestIp, requireUser, disconnectUser, clearAuthCookie, logger } = deps;
     let jobs = 0;
     const available = !!mail?.enabled;
-    router.get('/auth/recovery/config', (_req, res) => res.json({ enabled: available, mode: available ? 'local' : 'disabled' }));
+    const queue = available && mail.durable ? createRecoveryQueue({ users, mail, mutateAccount, logger }) : null;
+    if (queue) mail.close = queue.close;
+    router.get('/auth/recovery/config', (_req, res) => res.json({ enabled: available, mode: available ? (queue ? 'email' : 'local') : 'disabled' }));
 
     function limited(req, res, key) {
         return !applyHttpRateLimit(req, res, rateLimiters.recoveryIp, getRequestIp(req))
@@ -49,29 +54,38 @@ function registerRecoveryRoutes(router, deps, mutateAccount) {
                 if (purpose === 'verify' && user.emailVerifiedAt) return;
                 await mutateAccount({ user }, sink, ['recovery'], (target) => {
                     const token = `${target.id}.${crypto.randomBytes(32).toString('base64url')}`;
+                    const delivery = queue ? mail.prepare({ email: target.email, purpose, token }) : undefined;
                     target.recovery = { ...target.recovery, [purpose]: {
                         hash: digest(token), expiresAt: Date.now() + 30 * 60000,
-                        epoch: target.tokenEpoch, email: target.email
+                        epoch: target.tokenEpoch, email: target.email, ...(delivery ? { delivery } : {})
                     } };
-                    return () => mail.send({ email: target.email, purpose, token });
+                    return () => queue ? undefined : mail.send({ email: target.email, purpose, token });
                 });
             })().catch(() => logger.error({ event: 'account_recovery_delivery_failed' })).finally(() => { jobs--; });
         });
+    }
+    async function accept(req, res, email, purpose, user) {
+        if (queue) {
+            try {
+                await mail.accept(user, email, purpose, queue.size);
+                return res.status(202).json({ ok: true });
+            } catch { return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' }); }
+        }
+        res.status(202).json({ ok: true });
+        enqueue(user, purpose);
     }
     router.post('/auth/recovery/request', (req, res) => {
         if (!available) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });
         const email = normalizeEmail(req.body?.email);
         if (limited(req, res, email || 'invalid')) return;
-        if (jobs >= 100) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });
-        res.status(202).json({ ok: true });
-        enqueue(users.get(usersByEmail.get(email)), 'reset');
+        if (jobs + (queue?.size() || 0) >= 100) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });
+        return accept(req, res, email, 'reset', users.get(usersByEmail.get(email)));
     });
     router.post('/me/email-verification', requireUser, (req, res) => {
         if (!available) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });
         if (limited(req, res, req.user.email)) return;
-        if (jobs >= 100) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });
-        res.status(202).json({ ok: true });
-        enqueue(req.user, 'verify');
+        if (jobs + (queue?.size() || 0) >= 100) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });
+        return accept(req, res, req.user.email, 'verify', req.user);
     });
     router.post('/auth/recovery/complete', async (req, res) => {
         if (!available) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });

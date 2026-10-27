@@ -4,14 +4,24 @@ const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
 
-function sdkClient(meeting) {
-    const window = { RealtimeKitClient: { init: async () => meeting } };
+function sdkClient(meeting, onInit = (_options) => {}) {
+    const window = { RealtimeKitClient: { init: async (options) => { onInit(options); return meeting; } } };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../public/js/video/realtimekit-client.js'), 'utf8'), {
         window, setTimeout, clearTimeout, customElements: { get: () => true },
         document: { querySelector: () => ({ dataset: { loaded: 'true' }, addEventListener() {} }) }
     });
     return (/** @type {any} */ (window)).HalastudyRealtimeKitClient;
 }
+
+test('ordinary and headless provider joins keep the camera and microphone off until an explicit choice', async () => {
+    for (const method of ['join', 'joinHeadless']) {
+        /** @type {{video?: boolean, audio?: boolean}} */ let defaults = {};
+        const client = sdkClient({ join: async () => {}, self: { disableAudio: async () => {} } }, options => { defaults = options.defaults; });
+        await client[method]({ authToken: 'synthetic', meetingElement: { meeting: null } });
+        assert.equal(defaults.video, false, method);
+        assert.equal(defaults.audio, false, method);
+    }
+});
 
 test('both video join variants release a partially joined meeting on failure', async () => {
     for (const method of ['join', 'joinHeadless']) {

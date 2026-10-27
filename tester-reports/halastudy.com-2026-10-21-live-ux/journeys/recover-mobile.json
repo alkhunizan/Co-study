@@ -1,0 +1,25 @@
+{
+  "name": "Recover access to a returning account",
+  "viewport": "mobile",
+  "auditGoal": "Find the password recovery path without credentials or submission.",
+  "auditOutcome": "abandoned",
+  "steps": [
+    {
+      "goto": "https://halastudy.com/"
+    },
+    {
+      "click": "تسجيل الدخول"
+    },
+    {
+      "expect": "أهلاً من جديد"
+    },
+    {
+      "scroll": "bottom"
+    },
+    {
+      "note": "Full-page account inventory has no recovery/reset link. Navigation completes, but account-recovery goal is abandoned. Never type a password or submit sign-in."
+    }
+  ],
+  "allowSubmit": false,
+  "stepDelay": 800
+}

@@ -250,7 +250,9 @@ test('chat and shared board stay in sync across two participants', async ({ brow
         await expect.poll(() => taskTexts(peer.page)).toEqual(['First shared task', 'Second shared task']);
 
         await owner.page.locator('#todo-list .todo-item', { hasText: 'Second shared task' })
-            .dragTo(owner.page.locator('#todo-list .todo-item', { hasText: 'First shared task' }));
+            .dragTo(owner.page.locator('#todo-list .todo-item', { hasText: 'First shared task' }), {
+                targetPosition: { x: 20, y: 4 }
+            });
         await expect.poll(() => taskTexts(peer.page)).toEqual(['Second shared task', 'First shared task']);
 
         await peer.page.locator('#todo-list .todo-item', { hasText: 'Second shared task' })
@@ -321,8 +323,22 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
     // dedicated Chromium with a fake camera instead of the shared fixture
     // whose getUserMedia stub always throws.
     const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
+    // Feed native getUserMedia a fixed Y4M source. The built-in test-pattern
+    // device can end unexpectedly on this Windows capture backend.
+    const cameraFile = test.info().outputPath('fake-camera.y4m');
+    const width = 320, height = 240;
+    const luminance = Buffer.alloc(width * height);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) luminance[y * width + x] = ((x >> 4) + (y >> 4)) % 2 ? 200 : 50;
+    }
+    require('node:fs').writeFileSync(cameraFile, Buffer.concat([
+        Buffer.from(`YUV4MPEG2 W${width} H${height} F24:1 Ip A1:1 C420\nFRAME\n`),
+        luminance, Buffer.alloc(width * height / 2, 128)
+    ]));
     const browser = await playwright.chromium.launch({
-        args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
+        channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
+        args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',
+            `--use-file-for-fake-video-capture=${cameraFile}`]
     });
     const context = await browser.newContext({
         baseURL: server.baseUrl,
@@ -339,6 +355,12 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
     await page.addInitScript(() => {
         try { delete (/** @type {any} */ (window)).FaceDetector; } catch (_error) {}
         try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
+        const capture = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        navigator.mediaDevices.getUserMedia = async (constraints) => {
+            const stream = await capture(constraints);
+            (/** @type {any} */ (window)).__capturedCameraTracks = stream.getTracks();
+            return stream;
+        };
     });
 
     try {
@@ -362,6 +384,10 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
         await expect(page.locator('#blur-toggle')).toBeVisible();
         await expect(page.locator('#blur-toggle')).toHaveText('Blur: on');
         await expect.poll(async () => (await localTrackLabel())?.state).toBe('live');
+        await expect.poll(() => page.evaluate(() => {
+            const video = /** @type {HTMLVideoElement} */ (document.getElementById('local-video'));
+            return video.readyState >= 2 && video.videoWidth > 0;
+        })).toBe(true);
         const blurredTrack = await localTrackLabel();
         expect(blurredTrack.label).not.toMatch(/fake/i);
         // The pipeline adds its hidden raw <video> to the DOM.
@@ -388,6 +414,7 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
         })).toBe(true);
         await expect(page.locator('video')).toHaveCount(videoCountBefore);
 
+        expect(await page.evaluate(() => (/** @type {any} */ (window)).__capturedCameraTracks.every(track => track.readyState === 'ended'))).toBe(true);
         expect(consoleErrors).toEqual([]);
     } finally {
         await context.close();

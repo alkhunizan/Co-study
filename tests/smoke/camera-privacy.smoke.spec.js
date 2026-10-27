@@ -73,3 +73,41 @@ for (const mode of ['capture', 'unsupported', 'ended', 'toggle']) {
         await expect(page.locator('#blur-toggle')).toHaveText('Blur: off');
     });
 }
+
+for (const language of ['en', 'ar']) {
+    test(`an interrupted camera offers recovery and ignores old track events (${language})`, async ({ page }) => {
+        await page.setViewportSize({ width: language === 'ar' ? 390 : 1440, height: 900 });
+        await enter(page, 'healthy');
+        await page.locator(`[data-lang-value=${language}]`).filter({ visible: true }).click();
+        await page.click('#camera-toggle');
+        const livePreview = () => page.evaluate(() => {
+            const video = /** @type {HTMLVideoElement} */ (document.getElementById('local-video'));
+            return /** @type {MediaStream|null} */ (video.srcObject)?.getVideoTracks()[0]?.readyState === 'live';
+        });
+        await expect.poll(livePreview).toBe(true);
+        await page.evaluate(() => {
+            const w = /** @type {any} */ (window);
+            w.__firstPreview = /** @type {MediaStream} */ ((/** @type {HTMLVideoElement} */ (document.getElementById('local-video'))).srcObject).getVideoTracks()[0];
+            const raw = w.__rawTracks[0];
+            raw.stop(); raw.dispatchEvent(new Event('ended'));
+        });
+        await expect(page.locator('#camera-help')).toBeVisible();
+        await expect(page.locator('#camera-help-message')).toHaveText(language === 'en'
+            ? 'The camera stopped. Reconnect it and try again, or continue studying without it.'
+            : 'توقفت الكاميرا. أعد توصيلها وحاول مرة أخرى، أو أكمل المذاكرة بدونها.');
+        expect(await livePreview()).toBe(false);
+        expect(await page.evaluate(() => (/** @type {any} */ (window)).__firstPreview.readyState)).toBe('ended');
+        await expect(page.locator('video[style*="position: fixed"]')).toHaveCount(0);
+        await page.screenshot({ path: test.info().outputPath(`camera-interrupted-${language}.png`) });
+        await page.click('#camera-retry');
+        await expect.poll(livePreview).toBe(true);
+        await expect(page.locator('#camera-help')).toBeHidden();
+        await expect(page.locator('#blur-toggle')).toHaveAttribute('aria-pressed', 'true');
+        // A delayed event from the replaced capture must not stop the new camera.
+        await page.evaluate(() => (/** @type {any} */ (window)).__rawTracks[0].dispatchEvent(new Event('ended')));
+        expect(await livePreview()).toBe(true);
+        await expect(page.locator('#camera-help')).toBeHidden();
+        await page.click('#camera-toggle');
+        expect(await page.evaluate(() => (/** @type {any} */ (window)).__rawTracks.every(t => t.readyState === 'ended'))).toBe(true);
+    });
+}

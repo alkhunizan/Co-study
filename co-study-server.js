@@ -642,11 +642,11 @@ function sanitizeStatus(input = {}) {
         // stripped at the trust boundary, hidden when status is hidden.
         goal: visible ? sanitizeUserText(input.goal, 80) : '',
         visible,
-        manual: typeof input.manual === 'string' ? input.manual.slice(0, 40) : '',
-        manualPreset: typeof input.manualPreset === 'string' ? input.manualPreset : null,
-        autoSync: !!input.autoSync,
-        ambientType: typeof input.ambientType === 'string' ? input.ambientType.slice(0, 20) : null,
-        timerMode: input.timerMode === 'break' ? 'break' : (input.timerMode === 'focus' ? 'focus' : null),
+        manual: visible && typeof input.manual === 'string' ? input.manual.slice(0, 40) : '',
+        manualPreset: visible && typeof input.manualPreset === 'string' ? input.manualPreset.slice(0, 40) : null,
+        autoSync: visible && !!input.autoSync,
+        ambientType: visible && typeof input.ambientType === 'string' ? input.ambientType.slice(0, 20) : null,
+        timerMode: visible ? (input.timerMode === 'break' ? 'break' : (input.timerMode === 'focus' ? 'focus' : null)) : null,
         updatedAt: typeof input.updatedAt === 'number' ? input.updatedAt : Date.now()
     };
 }
@@ -1696,6 +1696,7 @@ function createCoStudyServer(options = {}) {
         clearInterval(videoSweepTimer);
         if (attendanceSweep) await attendanceSweep;
         await backupScheduler.stop();
+        await recoveryMail.close?.();
         console.log(`Received ${signal}. Persisting room state to ${roomStore.filePath}...`);
         const flushResults = await Promise.allSettled([
             roomStore.flush(rooms),
@@ -1766,11 +1767,12 @@ function createCoStudyServer(options = {}) {
         res.status(404).end();
     }, express.static(path.join(__dirname, 'design-system'), { maxAge: '1d' }));
 
+    const recoveryMail = createRecoveryMail({
+        env: config.supabase.enabled ? { ...env, AUTH_MAIL_MODE: 'disabled' } : env,
+        directory: `${config.userStateFile}.mail`, platform, isReady: () => readinessState.userStore
+    });
     app.use('/api', createAuthRouter({
-        recoveryMail: createRecoveryMail({
-            env: config.supabase.enabled ? { ...env, AUTH_MAIL_MODE: 'disabled' } : env,
-            directory: `${config.userStateFile}.mail`
-        }),
+        recoveryMail,
         users,
         usersByEmail,
         rooms,
@@ -2396,7 +2398,10 @@ function createCoStudyServer(options = {}) {
             }
 
             const sanitizedPassword = sanitizeRoomPassword(password);
-            const shouldProtect = !!requirePassword && sanitizedPassword.length > 0;
+            const shouldProtect = !!requirePassword;
+            if (shouldProtect && !sanitizedPassword) {
+                return ackError(ack, 'ROOM_PASSWORD_REQUIRED');
+            }
             let passwordHash = null;
 
             if (shouldProtect) {
@@ -2469,7 +2474,6 @@ function createCoStudyServer(options = {}) {
             } catch {
                 return ackError(ack, 'SERVICE_UNAVAILABLE');
             }
-            clearRoomCleanupTimer(room);
             if (roomUsesSfu(room) && !config.sfuAvailable) {
                 return ackError(ack, 'ROOM_MEDIA_UNAVAILABLE');
             }
@@ -2498,17 +2502,6 @@ function createCoStudyServer(options = {}) {
                 } catch (err) {
                     console.error('Password verification failed:', err);
                     return ackError(ack, 'ROOM_PASSWORD_VERIFICATION_FAILED');
-                }
-            }
-
-            // Switching rooms on a live socket: leave the previous room first so
-            // we don't leak a phantom participant (and mesh capacity) in it. A
-            // plain refresh/rejoin of the same room falls through untouched.
-            const previousRoomId = socket.data.roomId;
-            if (previousRoomId && previousRoomId !== normalizedRoom) {
-                const previousRoom = rooms.get(previousRoomId);
-                if (previousRoom && removeUserFromRoom(previousRoom, socket.id, previousRoomId)) {
-                    io.to(previousRoomId).emit('presence', roomSnapshot(previousRoomId).participants);
                 }
             }
 
@@ -2602,6 +2595,17 @@ function createCoStudyServer(options = {}) {
             const capacity = isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT
                 : getRoomVideoProvider(room) === VIDEO_PROVIDER_MESH && roomUsesMesh(room) ? config.meshParticipantLimit : Infinity;
             if (!room.users.has(socket.id) && room.users.size >= capacity) return ackError(ack, 'ROOM_FULL');
+            // Read current membership after every authorization await. Moving a
+            // seat is synchronous so overlapping joins cannot retain two rooms,
+            // and a denied destination leaves the existing seat/deadline intact.
+            const previousRoomId = socket.data.roomId;
+            if (previousRoomId && previousRoomId !== normalizedRoom) {
+                const previousRoom = rooms.get(previousRoomId);
+                if (previousRoom && removeUserFromRoom(previousRoom, socket.id, previousRoomId)) {
+                    io.to(previousRoomId).emit('presence', roomSnapshot(previousRoomId).participants);
+                }
+            }
+            clearRoomCleanupTimer(room);
             room.users.set(socket.id, userRecord);
             if (identityKey) {
                 room.identities.set(identityKey, socket.id);
