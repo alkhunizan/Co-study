@@ -33,6 +33,7 @@ const {
     createUserMutationCoordinator
 } = require('./services/auth/user-mutation-coordinator');
 const { createUserStore, recordMyRoom } = require('./user-store');
+const { createFileUserPersistence } = require('./services/persistence/file-user-persistence');
 const { createSupabaseClient } = require('./services/supabase/client');
 const { createSupabaseUserStore } = require('./supabase-user-store');
 const { createVideoProvider } = require('./services/video');
@@ -970,20 +971,20 @@ function createCoStudyServer(options = {}) {
     const runGoogleSubjectMutation = (googleSub, operation) =>
         googleSubjectMutationCoordinator.run(googleSub, operation);
 
+    const fileUserPersistence = createFileUserPersistence({ userStore, users });
+
     function persistUserImmediate(user) {
         if (typeof userStore.saveUser === 'function') {
             return userStore.saveUser(user);
         }
-        return userStore.flush(users);
+        return fileUserPersistence.persistUser(user);
     }
 
     function deleteUserImmediate(user) {
         if (typeof userStore.deleteUser === 'function') {
             return userStore.deleteUser(user);
         }
-        const remainingUsers = new Map(users);
-        remainingUsers.delete(user.id);
-        return userStore.flush(remainingUsers);
+        return fileUserPersistence.deleteUser(user);
     }
 
     async function persistFocusCompletionImmediate(user, payload) {
@@ -4291,13 +4292,7 @@ function createCoStudyServer(options = {}) {
             const { roomName, password, requirePassword } = payload;
             const cleanName = sanitizeRoomName(roomName);
             const mediaMode = normalizeMediaMode(payload.mediaMode);
-            const schedule = payload.schedule === undefined || payload.schedule === null
-                ? null
-                : normalizeSchedule(payload.schedule, {
-                    titleFallback: cleanName,
-                    strict: true,
-                    now: Date.now()
-                });
+            const scheduleRequested = payload.schedule !== undefined && payload.schedule !== null;
 
             if (!cleanName) {
                 return ackError(ack, 'ROOM_NAME_REQUIRED');
@@ -4311,13 +4306,22 @@ function createCoStudyServer(options = {}) {
             if (mediaMode === MEDIA_MODE_SFU && !config.sfuAvailable) {
                 return ackError(ack, 'ROOM_MEDIA_UNAVAILABLE');
             }
-            if (payload.schedule !== undefined && payload.schedule !== null && !schedule) {
-                return ackError(ack, 'SCHEDULE_INVALID');
-            }
             // Scheduled rooms attach attendance/streak commitments — those need
-            // a real account. Instant rooms stay guest-open.
-            if (schedule && !getSocketUser()) {
+            // a real account. Instant rooms stay guest-open. Both gates run
+            // before schedule validation, which expands every occurrence and is
+            // too expensive to offer to throttled or anonymous traffic.
+            if (scheduleRequested && !getSocketUser()) {
                 return ackError(ack, 'AUTH_REQUIRED_FOR_SCHEDULED');
+            }
+            const schedule = scheduleRequested
+                ? normalizeSchedule(payload.schedule, {
+                    titleFallback: cleanName,
+                    strict: true,
+                    now: Date.now()
+                })
+                : null;
+            if (scheduleRequested && !schedule) {
+                return ackError(ack, 'SCHEDULE_INVALID');
             }
             const creator = getSocketUser();
 
