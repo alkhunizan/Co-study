@@ -102,7 +102,9 @@ test('schedule gate blocks guests and unlocks after sign-in; My Rooms lists crea
         await guest.page.click('.my-room-row .btn');
         await waitForTestUrl(guest.page, '**/study**');
         await expect(guest.page.locator('#join-name')).toHaveValue('Gated');
-        await expect(guest.page.locator('#join-name-reserved')).toBeVisible();
+        await expect(guest.page.locator('#join-name-reserved')).not.toHaveAttribute('hidden', '');
+        await expect(guest.page.locator('#join-overlay')).toBeHidden();
+        await expect(guest.page.locator('#chat-input')).toBeEnabled();
     } finally {
         await guest.context.close();
     }
@@ -280,6 +282,9 @@ test('404 page is bilingual and the language toggle works', async ({ browser }) 
         const response = await gotoTestPage(visitor.page, '/no-such-page-anywhere');
         expect(response.status()).toBe(404);
         await expect(visitor.page.locator('h1')).toHaveText('Page not found');
+        if (!await visitor.page.locator('[data-lang-value="ar"]').isVisible()) {
+            await visitor.page.click('#nav-burger');
+        }
         await visitor.page.click('[data-lang-value="ar"]');
         await expect(visitor.page.locator('h1')).toHaveText('الصفحة غير موجودة');
         await expect(visitor.page.locator('html')).toHaveAttribute('dir', 'rtl');

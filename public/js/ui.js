@@ -7,6 +7,8 @@
     
 
     var CSS = [
+        '.hala-field-error{display:block;color:color-mix(in srgb,var(--danger) 82%,var(--ink));font-size:13px;line-height:1.5;margin-block:6px 0;}',
+        '.hala-field-error[hidden]{display:none;}',
         '#hala-toast-region{position:fixed;inset-block-end:20px;inset-inline-end:20px;display:flex;flex-direction:column;gap:10px;z-index:2147483000;pointer-events:none;max-inline-size:min(360px,calc(100vw - 40px));}',
         '.hala-toast{pointer-events:auto;display:flex;align-items:center;gap:10px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding-block:10px;padding-inline:18px 8px;box-shadow:0 6px 24px rgba(28,24,20,0.14);font:500 var(--t-body-sm)/1.4 var(--font-body);opacity:1;transform:none;transition:opacity 220ms ease,transform 220ms ease;}',
         '.hala-toast[data-entering]{opacity:0;transform:translateY(8px);}',
@@ -275,7 +277,38 @@
         return wrap;
     }
 
+    function setFieldError(input, message) {
+        if (!input?.id) return;
+        ensureCss();
+        var id = `${input.id}-error`;
+        var error = document.getElementById(id);
+        if (!error) {
+            error = document.createElement('span');
+            error.id = id;
+            error.className = 'hala-field-error';
+            input.insertAdjacentElement('afterend', error);
+        }
+        var describedBy = (input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+        if (!describedBy.includes(id)) describedBy.push(id);
+        input.setAttribute('aria-describedby', describedBy.join(' '));
+        input.setAttribute('aria-invalid', message ? 'true' : 'false');
+        error.textContent = message || '';
+        error.hidden = !message;
+    }
+
+    async function copyText(value, successMessage, fallbackMessage) {
+        try {
+            if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+            await navigator.clipboard.writeText(value);
+            toast(successMessage, { kind: 'success' });
+        } catch (_error) {
+            global.prompt(fallbackMessage, value);
+        }
+    }
+
     (/** @type {any} */ (global)).HalaUI = {
+        setFieldError: setFieldError,
+        copyText: copyText,
         toast: toast,
         confirm: confirmDialog,
         renderAuthChip: renderAuthChip,

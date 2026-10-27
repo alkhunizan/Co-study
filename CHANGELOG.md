@@ -3,6 +3,31 @@
 All notable Halastudy changes, newest first.
 Versions follow `MAJOR.MINOR.PATCH.MICRO`; dates are `YYYY-MM-DD`.
 
+`VERSION` uses the historical four-part display convention (`1.2.0.0`);
+`package.json` and the lockfile use npm's three-part version (`1.2.0`).
+`/api/health` reads the manifest version, not `VERSION`. These labels describe
+the same existing baseline and do not prove what commit is deployed. A new
+release number/tag remains unassigned until the readiness gates are complete.
+
+## Unreleased
+
+### Readiness preparation — 2026-10-18
+
+- Compatible dependency repairs and fixture-clock corrections passed Task 1;
+  changes remain local and uncommitted. See the
+  [Task 1 evidence](docs/superpowers/plans/2026-10-18-task1-evidence.md).
+- Reconciled the three additive migrations, service-user startup, signed
+  provider webhooks, one-writer state, six-dataset encrypted backups, and
+  tombstone-first recovery instructions against the candidate implementation.
+- Replaced obsolete architecture/CI/deployment guidance and corrected the stale
+  `VERSION` baseline from `1.1.0.0` to the already documented `1.2.0.0`.
+- The candidate includes authentication, persistence, room lifecycle, video,
+  and recovery remediation beyond the historical entries below. The
+  [commit inventory](docs/superpowers/plans/2026-10-18-commit-inventory.md)
+  records scope; verification evidence, not commit subjects, determines readiness.
+
+These notes do not announce a release or deployment.
+
 ## [1.2.0.0] - 2026-07-04
 
 ### Added

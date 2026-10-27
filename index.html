@@ -286,7 +286,10 @@
             inset: 0;
             background: rgba(0,0,0,0.55);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
+            overflow-y: auto;
+            padding-block: 16px;
+            box-sizing: border-box;
             justify-content: center;
             z-index: 999;
             backdrop-filter: blur(6px);
@@ -294,9 +297,12 @@
         }
         .join-overlay.hidden {
             opacity: 0;
+            visibility: hidden;
             pointer-events: none;
         }
         .join-card {
+            margin-block: auto;
+            flex-shrink: 0;
             width: min(420px, 90vw);
             background: var(--bg-card);
             border-radius: 28px;
@@ -313,9 +319,14 @@
             align-self: flex-end;
             margin-bottom: 4px;
         }
+        .join-card .lang-option { min-inline-size: 44px; min-block-size: 44px; }
+        .join-card .lang-option.active { color: var(--ink); }
+        .join-card .lang-option:focus-visible { box-shadow: 0 0 0 3px var(--accent-glow); }
         .join-sub { color: var(--text-sec); font-size: 0.9rem; line-height: 1.5; }
         .join-label { font-weight: 600; font-size: 0.85rem; }
         .join-input {
+            min-block-size: 44px;
+            color: var(--ink);
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 12px 16px;
@@ -340,7 +351,12 @@
             box-shadow: var(--sh-lamp);
             margin-top: 6px;
         }
-        .join-error { min-height: 18px; font-size: 0.85rem; color: var(--prio-high); }
+        [data-theme="dark"] .join-submit { color: var(--ink-inv); }
+        .join-error { min-height: 18px; font-size: 0.85rem; color: color-mix(in srgb, var(--danger) 82%, var(--ink)); }
+        .join-status { font-size: 0.85rem; color: var(--text-sec); }
+        .join-announcement { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+        .join-submit:disabled { opacity: 0.65; cursor: wait; }
+        .join-input { scroll-margin-block: 16px; }
 
         /* --- Header --- */
         header { padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
@@ -620,12 +636,14 @@
         <input type="text" id="join-room" class="join-input" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" data-force-ltr data-lang-placeholder="joinRoomPlaceholder" placeholder="e.g. ABC123">
         <label class="join-label" for="join-password" data-lang="joinPassword">Room password (if required)</label>
         <input type="password" id="join-password" class="join-input" maxlength="64" autocomplete="current-password" data-lang-placeholder="joinPasswordPlaceholder" placeholder="Leave empty if no password">
-        <div class="join-error" id="join-error"></div>
+        <div class="join-status" id="join-status" role="status" aria-live="polite" aria-atomic="true"></div>
+        <div class="join-error" id="join-error" role="alert" aria-atomic="true"></div>
         <button class="join-submit" type="submit" data-lang="joinButton">Enter room</button>
     </form>
 </div>
 
 <header>
+    <div class="join-announcement" id="room-join-status" role="status" aria-live="polite" aria-atomic="true"></div>
     <a href="/" class="logo" aria-label="Halastudy home" style="text-decoration:none;color:inherit;">
         <span class="logo-mark" aria-hidden="true">H</span>
         <span class="logo-word">Hala<em>study</em></span>

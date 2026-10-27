@@ -82,11 +82,24 @@
     .legal-footer a:hover { color: var(--ink); }
     .legal-footer a[aria-current="page"] { color: var(--ink); font-weight: 600; }
   </style>
+  <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <link rel="stylesheet" href="/design-system/public-shell.css">
+  <script src="/js/public-shell.js" defer></script>
 </head>
-<body>
+<body data-public-page="terms" data-legal-page>
   <header class="topbar">
-    <a href="/">هلاستدي · <bdi>Halastudy</bdi></a>
-    <a href="/open">افتح غرفة · <bdi>Open a room</bdi></a>
+    <a class="brand" href="/" aria-label="Halastudy home">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <div class="topbar-right">
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang-value="en">EN</button>
+        <button type="button" data-lang-value="ar">ع</button>
+      </div>
+    </div>
   </header>
 
   <main>

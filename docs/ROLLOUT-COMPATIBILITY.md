@@ -4,6 +4,11 @@ This runbook is the production order of operations for the room/auth/video
 remediation. PM2/Nginx remains the production topology and exactly one Node
 writer may run.
 
+This is a prepared operator procedure, not release authorization. Select and
+record the reviewed source commit before executing it. The local readiness
+candidate still has uncommitted changes; neither its branch name nor its
+package version identifies a deployable release. See [Deployment](../DEPLOYMENT.md).
+
 ## Compatibility contract
 
 Keep these readers/adapters for at least 14 days after the production cutover:
@@ -77,6 +82,7 @@ Any signal resets the relevant path's 14-day clock.
    ```bash
    npm run test:ci:quality
    npm run test:ci:infra
+   npm run test:smoke
    ```
 
 2. Apply the additive Supabase migrations in timestamp order. Do not drop the
@@ -85,18 +91,28 @@ Any signal resets the relevant path's 14-day clock.
    ```text
    20260715000000_secure_baseline.sql
    20260715010000_account_resurrection_focus_idempotency.sql
+   20260715020000_room_event_idempotency.sql
    ```
 
-   Run `npm run supabase:migrations:check` and the staging migration dry-run.
+   First run `npm run supabase:migrations:check` (static contract validation)
+   and `npm run supabase:migrations:apply-test` (all three migrations applied
+   twice to disposable PostgreSQL, including RLS, event/focus idempotency and
+   deletion-resurrection assertions). Neither command applies to Supabase.
+   Rehearse against designated staging and retain a protected pre-change
+   database recovery point before separately authorized production application.
 
-3. Deploy the dual-read build with `VIDEO_JOIN_DISABLED=true`. Keep PM2 at one
-   instance and do not start a second writer during the rollout.
+3. Disable new video joins, then stop the existing writer before replacing its
+   code. Confirm `pm2 pid co-study` reports no running PID, using the service
+   user's PM2 home. Install the reviewed dual-read build at `/opt/halastudy`
+   with `VIDEO_JOIN_DISABLED=true` in the protected environment. Do not start it
+   yet. Keep PM2 at one instance; never use a rolling reload or a second daemon.
 
-4. With the protected production environment loaded, run the metadata-only
-   room plan:
+4. Run the metadata-only room plan as the service user with the protected
+   environment loaded explicitly (Node does not load `.env` automatically):
 
    ```bash
-   npm run migration:rooms
+   sudo -u halastudy -H env NODE_ENV=production /usr/bin/node \
+     --env-file=/var/lib/halastudy/.env /opt/halastudy/scripts/migrate-rooms.js
    ```
 
    Review ownership counts, fingerprinted blocking issues, expiry changes, and
@@ -123,12 +139,15 @@ Any signal resets the relevant path's 14-day clock.
      --upload-pinned-pre-cutover
    ```
 
-6. Stop the single writer, apply the room migration, and retain the reported
+6. Reconfirm the single writer is stopped, apply the room migration, and retain the reported
    mode-`0600` pre-migration room backup:
 
    ```bash
    sudo -u halastudy -H env PM2_HOME=/var/lib/halastudy/.pm2 pm2 stop co-study
-   npm run migration:rooms -- --apply --writer-stopped
+   sudo -u halastudy -H env PM2_HOME=/var/lib/halastudy/.pm2 pm2 pid co-study
+   sudo -u halastudy -H env NODE_ENV=production /usr/bin/node \
+     --env-file=/var/lib/halastudy/.env /opt/halastudy/scripts/migrate-rooms.js \
+     --apply --writer-stopped
    ```
 
 7. Start the dual-read build with video joins still disabled. Wait for complete
@@ -151,11 +170,15 @@ Any signal resets the relevant path's 14-day clock.
 
    ```bash
    sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh
-   npm --prefix /opt/halastudy run verify:deploy -- https://your-domain.example
+   sudo -u halastudy -H npm --prefix /opt/halastudy run verify:deploy -- \
+     https://your-domain.example --env-file /var/lib/halastudy/.env
    ```
 
-9. Enable video joins through the admin kill switch only after every readiness
-   and smoke check passes. Record the cutover timestamp; it starts both the
+9. After operational checks pass, enable video joins for the controlled
+   real-provider/device smoke checks. Open access to students only after those
+   pass and release is authorized. Persist `VIDEO_JOIN_DISABLED=false` in the
+   protected environment when approved: the admin switch is in-memory and a
+   restart otherwise restores the configured value. Record the cutover timestamp; it starts both the
    24-hour observation and 14-day compatibility windows.
 
 ## First 24 hours
@@ -187,7 +210,7 @@ log-based 14-day evidence window.
    tombstone filtering, and restore order:
 
    ```bash
-   npm run restore:state -- \
+   sudo -u halastudy -H /opt/halastudy/scripts/deploy/restore.sh \
      /var/lib/halastudy/backups/pinned/halastudy-pre-cutover-YYYY-MM-DDTHHMMSSZ-xxxx.hsbackup
    ```
 
@@ -198,7 +221,7 @@ log-based 14-day evidence window.
    verified artifact only while the writer is stopped:
 
    ```bash
-   npm run restore:state -- \
+   sudo -u halastudy -H /opt/halastudy/scripts/deploy/restore.sh \
      /var/lib/halastudy/backups/pinned/halastudy-pre-cutover-YYYY-MM-DDTHHMMSSZ-xxxx.hsbackup \
      --apply --writer-stopped
    ```
@@ -208,9 +231,16 @@ log-based 14-day evidence window.
    row wins when both sources contain the same user. Restore writes protective
    tombstones before profiles, events, and rooms.
 
-6. Restart with video joins disabled, wait for `/api/ready`, run
-   `npm run verify:deploy -- https://your-domain.example`, and repeat the live
-   smoke suite. Re-enable video only after approval.
+   A pin is exempt from retention, not from the restore safety window: artifacts
+   containing database data or owned rooms fail closed when future-dated or at
+   least 30 days old. Preserve current video-session and webhook sidecars; these
+   are outside the six-dataset artifact. Restore is phased, not one transaction;
+   on failure keep the writer stopped and inspect completed phases before retry.
+
+6. Restart with video joins disabled, wait for `/api/ready`, create a fresh
+   complete daily backup with `backup.sh`, and rerun `verify:deploy` with the
+   protected `--env-file` as in step 8. Repeat the controlled live smoke suite.
+   Re-enable video only after approval.
 7. Preserve the failed build, migration plan, checksummed room backup, logs,
    and provider evidence for the incident review. A rollback does not remove
    additive Supabase columns or shorten the compatibility window.

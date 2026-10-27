@@ -25,8 +25,10 @@
   <link rel="stylesheet" href="/design-system/landing.css">
   <script src="/js/halastudy-core.js"></script>
   <script src="/js/ui.js" defer></script>
+  <link rel="stylesheet" href="/design-system/public-shell.css">
+  <script src="/js/public-shell.js" defer></script>
 </head>
-<body class="is-open-page">
+<body class="is-open-page" data-public-page="open">
   <header class="topbar">
     <a class="brand" href="/" aria-label="Halastudy home">
       <span>Hala<em>study</em><span class="dot">.</span></span>
@@ -61,14 +63,14 @@
           </div>
           <div class="choice-stack">
             <button type="button" class="choice-card active" data-choice="create" aria-pressed="true">
-              <span class="choice-icon" aria-hidden="true">✦</span>
+              <span class="choice-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></span>
               <span class="choice-text">
                 <h3 data-lang="createTitle">افتح غرفة</h3>
                 <p data-lang="createDesc">اسم، وكلمة مرور اختيارية، وجدولة اختيارية.</p>
               </span>
             </button>
             <button type="button" class="choice-card" data-choice="join" aria-pressed="false">
-              <span class="choice-icon" aria-hidden="true">➤</span>
+              <span class="choice-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 4h6v16h-6M4 12h12m-5-5 5 5-5 5"/></svg></span>
               <span class="choice-text">
                 <h3 data-lang="joinTitle">ادخل غرفة</h3>
                 <p data-lang="joinDesc">عندك رمز من مجموعتك؟ ادخله هنا.</p>
@@ -99,16 +101,18 @@
             </div>
             <div class="checkbox-line">
               <input type="checkbox" id="require-password">
-              <label for="require-password" data-lang="labelRequirePassword">تفعيل كلمة مرور</label>
+              <label for="require-password"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 10V7a6 6 0 0 1 12 0v3M4 10h16v12H4z"/></svg><span data-lang="labelRequirePassword">تفعيل كلمة مرور</span></label>
             </div>
+            <div id="password-fields" hidden>
             <div class="input-group">
               <label for="room-password" data-lang="labelPassword">كلمة مرور الدخول</label>
               <input type="password" id="room-password" name="roomPassword" maxlength="64" data-lang-placeholder="placeholderPassword" placeholder="ضع كلمة مرور للغرفة" autocomplete="new-password" disabled>
             </div>
             <p class="form-note" data-lang="notePassword">لن يتمكن من دخول الغرفة إلا من يملك كلمة المرور.</p>
+            </div>
             <div class="checkbox-line">
               <input type="checkbox" id="enable-schedule">
-              <label for="enable-schedule" data-lang="labelEnableSchedule">اجعلها غرفة مجدولة</label>
+              <label for="enable-schedule"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 5h16v16H4zM4 10h16M8 2v6M16 2v6"/></svg><span data-lang="labelEnableSchedule">اجعلها غرفة مجدولة</span></label>
             </div>
             <div class="schedule-panel" id="schedule-fields" hidden>
               <div class="schedule-signin-gate" id="schedule-signin-gate" hidden>
@@ -154,7 +158,7 @@
             <div class="form-actions">
               <button type="submit" class="btn btn-primary" data-lang="btnCreateRoom">افتح الغرفة</button>
             </div>
-            <p class="form-feedback" id="create-feedback"></p>
+            <p class="form-feedback" id="create-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
             <div class="result-box" id="create-result" hidden>
               <div class="result-code" id="result-code" data-force-ltr role="button" tabindex="0" data-lang-title="codeCopyTitle" title="Copy room code"></div>
               <p data-lang="resultDesc">شارك هذا الرمز مع شركائك ليدخلوا إلى الغرفة مباشرة.</p>
@@ -193,7 +197,7 @@
             <div class="form-actions">
               <button type="submit" class="btn btn-primary" data-lang="btnJoinRoom">دخول الغرفة</button>
             </div>
-            <p class="form-feedback" id="join-feedback"></p>
+            <p class="form-feedback" id="join-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
           </form>
         </div>
       </main>
@@ -242,6 +246,7 @@
                 mediaModeRealtimeKitBadge: 'Study camera room',
                 roomAccessOpen: 'Open access',
                 roomAccessProtected: 'Password protected',
+                roomPreviewProtectedNote: 'Enter the room password to join. Session details appear after you enter.',
                 roomPreviewMeshNote: 'Camera room supports up to {limit} people. Mic stays off by default.',
                 roomPreviewRealtimeKitNote: 'Camera room supports up to {limit} people. Mic stays off by default.',
                 roomPreviewSfuNote: 'Media runs in the managed room session for larger groups.',
@@ -306,6 +311,7 @@
                 successCreated: 'Room created successfully.',
                 codeCopied: 'Room code copied.',
                 codeCopyTitle: 'Copy room code',
+                codeCopyFallback: 'Copy this room code:',
                 redirecting: 'Redirecting...',
                 errorRoomCodeGeneration: 'Could not generate a room code. Please try again.',
                 rateLimited: 'Too many attempts. Slow down and try again in a moment.',
@@ -334,6 +340,7 @@
                 mediaModeRealtimeKitBadge: 'غرفة كاميرا للمذاكرة',
                 roomAccessOpen: 'دخول مفتوح',
                 roomAccessProtected: 'محمية بكلمة مرور',
+                roomPreviewProtectedNote: 'أدخل كلمة مرور الغرفة للانضمام. تظهر تفاصيل الجلسة بعد الدخول.',
                 roomPreviewMeshNote: 'غرفة الكاميرا تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
                 roomPreviewRealtimeKitNote: 'غرفة الكاميرا تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
                 roomPreviewSfuNote: 'تعمل الوسائط داخل الجلسة المُدارة للغرفة للمجموعات الأكبر.',
@@ -398,6 +405,7 @@
                 successCreated: 'تم إنشاء الغرفة بنجاح.',
                 codeCopied: 'تم نسخ رمز الغرفة.',
                 codeCopyTitle: 'انسخ رمز الغرفة',
+                codeCopyFallback: 'انسخ رمز الغرفة:',
                 redirecting: 'جارٍ التحويل...',
                 errorRoomCodeGeneration: 'تعذر إنشاء رمز الغرفة. حاول مرة أخرى.',
                 rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.',
@@ -481,6 +489,46 @@
         const languageButtons = document.querySelectorAll('[data-lang-value]');
         const themeToggle = document.getElementById('theme-toggle');
 
+        const OPEN_DRAFT_KEY = 'halastudyOpenDraft';
+        const draftFields = ['room-name', 'require-password', 'room-password', 'enable-schedule',
+            'schedule-date', 'schedule-time', 'schedule-cadence', 'schedule-focus', 'schedule-break',
+            'schedule-goal-template', 'join-code', 'join-password'];
+        function saveDraft() {
+            const values = {};
+            draftFields.forEach(id => {
+                const input = document.getElementById(id);
+                values[id] = input.type === 'checkbox' ? input.checked : input.value;
+            });
+            try { sessionStorage.setItem(OPEN_DRAFT_KEY, JSON.stringify({
+                expires: Date.now() + 30 * 60 * 1000, values, mode: currentMode, mediaMode: selectedMediaMode
+            })); } catch (_error) {}
+        }
+        function restoreDraft() {
+            try {
+                const draft = JSON.parse(sessionStorage.getItem(OPEN_DRAFT_KEY) || 'null');
+                if (!draft || !Number.isFinite(draft.expires) || draft.expires < Date.now() || !draft.values) {
+                    sessionStorage.removeItem(OPEN_DRAFT_KEY);
+                    return;
+                }
+                draftFields.forEach(id => {
+                    const input = document.getElementById(id), value = draft.values[id];
+                    if (input.type === 'checkbox') input.checked = value === true;
+                    else if (typeof value === 'string') input.value = value.slice(0, input.maxLength > 0 ? input.maxLength : 80);
+                });
+                currentMode = draft.mode === 'join' ? 'join' : 'create';
+                selectedMediaMode = normalizeMediaMode(draft.mediaMode);
+            } catch (_error) {}
+        }
+        function fieldError(input, message) {
+            window.HalaUI?.setFieldError(input, message);
+        }
+        function togglePasswordFields() {
+            const enabled = requirePasswordCheckbox.checked;
+            document.getElementById('password-fields').hidden = !enabled;
+            roomPasswordInput.disabled = !enabled;
+        }
+        let creatingRoom = false;
+        let joiningRoom = false;
         let socket = null;
         if (window.io) {
             socket = io();
@@ -666,7 +714,6 @@
                 if (new URLSearchParams(window.location.search).get('schedule') === '1'
                     && enableScheduleCheckbox && !enableScheduleCheckbox.checked) {
                     enableScheduleCheckbox.checked = true;
-                    setDefaultScheduleFields();
                     toggleScheduleFields();
                     if (scheduleDateInput) scheduleDateInput.focus();
                 }
@@ -1160,6 +1207,18 @@
                 return;
             }
 
+            joinRoomPreviewMode.hidden = !!room.protectedPreview;
+            joinRoomPreviewCount.hidden = !!room.protectedPreview;
+            if (room.protectedPreview) {
+                joinRoomPreview.hidden = false;
+                joinRoomPreviewName.textContent = room.name || room.roomId;
+                joinRoomPreviewAccess.textContent = copy().roomAccessProtected;
+                joinRoomPreviewNote.textContent = copy().roomPreviewProtectedNote;
+                joinRoomPreviewWarning.textContent = '';
+                syncLandingScheduleRefreshTimer();
+                return;
+            }
+
             const mode = normalizeMediaMode(room.mediaMode);
             const provider = normalizeVideoProvider(room.videoProvider || runtimeConfig.videoProvider);
             const limit = provider === VIDEO_PROVIDER_REALTIMEKIT
@@ -1244,6 +1303,8 @@
             const generation = joinPreviewGeneration;
             const controller = new AbortController();
             joinPreviewController = controller;
+            let timedOut = false;
+            const deadline = setTimeout(() => { timedOut = true; controller.abort(); }, 8000);
             const isCurrentRequest = () => generation === joinPreviewGeneration
                 && joinPreviewController === controller
                 && !controller.signal.aborted;
@@ -1264,16 +1325,23 @@
                 if (!response.ok) {
                     return { status: 'error' };
                 }
-                const room = await response.json();
+                const payload = await response.json();
                 if (!isCurrentRequest()) return { status: 'stale' };
+                // Protected previews deliberately omit provider/session details.
+                const room = payload?.ok && payload.room?.protected
+                    ? { ...payload.room, requirePassword: payload.room.requiresPassword === true, protectedPreview: true }
+                    : payload;
+                if (!room || typeof room.roomId !== 'string') return { status: 'error' };
                 renderJoinPreview(room);
                 return { status: 'ok', room };
             } catch (error) {
+                if (timedOut) return { status: 'error' };
                 if (error?.name === 'AbortError' || !isCurrentRequest()) {
                     return { status: 'stale' };
                 }
                 return { status: 'error' };
             } finally {
+                clearTimeout(deadline);
                 if (joinPreviewController === controller) {
                     joinPreviewController = null;
                 }
@@ -1337,6 +1405,7 @@
             currentMode = mode === 'join' ? 'join' : 'create';
             choiceCards.forEach((card) => {
                 card.classList.toggle('active', card.dataset.choice === currentMode);
+                card.setAttribute('aria-pressed', String(card.dataset.choice === currentMode));
             });
             createForm.hidden = currentMode !== 'create';
             joinForm.hidden = currentMode !== 'join';
@@ -1391,16 +1460,14 @@
         });
 
         requirePasswordCheckbox.addEventListener('change', () => {
-            const enabled = requirePasswordCheckbox.checked;
-            roomPasswordInput.disabled = !enabled;
-            if (!enabled) roomPasswordInput.value = '';
+            togglePasswordFields();
+            if (!requirePasswordCheckbox.checked) roomPasswordInput.value = '';
+            fieldError(roomPasswordInput, '');
         });
 
         if (enableScheduleCheckbox) {
             enableScheduleCheckbox.addEventListener('change', () => {
-                if (enableScheduleCheckbox.checked) {
-                    setDefaultScheduleFields();
-                }
+                if (enableScheduleCheckbox.checked && !scheduleDateInput.value) setDefaultScheduleFields();
                 toggleScheduleFields();
             });
         }
@@ -1452,7 +1519,9 @@
 
         createForm.addEventListener('submit', (event) => {
             event.preventDefault();
+            if (creatingRoom) return;
             const feedback = document.getElementById('create-feedback');
+            createForm.querySelectorAll('input').forEach(input => fieldError(input, ''));
             const result = document.getElementById('create-result');
             const roomNameInput = document.getElementById('room-name');
             const roomName = roomNameInput.value.trim();
@@ -1466,6 +1535,7 @@
             if (!roomName) {
                 feedback.textContent = copy().errorNoName;
                 feedback.className = 'form-feedback error';
+                fieldError(roomNameInput, copy().errorNoName);
                 roomNameInput.focus();
                 return;
             }
@@ -1473,12 +1543,20 @@
             if (requirePassword && !password) {
                 feedback.textContent = copy().errorPasswordRequired;
                 feedback.className = 'form-feedback error';
+                fieldError(roomPasswordInput, copy().errorPasswordRequired);
                 roomPasswordInput.focus();
+                return;
+            }
+            if (enableScheduleCheckbox.checked && !signedInUser) {
+                feedback.textContent = copy().errorScheduleNeedsAccount;
+                feedback.className = 'form-feedback error';
+                document.getElementById('schedule-gate-cta').focus();
                 return;
             }
             if (schedulePayload.error) {
                 feedback.textContent = schedulePayload.error;
                 feedback.className = 'form-feedback error';
+                fieldError(!scheduleDateInput.value ? scheduleDateInput : scheduleTimeInput, schedulePayload.error);
                 if (scheduleDateInput && !scheduleDateInput.value) {
                     scheduleDateInput.focus();
                 } else if (scheduleTimeInput && !scheduleTimeInput.value) {
@@ -1497,6 +1575,8 @@
             }
 
             const createSubmitBtn = createForm.querySelector('button[type="submit"]');
+            creatingRoom = true;
+            createForm.setAttribute('aria-busy', 'true');
             if (createSubmitBtn) createSubmitBtn.disabled = true;
 
             socket.timeout(8000).emit('create-room', {
@@ -1506,6 +1586,8 @@
                 mediaMode: selectedMediaMode,
                 schedule: schedulePayload.schedule
             }, (timeoutError, response = {}) => {
+                creatingRoom = false;
+                createForm.setAttribute('aria-busy', 'false');
                 if (createSubmitBtn) createSubmitBtn.disabled = false;
                 if (timeoutError) {
                     feedback.textContent = copy().errorCreateTimeout;
@@ -1513,12 +1595,13 @@
                     return;
                 }
 
-                if (!response.ok) {
+                if (!response.ok || !response.room || !(response.room.roomId || response.room.code)) {
                     feedback.textContent = getErrorMessage(response.errorCode, 'errorCreateFailed');
                     feedback.className = 'form-feedback error';
                     return;
                 }
 
+                try { sessionStorage.removeItem(OPEN_DRAFT_KEY); } catch (_error) {}
                 createdRoomCode = response.room.roomId || response.room.code;
                 createdRoomPassword = requirePassword ? password : '';
                 createdRoomData = response.room || null;
@@ -1529,6 +1612,7 @@
                 document.getElementById('result-code').textContent = createdRoomCode;
                 renderCreatedSchedule(createdRoomData);
                 result.hidden = false;
+                document.getElementById('btn-enter-room').focus();
             });
         });
 
@@ -1536,10 +1620,8 @@
             const codeEl = document.getElementById('result-code');
             if (!codeEl) return;
             function copyCreatedCode() {
-                if (!createdRoomCode || !navigator.clipboard || !navigator.clipboard.writeText) return;
-                navigator.clipboard.writeText(createdRoomCode).then(() => {
-                    if (window.HalaUI) window.HalaUI.toast(copy().codeCopied, { kind: 'success' });
-                }).catch(() => {});
+                if (!createdRoomCode) return;
+                void window.HalaUI.copyText(createdRoomCode, copy().codeCopied, copy().codeCopyFallback);
             }
             codeEl.addEventListener('click', copyCreatedCode);
             codeEl.addEventListener('keydown', (event) => {
@@ -1555,15 +1637,18 @@
             sessionStorage.setItem('halastudyRoomCode', createdRoomCode);
             if (createdRoomPassword) {
                 sessionStorage.setItem('halastudyRoomPassword', createdRoomPassword);
+                sessionStorage.setItem('halastudyRoomPasswordCode', createdRoomCode);
             } else {
                 sessionStorage.removeItem('halastudyRoomPassword');
+                sessionStorage.removeItem('halastudyRoomPasswordCode');
             }
             window.location.href = `/index.html?room=${encodeURIComponent(createdRoomCode)}`;
         });
 
         joinForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-
+            if (joiningRoom) return;
+            joinForm.querySelectorAll('input').forEach(input => fieldError(input, ''));
             const feedback = document.getElementById('join-feedback');
             const code = joinCodeInput.value.trim().toUpperCase();
             const password = document.getElementById('join-password').value.trim();
@@ -1572,6 +1657,7 @@
             if (!code) {
                 feedback.textContent = copy().errorNoCode;
                 feedback.className = 'form-feedback error';
+                fieldError(joinCodeInput, feedback.textContent);
                 joinCodeInput.focus();
                 return;
             }
@@ -1580,6 +1666,9 @@
             feedback.className = 'form-feedback';
 
             const joinSubmitBtn = joinForm.querySelector('button[type="submit"]');
+            joiningRoom = true;
+            joinForm.setAttribute('aria-busy', 'true');
+            if (joinLookupTimer) { clearTimeout(joinLookupTimer); joinLookupTimer = null; }
             if (joinSubmitBtn) joinSubmitBtn.disabled = true;
             try {
                 const lookup = await fetchRoomDetails(code);
@@ -1593,6 +1682,7 @@
                 if (lookup.status === 'not_found') {
                     feedback.textContent = copy().errorRoomNotFound;
                     feedback.className = 'form-feedback error';
+                    fieldError(joinCodeInput, feedback.textContent);
                     joinCodeInput.focus();
                     return;
                 }
@@ -1609,6 +1699,8 @@
                 room = lookup.room;
             } finally {
                 // Re-enable once the async lookup settles; the remaining checks are synchronous.
+                joiningRoom = false;
+                joinForm.setAttribute('aria-busy', 'false');
                 if (joinSubmitBtn) joinSubmitBtn.disabled = false;
             }
 
@@ -1626,6 +1718,7 @@
             if (room && room.requirePassword && !password) {
                 feedback.textContent = copy().errorPasswordRequired;
                 feedback.className = 'form-feedback error';
+                fieldError(document.getElementById('join-password'), copy().errorPasswordRequired);
                 document.getElementById('join-password').focus();
                 return;
             }
@@ -1633,8 +1726,10 @@
             sessionStorage.setItem('halastudyRoomCode', code);
             if (password) {
                 sessionStorage.setItem('halastudyRoomPassword', password);
+                sessionStorage.setItem('halastudyRoomPasswordCode', code);
             } else {
                 sessionStorage.removeItem('halastudyRoomPassword');
+                sessionStorage.removeItem('halastudyRoomPasswordCode');
             }
 
             feedback.textContent = copy().redirecting;
@@ -1644,7 +1739,16 @@
 
         void loadRuntimeConfig();
         setDefaultScheduleFields();
+        restoreDraft();
+        togglePasswordFields();
         toggleScheduleFields();
+        draftFields.forEach(id => {
+            const input = document.getElementById(id);
+            fieldError(input, '');
+            input.addEventListener('input', () => { fieldError(input, ''); saveDraft(); });
+            input.addEventListener('change', saveDraft);
+        });
+        document.getElementById('schedule-gate-cta').addEventListener('click', saveDraft);
         initAccountFeatures();
         applyLanguage();
         // Patched 2026-05-17: honor /open.html#join from landing's secondary CTA — open the join form on load.
