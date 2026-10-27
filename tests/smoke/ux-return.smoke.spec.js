@@ -117,6 +117,25 @@ test('local counters: explicit consent, actual joins/focus once, revoke and unav
 });
 test('schedule timezone: device inputs round-trip the same authoritative instant across DST', async ({ page, browser }) => {
     test.setTimeout(90000);
+    const reference = Date.now();
+    const today = new Date(reference);
+    const day = 86400000;
+    const first = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1, 2, 30);
+    const zone = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', timeZoneName: 'shortOffset' });
+    const offset = (timestamp) => zone.formatToParts(new Date(timestamp)).find((part) => part.type === 'timeZoneName').value;
+    let instants = [];
+    // Choose a future DST transition while retaining the real scheduling guard.
+    for (let days = 0; days < 364; days++) {
+        const before = first + days * day, after = before + day;
+        if (offset(before) !== offset(after)) {
+            instants = [new Date(before).toISOString(), new Date(after).toISOString()];
+            break;
+        }
+    }
+    expect(instants).toHaveLength(2);
+    expect(Date.parse(instants[0])).toBeGreaterThan(reference);
+    expect(Date.parse(instants[1])).toBeLessThan(reference + 366 * day);
+    expect(offset(Date.parse(instants[0]))).not.toBe(offset(Date.parse(instants[1])));
     await signIn(page);
     await page.goto(`${server.baseUrl}/open`);
     await page.locator('#room-name').fill('Timezone study');
@@ -139,7 +158,7 @@ test('schedule timezone: device inputs round-trip the same authoritative instant
             await organizer.goto(`${server.baseUrl}/app#circles`);
             await organizer.locator('#circle-list button').click();
             await expect(organizer.locator('#schedule-zone')).toHaveText(timeZone);
-            for (const instant of ['2026-10-24T02:30:00Z', '2026-10-25T02:30:00Z']) {
+            for (const instant of instants) {
                 const localValue = await organizer.evaluate((value) => {
                     const d = new Date(value); const pad = (n) => String(n).padStart(2, '0');
                     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
