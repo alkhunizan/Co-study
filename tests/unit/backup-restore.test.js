@@ -236,7 +236,11 @@ test('rooms-only restore artifacts still require current tombstones when ownersh
 test('restore defaults to dry-run and performs no writes', async () => {
     const calls = [];
     const result = await applyRestorePlan({
-        plan: buildRestorePlan({ bundle: sampleBundle(), deletionTombstones: [] }),
+        plan: buildRestorePlan({
+        bundle: sampleBundle(),
+        deletionTombstones: [],
+        now: Date.parse('2026-07-15T00:00:00.000Z')
+    }),
         target: {
             async restoreProfiles() { calls.push('profiles'); },
             async restoreFocusCompletionClaims() { calls.push('focus_completion_claims'); },
@@ -255,7 +259,11 @@ test('restore apply requires explicit stopped-writer confirmation and rejects an
     const lockFile = path.join(lockDir, 'writer.lock');
     fs.writeFileSync(lockFile, 'active\n', 'utf8');
     t.after(() => fs.rmSync(lockDir, { recursive: true, force: true }));
-    const plan = buildRestorePlan({ bundle: sampleBundle(), deletionTombstones: [] });
+    const plan = buildRestorePlan({
+        bundle: sampleBundle(),
+        deletionTombstones: [],
+        now: Date.parse('2026-07-15T00:00:00.000Z')
+    });
     const target = {};
 
     await assert.rejects(
@@ -270,7 +278,11 @@ test('restore apply requires explicit stopped-writer confirmation and rejects an
 
 test('restore applies profiles, event tables, then rooms in dependency order', async () => {
     const calls = [];
-    const plan = buildRestorePlan({ bundle: sampleBundle(), deletionTombstones: [] });
+    const plan = buildRestorePlan({
+        bundle: sampleBundle(),
+        deletionTombstones: [],
+        now: Date.parse('2026-07-15T00:00:00.000Z')
+    });
     const result = await applyRestorePlan({
         plan,
         apply: true,
@@ -337,7 +349,11 @@ test('schema-v2 restore writes protective tombstones before profiles and rooms',
 
 test('a failed restore phase stops before dependent event and room writes', async () => {
     const calls = [];
-    const plan = buildRestorePlan({ bundle: sampleBundle(), deletionTombstones: [] });
+    const plan = buildRestorePlan({
+        bundle: sampleBundle(),
+        deletionTombstones: [],
+        now: Date.parse('2026-07-15T00:00:00.000Z')
+    });
 
     await assert.rejects(
         applyRestorePlan({
