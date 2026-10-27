@@ -714,7 +714,13 @@ test('large-mode rooms use the RealtimeKit provider by default', async ({ browse
 });
 
 test('five participants can join a default RealtimeKit room shell', async ({ browser }) => {
-    const users = await Promise.all(Array.from({ length: 5 }, () => createSmokePage(browser)));
+    // Five live room pages share one browser on a GPU-less CI runner, and each
+    // joined page keeps rendering its privacy-blur canvas, so every join is
+    // slower than the last (WebKit desktop: 2.4s, 4.8s, 8.3s, 12.1s per join).
+    // The whole flow measured 37.8s and >45s on the same commit, so the
+    // default 45s budget sits inside run-to-run noise for this one test.
+    test.setTimeout(90_000);
+    const users =await Promise.all(Array.from({ length: 5 }, () => createSmokePage(browser)));
 
     try {
         const roomCode = await createRoomFromLanding(users[0].page, {
