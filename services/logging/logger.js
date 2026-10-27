@@ -12,6 +12,9 @@ function sanitizeLogPayload(payload = {}) {
     for (const [key, value] of Object.entries(payload)) {
         if (/token|secret|password|credential|key/i.test(key)) {
             safe[key] = redactValue(value);
+        } else if (key === 'message' && typeof value === 'string'
+            && /is not valid JSON|in JSON at position|JSON input|JSON at position/i.test(value)) {
+            safe[key] = 'Invalid JSON input';
         } else if (Array.isArray(value)) {
             safe[key] = value.map((entry) => entry && typeof entry === 'object' ? sanitizeLogPayload(entry) : entry);
         } else if (value && typeof value === 'object') {
