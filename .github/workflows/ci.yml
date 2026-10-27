@@ -62,7 +62,8 @@ jobs:
         run: npm run test:ci:infra
 
   browser-smoke:
-    runs-on: ubuntu-latest
+    # Match the Ubuntu versions supported by the locked Playwright release.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
 
     permissions:
