@@ -62,7 +62,8 @@ jobs:
         run: npm run test:ci:infra
 
   browser-smoke:
-    runs-on: ubuntu-latest
+    # Playwright 1.59.1 cannot install browser deps on ubuntu-latest (now 26.04).
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
 
     permissions:
