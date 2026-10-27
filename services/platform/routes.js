@@ -40,6 +40,10 @@ function createPlatformRouter(deps) {
     router.use(requireUser);
     router.use(async (req, res, next) => {
         const user = req.user;
+        const expectedAccount = req.get('X-Halastudy-Account');
+        if (expectedAccount && expectedAccount !== user.id) {
+            return res.status(401).json({ errorCode: 'AUTH_ACCOUNT_CHANGED' });
+        }
         const epoch = user.tokenEpoch;
         try {
             await platform.ready;

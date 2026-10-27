@@ -152,6 +152,9 @@
             credentials: 'include',
             signal: controller.signal
         };
+        if (url.startsWith('/api/platform/') && documentAccountId) {
+            options.headers['X-Halastudy-Account'] ||= documentAccountId;
+        }
         if (body !== undefined) {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body || {});
@@ -174,6 +177,8 @@
 
     /* ---------- auth session cache ---------- */
     var userPromise = null;
+    // Keep this document bound to its first verified account until navigation.
+    var documentAccountId = null;
 
     function getUser() {
         if (!userPromise) {
@@ -182,6 +187,7 @@
                     if (payload.user !== null && (typeof payload.user !== 'object' || typeof payload.user?.id !== 'string')) {
                         throw new Error('RESPONSE_INVALID');
                     }
+                    if (payload.user && !documentAccountId) documentAccountId = payload.user.id;
                     return payload.user;
                 })
                 .catch((error) => {
