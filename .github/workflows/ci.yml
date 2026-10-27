@@ -9,7 +9,7 @@ env:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
 
     permissions:
@@ -32,7 +32,7 @@ jobs:
         run: npm run test:ci:quality
 
   infrastructure:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
 
     permissions:
@@ -62,7 +62,7 @@ jobs:
         run: npm run test:ci:infra
 
   browser-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
 
     permissions:
