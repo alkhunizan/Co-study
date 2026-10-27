@@ -379,6 +379,14 @@ test('scheduled rooms validate create payloads and expose schedule summaries', a
     assert.equal(guestScheduleCreate.ok, false);
     assert.equal(guestScheduleCreate.errorCode, 'AUTH_REQUIRED_FOR_SCHEDULED');
 
+    // Anonymous traffic is rejected before the expensive schedule validation.
+    const guestInvalidScheduleCreate = await emitAck(guestSocket, 'create-room', {
+        roomName: 'Guest Broken Schedule Room',
+        schedule: { startDate: '2026-02-31', startTime: '25:99', cadence: 'weekdays' }
+    });
+    assert.equal(guestInvalidScheduleCreate.ok, false);
+    assert.equal(guestInvalidScheduleCreate.errorCode, 'AUTH_REQUIRED_FOR_SCHEDULED');
+
     const invalidScheduleCreate = await emitAck(ownerSocket, 'create-room', {
         roomName: 'Broken Schedule Room',
         schedule: {
