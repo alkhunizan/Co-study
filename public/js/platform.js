@@ -1,4 +1,5 @@
 (() => {
+    if (location.hash.split('?')[0] === '#staff') { location.replace('/ops/overview'); return; }
     const global = /** @type {any} */ (window);
     const core = global.HalaCore;
     const $ = (id) => /** @type {any} */ (document.getElementById(id));
@@ -300,150 +301,6 @@
             $('payment-result-text').textContent = t(key);
         }
     }
-    function reasonAction(label, perform) {
-        const control = button(label, async () => {
-            const form = document.createElement('form');
-            form.className = 'inline-form';
-            const input = document.createElement('input');
-            input.required = true; input.maxLength = 250; input.placeholder = t('actionReason'); input.setAttribute('aria-label', t('actionReason'));
-            const submit = node('button', label);
-            form.append(input, submit);
-            form.addEventListener('submit', (event) => {
-                event.preventDefault();
-                void work(submit, async () => { await perform(input.value); form.remove(); await renderStaff(); notice('saved'); });
-            });
-            control.closest('.row').append(form);
-            control.remove(); input.focus();
-        });
-        return control;
-    }
-    async function searchStaffUsers() {
-        const result = await api('GET', `/staff/users?q=${encodeURIComponent($('staff-query').value)}`);
-        fill('staff-users', result.users.map((entry) => row(entry.displayName, entry.id, [
-            reasonAction(t(entry.banned ? 'unbanAccount' : 'banAccount'), async (reason) => {
-                await api('POST', `/staff/users/${entry.id}/status`, { reason, banned: !entry.banned });
-                await searchStaffUsers();
-            })
-        ])));
-    }
-    function paymentReviewAction(entry, lookup, activateReview) {
-        const label = t(activateReview ? 'activateReviewedPayment' : 'recheckPayment');
-        const control = button(label, async () => {
-            const form = document.createElement('form');
-            form.className = 'inline-form';
-            const reason = document.createElement('input');
-            reason.required = true; reason.minLength = 3; reason.maxLength = 250;
-            reason.placeholder = t('actionReason'); reason.setAttribute('aria-label', t('actionReason'));
-            const reference = document.createElement('input');
-            reference.maxLength = 36; reference.placeholder = t('transactionHint'); reference.setAttribute('aria-label', t('transactionHint'));
-            const submit = node('button', label);
-            form.append(reason);
-            if (lookup === 'transaction') form.append(reference);
-            form.append(submit);
-            form.addEventListener('submit', event => {
-                event.preventDefault();
-                void work(submit, async () => {
-                    const result = await api('POST', `/staff/payment-orders/${entry.id}/recheck`, {
-                        reason: reason.value, transactionId: reference.value.trim() || undefined, activateReview
-                    });
-                    await renderStaff();
-                    notice(({ completed: 'paymentCompleted', refunded: 'paymentRefunded', expired: 'paymentExpired',
-                        review: 'paymentReview', unknown: 'paymentReview', creating: 'paymentReview' })[result.status] || 'paymentPending');
-                });
-            });
-            control.closest('.row').append(form); control.remove(); reason.focus();
-        });
-        return control;
-    }
-    async function renderPaymentOrders(cursor = '') {
-        const result = await api('GET', `/staff/payment-orders${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`);
-        fill('payment-orders', result.orders.map(entry => row(entry.id,
-            `${entry.user_id} · ${t(entry.status)} · ${date(entry.created_at)}${entry.last_error ? ` · ${entry.last_error}` : ''}`,
-            state.permissions.includes('staff.manage') ? [paymentReviewAction(entry, result.lookup, entry.status === 'review')] : [])));
-        $('payment-orders-more').replaceChildren(...(result.nextCursor
-            ? [button(t('olderOrders'), () => renderPaymentOrders(result.nextCursor))] : []));
-    }
-    async function renderStaff() {
-        if (!state) return;
-        $('staff-lock').hidden = state.staffVerified;
-        $('staff-content').hidden = !state.staffVerified;
-        if (!state.staffVerified) return;
-        const permissions = state.permissions;
-        if (permissions.includes('operations.read')) metrics('staff-overview', await api('GET', '/staff/overview'));
-        $('staff-operations-section').hidden = !permissions.includes('operations.read');
-        $('staff-users-section').hidden = !permissions.includes('cases.manage');
-        $('video-gate').hidden = !permissions.includes('operations.manage');
-        $('announcement-form').hidden = !permissions.includes('operations.manage');
-        $('platform-backup').hidden = !permissions.includes('backups.manage');
-        if (permissions.includes('operations.read')) {
-            const operations = await api('GET', '/staff/operations');
-            $('staff-monitoring-status').textContent = t(operations.monitoring?.storageHealthy === false
-                ? 'alertStorage' : operations.monitoring?.deliveryConfigured ? 'alertExternal' : 'alertLocal');
-            const alerts = (operations.alerts || []).filter((entry) => !entry.resolvedAt);
-            fill('staff-alerts', alerts.map((entry) => row(t(entry.event), `${entry.count} · ${date(entry.lastSeenAt)}`)), 'alertsEmpty');
-            $('video-gate').textContent = t(operations.videoDisabled ? 'enableVideo' : 'disableVideo');
-            $('video-gate').dataset.disabled = String(operations.videoDisabled);
-            const result = await api('GET', '/staff/rooms');
-            fill('staff-live-rooms', result.rooms.map((entry) => {
-                const actions = [];
-                if (permissions.includes('operations.manage')) {
-                    if (entry.id !== 'LOBBY') actions.push(reasonAction(t('closeRoom'), (reason) => api('POST', `/staff/rooms/${entry.id}/close`, { reason })));
-                    for (const person of entry.participants) actions.push(reasonAction(`${t('kickParticipant')}: ${person.name}`,
-                        (reason) => api('POST', `/staff/rooms/${entry.id}/kick`, { reason, socketId: person.socketId })));
-                }
-                return row(entry.name, `${entry.id} · ${entry.participants.length}`, actions);
-            }));
-        }
-        $('staff-roles-section').hidden = !permissions.includes('staff.read');
-        $('staff-grant').hidden = !permissions.includes('staff.manage');
-        if (permissions.includes('staff.read')) {
-            const result = await api('GET', '/staff');
-            fill('staff-roles', result.assignments.map((entry) => row(entry.display_name, roleName(entry.role),
-                permissions.includes('staff.manage') ? [button(t('revoke'), async () => {
-                    await api('POST', '/staff/roles', { userId: entry.user_id, role: entry.role, remove: true });
-                    await refresh();
-                })] : [])));
-        }
-        $('staff-cases-section').hidden = !permissions.includes('cases.read');
-        if (permissions.includes('cases.read')) {
-            const result = await api('GET', '/staff/cases');
-            fill('staff-cases', result.cases.map((entry) => {
-                const item = row(entry.reason, `${entry.detail} · ${t(entry.status)}`);
-                if (permissions.includes('cases.manage')) {
-                    const form = document.createElement('form');
-                    form.className = 'inline-form';
-                    const input = document.createElement('input');
-                    input.required = true; input.maxLength = 500; input.setAttribute('aria-label', t('disposition')); input.placeholder = t('disposition');
-                    const submit = node('button', t('resolve'));
-                    form.append(input, submit);
-                    form.addEventListener('submit', (event) => {
-                        event.preventDefault();
-                        void work(submit, async () => {
-                            await api('PATCH', `/staff/cases/${entry.id}`, { status: 'resolved', disposition: input.value });
-                            await renderStaff();
-                        });
-                    });
-                    item.append(form);
-                }
-                return item;
-            }));
-        }
-        $('staff-billing-section').hidden = !permissions.includes('billing.read');
-        if (permissions.includes('billing.read')) {
-            const result = await api('GET', '/staff/subscriptions');
-            fill('staff-billing', result.subscriptions.map((entry) => row(`VIP · US$4.99 · ${entry.mode}`, `${entry.user_id} · ${t(entry.status)} · ${date(entry.period_end)}`)));
-            $('payment-review-section').hidden = state.billing?.provider !== 'digetpay';
-            if (!$('payment-review-section').hidden) await renderPaymentOrders();
-        }
-        $('staff-audit-section').hidden = !permissions.includes('audit.read');
-        if (permissions.includes('audit.read')) {
-            const result = await api('GET', '/staff/audit');
-            fill('staff-audit', result.events.map((entry) => row(entry.action, `${entry.actor_id || '—'} · ${date(entry.created_at)}`)));
-        }
-    }
-    function roleName(role) {
-        return t({ moderator: 'roleModerator', support: 'roleSupport', billing_operator: 'roleBilling', admin: 'roleAdmin', super_admin: 'roleSuperAdmin' }[role] || role);
-    }
     function renderInsights() {
         const enabled = global.HalaInsights?.enabled() || false;
         $('insights-consent').checked = enabled;
@@ -479,15 +336,16 @@
         window.dispatchEvent(new CustomEvent('halaplatformcontext'));
     }
     function showView(focus = false) {
-        if (!['home','progress','circles','account','vip','security','staff','planner'].includes(currentView)) currentView = 'home';
-        document.title = `${t({ account: 'accountTitle', home: 'homeTitle', progress: 'progressTitle', circles: 'circlesTitle', vip: 'vipTitle', security: 'securityTitle', staff: 'staffTitle', planner:'plannerTitle' }[currentView])} — Halastudy`;
+        if (currentView === 'staff') { location.replace('/ops/overview'); return; }
+        if (!['home','progress','circles','account','vip','security','planner'].includes(currentView)) currentView = 'home';
+        document.title = `${t({ account: 'accountTitle', home: 'homeTitle', progress: 'progressTitle', circles: 'circlesTitle', vip: 'vipTitle', security: 'securityTitle', planner:'plannerTitle' }[currentView])} — Halastudy`;
         document.querySelectorAll('[data-panel]').forEach((panel) => {
             panel.toggleAttribute('hidden', !state || panel.getAttribute('data-panel') !== currentView || (!user && currentView !== 'vip'));
         });
         $('guest').querySelector('a.primary').href = `/account?next=${encodeURIComponent(currentView === 'vip' ? '/plans' : invitedToken && currentView === 'circles' ? `/app#circles?invite=${encodeURIComponent(invitedToken)}` : `/app#${currentView}`)}`;
         $('guest').hidden = !state || !identityKnown || !!user || currentView === 'vip';
         document.querySelectorAll('[data-view]').forEach((link) => {
-            if (link.getAttribute('data-view') === currentView || (link.closest('.platform-nav') && ((link.getAttribute('data-view') === 'account' && ['vip', 'security', 'staff'].includes(currentView)) || (link.getAttribute('data-view') === 'home' && currentView === 'planner')))) link.setAttribute('aria-current', 'page');
+            if (link.getAttribute('data-view') === currentView || (link.closest('.platform-nav') && ((link.getAttribute('data-view') === 'account' && ['vip', 'security'].includes(currentView)) || (link.getAttribute('data-view') === 'home' && currentView === 'planner')))) link.setAttribute('aria-current', 'page');
             else link.removeAttribute('aria-current');
         });
         if (activeNotice?.view !== currentView) activeNotice = null;
@@ -496,7 +354,6 @@
             const heading = document.querySelector(`[data-panel="${currentView}"]:not([hidden]) h1`);
             if (heading instanceof HTMLElement) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
         }
-        if (currentView === 'staff' && state) void renderStaff().catch((error) => noticeError(error, 'staff'));
         if (focus && user && ['home','circles'].includes(currentView)) {
             const view = currentView;
             void refresh().catch((error) => noticeError(error, view));
@@ -691,14 +548,6 @@
         await refresh(); notice(result.recoveryCodes.length ? 'securitySaved' : 'mfaReady');
     });
     bindForm('bootstrap', async (data, form) => { await api('POST', '/staff/bootstrap', data); form.reset(); await refresh(); notice('saved'); });
-    bindForm('staff-grant', async (data, form) => { await api('POST', '/staff/roles', data); form.reset(); await refresh(); notice('saved'); });
-    bindForm('staff-user-search', searchStaffUsers);
-    bindForm('announcement-form', async (data, form) => { await api('POST', '/staff/announcement', data); form.reset(); notice('saved'); });
-    $('video-gate').addEventListener('click', () => void work($('video-gate'), async () => {
-        await api('POST', '/staff/video', { disabled: $('video-gate').dataset.disabled !== 'true' }); await renderStaff();
-    }));
-    $('platform-backup').addEventListener('click', () => void work($('platform-backup'), async () => { await api('POST', '/staff/backup', {}); notice('saved'); }));
-    $('clear-announcement').addEventListener('click', () => void work($('clear-announcement'), async () => { await api('DELETE', '/staff/announcement'); notice('saved'); }));
     async function boot() {
         if (invitedToken) $('invite-token').value = invitedToken.slice(0, 200);
         try {

@@ -63,14 +63,14 @@ test('payment review requires staff MFA, preserves billing-reader scope and show
         const page = await context.newPage();
         page.on('pageerror', error => errors.push(error.message));
         await page.addInitScript(() => localStorage.setItem('halastudyLang', 'en'));
-        await page.goto(`${server.baseUrl}/app#staff`);
+        await page.goto(`${server.baseUrl}/ops/billing`);
         await expect(page.locator('#payment-orders')).toContainText(orderId);
         await page.getByRole('button', { name: 'Recheck payment', exact: true }).click();
         await page.getByRole('textbox', { name: 'Reason for this action', exact: true }).fill(action.reason);
         await page.getByRole('button', { name: 'Recheck payment', exact: true }).click();
         await expect(page.locator('#feedback')).toContainText('Test payment verified');
         await expect(page.locator('#staff-billing')).toContainText(owner.user.id);
-        await expect(page.locator('#staff-audit')).toContainText('payment.review.checked');
+
         await expect(page.locator('#payment-orders')).not.toContainText(orderId);
         expect((await request(ownerCookie, '/me')).body.benefits.plan.id).toBe('vip');
         const audit = (await request(ownerCookie, '/staff/audit')).body.events;
@@ -81,6 +81,8 @@ test('payment review requires staff MFA, preserves billing-reader scope and show
         await page.locator('[data-lang-value="ar"]').click();
         await expect(page.locator('#payment-review-section h3')).toHaveText('مدفوعات تجريبية تحتاج إلى مراجعة');
         await page.screenshot({ path: testInfo.outputPath('payment-review-mobile-ar.png'), fullPage: true });
+        await page.goto(`${server.baseUrl}/ops/audit`);
+        await expect(page.locator('#staff-audit')).toContainText('payment.review.checked');
         expect(errors).toEqual([]);
     } finally { await context.close(); await server.stop(); }
 });

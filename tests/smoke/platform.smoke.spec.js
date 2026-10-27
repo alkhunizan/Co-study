@@ -117,7 +117,7 @@ test('member, VIP, supervisor and named staff journeys work in the browser', asy
         await page.locator('.platform-nav [data-view="account"]').click();
         await expect(page.locator('#staff-nav')).toBeVisible();
         await page.locator('#staff-nav').click();
-        await expect(page.locator('#staff-roles')).toContainText('Super admin');
+        await expect(page).toHaveURL(`${server.baseUrl}/ops/overview`);
         await expect(page.locator('#staff-alerts')).toContainText('No alerts recorded.');
         for (let attempt = 0; attempt < 20; attempt++) {
             await server.request('/api/auth/login', {
@@ -126,10 +126,14 @@ test('member, VIP, supervisor and named staff journeys work in the browser', asy
         }
         await page.reload();
         await expect(page.locator('#staff-alerts')).toContainText('Elevated rejected sign-ins');
+        await page.locator('#ops-nav [data-section="system"]').click();
         await page.locator('#video-gate').click();
         await expect(page.locator('#video-gate')).toHaveText('Allow video entry');
         await page.locator('#video-gate').click();
+        await page.locator('#ops-nav [data-section="access"]').click();
+        await expect(page.locator('#staff-roles')).toContainText('Super admin');
         await page.locator('#staff-roles button').click();
+        await page.getByRole('button', { name: 'Confirm revocation', exact: true }).click();
         await expect(page.locator('#feedback')).toContainText('last super admin');
         const legacy = await page.request.post(`${server.baseUrl}/ops-platform-browser-test/api/login`, { data: { password: 'smoke-admin-password' } });
         expect(legacy.status()).toBe(403);

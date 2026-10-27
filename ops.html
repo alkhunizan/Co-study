@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#F5F2EB">
+  <title>إدارة المنصة — Halastudy</title>
+  <link rel="icon" href="/images/icons/favicon.svg">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css?v=20261021-refinement">
+  <link rel="stylesheet" href="/css/platform.css?v=20261021-refinement">
+  <link rel="stylesheet" href="/css/ops.css?v=20261027">
+  <script src="/js/halastudy-core.js?v=20261027"></script>
+  <script src="/js/schedule-display.js"></script>
+  <script src="/js/platform-copy.js?v=20261027" defer></script>
+  <script src="/js/ops-copy.js?v=20261027" defer></script>
+  <script src="/js/ops.js?v=20261027" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-lang="skip">انتقل إلى المحتوى</a>
+  <header class="platform-header">
+    <a class="brand" href="/" data-lang-title="brandHome"><span lang="en" dir="ltr">Halastudy</span> <span lang="ar">هلا</span></a>
+    <div class="header-actions">
+      <button type="button" data-lang-value="ar" lang="ar">عربي</button>
+      <button type="button" data-lang-value="en" lang="en">EN</button>
+      <button type="button" id="theme-toggle" data-lang="theme">المظهر</button>
+      <a href="/app" data-lang="opsBack">مساحة المذاكرة</a>
+    </div>
+  </header>
+  <div class="ops-shell">
+    <aside class="ops-sidebar">
+      <p class="eyebrow" data-lang="opsWorkspace">إدارة المنصة</p>
+      <p id="staff-identity" class="note"></p>
+      <nav id="ops-nav" aria-label="إدارة المنصة" data-lang-aria="opsWorkspace" hidden>
+        <a href="/ops/overview" data-section="overview" data-lang="opsOverview">نظرة عامة</a>
+        <a href="/ops/rooms" data-section="rooms" data-lang="opsRooms">الغرف</a>
+        <a href="/ops/users" data-section="users" data-lang="opsUsers">المستخدمون</a>
+        <a href="/ops/reports" data-section="reports" data-lang="opsReports">البلاغات والدعم</a>
+        <a href="/ops/billing" data-section="billing" data-lang="opsBilling">الفوترة</a>
+        <a href="/ops/access" data-section="access" data-lang="opsAccess">الفريق والصلاحيات</a>
+        <a href="/ops/audit" data-section="audit" data-lang="opsAudit">سجل الإجراءات</a>
+        <a href="/ops/system" data-section="system" data-lang="opsSystem">النظام</a>
+      </nav>
+      <label id="ops-mobile-navigation" class="ops-mobile-navigation" hidden><span data-lang="opsNavigate">انتقل إلى قسم</span><select id="ops-section-select" aria-label="انتقل إلى قسم" data-lang-aria="opsNavigate"></select></label>
+      <a class="ops-security" href="/app#security" data-lang="security">الأمان</a>
+    </aside>
+    <main id="main" tabindex="-1">
+      <div class="ops-heading">
+        <div><h1 id="ops-title" tabindex="-1">إدارة المنصة</h1><p id="ops-description" class="lede"></p></div>
+        <button type="button" id="ops-refresh" data-lang="opsRefresh">تحديث</button>
+      </div>
+      <p id="loading" role="status" data-lang="loading">نجهّز مساحتك…</p>
+      <p id="feedback" class="feedback" role="status" aria-live="polite" hidden></p>
+      <button type="button" id="ops-retry" data-lang="opsRetry" hidden>حاول مجددًا</button>
+      <section id="ops-gate" class="detail" hidden>
+        <h2 id="ops-gate-title" tabindex="-1"></h2><p id="ops-gate-body"></p>
+        <a id="ops-login" class="button primary" data-lang="signIn" hidden>سجّل الدخول</a>
+        <form id="ops-mfa" class="form-grid" hidden>
+          <label><span data-lang="otp">الرمز أو رمز الاسترداد</span><input name="code" required maxlength="40" autocomplete="one-time-code" dir="ltr"></label>
+          <button class="primary" data-lang="verify">تحقّق</button>
+        </form>
+        <a id="ops-security-link" class="button" href="/app#security" data-lang="security" hidden>الأمان</a>
+        <a id="ops-return" class="button" href="/ops/overview" data-lang="opsOverview" hidden>نظرة عامة</a>
+      </section>
+      <div id="ops-content" hidden>
+        <section data-ops-panel="overview" hidden>
+          <div id="staff-overview" class="metrics"></div>
+          <h2 data-lang="opsAttention">ما يحتاج إلى متابعة</h2>
+          <div id="ops-attention" class="rows"></div>
+          <div id="ops-alert-summary" class="detail" hidden><h2 data-lang="alertsTitle">تنبيهات التشغيل الأخيرة</h2><p id="staff-monitoring-status" class="note"></p><div id="staff-alerts" class="rows"></div></div>
+        </section>
+        <section data-ops-panel="rooms" hidden>
+          <label class="ops-filter"><span data-lang="opsRoomSearch">ابحث في الغرف المعروضة</span><input id="ops-room-query" type="search" maxlength="100"></label>
+          <p class="note" data-lang="opsRoomsLimit">تظهر حتى 100 غرفة حالية. البحث ضمن القائمة المعروضة.</p>
+          <div id="staff-live-rooms" class="rows"></div>
+        </section>
+        <section data-ops-panel="users" hidden>
+          <form id="staff-user-search" class="inline-form"><label for="staff-query" data-lang="searchAccounts">اسم أو بريد أو معرّف الحساب</label><input id="staff-query" maxlength="100" type="search"><button data-lang="search">بحث</button></form>
+          <p class="note" data-lang="opsUsersLimit">تظهر أول 50 نتيجة. حدّد البحث للوصول إلى الحساب المطلوب.</p>
+          <div id="staff-users" class="rows"></div>
+        </section>
+        <section data-ops-panel="reports" hidden>
+          <div class="ops-filters">
+            <label><span data-lang="opsStatus">الحالة</span><select id="ops-case-status"><option value="" data-lang="opsAll">الكل</option><option value="open" data-lang="open">مفتوح</option><option value="investigating" data-lang="investigating">قيد المراجعة</option><option value="resolved" data-lang="resolved">محلول</option><option value="dismissed" data-lang="dismissed">مستبعد</option></select></label>
+            <label><span data-lang="opsReportSearch">ابحث في البلاغات المعروضة</span><input id="ops-case-query" type="search" maxlength="100"></label>
+          </div>
+          <p class="note" data-lang="opsReportsLimit">تظهر أحدث 100 بلاغ. تشمل المراجعة تفاصيل البلاغ ونتيجته.</p>
+          <div id="staff-cases" class="rows"></div>
+        </section>
+        <section data-ops-panel="billing" hidden>
+          <h2 data-lang="subscriptions">الاشتراكات</h2>
+          <p class="note" data-lang="opsBillingLimit">تظهر أحدث 100 اشتراك. راجع حالة كل اشتراك وبيئة الدفع.</p>
+          <div id="staff-billing" class="rows"></div>
+          <section id="payment-review-section" class="detail" hidden><h3 data-lang="unresolvedPayments">مدفوعات تجريبية تحتاج إلى مراجعة</h3><p data-lang="paymentReviewHelp">التحقق لا ينشئ خصمًا جديدًا. المحاولات بلا مرجع دفع تحتاج إلى مراجعة لدى المزوّد.</p><div id="payment-orders" class="rows"></div><div id="payment-orders-more" class="actions"></div></section>
+        </section>
+        <section data-ops-panel="access" hidden>
+          <h2 data-lang="roleAssignments">صلاحيات الفريق</h2><div id="staff-roles" class="rows"></div>
+          <form id="staff-grant" class="form-grid" hidden><h2 data-lang="opsGrantTitle">إضافة صلاحية</h2><p class="note" data-lang="opsGrantHelp">يجب أن يفعّل الموظف المصادقة الثنائية أولًا. نسخ معرّف الحساب متاح في صفحة الأمان.</p><label><span data-lang="targetAccount">معرّف حساب الموظف</span><input name="userId" required dir="ltr"></label><label><span data-lang="role">الصلاحية</span><select name="role"><option value="moderator" data-lang="roleModerator">مشرف محتوى</option><option value="support" data-lang="roleSupport">الدعم</option><option value="billing_operator" data-lang="roleBilling">الفوترة</option><option value="admin" data-lang="roleAdmin">مسؤول المنصة</option><option value="super_admin" data-lang="roleSuperAdmin">مسؤول رئيسي</option></select></label><button data-lang="grant">امنح الصلاحية</button></form>
+        </section>
+        <section data-ops-panel="audit" hidden>
+          <label class="ops-filter"><span data-lang="opsAuditSearch">ابحث بالإجراء أو صاحب الإجراء أو الحساب المتأثر</span><input id="ops-audit-query" type="search" maxlength="100"></label>
+          <p class="note" data-lang="opsAuditLimit">البحث ضمن أحدث 100 إجراء. افتح التفاصيل لرؤية الهدف والبيانات المسجّلة.</p>
+          <div id="staff-audit" class="rows"></div>
+        </section>
+        <section data-ops-panel="system" hidden>
+          <h2 data-lang="opsHealth">حالة التشغيل</h2><div id="ops-system-status" class="rows"></div>
+          <div class="actions"><button id="platform-backup" type="button" hidden data-lang="backupNow">إنشاء نسخة احتياطية</button></div>
+          <section class="detail"><h2 data-lang="opsVideo">دخول الفيديو</h2><p id="ops-video-status"></p><p class="note" data-lang="operationsNote">إعداد الفيديو والإعلانات مؤقتان حتى إعادة تشغيل الخادم. تغيير الفيديو يخص الاتصالات الجديدة.</p><button id="video-gate" type="button" hidden></button></section>
+          <form id="announcement-form" class="form-grid" hidden><h2 data-lang="opsAnnouncements">إعلانات المنصة</h2><label><span data-lang="announcementAr">الإعلان بالعربية</span><input name="messageAr" maxlength="200" dir="rtl"></label><label><span data-lang="announcementEn">الإعلان بالإنجليزية</span><input name="messageEn" maxlength="200" dir="ltr"></label><label><span data-lang="announcementDuration">مدة الظهور بالدقائق</span><input name="durationMinutes" type="number" min="1" max="1440" value="60" required></label><div class="actions"><button data-lang="publishAnnouncement">عرض الإعلان</button><button type="button" id="clear-announcement" data-lang="clearAnnouncement">إزالة الإعلان</button></div></form>
+        </section>
+        <p id="ops-updated" class="note ops-updated" role="status"></p>
+      </div>
+    </main>
+  </div>
+  <footer><span lang="en">Halastudy</span><a href="/privacy" data-lang="privacy">الخصوصية</a><a href="/terms" data-lang="terms">الشروط</a></footer>
+</body>
+</html>

@@ -2227,6 +2227,18 @@ function createCoStudyServer(options = {}) {
         res.sendFile(path.join(__dirname, 'platform.html'));
     });
 
+    app.get(['/ops', '/ops/', ...['overview', 'rooms', 'users', 'reports', 'billing', 'access', 'audit', 'system'].map(section => `/ops/${section}`)], async (req, res, next) => {
+        // Preserve a configured legacy root until its named-staff transition.
+        if (config.admin.enabled && req.path.replace(/\/$/, '').toLowerCase() === config.admin.path.toLowerCase()) {
+            if (!platform.enabled) return next();
+            await platform.ready;
+            if (!(await platform.access.hasStaff())) return next();
+        }
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.setHeader('Cache-Control', 'no-store');
+        res.sendFile(path.join(__dirname, 'ops.html'));
+    });
+
     app.get(['/account.html', '/account'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'account.html'));
     });

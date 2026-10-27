@@ -17,7 +17,7 @@
   <script src="/js/platform-copy.js?v=20261021-refinement" defer></script>
   <script src="/js/study-copy.js?v=20261022" defer></script>
   <script src="/js/study-routine.js?v=20261022" defer></script>
-  <script src="/js/platform.js?v=20261022-top20" defer></script>
+  <script src="/js/platform.js?v=20261027" defer></script>
   <script src="/js/study-workspace.js?v=20261022" defer></script>
 </head>
 <body>
@@ -159,7 +159,7 @@
           <a class="button" href="/account" data-lang="profileHistory">الملف الشخصي وسجل الغرف</a>
           <a class="button" href="/app#security" data-view="security" data-lang="security">الأمان</a>
           <a class="button" href="/plans" data-view="vip" data-lang="vip">عضوية VIP</a>
-          <a class="button" href="/app#staff" data-view="staff" data-lang="staff" id="staff-nav" hidden>الإدارة</a>
+          <a class="button" href="/ops/overview" data-lang="staff" id="staff-nav" hidden>الإدارة</a>
         </div>
         <section class="detail" aria-labelledby="insights-title">
           <h2 id="insights-title" data-lang="insightsTitle">عدادات استخدام اختيارية على جهازك</h2>
@@ -179,45 +179,6 @@
         <form id="mfa-verify" class="form-grid"><h2 data-lang="verifyMfa">تأكيد رمز المصادقة</h2><label><span data-lang="otp">الرمز أو رمز الاسترداد</span><input name="code" inputmode="text" autocomplete="one-time-code" required maxlength="40" dir="ltr"></label><button class="primary" data-lang="verify">تحقّق</button><p class="note" data-lang="staffSession">تأكيد الموظفين صالح لمدة 15 دقيقة. كل تغيير حساس يُسجّل باسم صاحبه.</p></form>
         <div id="recovery" class="detail" hidden><h2 data-lang="recoveryTitle">احفظ رموز الاسترداد</h2><p data-lang="recoveryBody">تظهر الآن فقط. كل رمز يُستخدم مرة واحدة. احفظها في مكان آمن قبل مغادرة الصفحة.</p><pre id="recovery-codes" dir="ltr"></pre></div>
         <form id="bootstrap" class="form-grid" hidden><h2 data-lang="bootstrapTitle">إعداد المالك الأول</h2><p class="note" data-lang="bootstrapBody">بعد تفعيل المصادقة، أدخل كلمة مرور الإدارة الحالية لربط الإدارة بحسابك. تُغلق هذه الخطوة بعد إعداد أول مسؤول رئيسي.</p><label><span data-lang="adminPassword">كلمة مرور الإدارة الحالية</span><input name="password" type="password" autocomplete="off" required></label><button data-lang="bootstrapAction">اربط حساب المسؤول الرئيسي</button></form>
-      </section>
-      <section data-panel="staff" hidden>
-        <p class="eyebrow" data-lang="staffWorkspace">مساحة الفريق</p><h1 data-lang="staffTitle">إدارة بمسؤولية واضحة</h1>
-        <p id="staff-lock" class="note" data-lang="staffLock">أكّد رمز المصادقة في صفحة الأمان للوصول إلى أدوات الإدارة.</p>
-        <div id="staff-content" hidden>
-          <div id="staff-overview" class="metrics"></div>
-          <section id="staff-operations-section" hidden>
-            <h2 data-lang="alertsTitle">تنبيهات التشغيل الأخيرة</h2>
-            <p id="staff-monitoring-status" role="status"></p>
-            <div id="staff-alerts" class="rows"></div>
-            <h2 data-lang="operationsTitle">تشغيل المنصة</h2>
-            <p class="note" data-lang="operationsNote">إعداد الفيديو والإعلانات مؤقتان حتى إعادة تشغيل الخادم. تغيير الفيديو يخص الاتصالات الجديدة.</p>
-            <div class="actions"><button id="video-gate"></button><button id="platform-backup" hidden data-lang="backupNow">إنشاء نسخة احتياطية</button></div>
-            <form id="announcement-form" class="form-grid" hidden>
-              <label><span data-lang="announcementAr">الإعلان بالعربية</span><input name="messageAr" maxlength="200" dir="rtl"></label>
-              <label><span data-lang="announcementEn">الإعلان بالإنجليزية</span><input name="messageEn" maxlength="200" dir="ltr"></label>
-              <label><span data-lang="announcementDuration">مدة الظهور بالدقائق</span><input name="durationMinutes" type="number" min="1" max="1440" value="60" required></label>
-              <button data-lang="publishAnnouncement">عرض الإعلان</button>
-              <button type="button" id="clear-announcement" data-lang="clearAnnouncement">إزالة الإعلان</button>
-            </form>
-            <div id="staff-live-rooms" class="rows"></div>
-          </section>
-          <section id="staff-users-section" hidden>
-            <h2 data-lang="accountModeration">إدارة الحسابات</h2>
-            <form id="staff-user-search" class="inline-form"><label for="staff-query" data-lang="searchAccounts">اسم أو بريد أو معرّف الحساب</label><input id="staff-query" maxlength="100"><button data-lang="search">بحث</button></form>
-            <div id="staff-users" class="rows"></div>
-          </section>
-          <section id="staff-roles-section" hidden><h2 data-lang="roleAssignments">صلاحيات الفريق</h2><div id="staff-roles" class="rows"></div>
-            <form id="staff-grant" class="form-grid"><label><span data-lang="targetAccount">معرّف حساب الموظف</span><input name="userId" required dir="ltr"></label><label><span data-lang="role">الصلاحية</span><select name="role"><option value="moderator" data-lang="roleModerator">مشرف محتوى</option><option value="support" data-lang="roleSupport">الدعم</option><option value="billing_operator" data-lang="roleBilling">الفوترة</option><option value="admin" data-lang="roleAdmin">مسؤول المنصة</option><option value="super_admin" data-lang="roleSuperAdmin">مسؤول رئيسي</option></select></label><button data-lang="grant">امنح الصلاحية</button></form>
-          </section>
-          <section id="staff-cases-section" hidden><h2 data-lang="reports">البلاغات</h2><div id="staff-cases" class="rows"></div></section>
-          <section id="staff-billing-section" hidden><h2 data-lang="subscriptions">الاشتراكات</h2><div id="staff-billing" class="rows"></div>
-            <div id="payment-review-section" hidden><h3 data-lang="unresolvedPayments">مدفوعات تجريبية تحتاج إلى مراجعة</h3>
-              <p data-lang="paymentReviewHelp">التحقق لا ينشئ خصمًا جديدًا. المحاولات بلا مرجع دفع تحتاج إلى مراجعة لدى المزوّد.</p>
-              <div id="payment-orders" class="rows"></div><div id="payment-orders-more"></div>
-            </div>
-          </section>
-          <section id="staff-audit-section" hidden><h2 data-lang="audit">سجل الإجراءات</h2><div id="staff-audit" class="rows"></div></section>
-        </div>
       </section>
     </main>
   </div>
