@@ -914,3 +914,48 @@ test('a saved room password is never handed to a different room', async ({ brows
         expect(attempt.password).toBe('');
     } finally { await visitor.context.close(); }
 });
+
+async function exposeRoomSocket(page) {
+    await page.route('**/socket.io/socket.io.js', async (route) => {
+        const response = await route.fetch();
+        const source = await response.text();
+        await route.fulfill({
+            response,
+            body: `${source}
+;(() => {
+                const originalIo = window.io;
+                window.io = function exposedIo(...args) {
+                    const socket = originalIo(...args);
+                    window.__roomSocket = socket;
+                    return socket;
+                };
+                Object.assign(window.io, originalIo);
+            })();`
+        });
+    });
+}
+
+test('a connection error after joining keeps automatic reconnection', async ({ browser }) => {
+    const owner = await createSmokePage(browser);
+    try {
+        await exposeRoomSocket(owner.page);
+        const roomCode = await createRoomFromLanding(owner.page, { roomName: 'Reconnect Smoke Room' });
+        await owner.page.click('#btn-enter-room');
+        await joinRoom(owner.page, { name: 'Owner', roomCode });
+        await expectJoined(owner.page);
+
+        // Fire the page's own handler exactly as Socket.IO does when a
+        // reconnect attempt fails while the network is down.
+        const state = await owner.page.evaluate(() => {
+            const socket = /** @type {any} */ (window).__roomSocket;
+            for (const handler of socket.listeners('connect_error')) handler(new Error('simulated outage'));
+            return { active: socket.active, connected: socket.connected };
+        });
+        // `active` turns false only after a manual disconnect(), which would
+        // stop every later reconnect attempt.
+        expect(state.active).toBe(true);
+        expect(state.connected).toBe(true);
+    } finally {
+        await owner.context.close();
+    }
+});

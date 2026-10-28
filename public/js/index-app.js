@@ -3096,7 +3096,16 @@
             }
             setChatEnabled(false);
             setBoardEnabled(false);
-            failJoin(currentCopy().connectError);
+            if (joinPending) {
+                // A first join that cannot connect is cancelled, so a late ack
+                // cannot land behind the visible retry form.
+                failJoin(currentCopy().connectError);
+                return;
+            }
+            // An established session keeps Socket.IO's automatic reconnection;
+            // the 'connect' handler rejoins the room once the network returns.
+            showJoinError(currentCopy().connectError);
+            joinOverlay.classList.remove('hidden');
         });
         activeSocket.on('chat-message', msg => appendMessage(msg));
         activeSocket.on('presence', list => updatePresenceList(list || []));
