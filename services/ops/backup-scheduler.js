@@ -37,6 +37,9 @@ function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backu
                 written.push(backupFile);
                 entryCount += entries.length;
             }
+            if (written.length === 0) {
+                throw new Error('No readable snapshot sources; no plaintext diagnostic snapshot was created.');
+            }
             status.lastRunAt = Date.now();
             status.lastError = null;
             logger.info({ event: 'backup_completed', files: written.length, entries: entryCount });

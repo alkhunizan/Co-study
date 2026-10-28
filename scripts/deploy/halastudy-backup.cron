@@ -1,0 +1,3 @@
+# Alternative to halastudy-backup.timer. Do not install both schedulers.
+CRON_TZ=UTC
+15 2 * * * halastudy /opt/halastudy/scripts/deploy/backup.sh

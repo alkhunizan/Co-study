@@ -4,7 +4,8 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { makeTempStateFile, resetStateFile } = require('../helpers/test-env');
-const { startServer } = require('../helpers/server-control');
+const { verifySessionToken } = require('../../services/auth');
+const { buildTestEnvironment, startServer } = require('../helpers/server-control');
 const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
 const { extractCookies, signupUser } = require('../helpers/auth-helpers');
 
@@ -99,6 +100,21 @@ test('admin login gates the console: wrong password 401, lockout 429, success se
     }
 });
 
+test('admin cookies use the purpose-separated admin session secret', async (t) => {
+    const server = await startAdminServer();
+    await cleanupServer(t, server);
+    const cookie = await adminLogin(server);
+    const token = cookie.match(/(?:^|;\s*)coStudyAdmin=([^;]+)/)?.[1];
+    const testEnv = buildTestEnvironment();
+
+    assert.ok(token);
+    assert.equal(verifySessionToken(token, { secret: testEnv.SESSION_SECRET }), null);
+    assert.equal(
+        verifySessionToken(token, { secret: testEnv.ADMIN_SESSION_SECRET })?.userId,
+        'admin'
+    );
+});
+
 test('admin login locks out after repeated failures', async (t) => {
     const server = await startAdminServer();
     await cleanupServer(t, server);
@@ -144,6 +160,7 @@ test('video kill-switch toggles at runtime and is reflected in runtime-config an
 
     const token = await server.request(`/api/rooms/${roomId}/video-token`, {
         method: 'POST',
+        headers: { 'X-Halastudy-Membership': joined.membershipToken },
         body: { displayName: 'Owner', clientSessionId: 'ks-owner', role: 'student' }
     });
     assert.equal(token.status, 503);
@@ -281,13 +298,19 @@ test('broadcast reaches connected sockets and fresh joiners; clear stops it', as
     assert.equal(payload.messageEn, 'Maintenance tonight');
 
     // Fresh connections get the active announcement on connect.
-    const late = await connectSocket(server.baseUrl, { clientId: 'ann-late' });
+    // Listen before connecting: the announcement can arrive before connect resolves.
+    let resolveLate;
+    const lateAnnouncement = new Promise((resolve) => {
+        resolveLate = resolve;
+    });
+    const late = await connectSocket(server.baseUrl, {
+        clientId: 'ann-late',
+        onCreate: (socket) => socket.once('announcement', resolveLate)
+    });
     t.after(async () => {
         await closeSocket(late);
     });
-    const lateReceived = await new Promise((resolve) => {
-        late.once('announcement', resolve);
-    });
+    const lateReceived = await lateAnnouncement;
     assert.equal(lateReceived.messageAr, 'صيانة الليلة');
 
     const publicEndpoint = await server.request('/api/announcement');

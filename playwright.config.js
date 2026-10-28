@@ -1,4 +1,4 @@
-const { defineConfig } = require('@playwright/test');
+const { defineConfig, devices } = require('@playwright/test');
 
 const { resetStateFile, SMOKE_PORT, SMOKE_ROOM_STATE_FILE } = require('./tests/helpers/test-env');
 
@@ -23,9 +23,26 @@ module.exports = defineConfig({
     outputDir: 'test-results',
     use: {
         baseURL: `http://127.0.0.1:${SMOKE_PORT}`,
-        browserName: 'chromium',
         screenshot: 'only-on-failure',
         trace: 'retain-on-failure',
         video: 'retain-on-failure'
-    }
+    },
+    projects: [
+        {
+            name: 'chromium-desktop',
+            use: { ...devices['Desktop Chrome'] }
+        },
+        {
+            name: 'chromium-mobile',
+            use: { ...devices['Pixel 7'] }
+        },
+        {
+            name: 'webkit-desktop',
+            use: { ...devices['Desktop Safari'] }
+        },
+        {
+            name: 'webkit-mobile',
+            use: { ...devices['iPhone 13'] }
+        }
+    ]
 });

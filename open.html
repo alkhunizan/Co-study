@@ -89,7 +89,7 @@
               <div class="mode-picker" id="media-mode-picker" role="radiogroup" aria-label="Room media mode">
                 <button type="button" class="mode-option active" data-media-mode="mesh" aria-checked="true">
                   <span class="mode-option-title" data-lang="mediaModeMeshTitle">غرفة عادية</span>
-                  <span class="mode-option-desc" id="media-mode-mesh-desc">موصى بها لما يصل إلى 4 أشخاص. تستخدم فيديو مباشرًا بين المتصفحات.</span>
+                  <span class="mode-option-desc" id="media-mode-mesh-desc">غرف كاميرا المذاكرة تدعم حتى 20 شخصاً. المايك مقفل تلقائياً.</span>
                 </button>
                 <button type="button" class="mode-option" id="media-mode-sfu" data-media-mode="sfu" aria-checked="false" hidden>
                   <span class="mode-option-title" data-lang="mediaModeSfuTitle">غرفة كبيرة</span>
@@ -439,10 +439,13 @@
             sfuAvailable: false,
             supportedMediaModes: [MEDIA_MODE_MESH],
             meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT,
-            videoProvider: VIDEO_PROVIDER_MESH,
+            videoProvider: VIDEO_PROVIDER_REALTIMEKIT,
+            devMeshEnabled: false,
             videoPolicy: null
         };
         let joinPreviewRoom = null;
+        let joinPreviewGeneration = 0;
+        let joinPreviewController = null;
         let landingScheduleRefreshTimer = null;
         let isDark = false;
         try { isDark = localStorage.getItem('halastudyTheme') === 'dark'; document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } catch (e) {}
@@ -512,7 +515,7 @@
         }
 
         function normalizeVideoProvider(provider) {
-            return provider === VIDEO_PROVIDER_REALTIMEKIT ? VIDEO_PROVIDER_REALTIMEKIT : VIDEO_PROVIDER_MESH;
+            return provider === VIDEO_PROVIDER_MESH ? VIDEO_PROVIDER_MESH : VIDEO_PROVIDER_REALTIMEKIT;
         }
 
         function getMeshParticipantLimit() {
@@ -1109,7 +1112,9 @@
                 button.setAttribute('aria-checked', active ? 'true' : 'false');
             });
             if (mediaModeSfuButton) {
-                mediaModeSfuButton.hidden = runtimeConfig.videoProvider !== VIDEO_PROVIDER_MESH || !runtimeConfig.sfuAvailable;
+                mediaModeSfuButton.hidden = runtimeConfig.devMeshEnabled !== true
+                    || runtimeConfig.videoProvider !== VIDEO_PROVIDER_MESH
+                    || !runtimeConfig.sfuAvailable;
             }
             if (mediaModeMeshDesc) {
                 mediaModeMeshDesc.textContent = interpolate(copy().mediaModeMeshDesc, {
@@ -1123,6 +1128,7 @@
         function setSelectedMediaMode(mode) {
             const nextMode = normalizeMediaMode(mode);
             selectedMediaMode = nextMode === MEDIA_MODE_SFU
+                && runtimeConfig.devMeshEnabled === true
                 && runtimeConfig.videoProvider === VIDEO_PROVIDER_MESH
                 && runtimeConfig.sfuAvailable
                 ? MEDIA_MODE_SFU
@@ -1130,7 +1136,16 @@
             syncMediaModeUi();
         }
 
-        function clearJoinPreview() {
+        function invalidateJoinPreviewRequest() {
+            joinPreviewGeneration += 1;
+            if (joinPreviewController) {
+                joinPreviewController.abort();
+                joinPreviewController = null;
+            }
+        }
+
+        function clearJoinPreview({ invalidateRequest = true } = {}) {
+            if (invalidateRequest) invalidateJoinPreviewRequest();
             joinPreviewRoom = null;
             if (joinRoomPreview) {
                 joinRoomPreview.hidden = true;
@@ -1156,7 +1171,9 @@
             const activeVideoCount = Number.isInteger(room.activeVideoParticipantCount) ? room.activeVideoParticipantCount : count;
             const isFullMeshRoom = provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_MESH && limit !== null && count >= limit;
             const isFullRealtimeKitRoom = provider === VIDEO_PROVIDER_REALTIMEKIT && limit !== null && activeVideoCount >= limit;
-            const largeRoomUnavailable = provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable;
+            const legacyMediaUnavailable = provider === VIDEO_PROVIDER_MESH && runtimeConfig.devMeshEnabled !== true;
+            const largeRoomUnavailable = legacyMediaUnavailable
+                || (provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable);
 
             joinRoomPreview.hidden = false;
             joinRoomPreviewName.textContent = room.name || room.roomId || joinCodeInput.value.trim().toUpperCase();
@@ -1187,6 +1204,7 @@
                     : [MEDIA_MODE_MESH],
                 meshParticipantLimit,
                 videoProvider: normalizeVideoProvider(payload.videoProvider),
+                devMeshEnabled: payload.devMeshEnabled === true,
                 videoPolicy: payload.videoPolicy || null
             };
             if (!runtimeConfig.sfuAvailable) {
@@ -1222,12 +1240,22 @@
         }
 
         async function fetchRoomDetails(code) {
+            invalidateJoinPreviewRequest();
+            const generation = joinPreviewGeneration;
+            const controller = new AbortController();
+            joinPreviewController = controller;
+            const isCurrentRequest = () => generation === joinPreviewGeneration
+                && joinPreviewController === controller
+                && !controller.signal.aborted;
+
             try {
                 const response = await fetch(`/api/rooms/${encodeURIComponent(code)}`, {
-                    headers: { Accept: 'application/json' }
+                    headers: { Accept: 'application/json' },
+                    signal: controller.signal
                 });
+                if (!isCurrentRequest()) return { status: 'stale' };
                 if (response.status === 404) {
-                    clearJoinPreview();
+                    clearJoinPreview({ invalidateRequest: false });
                     return { status: 'not_found' };
                 }
                 if (response.status === 429) {
@@ -1237,10 +1265,18 @@
                     return { status: 'error' };
                 }
                 const room = await response.json();
+                if (!isCurrentRequest()) return { status: 'stale' };
                 renderJoinPreview(room);
                 return { status: 'ok', room };
-            } catch (_error) {
+            } catch (error) {
+                if (error?.name === 'AbortError' || !isCurrentRequest()) {
+                    return { status: 'stale' };
+                }
                 return { status: 'error' };
+            } finally {
+                if (joinPreviewController === controller) {
+                    joinPreviewController = null;
+                }
             }
         }
 
@@ -1309,6 +1345,8 @@
                 if (code) {
                     void fetchRoomDetails(code);
                 }
+            } else {
+                clearJoinPreview();
             }
             // Desktop only — focusing on touch devices pops the keyboard over the form.
             if (window.matchMedia('(pointer: fine)').matches) {
@@ -1323,7 +1361,6 @@
             if (roomCode) {
                 joinCodeInput.value = roomCode.toUpperCase();
                 setMode('join');
-                void fetchRoomDetails(joinCodeInput.value);
             }
         }
 
@@ -1393,11 +1430,18 @@
             // Codes are 6 chars — preview the room as soon as one is typed/pasted.
             const code = joinCodeInput.value;
             if (code.length >= 6) {
-                joinLookupTimer = setTimeout(() => { void fetchRoomDetails(code); }, 350);
+                joinLookupTimer = setTimeout(() => {
+                    joinLookupTimer = null;
+                    void fetchRoomDetails(code);
+                }, 350);
             }
         });
 
         joinCodeInput.addEventListener('blur', () => {
+            if (joinLookupTimer) {
+                clearTimeout(joinLookupTimer);
+                joinLookupTimer = null;
+            }
             const code = joinCodeInput.value.trim().toUpperCase();
             if (!code) {
                 clearJoinPreview();
@@ -1539,6 +1583,13 @@
             if (joinSubmitBtn) joinSubmitBtn.disabled = true;
             try {
                 const lookup = await fetchRoomDetails(code);
+                if (lookup.status === 'stale') {
+                    if (joinCodeInput.value.trim().toUpperCase() !== code) {
+                        feedback.textContent = '';
+                        feedback.className = 'form-feedback';
+                    }
+                    return;
+                }
                 if (lookup.status === 'not_found') {
                     feedback.textContent = copy().errorRoomNotFound;
                     feedback.className = 'form-feedback error';

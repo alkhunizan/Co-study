@@ -1,0 +1,30 @@
+[Unit]
+Description=Halastudy encrypted state backup
+Documentation=file:///opt/halastudy/DEPLOYMENT.md
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/var/lib/halastudy/.env
+
+[Service]
+Type=oneshot
+User=halastudy
+Group=halastudy
+WorkingDirectory=/opt/halastudy
+UMask=0077
+ExecStart=/opt/halastudy/scripts/deploy/backup.sh
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/var/lib/halastudy/.env
+ReadWritePaths=/var/lib/halastudy/backups
+
+[Install]
+WantedBy=multi-user.target

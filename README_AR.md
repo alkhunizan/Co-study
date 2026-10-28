@@ -14,13 +14,13 @@
 
 - أسماء غرف مخصصة مع رموز مشاركة سريعة
 - حماية اختيارية بكلمة مرور مع تشفير PBKDF2
-- فيديو جماعي عبر WebRTC ودردشة مباشرة عبر Socket.IO
+- فيديو مُدار عبر Cloudflare RealtimeKit في الإنتاج، ودردشة مباشرة عبر Socket.IO
 - مؤقت بومودورو مع إحصاءات تركيز يومية
 - لوحة غرفة مشتركة، ومشاركة الحالة، والأصوات المحيطة
 - غرف مجدولة قابلة لإعادة الاستخدام مع توقيت الرياض، وعدّ تنازلي، وتصدير تقويم، ودعوات جاهزة لواتساب
 - حفظ حالة الغرف على القرص للدردشة واللوحة المشتركة
-- إعداد TURN جاهز عبر `ICE_SERVERS_JSON`
-- أوضاع وسائط مُدارة: غرف Mesh حتى 4 أشخاص، وغرف كبيرة عبر SFU عندما يتم ضبط `SFU_BASE_URL`
+- اختبار Mesh/TURN محلي فقط عبر `ICE_SERVERS_JSON` مع بوابة تطوير صريحة
+- وضع Mesh حتى 4 أشخاص متاح محلياً للحسابات المسجلة فقط؛ الإنتاج لا يمرر إشاراته
 - نقاط فحص `health` و`ready` مع حدود إساءة استخدام خفيفة
 - نسخ احتياطي واستعادة يدوية لملف حالة الغرف
 
@@ -56,12 +56,13 @@ npm run check
 npm run audit:prod
 npm run test:integration
 npm run test:smoke
-npm run backup:rooms
-npm run restore:rooms -- /absolute/path/to/backup.json
+npm run backup:state
+npm run restore:state -- /absolute/path/to/artifact.hsbackup
+npm run restore:state -- /absolute/path/to/artifact.hsbackup --apply --writer-stopped
 npm run verify:deploy -- https://your-domain.com
 ```
 
-الاستعادة عملية تشغيلية يدوية. أوقف التطبيق أولاً ثم استعد النسخة ثم أعد التشغيل وبعدها شغّل `verify:deploy`.
+الاستعادة تكون فحصاً جافاً افتراضياً للتحقق من التشفير والمخطط والبصمات وسجلات الحذف. عند التطبيق، أوقف كاتب التطبيق الوحيد أولاً، واستخدم رايتي التطبيق الصريحتين، ثم أعد التشغيل وشغّل `verify:deploy`. راجع [دليل النسخ الاحتياطي والاستعادة المشفّر](./docs/BACKUP-RESTORE.md).
 
 ## النشر
 
@@ -88,8 +89,9 @@ npm run verify:deploy -- https://your-domain.com
 - `HTTPS_PORT`: منفذ `server-https.js` المحلي، والافتراضي `3443`
 - `TRUST_PROXY`: استخدم `1` خلف Nginx
 - `ALLOWED_ORIGINS`: قائمة Origins مسموح بها مفصولة بفواصل، وإذا تُركت فارغة يعمل التطبيق بنفس الأصل فقط
-- `ICE_SERVERS_JSON`: إعداد STUN/TURN اختياري
+- `ICE_SERVERS_JSON`: إعداد STUN/TURN لاختبارات التطوير فقط؛ يرفضه تشغيل الإنتاج
 - `MESH_PARTICIPANT_LIMIT`: الحد الأقصى لغرف Mesh، والافتراضي `4`
+- `ENABLE_DEV_MESH`: يجب ضبطه على `true` مع `VIDEO_PROVIDER=mesh` في التطوير/الاختبار، وهو ممنوع في الإنتاج
 - `ROOM_STATE_FILE`: مسار ملف حالة الغرف، والافتراضي `./data/rooms.json`
 - `ROOM_STATE_BACKUP_DIR`: مجلد النسخ الاحتياطية، والافتراضي `./data/backups`
 - `SFU_BASE_URL`: رابط أساسي مطلق `http(s)` لتكامل SFU المضمن
@@ -103,7 +105,8 @@ npm run verify:deploy -- https://your-domain.com
 
 ## ملاحظات الوسائط
 
-- وضع `mesh` هو الوضع الافتراضي للغرف، ويطبّق الحد الموجود في `MESH_PARTICIPANT_LIMIT`
+- يستخدم الإنتاج `VIDEO_PROVIDER=realtimekit` ولا يعود تلقائياً إلى Mesh حتى للغرف القديمة
+- يتطلب Mesh المحلي `VIDEO_PROVIDER=mesh` و`ENABLE_DEV_MESH=true`، ولا يمرر الكاميرا أو RTC إلا بين مقابس حسابات مسجلة
 - غرف `sfu` لا تظهر إلا عند ضبط `SFU_BASE_URL`
 - الغرفة لا تغيّر وضع الوسائط بعد إنشائها
 - مراقبة التركيز بالذكاء الاصطناعي متاحة في غرف Mesh فقط

@@ -4,6 +4,7 @@
     "co-study-server.js",
     "scripts/*.js",
     "scripts/cloudflare/*.js",
+    "public/js/**/*.js",
     "tests/integration/*.test.js",
     "tests/helpers/fake-sfu-fixture.js",
     "tests/helpers/fake-realtimekit-fixture.js"
@@ -12,6 +13,7 @@
     "*.js",
     "services/**/*.js",
     "scripts/**/*.js",
+    "public/js/**/*.js",
     "tests/**/*.js"
   ],
   "ignore": [

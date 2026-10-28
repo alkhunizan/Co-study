@@ -6,17 +6,29 @@
 // carry a session.
 const express = require('express');
 const { hashPassword, verifyPassword } = require('./password');
+const { GOOGLE_DELETE_GRANT_COOKIE } = require('./oauth-security');
 const {
     normalizeEmail,
     validatePassword,
     normalizeAvatarColor,
     sanitizeUserText
 } = require('./index');
-const { createUser, applyFocusSession, sanitizeFocusStats } = require('../../user-store');
+const {
+    createUser,
+    applyFocusSession,
+    normalizeCompletionId,
+    sanitizeFocusStats
+} = require('../../user-store');
 
 const DISPLAY_NAME_MAX_LENGTH = 20;
 const BIO_MAX_LENGTH = 160;
 const FOCUS_SESSION_MAX_MINUTES = 240;
+
+async function verifyLoginPassword(user, password, verifier = verifyPassword) {
+    const passwordEnabled = !!user && user.passwordEnabled !== false && !!user.passwordHash;
+    const passwordOk = await verifier(password, passwordEnabled ? user.passwordHash : null);
+    return passwordEnabled && passwordOk;
+}
 
 function createAuthRouter(deps) {
     const {
@@ -29,14 +41,38 @@ function createAuthRouter(deps) {
         publicUser,
         setAuthCookie,
         clearAuthCookie,
-        persistUsersSoon,
-        flushUsers,
+        rotateAnonymousIdentity,
+        appendSetCookie,
+        parseCookies,
+        oauthSecurity,
+        persistUser,
+        deleteUser,
+        onUserDeleted,
+        onSessionLogout,
+        persistFocusCompletion,
+        runUserMutation,
         requireUser,
-        logFocusSession,
         logger
     } = deps;
 
+    if (typeof runUserMutation !== 'function') {
+        throw new TypeError('createAuthRouter requires runUserMutation.');
+    }
+
     const router = express.Router();
+
+    function clearDeletionGrantCookie(req, res) {
+        if (typeof appendSetCookie !== 'function') return;
+        const parts = [
+            `${GOOGLE_DELETE_GRANT_COOKIE}=`,
+            'Path=/api/me',
+            'HttpOnly',
+            'SameSite=Lax',
+            'Max-Age=0'
+        ];
+        if (req.secure) parts.push('Secure');
+        appendSetCookie(res, parts.join('; '));
+    }
 
     router.post('/auth/signup', async (req, res) => {
         const requestIp = getRequestIp(req);
@@ -73,7 +109,15 @@ function createAuthRouter(deps) {
         const user = createUser({ email, passwordHash, displayName });
         users.set(user.id, user);
         usersByEmail.set(email, user.id);
-        persistUsersSoon();
+        try {
+            await persistUser(user);
+        } catch (error) {
+            users.delete(user.id);
+            usersByEmail.delete(email);
+            logger.warn({ event: 'user_signup_persist_failed', error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
         setAuthCookie(req, res, user);
         logger.info({ event: 'user_signup', userId: user.id });
         res.json({ ok: true, user: publicUser(user) });
@@ -95,7 +139,7 @@ function createAuthRouter(deps) {
 
         const userId = email ? usersByEmail.get(email) : null;
         const user = userId ? users.get(userId) : null;
-        const passwordOk = user ? await verifyPassword(password, user.passwordHash) : false;
+        const passwordOk = await verifyLoginPassword(user, password);
         if (!user || !passwordOk) {
             rateLimiters.authFailure.consume(failureKey);
             res.status(401).json({ errorCode: 'INVALID_CREDENTIALS' });
@@ -113,7 +157,15 @@ function createAuthRouter(deps) {
     });
 
     router.post('/auth/logout', (req, res) => {
+        // A stateless account cookie can be present on several browsers. Revoke
+        // only sockets that share this request's signed anonymous browser
+        // session; password changes, bans, and deletion remain account-wide.
+        onSessionLogout?.({
+            userId: req.user?.id || null,
+            sessionId: req.sessionId || null
+        });
         clearAuthCookie(req, res);
+        rotateAnonymousIdentity?.(req, res);
         res.json({ ok: true });
     });
 
@@ -123,37 +175,61 @@ function createAuthRouter(deps) {
         res.json({ ok: true, user: req.user ? publicUser(req.user) : null });
     });
 
-    router.patch('/me/profile', requireUser, (req, res) => {
+    router.patch('/me/profile', requireUser, async (req, res) => {
         if (!applyHttpRateLimit(req, res, rateLimiters.profileMutation, req.user.id)) return;
 
         const body = req.body || {};
+        const profilePatch = {};
         if (body.displayName !== undefined) {
             const displayName = sanitizeUserText(body.displayName, DISPLAY_NAME_MAX_LENGTH);
             if (!displayName) {
                 res.status(400).json({ errorCode: 'DISPLAY_NAME_REQUIRED' });
                 return;
             }
-            req.user.displayName = displayName;
+            profilePatch.displayName = displayName;
         }
         if (body.avatarColor !== undefined) {
             if (normalizeAvatarColor(body.avatarColor) !== body.avatarColor) {
                 res.status(400).json({ errorCode: 'AVATAR_COLOR_INVALID' });
                 return;
             }
-            req.user.avatarColor = body.avatarColor;
+            profilePatch.avatarColor = body.avatarColor;
         }
         if (body.bio !== undefined) {
             if (typeof body.bio !== 'string' || Array.from(body.bio).length > BIO_MAX_LENGTH) {
                 res.status(400).json({ errorCode: 'BIO_TOO_LONG' });
                 return;
             }
-            req.user.bio = sanitizeUserText(body.bio, BIO_MAX_LENGTH);
+            profilePatch.bio = sanitizeUserText(body.bio, BIO_MAX_LENGTH);
         }
-        persistUsersSoon();
+        try {
+            await runUserMutation(req.user, async () => {
+                const previousProfile = {
+                    displayName: req.user.displayName,
+                    avatarColor: req.user.avatarColor,
+                    bio: req.user.bio
+                };
+                Object.assign(req.user, profilePatch);
+                try {
+                    await persistUser(req.user);
+                } catch (error) {
+                    Object.assign(req.user, previousProfile);
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
+            }
+            logger.warn({ event: 'profile_persist_failed', userId: req.user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
         res.json({ ok: true, user: publicUser(req.user) });
     });
 
-    router.post('/me/focus-session', requireUser, (req, res) => {
+    router.post('/me/focus-session', requireUser, async (req, res) => {
         if (!applyHttpRateLimit(req, res, rateLimiters.focusLog, req.user.id)) return;
 
         const minutes = Number(req.body?.minutes);
@@ -161,41 +237,104 @@ function createAuthRouter(deps) {
             res.status(400).json({ errorCode: 'FOCUS_MINUTES_INVALID' });
             return;
         }
-        const result = applyFocusSession(req.user, { minutes });
-        persistUsersSoon();
-        // Append an analytics event (Supabase only) — the aggregate lives on the
-        // profile, but the per-session log powers the dashboards. Fire-and-forget.
-        if (typeof logFocusSession === 'function') {
-            logFocusSession({ userId: req.user.id, minutes: result.minutes, dayKey: result.dayKey });
+        const completionId = normalizeCompletionId(req.body?.completionId);
+        if (!completionId) {
+            res.status(400).json({ errorCode: 'FOCUS_COMPLETION_ID_INVALID' });
+            return;
         }
-        res.json({ ok: true, focusStats: result.focusStats, streak: result.streak });
+        let result;
+        try {
+            result = await runUserMutation(req.user, async () => {
+                const previousFocusStats = structuredClone(req.user.focusStats);
+                const previousStreak = structuredClone(req.user.streak);
+                const applied = applyFocusSession(req.user, { minutes, completionId });
+                if (applied.duplicate) return applied;
+
+                try {
+                    const persisted = await persistFocusCompletion(req.user, applied);
+                    if (persisted?.duplicate) {
+                        req.user.focusStats = persisted.focusStats || previousFocusStats;
+                        req.user.streak = persisted.streak || previousStreak;
+                        return {
+                            ...applied,
+                            duplicate: true,
+                            acceptedMinutes: persisted.acceptedMinutes,
+                            minutes: persisted.acceptedMinutes,
+                            dayKey: persisted.dayKey,
+                            focusStats: req.user.focusStats,
+                            streak: req.user.streak
+                        };
+                    }
+                    return applied;
+                } catch (error) {
+                    req.user.focusStats = previousFocusStats;
+                    req.user.streak = previousStreak;
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
+            }
+            logger.warn({ event: 'focus_persist_failed', userId: req.user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
+        res.json({
+            ok: true,
+            acceptedMinutes: result.acceptedMinutes,
+            duplicate: result.duplicate,
+            focusStats: result.focusStats,
+            streak: result.streak
+        });
     });
 
     // One-time import of the pre-signup localStorage focus history. Merge is
     // max-per-day, so re-imports never inflate totals.
-    router.post('/me/stats/import', requireUser, (req, res) => {
+    router.post('/me/stats/import', requireUser, async (req, res) => {
         if (!applyHttpRateLimit(req, res, rateLimiters.profileMutation, req.user.id)) return;
 
         const imported = sanitizeFocusStats({ days: req.body?.days });
-        const stats = req.user.focusStats;
-        for (const [dayKey, day] of Object.entries(imported.days)) {
-            const existing = stats.days[dayKey];
-            if (!existing) {
-                stats.days[dayKey] = day;
-            } else {
-                existing.focusMinutes = Math.max(existing.focusMinutes, day.focusMinutes);
-                existing.sessions = Math.max(existing.sessions, day.sessions);
+        let stats;
+        try {
+            stats = await runUserMutation(req.user, async () => {
+                const previousFocusStats = structuredClone(req.user.focusStats);
+                const nextStats = req.user.focusStats;
+                for (const [dayKey, day] of Object.entries(imported.days)) {
+                    const existing = nextStats.days[dayKey];
+                    if (!existing) {
+                        nextStats.days[dayKey] = day;
+                    } else {
+                        existing.focusMinutes = Math.max(existing.focusMinutes, day.focusMinutes);
+                        existing.sessions = Math.max(existing.sessions, day.sessions);
+                    }
+                }
+                let totalFocusMinutes = 0;
+                let totalSessions = 0;
+                for (const day of Object.values(nextStats.days)) {
+                    totalFocusMinutes += day.focusMinutes;
+                    totalSessions += day.sessions;
+                }
+                nextStats.totalFocusMinutes = Math.max(nextStats.totalFocusMinutes, totalFocusMinutes);
+                nextStats.totalSessions = Math.max(nextStats.totalSessions, totalSessions);
+                try {
+                    await persistUser(req.user);
+                    return nextStats;
+                } catch (error) {
+                    req.user.focusStats = previousFocusStats;
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
             }
+            logger.warn({ event: 'stats_import_persist_failed', userId: req.user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
         }
-        let totalFocusMinutes = 0;
-        let totalSessions = 0;
-        for (const day of Object.values(stats.days)) {
-            totalFocusMinutes += day.focusMinutes;
-            totalSessions += day.sessions;
-        }
-        stats.totalFocusMinutes = totalFocusMinutes;
-        stats.totalSessions = totalSessions;
-        persistUsersSoon();
         res.json({ ok: true, focusStats: stats, streak: req.user.streak });
     });
 
@@ -216,26 +355,63 @@ function createAuthRouter(deps) {
         if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
 
         const password = typeof req.body?.password === 'string' ? req.body.password : '';
-        const passwordOk = await verifyPassword(password, req.user.passwordHash);
-        if (!passwordOk) {
+        const passwordEnabled = req.user.passwordEnabled !== false && !!req.user.passwordHash;
+        const passwordOk = await verifyPassword(password, passwordEnabled ? req.user.passwordHash : null);
+        const grantToken = typeof parseCookies === 'function'
+            ? parseCookies(req.headers.cookie || '')[GOOGLE_DELETE_GRANT_COOKIE]
+            : null;
+        const grantOk = !!grantToken && !!oauthSecurity?.consumeProof({
+            purpose: 'delete_grant',
+            token: grantToken,
+            userId: req.user.id
+        });
+        if (grantToken) clearDeletionGrantCookie(req, res);
+        if ((!passwordEnabled || !passwordOk) && !grantOk) {
             res.status(401).json({ errorCode: 'INVALID_CREDENTIALS' });
             return;
         }
 
-        const userId = req.user.id;
-        usersByEmail.delete(req.user.email);
-        users.delete(userId);
+        const user = req.user;
+        const userId = user.id;
+        let cleanupPending = false;
+        try {
+            await runUserMutation(user, async () => {
+                await deleteUser(user);
+                usersByEmail.delete(user.email);
+                users.delete(userId);
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
+            }
+            logger.warn({ event: 'user_delete_persist_failed', userId, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
+        // Durable account deletion and removal from the live identity maps are
+        // complete before cascading through room locks. Releasing the per-user
+        // coordinator first prevents a join (room -> user) from deadlocking
+        // against deletion (user -> room).
+        if (typeof onUserDeleted === 'function') {
+            try {
+                const cleanup = await onUserDeleted(userId);
+                cleanupPending = !!cleanup?.cleanupPending;
+            } catch (error) {
+                cleanupPending = true;
+                logger.error({ event: 'user_delete_cascade_failed', userId, error: error?.message });
+            }
+        }
         clearAuthCookie(req, res);
-        // PDPL delete-my-data: flush immediately rather than debounced, so the
-        // record is gone from disk before we acknowledge.
-        await flushUsers();
+        rotateAnonymousIdentity?.(req, res);
         logger.info({ event: 'user_deleted', userId });
-        res.json({ ok: true });
+        res.json({ ok: true, cleanupPending });
     });
 
     return router;
 }
 
 module.exports = {
-    createAuthRouter
+    createAuthRouter,
+    verifyLoginPassword
 };

@@ -4,7 +4,7 @@ This guide assumes the hardened launch setup:
 - `server.js` runs the app on local HTTP
 - Nginx terminates public TLS and proxies to `http://127.0.0.1:3000`
 - `server-https.js` is kept only for local secure-context testing
-- PM2 runs a single application instance
+- PM2 runs one application instance as the dedicated `halastudy` service user
 
 ## 1. Prepare the Server
 
@@ -18,10 +18,13 @@ sudo npm install -g pm2
 ## 2. Clone and Install
 
 ```bash
-cd /var/www
-sudo git clone https://github.com/alkhunizan/Co-study.git
-cd Co-study
-sudo npm ci
+sudo useradd --system --user-group --home-dir /var/lib/halastudy \
+  --no-create-home --shell /bin/bash halastudy
+sudo install -d -m 0700 -o halastudy -g halastudy \
+  /var/lib/halastudy /var/lib/halastudy/backups /var/lib/halastudy/.pm2
+sudo git clone https://github.com/alkhunizan/Co-study.git /opt/halastudy
+sudo chown -R halastudy:halastudy /opt/halastudy
+sudo -u halastudy -H bash -lc 'cd /opt/halastudy && npm ci --omit=dev'
 ```
 
 ## 3. Configure the App Environment
@@ -36,21 +39,27 @@ production-shaped values and inline notes. The critical production settings:
   future `git clean` or re-clone during a deploy would destroy live room state.
 - **`ALLOWED_ORIGINS`** — set the exact public origin explicitly; do not rely on
   the empty-list fallback.
-- **`ICE_SERVERS_JSON`** — set a TURN relay. STUN-only (the default) fails across
-  the CGNAT'd mobile networks common in the Gulf.
+- **Supabase env** — set both `SUPABASE_URL` and
+  `SUPABASE_SERVICE_ROLE_KEY`. Production startup rejects missing or partial
+  configuration; the local users file is development/test-only.
 - **RealtimeKit env** — set `VIDEO_PROVIDER=realtimekit`,
   `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_REALTIMEKIT_APP_ID`, and
   `CLOUDFLARE_REALTIMEKIT_API_TOKEN`. These are server-only secrets.
 - **Video caps** — keep `MAX_GLOBAL_VIDEO_PARTICIPANTS=20` and
-  `MAX_ROOM_VIDEO_PARTICIPANTS=20` for launch cost control.
-- **`SESSION_SECRET`** — REQUIRED in production (min 32 chars); startup fails
-  without it. HMAC key for user/admin auth cookies. Rotating it signs everyone
-  out. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
-- **`USER_STATE_FILE`** — point it outside the repo like the room state
-  (e.g. `/var/lib/halastudy/users.json`).
-- **`BACKUP_INTERVAL_MINUTES` / `BACKUP_RETENTION_COUNT`** — automated
-  rooms+users backups into `ROOM_STATE_BACKUP_DIR` (e.g. `60` / `48` keeps two
-  days of hourly snapshots).
+  `MAX_ROOM_VIDEO_PARTICIPANTS=20` for launch cost control. Startup rejects
+  values above the hard ceiling.
+- **`SESSION_SECRET`** — REQUIRED in production and must encode exactly 32
+  random bytes (the 64-hex output of `npm run secret:gen` is canonical);
+  startup fails without it. `ADMIN_SESSION_SECRET` has the same requirement,
+  must decode to different bytes, and must be generated independently.
+  Generate both with `npm run secret:gen`; rotating either invalidates its
+  corresponding cookies.
+- **`USER_STATE_FILE`** — development/test fallback only; production accounts
+  are Supabase-backed.
+- **`BACKUP_ENCRYPTION_KEY`** — exactly 32 random bytes encoded as canonical
+  base64. The external service-user timer writes one AES-256-GCM artifact per
+  UTC day and retains seven days. Keep `BACKUP_INTERVAL_MINUTES=0` in
+  production so the legacy plaintext diagnostic scheduler stays disabled.
 
 ### Hidden admin portal
 
@@ -72,18 +81,24 @@ history), rotate `ADMIN_PATH` — the password remains the real gate.
 
 `ecosystem.config.js` already targets:
 - `PORT=3000`
+- `HOST=127.0.0.1`
 - `TRUST_PROXY=1`
 - one PM2 instance
+- a 20-second graceful-shutdown window
 
 If you want explicit shell exports instead:
 
 ```bash
 export PORT=3000
+export HOST=127.0.0.1
 export TRUST_PROXY=1
 export ROOM_STATE_FILE='/var/lib/halastudy/rooms.json'
 export ROOM_STATE_BACKUP_DIR='/var/lib/halastudy/backups'
+export BACKUP_INTERVAL_MINUTES=0
+export BACKUP_ENCRYPTION_KEY='<32 random bytes as base64>'
 export ALLOWED_ORIGINS='https://your-domain.com'
-export MESH_PARTICIPANT_LIMIT=4
+export SUPABASE_URL='https://your-project.supabase.co'
+export SUPABASE_SERVICE_ROLE_KEY='<server-only service role key>'
 export VIDEO_PROVIDER=realtimekit
 export VIDEO_JOIN_DISABLED=false
 export MAX_GLOBAL_VIDEO_PARTICIPANTS=20
@@ -98,16 +113,11 @@ export CLOUDFLARE_REALTIMEKIT_APP_ID='replace_me'
 export CLOUDFLARE_REALTIMEKIT_API_TOKEN='replace_me'
 ```
 
-Optional TURN config:
-
-```bash
-export ICE_SERVERS_JSON='[
-  { "urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
-  { "urls": "turn:turn.example.com:3478", "username": "turn-user", "credential": "turn-password" }
-]'
-```
-
-If you set `SFU_BASE_URL`, it must be an absolute `http(s)` URL.
+Do not configure `ICE_SERVERS_JSON`, TURN credentials, `ENABLE_DEV_MESH`, or
+`VIDEO_PROVIDER=mesh` in production; startup rejects them. Local mesh requires
+`NODE_ENV=development`, `VIDEO_PROVIDER=mesh`, and `ENABLE_DEV_MESH=true`, and
+the signaling server accepts only authenticated account sockets. If a local
+mesh test needs TURN, use short-lived credentials and rotate them before expiry.
 
 RealtimeKit behavior in production:
 - The backend creates/reuses one RealtimeKit meeting per Halastudy room.
@@ -115,8 +125,10 @@ RealtimeKit behavior in production:
 - New video token issuance is blocked when the global active video count reaches 20 or the room active video count reaches 20.
 - Expired idle provider meetings are recycled after `MAX_ROOM_DURATION_MINUTES`; active expired meetings reject new video tokens.
 - Set `VIDEO_JOIN_DISABLED=true` as a kill switch if provider errors or costs spike.
-- Recording, screenshare, and provider chat stay disabled for launch.
-- `VIDEO_PROVIDER=mesh` is an emergency fallback to the legacy P2P path; `sfu` rooms remain available only when `SFU_BASE_URL` is configured.
+- Recording, screenshare, and provider chat stay disabled; startup rejects
+  attempts to enable them.
+- Production rejects `VIDEO_PROVIDER=mesh`; provider outages fail closed for
+  new video joins, and persisted legacy mesh rooms cannot relay RTC signaling.
 
 Launch budget math:
 
@@ -131,13 +143,17 @@ screenshare, transcription, and AI extras off.
 ## 4. Start the App with PM2
 
 ```bash
-sudo pm2 start ecosystem.config.js
-sudo pm2 save
-sudo pm2 startup
-pm2 status
+sudo chown halastudy:halastudy /var/lib/halastudy/.env
+sudo chmod 600 /var/lib/halastudy/.env
+sudo -u halastudy -H env HOME=/var/lib/halastudy \
+  PM2_HOME=/var/lib/halastudy/.pm2 \
+  bash /opt/halastudy/scripts/deploy/start.sh
+sudo -u halastudy -H env PM2_HOME=/var/lib/halastudy/.pm2 pm2 status
 ```
 
-Keep the app on a single PM2 instance. Room persistence uses one JSON state file and is not intended for clustered or multi-writer deployments in this v1 setup.
+The bootstrap script installs the systemd resurrection unit for this same
+service user. Never start a second root-owned PM2 daemon. Keep the app on one
+instance: room persistence is not a clustered or multi-writer store.
 
 ## 5. Configure Nginx
 
@@ -165,9 +181,22 @@ server {
     ssl_prefer_server_ciphers on;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
     access_log /var/log/nginx/co-study-access.log;
     error_log /var/log/nginx/co-study-error.log;
+
+    location = /api/ready {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 5s;
+        access_log off;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -178,7 +207,7 @@ server {
         proxy_set_header Host $host;
         proxy_cache_bypass $http_upgrade;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
 
         proxy_connect_timeout 60s;
@@ -194,7 +223,7 @@ server {
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
 
         proxy_connect_timeout 60s;
@@ -245,33 +274,82 @@ npm run verify:deploy -- https://your-domain.com
 
 `/api/ready` should return `200` with all checks set to `true`.
 
+## Room v2 Migration
+
+Legacy room state remains readable at startup and is never rewritten merely by
+booting the service. Before the v2 rollout, inspect the metadata-only plan while
+the service is running:
+
+```bash
+npm run migration:rooms
+```
+
+In production, the planner reads only `id,my_rooms` from paginated Supabase
+profiles and fails closed if either Supabase credential is missing. Review any
+ambiguous ownership (it remains unassigned and admin-managed), resolve every
+blocking schedule issue, then stop the single writer and apply with both guards:
+
+```bash
+sudo -u halastudy -H env PM2_HOME=/var/lib/halastudy/.pm2 pm2 stop co-study
+npm run migration:rooms -- --apply --writer-stopped
+sudo -u halastudy -H env HOME=/var/lib/halastudy \
+  PM2_HOME=/var/lib/halastudy/.pm2 bash /opt/halastudy/scripts/deploy/start.sh
+curl -fsS http://127.0.0.1:3000/api/ready
+```
+
+Apply first writes a new mode-`0600`, checksummed pre-migration backup without
+overwriting an existing backup, then atomically replaces the same room file.
+Keep the reported backup path through the rollout observation window.
+
 Manual media spot-check before launch:
 - create a RealtimeKit room and confirm video works with 2 participants
 - confirm participants 1-20 can join and the 21st participant is rejected
 - verify camera defaults on, microphone defaults off, recording is unavailable, and screenshare is disabled unless explicitly enabled
-- if `VIDEO_PROVIDER=mesh` is used as a fallback, confirm the legacy 4-person mesh cap still blocks the 5th participant
 - verify a password-protected room before requesting a RealtimeKit token
 - verify reconnect behavior after a participant drops and rejoins
 
 ## Backup and Restore
 
-Manual backup:
+The canonical production backup is the service-owned nightly timer, not the
+in-process diagnostic snapshotter. Configure and enable it after the protected
+environment file exists:
 
 ```bash
-cd /var/www/Co-study
-npm run backup:rooms
+sudo chown halastudy:halastudy /var/lib/halastudy/.env
+sudo chmod 600 /var/lib/halastudy/.env
+sudo systemctl enable --now halastudy-backup.timer
+sudo systemctl start halastudy-backup.service
+sudo systemctl status halastudy-backup.service
 ```
 
-Manual restore:
+Each `.hsbackup` artifact is AES-256-GCM authenticated before restore, contains
+one encrypted schema/checksum manifest, and covers readable room plus Supabase
+profile/focus/event sources. Seven UTC-daily snapshots are retained. Zero
+readable sources is an error and creates no artifact.
+
+Restore defaults to validation and dry-run. Applying requires the app's single
+writer to be stopped plus both explicit flags:
 
 ```bash
-pm2 stop co-study
-npm run restore:rooms -- /absolute/path/to/backup.json
-pm2 start co-study
-npm run verify:deploy -- https://your-domain.com
+sudo -u halastudy -H env PM2_HOME=/var/lib/halastudy/.pm2 pm2 stop co-study
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/restore.sh \
+  /var/lib/halastudy/backups/halastudy-YYYY-MM-DDTHHMMSSZ-id.hsbackup
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/restore.sh \
+  /var/lib/halastudy/backups/halastudy-YYYY-MM-DDTHHMMSSZ-id.hsbackup \
+  --apply --writer-stopped
+sudo -u halastudy -H env HOME=/var/lib/halastudy \
+  PM2_HOME=/var/lib/halastudy/.pm2 bash /opt/halastudy/scripts/deploy/start.sh
+npm --prefix /opt/halastudy run verify:deploy -- https://your-domain.com
 ```
 
-Restore is an offline operator action. Do not overwrite the room-state file while the app is running.
+Current deletion tombstones filter the restore plan. Apply order is profiles,
+focus/room events, then the atomic room file replacement. See
+[Encrypted Backup and Restore](docs/BACKUP-RESTORE.md) for artifact details,
+cron alternative, key recovery, R2 behavior, and failure handling.
+
+The exact additive cutover, 24-hour observation, 14-day compatibility telemetry,
+and rollback order are in
+[Rollout Compatibility](docs/ROLLOUT-COMPATIBILITY.md).
 
 ## Maintenance
 
@@ -328,8 +406,10 @@ npm run verify:deploy -- https://your-domain.com
 
 - `TRUST_PROXY=1` is required behind Nginx so secure cookies and client IP handling work correctly.
 - If `ALLOWED_ORIGINS` is set, include the exact public origin such as `https://your-domain.com`.
-- TURN credentials are delivered to the browser at runtime because WebRTC requires the client to receive them.
-- If room history matters, keep backups of `ROOM_STATE_FILE`.
+- Production media is RealtimeKit-managed; never place static TURN credentials
+  in the production environment.
+- Treat `BACKUP_ENCRYPTION_KEY` as a recovery-critical secret and regularly
+  prove a dry-run restore from the newest artifact.
 - The hardened rate limits are intentionally lightweight and in-memory. They protect a single app instance, not a distributed deployment.
 
 ## Troubleshooting
@@ -339,5 +419,5 @@ npm run verify:deploy -- https://your-domain.com
 | `verify:deploy` fails on readiness | Check PM2 logs and `curl http://127.0.0.1:3000/api/ready` for the failing check. |
 | `502 Bad Gateway` | Confirm PM2 is running `server.js` and Nginx proxies to `http://127.0.0.1:3000`. |
 | Users get blocked too quickly | Review app logs for `RATE_LIMITED` responses and confirm normal traffic is not bursty. |
-| Some users cannot connect video | Add a TURN server through `ICE_SERVERS_JSON`. |
+| Some users cannot connect video | Check RealtimeKit preset/webhook health, provider reconciliation, and the video kill switch; do not downgrade production to mesh. |
 | Secure cookies are missing | Confirm `TRUST_PROXY=1` and `X-Forwarded-Proto` are reaching the app through Nginx. |

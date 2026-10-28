@@ -1,13 +1,12 @@
 # Cloudflare in front of Halastudy
 
-Two roles, both keeping the Node app on the Gulf VM behind Nginx:
+Three roles, all keeping the Node app on the Gulf VM behind Nginx:
 
 1. **DNS + proxy/CDN** — Cloudflare fronts `halastudy.com`: edge TLS, static-asset
    caching, DDoS protection.
-2. **TURN** — Cloudflare Realtime TURN fills `ICE_SERVERS_JSON` so camera calls
-   survive Saudi cellular CGNAT.
-
-RealtimeKit (video rooms) is already wired separately via `scripts/cloudflare/`.
+2. **RealtimeKit** — provider-authoritative production video, configured through
+   `scripts/cloudflare/` and verified by the signed webhook flow.
+3. **R2** — optional storage for already-encrypted backup artifacts.
 
 ---
 
@@ -99,44 +98,27 @@ IP ranges. That stops anyone from bypassing Cloudflare by hitting the VM's raw I
 
 ---
 
-## 2. Cloudflare TURN (for `ICE_SERVERS_JSON`)
+## 2. TURN is local-development-only
 
-STUN-only fails across CGNAT'd Saudi mobile networks, so a TURN relay is
-mandatory (`LAUNCH.md §3`). Cloudflare Realtime includes a TURN service.
+Production uses Cloudflare RealtimeKit and rejects `VIDEO_PROVIDER=mesh`; do not
+put `ICE_SERVERS_JSON` or static TURN credentials in the production environment.
+Production startup also rejects `ENABLE_DEV_MESH=true`. An explicit local mesh
+test must set both `VIDEO_PROVIDER=mesh` and `ENABLE_DEV_MESH=true`; only signed-in
+account sockets may relay camera/RTC signals. Request short-lived TURN credentials,
+keep them in a developer-only env file, and rotate them before expiry. Never copy
+those credentials into PM2, systemd, a container image, or a committed file.
 
-1. In the dashboard → **Realtime → TURN**, create a TURN key. Note the **key ID**
-   and create an **API token** with the Realtime TURN edit permission.
-2. Add to the VM's `.env`:
-   ```bash
-   CLOUDFLARE_TURN_KEY_ID=<key id>
-   CLOUDFLARE_TURN_API_TOKEN=<api token>
-   # optional, default 24h:
-   CLOUDFLARE_TURN_TTL_SECONDS=86400
-   ```
-3. Generate credentials and copy the printed line into `.env`:
-   ```bash
-   npm run cloudflare:turn
-   # → ICE_SERVERS_JSON=[{"urls":["stun:stun.cloudflare.com:3478"]},{"urls":[…],"username":"…","credential":"…"}]
-   ```
-4. Restart the app so `/api/runtime-config` serves the new ICE servers to browsers.
-
-**TTL note for the beta:** Cloudflare TURN credentials are time-limited. `ICE_SERVERS_JSON`
-is read once at boot, so a room that outlives the TTL could lose relay on a
-reconnect. For the private beta a long TTL (24h+) plus a nightly regenerate +
-restart is fine. If TURN reconnect issues show up at scale, the follow-up is to
-make the app mint short-lived TURN credentials per session server-side (the
-`turn-credentials.js` helper already speaks the API) rather than serving a static
-blob — a small, well-scoped change, not needed for launch.
-
-Verify with `npm run verify:deploy -- https://halastudy.com` and a real two-device,
+Verify production with `npm run cloudflare:doctor`, signed webhook checks,
+`npm run verify:deploy -- https://halastudy.com`, and a real two-device,
 two-carrier camera test (`LAUNCH.md §5`).
 
 ---
 
 ## 3. R2 — off-site state backups
 
-Local backups (`data/backups/`) die with the VM. R2 is object storage that keeps
-a durable off-box copy of the room + user state.
+Local backups die with the VM. R2 can keep seven daily off-box copies of the
+client-side encrypted `.hsbackup` artifact. The uploader refuses to select raw
+room or user JSON files.
 
 1. In the dashboard → **R2 → Manage API Tokens**, create an S3-compatible token.
    It gives an **Access Key ID**, **Secret Access Key**, and an account endpoint
@@ -147,19 +129,36 @@ a durable off-box copy of the room + user state.
    R2_ACCESS_KEY_ID=<...>
    R2_SECRET_ACCESS_KEY=<...>
    R2_BUCKET=halastudy-backups
+   BACKUP_R2_ENABLED=true
    ```
 3. Verify the credentials (creates the bucket if missing, PUT/GET/DELETE round-trip):
    ```bash
-   npm run backup:r2 -- --check
+   sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --check-r2
    ```
-4. Upload the current state on demand:
+4. Create and validate the encrypted local artifact, then upload it on demand:
    ```bash
-   npm run backup:r2      # → rooms/rooms.<ts>.json + users/users.<ts>.json
+   sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --with-r2
+   # → encrypted/halastudy-<UTC timestamp>-<id>.hsbackup
    ```
-5. Cron it on the VM alongside the app, e.g. hourly:
-   ```cron
-   0 * * * * cd /opt/halastudy && /usr/bin/npm run backup:r2 >> /var/log/halastudy-r2.log 2>&1
-   ```
+
+The canonical nightly scheduler is `halastudy-backup.timer`; see
+[`BACKUP-RESTORE.md`](BACKUP-RESTORE.md). Do not put secrets directly in a cron
+line, and do not upload raw state files. With `BACKUP_R2_ENABLED` absent or
+`false`, the scheduler intentionally creates only the protected local artifact.
+When it is exactly `true`, missing R2 configuration or a failed upload fails the
+nightly job. The explicitly scoped automated
+retention pass keeps seven daily encrypted artifacts and can delete only
+validated backup keys under the fixed `encrypted/` prefix. Use
+`backup-r2.js --retention-dry-run` to inspect candidates without mutation.
+
+Pre-cutover rollback pins use the separate fixed `pinned/pre-cutover/` prefix
+and are excluded from automated retention. Create and authenticate the local
+pin first, then upload it without accepting a caller-selected key:
+
+```bash
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --pin-pre-cutover
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --upload-pinned-pre-cutover
+```
 
 The uploader signs requests with AWS SigV4 using only `node:crypto`
 (`scripts/cloudflare/r2-client.js`) — no aws-sdk, consistent with the app's
@@ -167,9 +166,14 @@ zero-runtime-dependency rule. The S3 data operations use the Access Key pair; th
 `cfat_` Bearer token (if you saved it as `R2_API_TOKEN`) is only for REST bucket
 management and isn't needed for uploads.
 
+To collect deletion-review evidence for legacy `users/` objects without reading
+their bodies or changing R2, run `npm run inventory:r2-users -- --dry-run`.
+The inventory has no deletion/apply mode; see
+[`CONTAINMENT-EVIDENCE.md`](./CONTAINMENT-EVIDENCE.md).
+
 ## What I can automate once the Cloudflare connector is authorized
 There is currently no Cloudflare MCP connector attached to this session, so the
 steps above are manual (dashboard + one `.env` paste). If you add the **Cloudflare**
 connector in claude.ai → Settings → Connectors, a future session can create the DNS
-records, set the cache rules, and rotate the TURN credentials programmatically
+records, set the cache rules, and manage RealtimeKit/R2 configuration
 instead of by hand.

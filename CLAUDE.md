@@ -152,7 +152,7 @@ Composite green target: full pipeline ≤ 60s on a warm cache.
 - `npm run https` — self-signed HTTPS on `:3443` — needed locally for secure-context browser APIs (camera/mic, FaceDetector)
 - Single integration test: `node --test --test-name-pattern "<name>" tests/integration/server.integration.test.js`
 - Single smoke test: `npx playwright test --config=playwright.config.js -g "<title>"` — chromium only, 1 worker; global setup boots the app on port 3460 with a temp state file (`tests/helpers/test-env.js`)
-- Operator scripts: `npm run backup:rooms`, `npm run restore:rooms -- <path>` (app must be stopped), `npm run verify:deploy -- <url>`
+- Operator scripts: `npm run backup:state`, `npm run restore:state -- <artifact>` (dry-run), `npm run restore:state -- <artifact> --apply --writer-stopped` (single writer must be stopped), `npm run verify:deploy -- <url>`
 - Gotcha: `.github/workflows/ci.yml` runs only check + audit + integration + smoke. The typecheck/lint/deadcode gates are in `test:ci` but not yet in the workflow — run `npm run test:ci` locally before pushing.
 
 ---
@@ -173,7 +173,7 @@ Composite green target: full pipeline ≤ 60s on a warm cache.
 
 **Scheduled rooms** — `schedule-utils.js` is pure functions: Riyadh-timezone cadence (`once`/`daily`/`weekdays` = Sun–Thu/`weekly`), occurrence math, attendance (`on_time`/`late`/`missed`, streaks). Good first place to look for any timer/schedule bug; it has no I/O.
 
-**Media modes** — `mesh` (P2P WebRTC, capped at `MESH_PARTICIPANT_LIMIT`, default 4) vs `sfu` (iframe embed, only when `SFU_BASE_URL` is set). A room's mode is fixed at creation. AI focus monitoring is mesh-only.
+**Media modes** — production uses provider-authoritative Cloudflare RealtimeKit and never falls back to mesh. Authenticated WebRTC mesh is development/test-only and requires both `VIDEO_PROVIDER=mesh` and `ENABLE_DEV_MESH=true`; its participant cap defaults to 4. The legacy iframe `sfu` mode exists only when `SFU_BASE_URL` is set. A room's stored mode is fixed at creation, and AI focus monitoring remains development-mesh-only.
 
 ---
 

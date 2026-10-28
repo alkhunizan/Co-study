@@ -609,3 +609,33 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 1. Whole app is now on the metered RealtimeKit SFU (all rooms, not just Lobby). Watch cost; revert = VIDEO_PROVIDER=mesh + start.sh.
 2. Rotate the R2 tokens/keys pasted in chat.
 3. Normal-room rtk-meeting embed UI not visually tested live — quick 2-browser check when you can.
+
+## 2026-07-10 — Backend hardening from Codex second-opinion review
+
+**Goal for this session:** Ship the two real, product-impacting findings from the Codex backend refutation (F1/F3 identity + F2 room-switch leak) with regression tests, TDD.
+
+**What worked:**
+- Re-triaged Codex's 12 findings against source: it inflated severity (8/12 "High"); real distribution ~4 genuine Medium. F1 exploit hinges on `clientId` disclosure — verified it is NOT in the participant snapshot, so downgraded. Root cause of F1+F3+F11 is one thing: identity rests on two client-controlled unsigned values.
+- Fix #1 (signed anon session): added pure `createAnonSessionToken`/`verifyAnonSessionToken` to `services/auth/index.js` mirroring the existing auth-token HMAC. Wired into `sessionMiddleware`, `getSessionIdFromSocket`, `findRoomVideoMember`. A forged/bare `coStudySessionId` now verifies to null → server mints a fresh signed one. Client cannot pick/forge its session id.
+- Fix #2 (F2 room-switch leak): `join-room` now removes the socket from its previous room (via existing `removeUserFromRoom`) before joining the new one, and re-broadcasts presence to the old room. No more phantom participant / leaked mesh capacity.
+- TDD throughout: 12 new tests (8 pure-helper unit + 3 cookie integration + 1 room-switch integration). Confirmed genuine RED (incl. temporarily disabling the fix to watch the room-switch test fail), then GREEN.
+- All gates: `check` PASS, `lint` PASS, `typecheck` PASS, `test:integration` 73/73 (with SUPABASE_* scrubbed), smoke 14/14.
+
+**What broke:**
+- First integration run showed 5 failures — all the known SUPABASE_* readiness-503 env issue (see memory `test-env-supabase-scrub`), not the change. Green after unsetting.
+- Room-switch test v1 had a presence-event race (caught the trailing join-A presence, not the cleanup). Rewrote to read room A's authoritative participant list from a fresh join ack — deterministic.
+
+**What I changed:**
+- `services/auth/index.js` (+38): anon session token helpers.
+- `co-study-server.js` (+29/-): import, sessionMiddleware/getSessionIdFromSocket/findRoomVideoMember verify signed cookie; join-room prior-room cleanup.
+- `package.json`: registered new test file in `check`.
+- `tests/integration/session-identity.integration.test.js` (new): 12 tests.
+- Branch: `fix/identity-and-room-switch` (not merged).
+
+**Next session starts with:**
+- Decide on the remaining triaged findings: F6 (cap board tasks + apply live sanitizers on load), F12 (async-listener rejection adapter + object-guard), F8 (schedule close-at math). None are shipped yet.
+
+**Open questions for Aziz:**
+1. Deploy note: signing invalidates existing `coStudySessionId` cookies — anonymous guests get a fresh session on next request (rate-limit counters reset, in-room identity re-established on next join). Auth/account cookies are unaffected. Acceptable, but it's a one-time churn on deploy.
+2. Want F6 + F12 next (the other two cheap real ones), or hold and merge this first?
+3. Merge `fix/identity-and-room-switch` to main + deploy, or PR for review?

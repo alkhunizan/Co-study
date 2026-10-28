@@ -4,10 +4,13 @@ on:
   push:
   pull_request:
 
+env:
+  NODE_ENV: test
+
 jobs:
   quality:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
 
     permissions:
       contents: read
@@ -25,35 +28,75 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Chromium for Playwright
-        run: npx playwright install --with-deps chromium
+      - name: Run warning-free code, migration, audit, unit, and integration gates
+        run: npm run test:ci:quality
 
-      - name: Syntax checks
-        run: npm run check
+  infrastructure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
 
-      - name: Type checks
-        run: npm run typecheck
+    permissions:
+      contents: read
 
-      - name: Lint
-        run: npm run lint
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-      - name: Dead-code scan
-        run: npm run deadcode
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
-      - name: Production dependency audit
-        run: npm run audit:prod
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends shellcheck
 
-      - name: Integration tests
-        run: npm run test:integration
+      - name: Pull pinned validation images
+        run: |
+          docker pull nginx:1.27.5-alpine
+          docker pull node:22-alpine
+          docker pull postgres:16.4-alpine3.20
 
-      - name: Browser smoke tests
-        run: npm run test:smoke
+      - name: Validate shell, migrations, Docker layers, and Nginx syntax
+        run: npm run test:ci:infra
+
+  browser-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium-desktop, chromium-mobile, webkit-desktop, webkit-mobile]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run ${{ matrix.project }} smoke tests
+        run: npm run test:smoke -- --project=${{ matrix.project }}
 
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts
+          name: playwright-${{ matrix.project }}
           path: |
             playwright-report/
             test-results/

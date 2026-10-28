@@ -34,8 +34,10 @@ function createAdminRouter(deps) {
         videoSessionRegistry,
         announcementState,
         buildScheduleSummary,
-        deleteRoom,
-        persistUsersSoon,
+        closeRoom,
+        revokeSocketVideoSessions,
+        persistUser,
+        runUserMutation,
         persistRoomsSoon,
         dashboard,
         logger
@@ -47,7 +49,7 @@ function createAdminRouter(deps) {
         const token = createSessionToken({
             userId: ADMIN_TOKEN_USER_ID,
             tokenEpoch: 1,
-            secret: config.sessionSecret
+            secret: config.adminSessionSecret
         });
         const cookieParts = [
             `${ADMIN_COOKIE_NAME}=${token}`,
@@ -76,7 +78,7 @@ function createAdminRouter(deps) {
     function requireAdmin(req, res, next) {
         const token = parseCookies(req.headers.cookie || '')[ADMIN_COOKIE_NAME];
         const verified = verifySessionToken(token, {
-            secret: config.sessionSecret,
+            secret: config.adminSessionSecret,
             maxAgeMs: ADMIN_SESSION_TTL_MS
         });
         if (!verified || verified.userId !== ADMIN_TOKEN_USER_ID) {
@@ -191,7 +193,7 @@ function createAdminRouter(deps) {
                 dailyActive: Array.isArray(dailyActive) ? dailyActive : []
             });
         } catch (error) {
-            logger.warn({ event: 'admin_dashboard_failed', error: error && error.message });
+            logger.warn({ event: 'admin_dashboard_failed', error: error?.message });
             res.status(502).json({ errorCode: 'DASHBOARD_UNAVAILABLE' });
         }
     });
@@ -245,25 +247,28 @@ function createAdminRouter(deps) {
         });
     });
 
-    router.post('/api/rooms/:roomId/close', requireAdmin, (req, res) => {
+    router.post('/api/rooms/:roomId/close', requireAdmin, async (req, res) => {
         const roomId = (req.params.roomId || '').trim().toUpperCase();
         const room = rooms.get(roomId);
         if (!room) {
             res.status(404).json({ errorCode: 'ROOM_NOT_FOUND' });
             return;
         }
-        io.to(roomId).emit('room-closed', { reason: 'admin' });
-        const memberSocketIds = Array.from(room.users ? room.users.keys() : []);
-        for (const socketId of memberSocketIds) {
-            const socket = io.sockets.sockets.get(socketId);
-            if (socket) socket.disconnect(true);
+        try {
+            const result = await closeRoom(roomId, { reason: 'admin' });
+            logger.warn({ event: 'admin_room_closed', roomId, kicked: result?.kicked || 0 });
+            res.json(result || { ok: false, errorCode: 'ROOM_NOT_FOUND' });
+        } catch (error) {
+            if (error?.code === 'PERSISTENCE_UNAVAILABLE') {
+                res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+                return;
+            }
+            logger.error({ event: 'admin_room_close_failed', roomId, error: error?.message });
+            res.status(500).json({ errorCode: 'ROOM_CLOSE_FAILED' });
         }
-        deleteRoom(roomId);
-        logger.warn({ event: 'admin_room_closed', roomId, kicked: memberSocketIds.length });
-        res.json({ ok: true, kicked: memberSocketIds.length });
     });
 
-    router.post('/api/rooms/:roomId/kick', requireAdmin, (req, res) => {
+    router.post('/api/rooms/:roomId/kick', requireAdmin, async (req, res) => {
         const roomId = (req.params.roomId || '').trim().toUpperCase();
         const room = rooms.get(roomId);
         if (!room) {
@@ -271,8 +276,17 @@ function createAdminRouter(deps) {
             return;
         }
         const socketId = typeof req.body?.socketId === 'string' ? req.body.socketId : '';
-        if (!socketId || !room.users || !room.users.has(socketId)) {
+        if (!socketId || !room.users?.has(socketId)) {
             res.status(404).json({ errorCode: 'PARTICIPANT_NOT_FOUND' });
+            return;
+        }
+        const revocation = await revokeSocketVideoSessions(socketId, 'admin_kick');
+        if (revocation.persistenceUnavailable) {
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
+        if (!revocation.providerIdentityRevoked) {
+            res.status(503).json({ errorCode: 'VIDEO_PROVIDER_UNAVAILABLE' });
             return;
         }
         const socket = io.sockets.sockets.get(socketId);
@@ -371,16 +385,36 @@ function createAdminRouter(deps) {
         res.json({ ok: true, total: list.length, offset, users: page });
     });
 
-    function setBanned(req, res, banned) {
+    async function setBanned(req, res, banned) {
         const user = users.get(req.params.userId);
         if (!user) {
             res.status(404).json({ errorCode: 'USER_NOT_FOUND' });
             return;
         }
-        user.banned = banned;
-        // Epoch bump kills every outstanding cookie for this user immediately.
-        user.tokenEpoch += 1;
-        persistUsersSoon();
+        try {
+            await runUserMutation(user, async () => {
+                const previousBanned = user.banned;
+                const previousTokenEpoch = user.tokenEpoch;
+                user.banned = banned;
+                // Epoch bump kills every outstanding cookie for this user immediately.
+                user.tokenEpoch += 1;
+                try {
+                    await persistUser(user);
+                } catch (error) {
+                    user.banned = previousBanned;
+                    user.tokenEpoch = previousTokenEpoch;
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(404).json({ errorCode: 'USER_NOT_FOUND' });
+                return;
+            }
+            logger.error({ event: 'admin_user_persist_failed', userId: user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
         if (banned) {
             for (const socket of io.sockets.sockets.values()) {
                 if (socket.data && socket.data.userId === user.id) {

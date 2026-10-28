@@ -1,11 +1,11 @@
-const { test, expect } = require('@playwright/test');
+const { createTestContext, gotoTestPage, test, expect, waitForTestUrl } = require('../helpers/playwright-test');
 
 let openIpCounter = 60;
 
 async function createOpenPage(browser) {
     const forwardedIp = `203.0.113.${openIpCounter}`;
     openIpCounter += 1;
-    const context = await browser.newContext({
+    const context = await createTestContext(browser, {
         permissions: [],
         extraHTTPHeaders: {
             'x-forwarded-for': forwardedIp
@@ -39,7 +39,7 @@ test('created room password hands off to the workspace without a re-prompt', asy
 
     try {
         const { page } = creator;
-        await page.goto('/open.html');
+        await gotoTestPage(page, '/open.html');
         await expect(page.locator('#create-form')).toBeVisible();
 
         await page.fill('#room-name', 'Handoff Smoke Room');
@@ -52,7 +52,7 @@ test('created room password hands off to the workspace without a re-prompt', asy
         expect(roomCode).toMatch(/^[A-Z0-9]{6}$/);
 
         await page.click('#btn-enter-room');
-        await page.waitForURL(/\/index\.html\?room=/);
+        await waitForTestUrl(page, /\/index\.html\?room=/);
 
         // The workspace reads the new halastudy* keys — the open page must
         // write them, or every protected-room creator gets re-prompted.
@@ -85,14 +85,71 @@ test('join hash and ?room= deep link open the join form pre-filled', async ({ br
 
     try {
         const { page } = visitor;
-        await page.goto('/open.html#join');
+        await gotoTestPage(page, '/open.html#join');
         await expect(page.locator('#join-form')).toBeVisible();
         await expect(page.locator('#create-form')).toBeHidden();
 
-        await page.goto('/open.html?room=ABC123');
+        await gotoTestPage(page, '/open.html?room=ABC123');
         await expect(page.locator('#join-form')).toBeVisible();
         await expect(page.locator('#join-code')).toHaveValue('ABC123');
     } finally {
+        await visitor.context.close();
+    }
+});
+
+test('a stale room lookup cannot replace the latest join preview', async ({ browser }) => {
+    const visitor = await createOpenPage(browser);
+    /** @type {(value?: any) => void} */
+    let releaseFirstLookup = () => {};
+    /** @type {(value?: any) => void} */
+    let markFirstLookupStarted = () => {};
+    /** @type {(value?: any) => void} */
+    let markFirstLookupSettled = () => {};
+    const firstLookupGate = new Promise((resolve) => { releaseFirstLookup = resolve; });
+    const firstLookupStarted = new Promise((resolve) => { markFirstLookupStarted = resolve; });
+    const firstLookupSettled = new Promise((resolve) => { markFirstLookupSettled = resolve; });
+
+    try {
+        const { page } = visitor;
+        await page.route('**/api/rooms/**', async (route) => {
+            const code = new URL(route.request().url()).pathname.split('/').pop();
+            const room = {
+                roomId: code,
+                name: code === 'FIRST1' ? 'First response' : 'Second response',
+                mediaMode: 'mesh',
+                participantCount: 1,
+                participantLimit: 4,
+                requirePassword: false
+            };
+
+            if (code === 'FIRST1') {
+                markFirstLookupStarted();
+                await firstLookupGate;
+            }
+
+            try {
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(room) });
+            } catch (_error) {
+                // The fixed client aborts the superseded route before it is released.
+            } finally {
+                if (code === 'FIRST1') markFirstLookupSettled();
+            }
+        });
+
+        await gotoTestPage(page, '/open.html#join');
+        await page.fill('#join-code', 'FIRST1');
+        await firstLookupStarted;
+
+        await page.fill('#join-code', 'SECOND2');
+        await expect(page.locator('#join-room-preview-name')).toHaveText('Second response');
+
+        releaseFirstLookup();
+        await firstLookupSettled;
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+
+        await expect(page.locator('#join-room-preview-name')).toHaveText('Second response');
+    } finally {
+        releaseFirstLookup();
         await visitor.context.close();
     }
 });

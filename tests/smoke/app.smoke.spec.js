@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { createTestContext, gotoTestPage, test, expect } = require('../helpers/playwright-test');
 
 const { startServer } = require('../helpers/server-control');
 
@@ -7,7 +7,7 @@ let smokeIpCounter = 10;
 async function createSmokePage(browser) {
     const forwardedIp = `203.0.113.${smokeIpCounter}`;
     smokeIpCounter += 1;
-    const context = await browser.newContext({
+    const context = await createTestContext(browser, {
         permissions: [],
         extraHTTPHeaders: {
             'x-forwarded-for': forwardedIp
@@ -36,6 +36,63 @@ async function createSmokePage(browser) {
     return { context, page };
 }
 
+async function createMeshLifecyclePage(browser) {
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
+    const context = await createTestContext(browser, {
+        baseURL: server.baseUrl,
+        permissions: [],
+        serviceWorkers: 'block'
+    });
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+        try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
+        class FakePeerConnection {
+            constructor() {
+                this.connectionState = 'new';
+                this.iceConnectionState = 'new';
+                this.iceGatheringState = 'new';
+                this.signalingState = 'stable';
+                this.localDescription = null;
+                this.remoteDescription = null;
+                this.restartCount = 0;
+                this.closeCount = 0;
+                this.offerOptions = [];
+                (/** @type {any} */ (window)).__meshFakePeers.push(this);
+            }
+            addTrack() {}
+            getSenders() { return []; }
+            async addIceCandidate() {}
+            async createAnswer() { return { type: 'answer', sdp: 'fake-answer' }; }
+            async createOffer(options) {
+                this.offerOptions.push(options || null);
+                return { type: 'offer', sdp: 'fake-offer' };
+            }
+            async setLocalDescription(description) { this.localDescription = description; }
+            async setRemoteDescription(description) { this.remoteDescription = description; }
+            restartIce() { this.restartCount += 1; }
+            close() {
+                this.closeCount += 1;
+                this.connectionState = 'closed';
+                this.iceConnectionState = 'closed';
+            }
+        }
+        (/** @type {any} */ (window)).__meshFakePeers = [];
+        if (typeof window.MediaStream !== 'function') {
+            (/** @type {any} */ (window)).MediaStream = class FakeMediaStream {
+                constructor(tracks = []) { this.tracks = [...tracks]; }
+                getTracks() { return [...this.tracks]; }
+                getVideoTracks() { return this.tracks.filter((track) => track.kind === 'video'); }
+            };
+        }
+        Object.defineProperty(window, 'RTCPeerConnection', {
+            configurable: true,
+            value: FakePeerConnection
+        });
+    });
+    await signupViaApi(page, 'Mesh Smoke Member');
+    return { server, context, page };
+}
+
 // Scheduled rooms require an account — sign up via the API using the page's
 // own cookie jar so the browser (and its socket) is authenticated after.
 async function signupViaApi(page, displayName = 'Smoke Owner') {
@@ -60,7 +117,7 @@ async function createRoomFromLanding(page, options = {}) {
     } = options;
 
     // /open.html holds the create/join forms; / is editorial marketing only as of 2026-05-17.
-    await page.goto('/open.html');
+    await gotoTestPage(page, '/open.html');
     await expect(page.locator('#create-form')).toBeVisible();
 
     await page.fill('#room-name', roomName);
@@ -186,7 +243,7 @@ test('landing creates a protected room and join flow enforces passwords', async 
             password: 'smoke123'
         });
 
-        await guest.page.goto(`/index.html?room=${roomCode}`);
+        await gotoTestPage(guest.page, `/index.html?room=${roomCode}`);
         await expect(guest.page.locator('#join-room')).toHaveValue(roomCode);
 
         await joinRoom(guest.page, { name: 'Guest', roomCode });
@@ -227,7 +284,7 @@ test('chat and shared board stay in sync across two participants', async ({ brow
             wrap: 'wrap'
         });
 
-        await peer.page.goto(`/index.html?room=${roomCode}`);
+        await gotoTestPage(peer.page, `/index.html?room=${roomCode}`);
         await joinRoom(peer.page, {
             name: 'Peer',
             roomCode
@@ -300,7 +357,7 @@ test('timer preset chips apply durations and session goal syncs to peers', async
         await expect(owner.page.locator('#btn-toggle')).toHaveText('▶');
 
         // Session goal propagates to the peer's participant list.
-        await peer.page.goto(`/index.html?room=${roomCode}`);
+        await gotoTestPage(peer.page, `/index.html?room=${roomCode}`);
         await joinRoom(peer.page, { name: 'Peer', roomCode });
         await expectJoined(peer.page);
 
@@ -312,16 +369,169 @@ test('timer preset chips apply durations and session goal syncs to peers', async
     }
 });
 
+test('Pomodoro reconciles elapsed time after background timer throttling', async ({ browser }) => {
+    const visitor = await createSmokePage(browser);
+
+    try {
+        await visitor.page.clock.install({ time: new Date('2026-07-15T03:00:00Z') });
+        await gotoTestPage(visitor.page, '/study');
+        await visitor.page.fill('#cfg-f', '1');
+        await visitor.page.fill('#cfg-b', '1');
+        await visitor.page.evaluate(() => (/** @type {any} */ (window)).resetTimer());
+        await expect(visitor.page.locator('#timer-disp')).toHaveText('01:00');
+
+        await visitor.page.evaluate(() => (/** @type {any} */ (window)).toggleTimer());
+        await visitor.page.clock.fastForward(55_000);
+        await expect(visitor.page.locator('#timer-disp')).toHaveText('00:05');
+
+        // Cross the absolute deadline first, then advance inside the new
+        // phase. Playwright intentionally coalesces throttled interval ticks,
+        // and engines differ in which tick they retain for one large jump.
+        await visitor.page.clock.fastForward(5_000);
+        await expect(visitor.page.locator('#tab-break')).toHaveClass(/active/);
+        await visitor.page.clock.fastForward(2_000);
+        await expect(visitor.page.locator('#timer-disp')).toHaveText('00:58');
+
+        await visitor.page.clock.fastForward(10 * 60 * 1000);
+        await expect(visitor.page.locator('#tab-focus')).toHaveClass(/active/);
+        await expect(visitor.page.locator('#timer-disp')).toHaveText('01:00');
+    } finally {
+        await visitor.context.close();
+    }
+});
+
+test('mesh signaling and late tracks from peers outside the room snapshot are ignored', async ({ browser }) => {
+    const visitor = await createMeshLifecyclePage(browser);
+
+    try {
+        const roomCode = await createRoomFromLanding(visitor.page, { roomName: 'Mesh Peer Guard Room' });
+        await visitor.page.click('#btn-enter-room');
+        await joinRoom(visitor.page, { name: 'Guarded', roomCode });
+        await expectJoined(visitor.page);
+
+        const outcome = await visitor.page.evaluate(async () => {
+            const app = /** @type {any} */ (window);
+            const beforeSignals = app.__meshFakePeers.length;
+            await app.handleIncomingOffer({
+                from: 'unknown-offerer',
+                sdp: { type: 'offer', sdp: 'forged-offer' }
+            });
+            await app.handleIncomingAnswer({
+                from: 'unknown-answerer',
+                sdp: { type: 'answer', sdp: 'forged-answer' }
+            });
+            await app.handleIncomingIce({
+                from: 'unknown-ice',
+                candidate: {
+                    candidate: 'candidate:0 1 UDP 2122252543 192.0.2.1 3478 typ host',
+                    sdpMid: '0',
+                    sdpMLineIndex: 0,
+                    usernameFragment: 'forged'
+                }
+            });
+
+            const knownPeerId = 'zzzz-known-peer';
+            app.updatePresenceList([{ id: knownPeerId, name: 'Known peer' }]);
+            const knownConnection = app.ensurePeerConnection(knownPeerId);
+            app.updatePresenceList([]);
+            let stoppedTracks = 0;
+            const lateTrack = {
+                enabled: true,
+                kind: 'video',
+                readyState: 'live',
+                stop() { stoppedTracks += 1; }
+            };
+            knownConnection.ontrack({ track: lateTrack, streams: [new MediaStream()] });
+
+            return {
+                peerConnectionsCreatedByUnknownSignals: app.__meshFakePeers.length - beforeSignals - 1,
+                stoppedTracks,
+                lateTiles: document.querySelectorAll(`[data-peer-id="${knownPeerId}"]`).length
+            };
+        });
+
+        expect(outcome.peerConnectionsCreatedByUnknownSignals).toBe(0);
+        expect(outcome.stoppedTracks).toBe(1);
+        expect(outcome.lateTiles).toBe(0);
+    } finally {
+        await visitor.context.close();
+        await visitor.server.stop();
+    }
+});
+
+test('mesh disconnect restarts ICE once and waits ten seconds before teardown', async ({ browser }) => {
+    const visitor = await createMeshLifecyclePage(browser);
+
+    try {
+        const roomCode = await createRoomFromLanding(visitor.page, { roomName: 'Mesh Recovery Room' });
+        await visitor.page.click('#btn-enter-room');
+        await joinRoom(visitor.page, { name: 'Recovering', roomCode });
+        await expectJoined(visitor.page);
+
+        const outcome = await visitor.page.evaluate(async () => {
+            const app = /** @type {any} */ (window);
+            const originalSetTimeout = window.setTimeout;
+            const originalClearTimeout = window.clearTimeout;
+            const timers = new Map();
+            app.setTimeout = (callback, delay, ...args) => {
+                if (delay !== 10_000) return originalSetTimeout(callback, delay, ...args);
+                const token = {};
+                timers.set(token, { callback, delay });
+                return /** @type {any} */ (token);
+            };
+            app.clearTimeout = (id) => {
+                if (!timers.delete(id)) originalClearTimeout(id);
+            };
+
+            try {
+                const peerId = 'zzzz-recovery-peer';
+                app.updatePresenceList([{ id: peerId, name: 'Recovering peer' }]);
+                const peer = app.ensurePeerConnection(peerId);
+                peer.connectionState = 'disconnected';
+                peer.iceConnectionState = 'disconnected';
+                peer.onconnectionstatechange();
+                peer.oniceconnectionstatechange();
+
+                const first = timers.entries().next().value;
+                const firstDelay = first?.[1]?.delay ?? null;
+                peer.onconnectionstatechange();
+                if (first) {
+                    timers.delete(first[0]);
+                    await first[1].callback();
+                    await Promise.resolve();
+                }
+                return {
+                    firstDelay,
+                    restartCount: peer.restartCount,
+                    closeCount: peer.closeCount
+                };
+            } finally {
+                app.setTimeout = originalSetTimeout;
+                app.clearTimeout = originalClearTimeout;
+            }
+        });
+
+        expect(outcome).toEqual({
+            firstDelay: 10_000,
+            restartCount: 1,
+            closeCount: 1
+        });
+    } finally {
+        await visitor.context.close();
+        await visitor.server.stop();
+    }
+});
+
 test('privacy blur sends a canvas track by default and tears the camera down cleanly', async ({ playwright }) => {
     // Boots its own server: the shared smoke app defaults to the RealtimeKit
     // video provider, and the blur pipeline is mesh-only. Also launches a
     // dedicated Chromium with a fake camera instead of the shared fixture
     // whose getUserMedia stub always throws.
-    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     const browser = await playwright.chromium.launch({
         args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
     });
-    const context = await browser.newContext({
+    const context = await createTestContext(browser, {
         baseURL: server.baseUrl,
         permissions: ['camera']
     });
@@ -337,6 +547,7 @@ test('privacy blur sends a canvas track by default and tears the camera down cle
         try { delete (/** @type {any} */ (window)).FaceDetector; } catch (_error) {}
         try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
     });
+    await signupViaApi(page, 'Blur Smoke Member');
 
     try {
         const roomCode = await createRoomFromLanding(page, { roomName: 'Blur Smoke Room' });
@@ -443,7 +654,10 @@ test('schedule helpers recalculate recurring sessions after stale snapshot data'
         const roomCode = await createRoomFromLanding(probe.page, {
             roomName: 'Scheduled Roll Forward Room',
             schedule: buildFutureRiyadhSchedule({
-                minutesFromNow: 20,
+                // Scheduled rooms open 15 minutes before an occurrence. Keep
+                // the fixture inside that window so this test can exercise the
+                // client-side roll-forward behavior after joining.
+                minutesFromNow: 5,
                 cadence: 'daily',
                 focusMinutes: 50,
                 breakMinutes: 10,
@@ -500,7 +714,13 @@ test('large-mode rooms use the RealtimeKit provider by default', async ({ browse
 });
 
 test('five participants can join a default RealtimeKit room shell', async ({ browser }) => {
-    const users = await Promise.all(Array.from({ length: 5 }, () => createSmokePage(browser)));
+    // Five live room pages share one browser on a GPU-less CI runner, and each
+    // joined page keeps rendering its privacy-blur canvas, so every join is
+    // slower than the last (WebKit desktop: 2.4s, 4.8s, 8.3s, 12.1s per join).
+    // The whole flow measured 37.8s and >45s on the same commit, so the
+    // default 45s budget sits inside run-to-run noise for this one test.
+    test.setTimeout(90_000);
+    const users =await Promise.all(Array.from({ length: 5 }, () => createSmokePage(browser)));
 
     try {
         const roomCode = await createRoomFromLanding(users[0].page, {
@@ -512,7 +732,7 @@ test('five participants can join a default RealtimeKit room shell', async ({ bro
             if (index === 0) {
                 await actor.page.click('#btn-enter-room');
             } else {
-                await actor.page.goto(`/index.html?room=${roomCode}`);
+                await gotoTestPage(actor.page, `/index.html?room=${roomCode}`);
             }
             await joinRoom(actor.page, {
                 name: `User ${index + 1}`,
@@ -521,7 +741,7 @@ test('five participants can join a default RealtimeKit room shell', async ({ bro
             await expectJoined(actor.page);
         }
 
-        await users[4].page.goto(`/index.html?room=${roomCode}`);
+        await gotoTestPage(users[4].page, `/index.html?room=${roomCode}`);
         await joinRoom(users[4].page, {
             name: 'User 5',
             roomCode

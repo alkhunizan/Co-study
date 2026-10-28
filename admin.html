@@ -653,6 +653,16 @@
         }
       }
 
+      $('btn-refresh').addEventListener('click', async () => {
+        const button = $('btn-refresh');
+        button.disabled = true;
+        try {
+          await refreshActive();
+        } finally {
+          button.disabled = false;
+        }
+      });
+
       function enterShell() {
         $('login-view').classList.add('hidden');
         $('ops-shell').classList.remove('hidden');
