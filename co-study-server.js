@@ -4064,6 +4064,10 @@ function createCoStudyServer(options = {}) {
         res.sendFile(path.join(__dirname, 'terms.html'));
     });
 
+    app.get(['/contact.html', '/contact'], (_req, res) => {
+        res.sendFile(path.join(__dirname, 'contact.html'));
+    });
+
     app.get(['/blog.html', '/blog'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'blog.html'));
     });

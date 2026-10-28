@@ -34,7 +34,8 @@ Connect on first submit and load the client script deferred.
 Lucide line icons for the ✦/➤ glyphs (with RTL mirroring), checkbox-tiles
 instead of bare checkboxes, h2 heading level on /open, hover states off
 non-interactive cards, `.form-card` max-width 560px, accent-count pass on the
-hero, topbar icon-button pill radius + 44px touch floor.
+hero, topbar icon-button pill radius + 44px touch floor (footer links in
+`.footer`/`.legal-footer` are ~18px tall on every public page).
 
 ### Replace AI placeholder media with real members
 **Priority:** P3
@@ -56,32 +57,51 @@ placeholder panels.
 
 ### Feature line `viber/2026-10-27` is not on main
 **Priority:** P2
-The platform layer, landing/blog refinements, contact page and study tools live
-on `viber/2026-10-27` (archived as tags). A straight merge hits 32 conflicts that
+The platform layer, landing/blog refinements and study tools live on
+`viber/2026-10-27` (archived as tags); the contact page has been ported. A straight merge hits 32 conflicts that
 are behavioural decisions (account storage, OAuth deletion, room persistence,
 video lifecycle), so pieces must be ported one at a time onto hardened `main`.
 Codex's half-finished merge attempt was snapshotted as
 `archive/codex-full-expansion-2026-10-28/uncommitted`; it holds nothing beyond
 `main` + `viber` except unresolved conflict markers.
 
-### WebKit smoke projects are not installed on the Windows dev machine
-**Priority:** P4
-Only Chromium is installed locally, so `webkit-desktop` and `webkit-mobile` are
-verified in CI only. `npx playwright install webkit` enables them locally; CI's
-Linux run stays the source of truth because Windows WebKit timing and rendering
-differ (the five-participant test was the slow one).
+### SEO layer for public pages (from the feature line)
+**Priority:** P3
+`services/seo/public-pages.js` on `viber/2026-10-27` adds `/en/*` routes,
+canonical + hreflang pairs, ContactPage/Article JSON-LD and footer link
+injection for every public page. `main` serves `/contact` with a single
+bilingual page instead. Port it as its own change; the contact page already
+has the content it would render.
 
-### Stale local worktrees and private refs
+### Site-wide readiness work exists only as an archive
+**Priority:** P2
+The 2026-10-18 "site-wide readiness" pass (shared `public-shell.js`/`.css`,
+blog OG images, `site-consistency.smoke.spec.js`, edits across public pages;
+53 files) was never committed. It is on neither `main` nor the feature line,
+only in `archive/open-brs-2026-10-28/readiness-dirty-snapshot` (content
+verified identical to the folder) and its uncommitted worktree at
+`workspace/Co-study-release-plan`. Decide whether to port it or drop it; the
+worktree stays until then.
+
+### Leftover Codex review worktrees
 **Priority:** P4
-`git worktree list` still holds the triage runtime (`triage/open-brs-2026-10-27`,
-registered under a UNC path that `git worktree remove` rejects), Codex's
-`integrate/full-expansion-2026-10-28` integration tree (archived, see above) and
-the readiness tree with 53 uncommitted files. Invalid private
-`refs/codex/turn-diffs/checkpoints/...` objects make `git fetch --all --prune`
-fail. Clean up with `git worktree prune` after re-registering the paths, and
-delete the broken private refs after confirming nothing needs them.
+`output/open-brs-2026-10-27-admin-followup/runtime` and
+`output/open-brs-2026-10-28/runtime` (branch `fix/repo-health-2026-10-28`) are
+Codex's triage review trees with its reports. `E:` is the mapped share
+`\\192.168.50.113\E`, so worktrees registered by UNC path can only be removed
+after rewriting their `.git` link files to the `E:/` form (done for the
+readiness tree). Three `refs/codex/*` refs remain but no longer break
+`git fetch --all --prune`.
 
 ## Completed
+
+- Contact page at `/contact` (bilingual, email/phone/WhatsApp, operator
+  disclosure matching privacy.html) linked from every public footer.
+  **Completed:** feat/contact-page (2026-10-28)
+- WebKit runs locally on the Windows dev machine (`npx playwright install
+  webkit`): full WebKit smoke 86 passed / 6 skipped. **Completed:** 2026-10-28
+- Stale triage and Codex integration worktrees removed after verifying their
+  archive tags; redundant branches deleted. **Completed:** 2026-10-28
 
 - Syntax-check inline `<script>` blocks in HTML pages (`npm run check`); JSON-LD
   parsed as JSON. **Completed:** PR #27 (2026-10-28)

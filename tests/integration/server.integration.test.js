@@ -1998,6 +1998,34 @@ test('privacy page is served bilingually and linked from landing and open footer
     assert.match(`${open.body}`, /href="\/privacy"/);
 });
 
+test('contact page is served with every channel and linked from every public page footer', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    for (const route of ['/contact', '/contact.html']) {
+        const contact = await server.request(route);
+        assert.equal(contact.status, 200, route);
+        assert.match(`${contact.headers['content-type']}`, /text\/html/);
+        const body = `${contact.body}`;
+        assert.match(body, /href="mailto:info@halastudy\.com"/);
+        assert.match(body, /href="tel:\+966599161315"/);
+        assert.match(body, /href="https:\/\/wa\.me\/966599161315"[^>]*rel="noopener"/);
+        // Same operator disclosure as privacy.html, in both languages.
+        assert.match(body, /مؤسسة هلا[\s\S]*عزيز الخنيزان/);
+        assert.match(body, /Hala, a sole proprietorship owned by Aziz Al Khunizan/);
+    }
+
+    for (const route of ['/', '/open', '/blog', '/blog/best-online-group-study-rooms-saudi',
+        '/blog/study-with-me-online-arabic', '/privacy', '/terms', '/account']) {
+        const page = await server.request(route);
+        assert.equal(page.status, 200, route);
+        assert.match(`${page.body}`, /<footer[\s\S]*href="\/contact"[\s\S]*<\/footer>/, `${route} footer must link /contact`);
+    }
+    const notFound = await server.request('/no-such-page-for-contact-test');
+    assert.equal(notFound.status, 404);
+    assert.match(`${notFound.body}`, /href="\/contact"/);
+});
+
 test('service worker is served from the origin root with update-safe headers', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);

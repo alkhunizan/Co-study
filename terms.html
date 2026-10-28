@@ -81,6 +81,8 @@
     .legal-footer a { color: var(--ink-2); text-decoration: none; }
     .legal-footer a:hover { color: var(--ink); }
     .legal-footer a[aria-current="page"] { color: var(--ink); font-weight: 600; }
+    /* DESIGN.md §11: every focus uses the accent glow, never the browser outline. */
+    a:focus-visible { outline: none; box-shadow: var(--sh-focus); border-radius: 6px; }
   </style>
 </head>
 <body>
@@ -238,6 +240,7 @@
   <footer class="legal-footer">
     <a href="/privacy">الخصوصية · Privacy</a>
     <a href="/terms" aria-current="page">الشروط · Terms</a>
+    <a href="/contact">تواصل · Contact</a>
   </footer>
 </body>
 </html>
