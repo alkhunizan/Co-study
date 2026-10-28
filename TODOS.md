@@ -34,7 +34,8 @@ Connect on first submit and load the client script deferred.
 Lucide line icons for the ✦/➤ glyphs (with RTL mirroring), checkbox-tiles
 instead of bare checkboxes, h2 heading level on /open, hover states off
 non-interactive cards, `.form-card` max-width 560px, accent-count pass on the
-hero, topbar icon-button pill radius + 44px touch floor.
+hero, topbar icon-button pill radius + 44px touch floor (footer links in
+`.footer`/`.legal-footer` are ~18px tall on every public page).
 
 ### Replace AI placeholder media with real members
 **Priority:** P3
