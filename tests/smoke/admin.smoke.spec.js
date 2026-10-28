@@ -262,6 +262,58 @@ test('the skip link focuses the content without leaving the current section', as
     }
 });
 
+test('the Audit section lists admin actions with their reason and filters by action', async ({ browser, baseURL }) => {
+    const operator = await createAdminPage(browser);
+    const owner = await connectSocket(baseURL, { clientId: 'smoke-audit-owner' });
+    try {
+        const { page } = operator;
+        const created = await emitAck(owner, 'create-room', { roomName: 'Audit Smoke Room' });
+        const roomId = created.room.roomId;
+        await gotoTestPage(page, `${ADMIN_PATH}#audit`);
+        await signInOperator(page);
+        // Close the room through the API with a reason, then read it back in the console.
+        const close = await page.request.post(`${ADMIN_PATH}/api/rooms/${roomId}/close`, {
+            data: { reason: `Audit smoke ${roomId}` }
+        });
+        expect(close.status()).toBe(200);
+        await page.click('#btn-refresh');
+        const row = page.locator('#audit-tbody tr', { hasText: `Audit smoke ${roomId}` });
+        await expect(row).toContainText('Closed room');
+        await expect(row).toContainText(roomId);
+
+        await page.selectOption('#audit-action', 'room_close');
+        await expect(page.locator('#audit-tbody tr').first()).toContainText('Closed room');
+        await expect(page.locator('#audit-tbody tr', { hasText: 'Signed in' })).toHaveCount(0);
+    } finally {
+        await closeSocket(owner);
+        await operator.context.close();
+    }
+});
+
+test('panel contents switch to Arabic and rebuild their rows in place', async ({ browser, isMobile }) => {
+    test.skip(isMobile, 'The dense operations table is intentionally desktop-only.');
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, ADMIN_PATH);
+        await signInOperator(page);
+        await expect(page.locator('#overview-tiles .tile').first()).toContainText('Live rooms');
+
+        await page.locator('#ops-shell [data-lang-switch] button[data-lang="ar"]').click();
+        await expect(page.locator('#overview-tiles .tile').first()).toContainText('غرف نشطة');
+        await page.click('#ops-nav a[data-section="rooms"]');
+        await expect(page.locator('#panel-rooms th').first()).toHaveText('الرمز');
+        await page.click('#ops-nav a[data-section="system"]');
+        await expect(page.locator('#backup-now')).toHaveText('إنشاء نسخة احتياطية الآن');
+        await expect(page.locator('#kill-switch-toggle')).toHaveText(/دخول الفيديو/);
+        await page.click('#ops-nav a[data-section="audit"]');
+        await expect(page.locator('#audit-action option').first()).toHaveText('كل الإجراءات');
+        await expect(page.locator('#audit-tbody tr', { hasText: 'تسجيل دخول' }).first()).toBeVisible();
+    } finally {
+        await operator.context.close();
+    }
+});
+
 test('browser Back to the bare console URL returns to Overview', async ({ browser, isMobile }) => {
     test.skip(isMobile, 'Covered by the sidebar links, which are desktop-only.');
     const operator = await createAdminPage(browser);
@@ -277,6 +329,96 @@ test('browser Back to the bare console URL returns to Overview', async ({ browse
         await expect(page.locator('#ops-title')).toHaveText('Overview');
         await expect(page.locator('#panel-overview')).toBeVisible();
         await expect(page.locator('#panel-rooms')).toBeHidden();
+    } finally {
+        await operator.context.close();
+    }
+});
+
+async function seedAuditEntries(page, count) {
+    for (let index = 0; index < count; index += 1) {
+        const response = await page.request.post(`${ADMIN_PATH}/api/video-kill-switch`, {
+            data: { disabled: index % 2 === 0 }
+        });
+        expect(response.status()).toBe(200);
+    }
+    // Leave the shared smoke server with video enabled.
+    await page.request.post(`${ADMIN_PATH}/api/video-kill-switch`, { data: { disabled: false } });
+}
+
+test('Load more fetches each older audit page once and re-renders loaded history in a new language', async ({ browser, isMobile }) => {
+    test.skip(isMobile, 'The dense operations table is intentionally desktop-only.');
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, `${ADMIN_PATH}#audit`);
+        await signInOperator(page);
+        await seedAuditEntries(page, 60);
+        await page.click('#btn-refresh');
+        const more = page.locator('#audit-more');
+        await expect(more).toBeVisible();
+
+        // Hold the second page open so both clicks land while it is pending.
+        const olderPageRequests = [];
+        let releasePage = () => {};
+        const pageGate = new Promise((resolve) => { releasePage = () => resolve(undefined); });
+        await page.route(/\/api\/audit\?offset=50/, async (route) => {
+            olderPageRequests.push(route.request().url());
+            await pageGate;
+            await route.continue();
+        });
+        await more.click();
+        await expect(more).toBeDisabled();
+        await more.click({ force: true });
+        releasePage();
+        await expect(page.locator('#audit-tbody tr')).not.toHaveCount(50);
+        expect(olderPageRequests).toHaveLength(1);
+        const rowCount = await page.locator('#audit-tbody tr').count();
+        expect(rowCount).toBeGreaterThan(50);
+
+        await page.locator('#ops-shell [data-lang-switch] button[data-lang="ar"]').click();
+        await expect(page.locator('#audit-tbody tr').first()).toContainText(/دخول الفيديو/);
+        await expect(page.locator('#audit-tbody tr')).toHaveCount(rowCount);
+        await expect(page.locator('#audit-total')).toContainText('إجراء');
+    } finally {
+        await operator.context.close();
+    }
+});
+
+test('changing the audit filter blocks Load more until the filtered first page arrives', async ({ browser, isMobile }) => {
+    test.skip(isMobile, 'The dense operations table is intentionally desktop-only.');
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, `${ADMIN_PATH}#audit`);
+        await signInOperator(page);
+        await seedAuditEntries(page, 60);
+        await page.click('#btn-refresh');
+        await page.locator('#audit-more').click();
+        await expect.poll(() => page.locator('#audit-tbody tr').count()).toBeGreaterThan(50);
+
+        const pagedRequests = [];
+        page.on('request', (request) => {
+            const url = new URL(request.url());
+            if (url.pathname.endsWith('/api/audit') && url.searchParams.get('offset') !== '0') pagedRequests.push(url.search);
+        });
+        let releaseFirstPage = () => {};
+        const firstPageGate = new Promise((resolve) => { releaseFirstPage = () => resolve(undefined); });
+        await page.route(/\/api\/audit\?offset=0&action=video_disable/, async (route) => {
+            await firstPageGate;
+            await route.continue();
+        });
+
+        await page.selectOption('#audit-action', 'video_disable');
+        // Old rows are dropped at once and Load more cannot fire with their offset.
+        await expect(page.locator('#audit-tbody tr')).toHaveCount(0);
+        await expect(page.locator('#audit-more')).toBeHidden();
+        // Even a click that bypasses the hidden button must not page the old list.
+        await page.locator('#audit-more').dispatchEvent('click');
+        releaseFirstPage();
+        await expect(page.locator('#audit-tbody tr').first()).toContainText('Disabled video joins');
+        expect(pagedRequests).toEqual([]);
+        const rows = await page.locator('#audit-tbody tr').allTextContents();
+        expect(rows.every((row) => row.includes('Disabled video joins'))).toBe(true);
     } finally {
         await operator.context.close();
     }
