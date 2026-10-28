@@ -3115,6 +3115,8 @@
         });
     })();
     joinForm.addEventListener('submit', handleJoinSubmit);
+    // index.html ships the button disabled so it cannot submit natively before this point.
+    joinForm.querySelector('button[type="submit"]').disabled = false;
     joinRoomInput.addEventListener('input', () => {
         joinRoomInput.value = joinRoomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     });
