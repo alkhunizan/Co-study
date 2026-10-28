@@ -1,4 +1,4 @@
-const { createTestContext, gotoTestPage, test, expect } = require('../helpers/playwright-test');
+const { createTestContext, gotoTestPage, test, expect, waitForTestUrl } = require('../helpers/playwright-test');
 
 // Third-party font fetches are the only legitimate network-dependent
 // resources on the landing page; don't let an offline runner turn them
@@ -116,4 +116,19 @@ test('reduced motion keeps every hero clip on its poster frame', async ({ browse
     } finally {
         await context.close();
     }
+});
+
+test('the landing footer leads to a bilingual contact page', async ({ page }) => {
+    await gotoTestPage(page, '/');
+    await page.locator('footer a[href="/contact"]').click();
+    await waitForTestUrl(page, '**/contact');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
+    await expect(page.locator('h1')).toHaveText('تواصل مع هلاستدي');
+    await expect(page.locator('.contact-option[href^="mailto:"]')).toBeVisible();
+
+    await page.locator('.lang-switch button[data-lang-value="en"]').click();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+    await expect(page.locator('h1')).toHaveText('Get in touch with Halastudy');
+    await expect(page.locator('footer a[href="/contact"]')).toHaveText('Contact');
+    await expect(page).toHaveTitle('Halastudy | Contact');
 });

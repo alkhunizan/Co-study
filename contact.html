@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halastudy | تواصل معنا · Contact</title>
+  <meta name="description" content="تواصل مع هلاستدي عبر البريد أو الهاتف أو واتساب. Contact Halastudy by email, phone or WhatsApp.">
+  <link rel="canonical" href="https://halastudy.com/contact">
+  <link rel="icon" type="image/svg+xml" href="/images/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/icons/favicon-16.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/images/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#F5F2EB">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <style>
+    .contact-shell { max-inline-size: 720px; margin-inline: auto; padding-block: 112px 72px; padding-inline: 20px; }
+    .contact-shell h1 {
+      font-family: var(--font-display);
+      font-size: clamp(30px, 5.5vw, 46px);
+      line-height: 1.12;
+      letter-spacing: -0.02em;
+      margin: 8px 0 12px;
+      text-wrap: balance;
+    }
+    html[lang="ar"] .contact-shell h1 { font-family: var(--font-display-ar); letter-spacing: 0; line-height: 1.25; }
+    .contact-shell p { color: var(--ink-2); line-height: 1.75; margin: 0 0 16px; max-inline-size: 56ch; }
+    .contact-shell p a { color: var(--accent-3); }
+    .contact-options { display: grid; gap: 12px; margin-block: 28px; }
+    .contact-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-block-size: 56px;
+      padding: 14px 20px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      color: var(--ink);
+      text-decoration: none;
+      transition: border-color .15s ease;
+    }
+    .contact-option:hover { border-color: var(--accent-2); }
+    .contact-option:focus-visible, .contact-shell p a:focus-visible { outline: none; box-shadow: var(--sh-focus); }
+    .contact-option .label { font-weight: var(--w-semibold); }
+    .contact-option .value { color: var(--ink-2); font-family: var(--font-mono); font-size: var(--t-body-sm); }
+    @media (prefers-reduced-motion: reduce) { .contact-option { transition: none; } }
+  </style>
+</head>
+<body class="is-landing-page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Halastudy home">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <div class="topbar-right">
+      <div class="lang-switch" role="tablist" aria-label="Language">
+        <button type="button" data-lang-value="en">EN</button>
+        <button type="button" data-lang-value="ar" class="is-on">ع</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="contact-shell">
+    <div class="eyebrow" data-lang="contactEyebrow">تواصل معنا</div>
+    <h1 data-lang="contactTitle">تواصل مع هلاستدي</h1>
+    <p data-lang="contactIntro">للاستفسارات أو المساعدة في استخدام غرف المذاكرة والتركيز، راسلنا أو اتصل بنا أو تواصل معنا عبر واتساب.</p>
+
+    <div class="contact-options">
+      <a class="contact-option" href="mailto:info@halastudy.com">
+        <span class="label" data-lang="contactEmail">البريد الإلكتروني</span>
+        <span class="value" dir="ltr">info@halastudy.com</span>
+      </a>
+      <a class="contact-option" href="tel:+966599161315">
+        <span class="label" data-lang="contactPhone">الهاتف</span>
+        <span class="value" dir="ltr">+966 59 916 1315</span>
+      </a>
+      <a class="contact-option" href="https://wa.me/966599161315" target="_blank" rel="noopener">
+        <span class="label" data-lang="contactWhatsapp">واتساب</span>
+        <span class="value" dir="ltr">+966 59 916 1315</span>
+      </a>
+    </div>
+
+    <!-- Mirrors the operator disclosure in privacy.html ("من نحن" / "Who we are"). -->
+    <p data-lang="contactOperator">هلاستدي خدمة تديرها مؤسسة هلا، وهي منشأة فردية يملكها عزيز الخنيزان، ومقرها الرياض، المملكة العربية السعودية.</p>
+    <p>
+      <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a> ·
+      <a href="/terms" data-lang="footerTerms">الشروط</a>
+    </p>
+  </main>
+
+  <footer class="footer">
+    <div class="links">
+      <a href="/blog" data-lang="footerBlog">المدونة</a>
+      <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
+      <a href="/terms" data-lang="footerTerms">الشروط</a>
+      <a href="/contact" data-lang="footerContact" aria-current="page">تواصل معنا</a>
+    </div>
+    <div class="footer-contact">
+      <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
+      <a href="tel:+966599161315" dir="ltr">+966&nbsp;59&nbsp;916&nbsp;1315</a>
+    </div>
+  </footer>
+
+  <script>
+    window.HalaCore.initLang({
+      en: {
+        pageTitle: 'Halastudy | Contact',
+        contactEyebrow: 'Contact',
+        contactTitle: 'Get in touch with Halastudy',
+        contactIntro: 'For questions or help using the study and focus rooms, email us, call, or message us on WhatsApp.',
+        contactEmail: 'Email',
+        contactPhone: 'Phone',
+        contactWhatsapp: 'WhatsApp',
+        contactOperator: 'Halastudy is operated by Hala, a sole proprietorship owned by Aziz Al Khunizan, based in Riyadh, Kingdom of Saudi Arabia.',
+        footerBlog: 'Blog',
+        footerPrivacy: 'Privacy',
+        footerTerms: 'Terms',
+        footerContact: 'Contact'
+      },
+      ar: {
+        pageTitle: 'هلاستدي | تواصل معنا',
+        contactEyebrow: 'تواصل معنا',
+        contactTitle: 'تواصل مع هلاستدي',
+        contactIntro: 'للاستفسارات أو المساعدة في استخدام غرف المذاكرة والتركيز، راسلنا أو اتصل بنا أو تواصل معنا عبر واتساب.',
+        contactEmail: 'البريد الإلكتروني',
+        contactPhone: 'الهاتف',
+        contactWhatsapp: 'واتساب',
+        contactOperator: 'هلاستدي خدمة تديرها مؤسسة هلا، وهي منشأة فردية يملكها عزيز الخنيزان، ومقرها الرياض، المملكة العربية السعودية.',
+        footerBlog: 'المدونة',
+        footerPrivacy: 'الخصوصية',
+        footerTerms: 'الشروط',
+        footerContact: 'تواصل معنا'
+      }
+    });
+  </script>
+</body>
+</html>
