@@ -45,3 +45,27 @@ test('Docker Compose is explicitly local development with mesh media', () => {
     assert.match(compose, /HOST:\s*["']?0\.0\.0\.0["']?/);
     assert.doesNotMatch(compose, /NODE_ENV[=:]-?production/);
 });
+
+test('every HTML page the server sends is shipped in the Docker image', () => {
+    const server = readRepoFile('co-study-server.js');
+    const dockerfile = readRepoFile('Dockerfile');
+    const allowed = new Set(readRepoFile('.dockerignore')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith('!'))
+        .map((line) => line.slice(1)));
+    const copied = new Set(dockerfile
+        .split(/\r?\n/)
+        .filter((line) => /^COPY\b/.test(line.trim()))
+        .flatMap((line) => line.trim().split(/\s+/).filter((token) => token.endsWith('.html'))));
+    const served = [...new Set(Array.from(
+        server.matchAll(/sendFile\(path\.join\(__dirname, '([^']+\.html)'\)\)/g),
+        (match) => match[1]
+    ))];
+
+    assert.ok(served.length >= 10, `expected the public pages to be found, got ${served.length}`);
+    for (const page of served) {
+        assert.ok(allowed.has(page), `.dockerignore must re-include ${page} (deny-by-default context)`);
+        assert.ok(copied.has(page), `Dockerfile must COPY ${page} into the image`);
+    }
+});

@@ -49,19 +49,19 @@
     .contact-option:hover { border-color: var(--accent-2); }
     .contact-option:focus-visible, .contact-shell p a:focus-visible { outline: none; box-shadow: var(--sh-focus); }
     .contact-option .label { font-weight: var(--w-semibold); }
-    .contact-option .value { color: var(--ink-2); font-family: var(--font-mono); font-size: var(--t-body-sm); }
+    .contact-option .value { color: var(--ink-2); font-family: var(--font-mono); font-size: var(--t-body-sm); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
     @media (prefers-reduced-motion: reduce) { .contact-option { transition: none; } }
   </style>
 </head>
 <body class="is-landing-page">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="Halastudy home">
+    <a class="brand" href="/" aria-label="الصفحة الرئيسية لـ Halastudy" data-lang-aria="brandAria">
       <span>Hala<em>study</em><span class="dot">.</span></span>
       <span class="divider" aria-hidden="true"></span>
       <span class="ar" aria-hidden="true">هلا</span>
     </a>
     <div class="topbar-right">
-      <div class="lang-switch" role="tablist" aria-label="Language">
+      <div class="lang-switch" role="tablist" aria-label="اللغة" data-lang-aria="langAria">
         <button type="button" data-lang-value="en">EN</button>
         <button type="button" data-lang-value="ar" class="is-on">ع</button>
       </div>
@@ -113,6 +113,8 @@
     window.HalaCore.initLang({
       en: {
         pageTitle: 'Halastudy | Contact',
+        brandAria: 'Halastudy home',
+        langAria: 'Language',
         contactEyebrow: 'Contact',
         contactTitle: 'Get in touch with Halastudy',
         contactIntro: 'For questions or help using the study and focus rooms, email us, call, or message us on WhatsApp.',
@@ -127,6 +129,8 @@
       },
       ar: {
         pageTitle: 'هلاستدي | تواصل معنا',
+        brandAria: 'الصفحة الرئيسية لـ Halastudy',
+        langAria: 'اللغة',
         contactEyebrow: 'تواصل معنا',
         contactTitle: 'تواصل مع هلاستدي',
         contactIntro: 'للاستفسارات أو المساعدة في استخدام غرف المذاكرة والتركيز، راسلنا أو اتصل بنا أو تواصل معنا عبر واتساب.',

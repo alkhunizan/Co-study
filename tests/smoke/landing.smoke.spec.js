@@ -125,10 +125,30 @@ test('the landing footer leads to a bilingual contact page', async ({ page }) =>
     await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
     await expect(page.locator('h1')).toHaveText('تواصل مع هلاستدي');
     await expect(page.locator('.contact-option[href^="mailto:"]')).toBeVisible();
+    await expect(page.locator('.lang-switch')).toHaveAttribute('aria-label', 'اللغة');
 
     await page.locator('.lang-switch button[data-lang-value="en"]').click();
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
     await expect(page.locator('h1')).toHaveText('Get in touch with Halastudy');
     await expect(page.locator('footer a[href="/contact"]')).toHaveText('Contact');
     await expect(page).toHaveTitle('Halastudy | Contact');
+    await expect(page.locator('.lang-switch')).toHaveAttribute('aria-label', 'Language');
+});
+
+test('keyboard focus on the legal pages uses the accent glow, not the browser outline', async ({ page, browserName }) => {
+    // Safari (and Playwright's WebKit) skips links on Tab unless the OS
+    // "Press Tab to highlight each item" setting is on, so drive it in Chromium.
+    test.skip(browserName === 'webkit', 'WebKit does not Tab to links by default.');
+    await gotoTestPage(page, '/privacy');
+    const contactLink = page.locator('.legal-footer a[href="/contact"]');
+    await contactLink.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(contactLink).toBeFocused();
+    const style = await contactLink.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { outline: cs.outlineStyle, shadow: cs.boxShadow };
+    });
+    expect(style.outline).toBe('none');
+    expect(style.shadow).not.toBe('none');
 });
