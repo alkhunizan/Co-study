@@ -84,6 +84,22 @@
     .lobby-tile.is-live .lobby-tile-badge { background: rgba(53,194,107,.85); color: #05230f; }
 
     .lobby-empty { text-align: center; color: var(--ink-2); padding: 48px 16px; line-height: 1.8; }
+    .lobby-grid.is-stale { opacity: .55; }
+
+    /* Connection status: connecting, reconnecting, unreachable, full, failed */
+    .lobby-status {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      padding: 12px 16px; margin-block-end: 18px; color: var(--ink); font-size: 14px; line-height: 1.6;
+    }
+    .lobby-status[data-tone="error"] { border-color: var(--danger); }
+    .lobby-status p { margin: 0; }
+    .lobby-status-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .lobby-status-actions .btn { min-block-size: 44px; }
+    .lobby-status[hidden], .lobby-status-actions [hidden] { display: none; }
+    .camera-note { flex-basis: 100%; text-align: center; margin: 0; font-size: 13px; color: var(--ink-2); }
+    .camera-note[data-tone="error"] { color: var(--danger); }
+    .name-error { color: var(--danger); font-size: 13px; margin: 0 0 10px; }
 
     /* Footer action strip */
     .lobby-foot {
@@ -106,6 +122,7 @@
   </style>
   <link rel="stylesheet" href="/design-system/public-shell.css">
   <script src="/js/public-shell.js" defer></script>
+  <script src="/js/ui.js" defer></script>
 </head>
 <body class="is-landing-page" data-public-page="lobby">
   <header class="topbar">
@@ -129,7 +146,8 @@
       <div class="eyebrow" data-lang="lobbyEyebrow">اللوبي</div>
       <h1 style="font-family:var(--font-display-ar);margin:6px 0 2px" data-lang="gateTitle">وش اسمك في الغرفة؟</h1>
       <p style="color:var(--ink-2)" data-lang="gateSub">اسم يشوفه غيرك. تقدر تتفرج بدون كاميرا.</p>
-      <input type="text" id="name-input" maxlength="20" data-lang-placeholder="gatePlaceholder" placeholder="اسمك">
+      <input type="text" id="name-input" maxlength="20" data-lang-placeholder="gatePlaceholder" placeholder="اسمك" aria-describedby="name-error">
+      <p class="name-error" id="name-error" role="alert" hidden data-lang="gateEmpty">اكتب اسمك عشان تدخل.</p>
       <button class="btn btn-primary" id="name-go" style="inline-size:100%" data-lang="gateGo">ادخل اللوبي</button>
     </section>
 
@@ -138,7 +156,7 @@
       <div class="lobby-bar">
         <div class="lobby-heading">
           <h1 data-lang="lobbyTitle">اللوبي</h1>
-          <span class="lobby-count" id="present-count"><span class="live-dot"></span><span id="present-n">0</span> / 30</span>
+          <span class="lobby-count" id="present-count"><span class="live-dot"></span><span id="present-n">—</span> / 30</span>
         </div>
 
         <div class="density" role="group" aria-label="Grid density">
@@ -153,12 +171,21 @@
         </div>
       </div>
 
+      <div class="lobby-status" id="lobby-status" role="status" hidden>
+        <p id="lobby-status-text"></p>
+        <div class="lobby-status-actions">
+          <button type="button" class="btn btn-secondary btn--compact" id="lobby-retry" hidden></button>
+          <a class="btn btn-secondary btn--compact" id="lobby-return" href="/" hidden></a>
+        </div>
+      </div>
+
       <div class="lobby-grid" id="grid" aria-live="polite"></div>
       <div class="lobby-empty" id="empty" hidden data-lang="empty">لسه ما فيه أحد. كن أول واحد يبدأ.</div>
 
       <div class="lobby-foot">
         <span class="mic-note"><span aria-hidden="true">🔇</span> <span data-lang="micOff">المايك مقفول للجميع</span></span>
-        <button class="btn btn-secondary btn--compact" id="camera-cta" data-lang="camGuest">سجّل دخول عشان تفتح الكاميرا</button>
+        <button class="btn btn-secondary btn--compact" id="camera-cta">سجّل دخول عشان تفتح الكاميرا</button>
+        <p class="camera-note" id="camera-note" role="status" hidden></p>
       </div>
     </section>
   </main>
@@ -177,14 +204,30 @@
         gateSub: 'A name others see. You can watch without a camera.',
         gatePlaceholder: 'Your name',
         gateGo: 'Enter the Lobby',
+        gateEmpty: 'Type your name to enter.',
         densityLabel: 'Per page',
         empty: "Nobody here yet. Be the first to start.",
         micOff: 'Mic is off for everyone',
         camGuest: 'Sign in to turn on your camera',
         camReady: 'Turn on my camera',
+        camOff: 'Turn off my camera',
+        camBlocked: 'Camera access is blocked. Allow it in your browser settings, then try again.',
+        camNoDevice: 'No camera found on this device. You can keep watching.',
+        camBusy: 'Your camera is busy in another app. Close it, then try again.',
+        camUnavailable: "Video isn't available right now. You're still in the Lobby.",
+        camFull: 'All camera spots are taken right now. You can keep watching.',
+        camFailed: "Couldn't start your camera. Try again.",
         watching: 'watching',
         live: 'live',
-        full: 'The Lobby is full right now — try again in a bit, or open your own room.'
+        full: 'The Lobby is full right now — try again in a bit, or open your own room.',
+        statusConnecting: 'Connecting to the Lobby…',
+        statusReconnecting: 'Connection lost. Reconnecting…',
+        statusUnreachable: "Can't reach the Lobby. Check your connection and try again.",
+        statusFailed: "Couldn't join the Lobby. Try again.",
+        retry: 'Try again',
+        retryNow: 'Reconnect now',
+        backHome: 'Back to home',
+        openOwn: 'Open your own room'
       },
       ar: {
         pageTitle: 'هلاستدي | اللوبي',
@@ -195,14 +238,30 @@
         gateSub: 'اسم يشوفه غيرك. تقدر تتفرج بدون كاميرا.',
         gatePlaceholder: 'اسمك',
         gateGo: 'ادخل اللوبي',
+        gateEmpty: 'اكتب اسمك عشان تدخل.',
         densityLabel: 'في الصفحة',
         empty: 'لسه ما فيه أحد. كن أول واحد يبدأ.',
         micOff: 'المايك مقفول للجميع',
         camGuest: 'سجّل دخول عشان تفتح الكاميرا',
         camReady: 'افتح كاميرتي',
+        camOff: 'اقفل كاميرتي',
+        camBlocked: 'الكاميرا محظورة. اسمح لها من إعدادات المتصفح وجرّب مرة ثانية.',
+        camNoDevice: 'ما لقينا كاميرا في جهازك. تقدر تكمل تتفرج.',
+        camBusy: 'الكاميرا مستخدمة في تطبيق ثاني. سكّره وجرّب مرة ثانية.',
+        camUnavailable: 'الفيديو مو متاح الحين. أنت لسه في اللوبي.',
+        camFull: 'أماكن الكاميرا كلها مأخوذة الحين. تقدر تكمل تتفرج.',
+        camFailed: 'ما قدرنا نشغّل كاميرتك. جرّب مرة ثانية.',
         watching: 'يتفرج',
         live: 'مباشر',
-        full: 'اللوبي ممتلئ حالياً — جرّب بعد شوي، أو افتح غرفتك الخاصة.'
+        full: 'اللوبي ممتلئ حالياً — جرّب بعد شوي، أو افتح غرفتك الخاصة.',
+        statusConnecting: 'جاري الاتصال باللوبي…',
+        statusReconnecting: 'انقطع الاتصال. نحاول نرجعك…',
+        statusUnreachable: 'ما قدرنا نوصل للوبي. تأكد من اتصالك وجرّب مرة ثانية.',
+        statusFailed: 'ما قدرنا ندخلك اللوبي. جرّب مرة ثانية.',
+        retry: 'جرّب مرة ثانية',
+        retryNow: 'أعد الاتصال الحين',
+        backHome: 'الرجوع للرئيسية',
+        openOwn: 'افتح غرفتك الخاصة'
       }
     };
     window.HalaCore.initLang(DICT);
@@ -216,6 +275,8 @@
     const NAME_KEY = 'halastudyDisplayName';
     const CLIENT_ID_KEY = 'halastudyClientId';
     const LOBBY_CAP = 30;
+    const JOIN_TIMEOUT_MS = 10000;
+    const SIGN_IN_URL = '/account.html?next=%2Flobby';
 
     const el = (id) => document.getElementById(id);
     const state = { participants: [], perPage: 12, page: 0, isMobile: window.innerWidth < 640, myName: '' };
@@ -223,6 +284,21 @@
     // are the grid source; on any failure the lobby degrades to socket presence.
     const rtk = { meeting: null, connected: false, role: 'viewer', generation: 0 };
     let membershipToken = '';
+    // Connection phase drives the status strip. Only 'connected' shows the
+    // present count and the empty state, so a pending join never reads as
+    // "nobody here".
+    const conn = { phase: 'connecting', everJoined: false };
+    const STATUS = {
+      connecting: { text: 'statusConnecting', tone: 'info' },
+      reconnecting: { text: 'statusReconnecting', tone: 'info', retry: 'retryNow' },
+      unreachable: { text: 'statusUnreachable', tone: 'error', retry: 'retry', back: 'backHome' },
+      full: { text: 'full', tone: 'error', retry: 'retry', back: 'openOwn' },
+      failed: { text: 'statusFailed', tone: 'error', retry: 'retry', back: 'backHome' }
+    };
+    let retryJoin = null;
+    // currentUser: undefined until the session check resolves, then a user or null.
+    let currentUser;
+    const cam = { busy: false, noteKey: '', tone: '' };
     const videoClient = window.HalastudyVideoClient
       ? window.HalastudyVideoClient.createVideoClient()
       : null;
@@ -289,8 +365,9 @@
     }
 
     function render() {
-      const list = getTiles();
-      el('present-n').textContent = String(list.length);
+      const joined = conn.phase === 'connected';
+      const list = joined || conn.phase === 'reconnecting' ? getTiles() : [];
+      el('present-n').textContent = joined ? String(list.length) : '—';
       const pages = Math.max(1, Math.ceil(list.length / state.perPage));
       if (state.page > pages - 1) state.page = pages - 1;
       if (state.page < 0) state.page = 0;
@@ -300,13 +377,40 @@
       el('pg-next').disabled = state.page >= pages - 1;
 
       const grid = el('grid');
+      grid.classList.toggle('is-stale', conn.phase === 'reconnecting');
+      grid.setAttribute('aria-busy', String(!joined));
       grid.style.gridTemplateColumns = `repeat(${effectiveCols()}, 1fr)`;
 
       const start = state.page * state.perPage;
       const slice = list.slice(start, start + state.perPage);
-      el('empty').hidden = list.length !== 0;
+      el('empty').hidden = !joined || list.length !== 0;
 
       grid.replaceChildren(...slice.map((p) => tile(p)));
+      syncCameraCta();
+    }
+
+    function setPhase(phase) {
+      conn.phase = phase;
+      if (phase === 'connected') conn.everJoined = true;
+      renderStatus();
+      render();
+    }
+    function renderStatus() {
+      const box = el('lobby-status');
+      const spec = STATUS[conn.phase];
+      if (!spec) { box.hidden = true; return; }
+      box.hidden = false;
+      box.dataset.tone = spec.tone;
+      el('lobby-status-text').textContent = t(spec.text);
+      const retry = el('lobby-retry');
+      retry.hidden = !spec.retry;
+      if (spec.retry) retry.textContent = t(spec.retry);
+      const back = el('lobby-return');
+      back.hidden = !spec.back;
+      if (spec.back) {
+        back.textContent = t(spec.back);
+        back.href = spec.back === 'openOwn' ? '/open' : '/';
+      }
     }
 
     function tile(p) {
@@ -363,26 +467,55 @@
     function joinLobby(name) {
       membershipToken = '';
       void leaveRealtimeKit();
+      setPhase('connecting');
       socket = io({ auth: { clientId: clientId() } });
       const activeSocket = socket;
-      activeSocket.on('connect', () => {
+      let joinTimer = null;
+      // Bounded wait: an acknowledgement that never arrives becomes an
+      // actionable error instead of an indefinite "connecting".
+      const requestJoin = () => {
+        clearTimeout(joinTimer);
+        joinTimer = setTimeout(() => {
+          if (socket === activeSocket && conn.phase !== 'connected') setPhase('failed');
+        }, JOIN_TIMEOUT_MS);
         activeSocket.emit('join-room', { roomId: 'LOBBY', username: name, clientId: clientId() }, (res = {}) => {
           if (socket !== activeSocket) return;
+          clearTimeout(joinTimer);
           if (!res.ok) {
             membershipToken = '';
-            if (res.errorCode === 'ROOM_FULL' && window.HalaUI) window.HalaUI.toast(t('full'), { kind: 'error' });
+            setPhase(res.errorCode === 'ROOM_FULL' ? 'full' : 'failed');
             return;
           }
           membershipToken = typeof res.membershipToken === 'string' ? res.membershipToken.trim() : '';
+          setPhase('connected');
           setParticipants((res.room && res.room.participants) || []);
           // Now that we are a verified room member, connect to the SFU as a
           // watcher. Degrades silently to presence-only if video is unavailable.
           connectRealtimeKit('viewer');
         });
-      });
+      };
+      retryJoin = () => {
+        if (socket !== activeSocket) return;
+        setPhase('connecting');
+        if (activeSocket.connected) requestJoin();
+        else activeSocket.connect();
+      };
+      activeSocket.on('connect', requestJoin);
       activeSocket.on('presence', (list) => setParticipants(list || []));
-      activeSocket.on('connect_error', () => { if (socket === activeSocket) void leaveRealtimeKit(); });
-      activeSocket.on('disconnect', () => { if (socket === activeSocket) void leaveRealtimeKit(); });
+      activeSocket.on('connect_error', () => {
+        if (socket !== activeSocket) return;
+        clearTimeout(joinTimer);
+        void leaveRealtimeKit();
+        setPhase(conn.everJoined && activeSocket.active ? 'reconnecting' : 'unreachable');
+      });
+      activeSocket.on('disconnect', () => {
+        if (socket !== activeSocket) return;
+        clearTimeout(joinTimer);
+        void leaveRealtimeKit();
+        // socket.active is false after a server-side disconnect: Socket.IO will
+        // not retry on its own, so offer the manual retry instead.
+        setPhase(activeSocket.active ? 'reconnecting' : 'unreachable');
+      });
       activeSocket.on('kicked', () => { void leaveRealtimeKit({ keepalive: true }); location.href = '/'; });
       activeSocket.on('room-closed', () => { void leaveRealtimeKit({ keepalive: true }); location.href = '/'; });
     }
@@ -449,41 +582,100 @@
     }
 
     // ---- Auth-gated camera button ----
-    function refreshCameraCta(user) {
+    function ownVideoOn() {
+      const self = rtk.connected && rtk.meeting && rtk.meeting.self;
+      return !!(self && rtk.role === 'publisher' && self.videoEnabled);
+    }
+    function syncCameraCta() {
       const cta = el('camera-cta');
-      if (user) {
-        cta.textContent = t('camReady');
-        cta.onclick = () => startPublishing();   // wired in P4
-      } else {
+      if (!currentUser) {
         cta.textContent = t('camGuest');
-        cta.onclick = () => { location.href = '/account.html?next=%2Flobby'; };
+        cta.removeAttribute('aria-pressed');
+        cta.disabled = false;
+      } else {
+        const on = ownVideoOn();
+        cta.textContent = t(on ? 'camOff' : 'camReady');
+        cta.setAttribute('aria-pressed', String(on));
+        // Publishing needs a verified membership, so wait for the join.
+        cta.disabled = cam.busy || conn.phase !== 'connected';
+      }
+      const note = el('camera-note');
+      note.hidden = !cam.noteKey;
+      note.textContent = cam.noteKey ? t(cam.noteKey) : '';
+      if (cam.tone) note.dataset.tone = cam.tone; else delete note.dataset.tone;
+    }
+    function setCameraNote(key, tone = 'error') {
+      cam.noteKey = key;
+      cam.tone = key ? tone : '';
+      syncCameraCta();
+    }
+    function refreshCameraCta(user) {
+      currentUser = user || null;
+      el('camera-cta').onclick = currentUser
+        ? () => { void startPublishing(); }
+        : () => { location.href = SIGN_IN_URL; };
+      syncCameraCta();
+    }
+    function cameraErrorKey(error) {
+      const name = error && error.name;
+      if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError') return 'camBlocked';
+      if (name === 'NotFoundError' || name === 'DevicesNotFoundError' || name === 'OverconstrainedError') return 'camNoDevice';
+      if (name === 'NotReadableError' || name === 'TrackStartError') return 'camBusy';
+      return 'camFailed';
+    }
+    // Ask the browser for the camera before requesting a publisher token, so a
+    // blocked or missing camera is reported truthfully and never takes a seat.
+    // The probe track is stopped immediately; the provider opens its own.
+    async function probeCamera() {
+      const media = navigator.mediaDevices;
+      if (!media || typeof media.getUserMedia !== 'function') return 'camNoDevice';
+      try {
+        const stream = await media.getUserMedia({ video: true, audio: false });
+        stream.getTracks().forEach((track) => track.stop());
+        return '';
+      } catch (error) {
+        return cameraErrorKey(error);
       }
     }
+    async function enableOwnVideo(self) {
+      if (typeof self.enableVideo !== 'function') throw new Error('enableVideo unavailable');
+      await self.enableVideo();
+      if (!self.videoEnabled) throw new Error('camera did not start');
+    }
     async function startPublishing() {
-      // Account clicked "turn on camera". Publish permission is baked into the
-      // token preset, so a viewer must re-join with a publisher token before it
-      // can enable video. Toggling afterward just enables/disables the track.
-      const cta = el('camera-cta');
-      cta.disabled = true;
+      // Publish permission is baked into the token preset, so a viewer must
+      // re-join with a publisher token before it can enable video. Toggling
+      // afterward just enables/disables the track.
+      if (cam.busy) return;
+      cam.busy = true;
+      setCameraNote('');
       try {
-        if (rtk.connected && rtk.role === 'publisher' && rtk.meeting && rtk.meeting.self) {
-          const self = rtk.meeting.self;
-          if (self.videoEnabled && self.disableVideo) await self.disableVideo();
-          else if (self.enableVideo) await self.enableVideo();
+        const self = rtk.connected && rtk.role === 'publisher' && rtk.meeting && rtk.meeting.self;
+        if (self && self.videoEnabled) {
+          if (typeof self.disableVideo === 'function') await self.disableVideo();
+        } else if (self) {
+          await enableOwnVideo(self);
         } else {
+          const blocked = await probeCamera();
+          if (blocked) { setCameraNote(blocked); return; }
           const res = await connectRealtimeKit('publisher');
-          if (res && res.ok && rtk.meeting && rtk.meeting.self && rtk.meeting.self.enableVideo) {
-            await rtk.meeting.self.enableVideo();
+          if (res && res.ok && rtk.meeting && rtk.meeting.self) {
+            await enableOwnVideo(rtk.meeting.self);
           } else if (res && res.errorCode === 'AUTH_REQUIRED') {
-            location.href = '/account.html?next=%2Flobby';
-          } else {
-            // No creds / provider unavailable — re-attach as a watcher.
+            location.href = SIGN_IN_URL;
+            return;
+          } else if (!res || res.errorCode !== 'VIDEO_JOIN_SUPERSEDED') {
+            setCameraNote(res && res.errorCode === 'VIDEO_LIMIT_REACHED' ? 'camFull' : 'camUnavailable');
+            // Re-attach as a watcher so the grid keeps showing the room.
             await connectRealtimeKit('viewer');
           }
         }
-      } catch (_e) {}
-      cta.disabled = false;
-      render();
+      } catch (error) {
+        setCameraNote(cameraErrorKey(error));
+      } finally {
+        cam.busy = false;
+        render();
+      }
     }
 
     // ---- Boot ----
@@ -505,6 +697,11 @@
           try { rtk.meeting.participants.setPage(state.page + 1); } catch (_e) {}
         }
       };
+      el('lobby-retry').addEventListener('click', () => { if (retryJoin) retryJoin(); });
+      // initLang rewrites [data-lang] nodes; strings set from script follow here.
+      document.querySelectorAll('[data-lang-value]').forEach((b) => {
+        b.addEventListener('click', () => { renderStatus(); render(); });
+      });
       el('pg-prev').addEventListener('click', () => { state.page--; render(); syncRtkPage(); });
       el('pg-next').addEventListener('click', () => { state.page++; render(); syncRtkPage(); });
       window.addEventListener('resize', () => {
@@ -522,7 +719,13 @@
       } else {
         const gate = el('name-gate');
         gate.hidden = false;
-        const go = () => { const v = el('name-input').value.trim(); if (v) enterLobby(v); };
+        const go = () => {
+          const input = el('name-input');
+          const v = input.value.trim();
+          el('name-error').hidden = !!v;
+          input.setAttribute('aria-invalid', String(!v));
+          if (v) enterLobby(v); else input.focus();
+        };
         el('name-go').addEventListener('click', go);
         el('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
       }
