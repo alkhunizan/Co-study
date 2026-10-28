@@ -383,3 +383,43 @@ test('Load more fetches each older audit page once and re-renders loaded history
         await operator.context.close();
     }
 });
+
+test('changing the audit filter blocks Load more until the filtered first page arrives', async ({ browser, isMobile }) => {
+    test.skip(isMobile, 'The dense operations table is intentionally desktop-only.');
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, `${ADMIN_PATH}#audit`);
+        await signInOperator(page);
+        await seedAuditEntries(page, 60);
+        await page.click('#btn-refresh');
+        await page.locator('#audit-more').click();
+        await expect.poll(() => page.locator('#audit-tbody tr').count()).toBeGreaterThan(50);
+
+        const pagedRequests = [];
+        page.on('request', (request) => {
+            const url = new URL(request.url());
+            if (url.pathname.endsWith('/api/audit') && url.searchParams.get('offset') !== '0') pagedRequests.push(url.search);
+        });
+        let releaseFirstPage = () => {};
+        const firstPageGate = new Promise((resolve) => { releaseFirstPage = () => resolve(undefined); });
+        await page.route(/\/api\/audit\?offset=0&action=video_disable/, async (route) => {
+            await firstPageGate;
+            await route.continue();
+        });
+
+        await page.selectOption('#audit-action', 'video_disable');
+        // Old rows are dropped at once and Load more cannot fire with their offset.
+        await expect(page.locator('#audit-tbody tr')).toHaveCount(0);
+        await expect(page.locator('#audit-more')).toBeHidden();
+        // Even a click that bypasses the hidden button must not page the old list.
+        await page.locator('#audit-more').dispatchEvent('click');
+        releaseFirstPage();
+        await expect(page.locator('#audit-tbody tr').first()).toContainText('Disabled video joins');
+        expect(pagedRequests).toEqual([]);
+        const rows = await page.locator('#audit-tbody tr').allTextContents();
+        expect(rows.every((row) => row.includes('Disabled video joins'))).toBe(true);
+    } finally {
+        await operator.context.close();
+    }
+});

@@ -954,27 +954,46 @@
       // dropped instead of being appended to the wrong list.
       let auditGeneration = 0;
       let auditMorePending = false;
+      let auditFirstPagePending = false;
 
       // Polling refreshes the first page only while no older pages are
       // loaded, so "Load more" results are not yanked away every 5 seconds.
       // Loaded history is still re-rendered, e.g. after a language switch.
+      // While the first page loads, Load more is blocked: its offset must
+      // come from the list that page belongs to.
       async function loadAudit({ force = false } = {}) {
         if (!force && auditEntries.length > 50) {
           renderAudit();
           return;
         }
         const generation = ++auditGeneration;
-        const page = await fetchAudit(0);
-        if (generation !== auditGeneration) return;
-        auditEntries = page.entries;
-        auditTotal = page.total;
-        renderAudit();
+        auditFirstPagePending = true;
+        $('audit-more').disabled = true;
+        try {
+          const page = await fetchAudit(0);
+          if (generation !== auditGeneration) return;
+          auditEntries = page.entries;
+          auditTotal = page.total;
+          renderAudit();
+        } finally {
+          if (generation === auditGeneration) {
+            auditFirstPagePending = false;
+            $('audit-more').disabled = auditMorePending;
+          }
+        }
       }
 
-      $('audit-action').addEventListener('change', () => { void loadAudit({ force: true }).catch(reportActionError); });
+      $('audit-action').addEventListener('change', () => {
+        // Drop the old filter's rows at once so none of its offsets survive.
+        auditEntries = [];
+        auditTotal = 0;
+        renderAudit();
+        void loadAudit({ force: true }).catch(reportActionError);
+      });
       $('audit-more').addEventListener('click', async () => {
-        // One page request at a time: two in flight would share an offset.
-        if (auditMorePending) return;
+        // One page request at a time, and never during a first-page reload:
+        // either would compute the offset from the wrong list.
+        if (auditMorePending || auditFirstPagePending) return;
         auditMorePending = true;
         const button = $('audit-more');
         button.disabled = true;
@@ -989,7 +1008,7 @@
           reportActionError(error);
         } finally {
           auditMorePending = false;
-          button.disabled = false;
+          button.disabled = auditFirstPagePending;
         }
       });
 
