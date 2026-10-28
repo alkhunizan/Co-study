@@ -1,0 +1,3066 @@
+const express = require('express');
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const { Server } = require('socket.io');
+const { onClientEvent } = require('./services/socket-boundary');
+const { createRoomStore } = require('./room-store');
+const {
+    VIDEO_PROVIDER_MESH,
+    VIDEO_PROVIDER_REALTIMEKIT,
+    buildVideoPolicy,
+    normalizeVideoProvider,
+    resolveVideoConfig
+} = require('./server-config');
+const { createLogger } = require('./services/logging/logger');
+const { createErrorBuffer } = require('./services/ops/error-buffer');
+const { createBackupScheduler } = require('./services/ops/backup-scheduler');
+const { createOperationalAlerts } = require('./services/ops/alerts');
+const { registerPublicPages } = require('./services/seo/public-pages');
+const { createAdminRouter } = require('./services/admin/admin-routes');
+const { hashPassword, verifyPassword } = require('./services/auth/password');
+const {
+    createSessionToken,
+    verifySessionToken,
+    createAnonSessionToken,
+    verifyAnonSessionToken
+} = require('./services/auth');
+const { createAuthRouter } = require('./services/auth/auth-routes');
+const { createRecoveryMail } = require('./services/auth/recovery');
+const { createGoogleAuthRouter } = require('./services/auth/google-routes');
+const { COOKIE_NAME: REAUTH_COOKIE, verifyReauth } = require('./services/auth/reauth');
+const { createUserStore, recordMyRoom, sanitizeUser } = require('./user-store');
+const { createSupabaseClient } = require('./services/supabase/client');
+const { createSupabaseUserStore } = require('./supabase-user-store');
+const { createPlatform } = require('./services/platform');
+const { createPlatformRouter } = require('./services/platform/routes');
+const { createRecordStore } = require('./services/platform/record-store');
+const { backupDatabase } = require('./services/platform/maintenance');
+const { createVideoProvider } = require('./services/video');
+const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
+const { createVideoRevocations } = require('./services/video/revocations');
+const {
+    buildScheduleSummary,
+    normalizeSchedule,
+    recordScheduleJoin,
+    rollScheduleAttendance
+} = require('./schedule-utils');
+
+const ROOM_HISTORY_LIMIT = 80;
+const ROOM_TTL_MS = 1000 * 60 * 30;
+// The Lobby: one reserved, always-available public room. Fixed code so /lobby
+// always resolves to the same room; seeded at startup and exempt from the
+// empty-room TTL cleanup so it never disappears.
+const LOBBY_ROOM_CODE = 'LOBBY';
+const LOBBY_ROOM_NAME = 'The Lobby';
+// Max people present in the Lobby (watchers + publishers). Distinct from the
+// mesh 4-cap and from the RealtimeKit publisher cap.
+const LOBBY_PARTICIPANT_LIMIT = 30;
+const SESSION_COOKIE_NAME = 'coStudySessionId';
+const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+const AUTH_COOKIE_NAME = 'coStudyAuth';
+const AUTH_COOKIE_MAX_AGE_MS = SESSION_COOKIE_MAX_AGE * 1000;
+const ADMIN_USER_ID = 'admin';
+const CLIENT_ID_MAX_LENGTH = 64;
+const ROOM_CODE_LENGTH = 6;
+const ROOM_NAME_MAX_LENGTH = 48;
+const ROOM_PASSWORD_MAX_LENGTH = 64;
+const NICKNAME_MAX_LENGTH = 20;
+const CHAT_MESSAGE_MAX_LENGTH = 500;
+const BOARD_GOAL_MAX_LENGTH = 80;
+const BOARD_TASK_MAX_LENGTH = 120;
+const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const MEDIA_MODE_MESH = 'mesh';
+const MEDIA_MODE_SFU = 'sfu';
+const DEFAULT_HTTP_PORT = 3000;
+const DEFAULT_HTTPS_PORT = 3443;
+const DEFAULT_MESH_PARTICIPANT_LIMIT = 4;
+const DEFAULT_ICE_SERVERS = [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
+];
+const CREATE_ROOM_RATE = { limit: 6, windowMs: 60 * 1000 };
+const JOIN_ATTEMPT_RATE = { limit: 12, windowMs: 60 * 1000 };
+const ROOM_LOOKUP_RATE = { limit: 12, windowMs: 60 * 1000 };
+const PASSWORD_FAILURE_RATE = { limit: 5, windowMs: 10 * 60 * 1000 };
+const CHAT_RATE = { limit: 20, windowMs: 30 * 1000 };
+const BOARD_RATE = { limit: 40, windowMs: 30 * 1000 };
+const VIDEO_TOKEN_RATE = { limit: 12, windowMs: 60 * 1000 };
+const VIDEO_HEARTBEAT_RATE = { limit: 90, windowMs: 60 * 1000 };
+const VIDEO_SESSION_SWEEP_MS = 60 * 1000;
+const AUTH_SIGNUP_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
+const AUTH_LOGIN_RATE = { limit: 10, windowMs: 15 * 60 * 1000 };
+const AUTH_FAILURE_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
+const PROFILE_MUTATION_RATE = { limit: 20, windowMs: 5 * 60 * 1000 };
+const FOCUS_LOG_RATE = { limit: 30, windowMs: 60 * 60 * 1000 };
+const ADMIN_LOGIN_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
+const METRICS_RATE = { limit: 30, windowMs: 60 * 1000 };
+const REPORT_RATE = { limit: 3, windowMs: 60 * 1000 };
+const REPORT_REASONS = ['spam', 'harassment', 'inappropriate', 'other'];
+const REPORT_DETAIL_MAX_LENGTH = 200;
+const ROOM_REPORTS_LIMIT = 50;
+
+class SlidingWindowRateLimiter {
+    constructor({ limit, windowMs }) {
+        this.limit = limit;
+        this.windowMs = windowMs;
+        this.entries = new Map();
+    }
+
+    prune(key, now = Date.now()) {
+        const timestamps = this.entries.get(key) || [];
+        const active = timestamps.filter((timestamp) => now - timestamp < this.windowMs);
+        if (active.length > 0) {
+            this.entries.set(key, active);
+        } else {
+            this.entries.delete(key);
+        }
+        return active;
+    }
+
+    check(key, now = Date.now()) {
+        if (!key) {
+            return { allowed: true, remaining: this.limit, retryAfterMs: 0 };
+        }
+
+        const active = this.prune(key, now);
+        if (active.length >= this.limit) {
+            const retryAfterMs = Math.max(0, this.windowMs - (now - active[0]));
+            return { allowed: false, remaining: 0, retryAfterMs };
+        }
+
+        return {
+            allowed: true,
+            remaining: Math.max(0, this.limit - active.length),
+            retryAfterMs: 0
+        };
+    }
+
+    consume(key, now = Date.now()) {
+        if (!key) {
+            return { allowed: true, remaining: this.limit, retryAfterMs: 0 };
+        }
+
+        const active = this.prune(key, now);
+        if (active.length >= this.limit) {
+            const retryAfterMs = Math.max(0, this.windowMs - (now - active[0]));
+            return { allowed: false, remaining: 0, retryAfterMs };
+        }
+
+        active.push(now);
+        this.entries.set(key, active);
+        return {
+            allowed: true,
+            remaining: Math.max(0, this.limit - active.length),
+            retryAfterMs: 0
+        };
+    }
+
+    reset(key) {
+        if (!key) return;
+        this.entries.delete(key);
+    }
+}
+
+function normalizeIp(ip = '') {
+    if (typeof ip !== 'string') return 'unknown';
+    const trimmed = ip.trim();
+    if (!trimmed) return 'unknown';
+    return trimmed.startsWith('::ffff:') ? trimmed.slice(7) : trimmed;
+}
+
+function parsePort(value, envName, fallback) {
+    if (value === undefined || value === null || value === '') {
+        return fallback;
+    }
+
+    const port = Number.parseInt(value, 10);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new Error(`${envName} must be an integer between 1 and 65535.`);
+    }
+
+    return port;
+}
+
+function parsePositiveInteger(value, envName, fallback) {
+    if (value === undefined || value === null || value === '') {
+        return fallback;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isInteger(parsed) || parsed < 1) {
+        throw new Error(`${envName} must be a positive integer.`);
+    }
+
+    return parsed;
+}
+
+function parseTrustProxy(value) {
+    if (value === undefined || value === null || value === '') {
+        return false;
+    }
+    if (value === '0' || value === 0) return false;
+    if (value === '1' || value === 1) return true;
+    throw new Error('TRUST_PROXY must be "0" or "1".');
+}
+
+function parseAllowedOrigins(value) {
+    if (value === undefined || value === null || `${value}`.trim() === '') {
+        return [];
+    }
+
+    return `${value}`
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .map((entry) => {
+            let parsed;
+            try {
+                parsed = new URL(entry);
+            } catch (_error) {
+                throw new Error(`ALLOWED_ORIGINS contains an invalid origin: ${entry}`);
+            }
+
+            if (!['http:', 'https:'].includes(parsed.protocol)) {
+                throw new Error(`ALLOWED_ORIGINS must use http or https: ${entry}`);
+            }
+            if (parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== '/') {
+                throw new Error(`ALLOWED_ORIGINS must contain bare origins only: ${entry}`);
+            }
+
+            return parsed.origin;
+        });
+}
+
+function parseSfuBaseUrl(value) {
+    if (value === undefined || value === null || `${value}`.trim() === '') {
+        return '';
+    }
+
+    let parsed;
+    try {
+        parsed = new URL(`${value}`.trim());
+    } catch (_error) {
+        throw new Error('SFU_BASE_URL must be an absolute http(s) URL.');
+    }
+
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('SFU_BASE_URL must use http or https.');
+    }
+    if (parsed.search || parsed.hash) {
+        throw new Error('SFU_BASE_URL must not include query strings or fragments.');
+    }
+
+    return parsed.toString().replace(/\/$/, '');
+}
+
+const ADMIN_PATH_PATTERN = /^\/[a-z0-9][a-z0-9/_-]{7,63}$/i;
+const SESSION_SECRET_MIN_LENGTH = 32;
+const PASSWORD_HASH_PATTERN = /^[0-9a-f]{32}:[0-9a-f]{128}$/i;
+
+function resolveSessionSecret(env, isProduction) {
+    const raw = typeof env.SESSION_SECRET === 'string' ? env.SESSION_SECRET.trim() : '';
+    if (raw) {
+        if (raw.length < SESSION_SECRET_MIN_LENGTH) {
+            throw new Error(`SESSION_SECRET must be at least ${SESSION_SECRET_MIN_LENGTH} characters.`);
+        }
+        return { sessionSecret: raw, sessionSecretEphemeral: false };
+    }
+    if (isProduction) {
+        throw new Error('SESSION_SECRET is required in production (min 32 chars). Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+    }
+    // Dev/test fallback: sessions die on restart, which is fine locally.
+    return { sessionSecret: crypto.randomBytes(32).toString('hex'), sessionSecretEphemeral: true };
+}
+
+function resolveAdminConfig(env) {
+    const rawPath = typeof env.ADMIN_PATH === 'string' ? env.ADMIN_PATH.trim() : '';
+    const rawHash = typeof env.ADMIN_PASSWORD_HASH === 'string' ? env.ADMIN_PASSWORD_HASH.trim() : '';
+    if (!rawPath && !rawHash) {
+        return { enabled: false, path: '', passwordHash: '', partial: false };
+    }
+    if (!rawPath || !rawHash) {
+        // One of the pair set: stay disabled but let the caller warn loudly.
+        return { enabled: false, path: '', passwordHash: '', partial: true };
+    }
+    if (!ADMIN_PATH_PATTERN.test(rawPath)) {
+        throw new Error('ADMIN_PATH must look like /ops-7f3k9qwe2 (8-64 chars of a-z, 0-9, -, _, /).');
+    }
+    if (!PASSWORD_HASH_PATTERN.test(rawHash)) {
+        throw new Error('ADMIN_PASSWORD_HASH must be a salt:hex pair from `npm run admin:hash`.');
+    }
+    return { enabled: true, path: rawPath.replace(/\/$/, ''), passwordHash: rawHash, partial: false };
+}
+
+function resolveBackupConfig(env) {
+    const rawInterval = env.BACKUP_INTERVAL_MINUTES;
+    let intervalMinutes = 0;
+    if (rawInterval !== undefined && rawInterval !== null && `${rawInterval}`.trim() !== '') {
+        intervalMinutes = Number.parseInt(rawInterval, 10);
+        if (!Number.isInteger(intervalMinutes) || (intervalMinutes !== 0 && intervalMinutes < 5)) {
+            throw new Error('BACKUP_INTERVAL_MINUTES must be 0 (off) or an integer >= 5.');
+        }
+    }
+    const retentionCount = parsePositiveInteger(env.BACKUP_RETENTION_COUNT, 'BACKUP_RETENTION_COUNT', 48);
+    return { intervalMinutes, retentionCount };
+}
+
+function ensureWritableFileParent(filePath) {
+    const parentDir = path.dirname(filePath);
+    fs.mkdirSync(parentDir, { recursive: true });
+    const probeFile = path.join(parentDir, `.co-study-write-test-${process.pid}-${Date.now()}`);
+    fs.writeFileSync(probeFile, '', 'utf8');
+    fs.rmSync(probeFile, { force: true });
+}
+
+function cloneIceServerList(iceServers = []) {
+    return iceServers.map((serverEntry) => ({
+        ...serverEntry,
+        urls: Array.isArray(serverEntry.urls) ? [...serverEntry.urls] : serverEntry.urls
+    }));
+}
+
+function sanitizeIceServerEntry(entry) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+
+    let urls = [];
+    if (typeof entry.urls === 'string') {
+        const trimmedUrl = entry.urls.trim();
+        if (trimmedUrl) urls = [trimmedUrl];
+    } else if (Array.isArray(entry.urls)) {
+        urls = entry.urls
+            .filter((value) => typeof value === 'string')
+            .map((value) => value.trim())
+            .filter(Boolean);
+    }
+
+    if (!urls.length) return null;
+
+    const sanitized = { urls: entry.urls && !Array.isArray(entry.urls) && urls.length === 1 ? urls[0] : urls };
+    if (typeof entry.username === 'string' && entry.username.trim()) {
+        sanitized.username = entry.username.trim();
+    }
+    if (typeof entry.credential === 'string' && entry.credential.trim()) {
+        sanitized.credential = entry.credential.trim();
+    }
+    if (typeof entry.credentialType === 'string' && entry.credentialType.trim()) {
+        sanitized.credentialType = entry.credentialType.trim();
+    }
+
+    return sanitized;
+}
+
+function resolveRuntimeIceServers(rawValue) {
+    if (!rawValue) {
+        return {
+            iceServers: cloneIceServerList(DEFAULT_ICE_SERVERS),
+            source: 'default'
+        };
+    }
+
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!Array.isArray(parsed)) {
+            console.warn('ICE_SERVERS_JSON must be a JSON array. Falling back to default STUN servers.');
+            return {
+                iceServers: cloneIceServerList(DEFAULT_ICE_SERVERS),
+                source: 'default'
+            };
+        }
+
+        const sanitized = parsed.map(sanitizeIceServerEntry).filter(Boolean);
+        if (!sanitized.length) {
+            return {
+                iceServers: cloneIceServerList(DEFAULT_ICE_SERVERS),
+                source: 'default'
+            };
+        }
+
+        return {
+            iceServers: cloneIceServerList(sanitized),
+            source: 'custom'
+        };
+    } catch (err) {
+        console.warn('Failed to parse ICE_SERVERS_JSON. Falling back to default STUN servers.', err.message);
+        return {
+            iceServers: cloneIceServerList(DEFAULT_ICE_SERVERS),
+            source: 'default'
+        };
+    }
+}
+
+function resolveSupabaseConfig(env) {
+    const url = typeof env.SUPABASE_URL === 'string' ? env.SUPABASE_URL.trim().replace(/\/+$/, '') : '';
+    const serviceKey = typeof env.SUPABASE_SERVICE_ROLE_KEY === 'string' ? env.SUPABASE_SERVICE_ROLE_KEY.trim() : '';
+    return { enabled: !!(url && serviceKey), url, serviceKey };
+}
+
+function resolveGoogleConfig(env, allowedOrigins) {
+    const clientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
+    const clientSecret = typeof env.GOOGLE_CLIENT_SECRET === 'string' ? env.GOOGLE_CLIENT_SECRET.trim() : '';
+    const explicitRedirect = typeof env.GOOGLE_REDIRECT_URI === 'string' ? env.GOOGLE_REDIRECT_URI.trim() : '';
+    const fallbackBase = Array.isArray(allowedOrigins) && allowedOrigins[0] ? allowedOrigins[0] : '';
+    const redirectUri = explicitRedirect || (fallbackBase ? `${fallbackBase}/auth/google/callback` : '');
+    return { enabled: !!(clientId && clientSecret && redirectUri), clientId, clientSecret, redirectUri };
+}
+
+function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
+    const portEnvName = mode === 'https' ? 'HTTPS_PORT' : 'PORT';
+    const defaultPort = mode === 'https' ? DEFAULT_HTTPS_PORT : DEFAULT_HTTP_PORT;
+    const roomStateFile = path.resolve(env.ROOM_STATE_FILE || path.join(__dirname, 'data', 'rooms.json'));
+    const userStateFile = path.resolve(env.USER_STATE_FILE || path.join(__dirname, 'data', 'users.json'));
+    const roomStateBackupDir = path.resolve(env.ROOM_STATE_BACKUP_DIR || path.join(__dirname, 'data', 'backups'));
+    const isProduction = env.NODE_ENV === 'production';
+    const { sessionSecret, sessionSecretEphemeral } = resolveSessionSecret(env, isProduction);
+    const admin = resolveAdminConfig(env);
+    const backup = resolveBackupConfig(env);
+    const runtimeIce = resolveRuntimeIceServers(env.ICE_SERVERS_JSON);
+    const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS);
+    const trustProxy = parseTrustProxy(env.TRUST_PROXY);
+    const sfuBaseUrl = parseSfuBaseUrl(env.SFU_BASE_URL);
+    const supabase = resolveSupabaseConfig(env);
+    const google = resolveGoogleConfig(env, allowedOrigins);
+    const video = resolveVideoConfig(env);
+    const meshParticipantLimit = parsePositiveInteger(
+        env.MESH_PARTICIPANT_LIMIT,
+        'MESH_PARTICIPANT_LIMIT',
+        DEFAULT_MESH_PARTICIPANT_LIMIT
+    );
+    const port = parsePort(env[portEnvName], portEnvName, defaultPort);
+
+    ensureWritableFileParent(roomStateFile);
+    ensureWritableFileParent(userStateFile);
+    fs.mkdirSync(roomStateBackupDir, { recursive: true });
+
+    return {
+        mode,
+        port,
+        trustProxy,
+        allowedOrigins,
+        roomStateFile,
+        userStateFile,
+        roomStateBackupDir,
+        sessionSecret,
+        sessionSecretEphemeral,
+        admin,
+        backup,
+        sfuBaseUrl,
+        sfuAvailable: !!sfuBaseUrl,
+        supportedMediaModes: sfuBaseUrl ? [MEDIA_MODE_MESH, MEDIA_MODE_SFU] : [MEDIA_MODE_MESH],
+        meshParticipantLimit,
+        runtimeIceServers: runtimeIce.iceServers,
+        iceMode: runtimeIce.source,
+        supabase,
+        google,
+        video
+    };
+}
+
+function normalizeRoom(roomId = '') {
+    return roomId.trim().toUpperCase();
+}
+
+function normalizeMediaMode(raw) {
+    if (typeof raw !== 'string') {
+        return MEDIA_MODE_MESH;
+    }
+    const normalized = raw.trim().toLowerCase();
+    return normalized === MEDIA_MODE_SFU ? MEDIA_MODE_SFU : MEDIA_MODE_MESH;
+}
+
+function isValidRequestedMediaMode(raw) {
+    if (raw === undefined) {
+        return true;
+    }
+    if (typeof raw !== 'string') {
+        return false;
+    }
+    return raw === MEDIA_MODE_MESH || raw === MEDIA_MODE_SFU;
+}
+
+function sanitizeRoomName(raw = '') {
+    if (typeof raw !== 'string') return '';
+    return raw.trim().slice(0, ROOM_NAME_MAX_LENGTH);
+}
+
+function sanitizeRoomPassword(raw = '') {
+    if (typeof raw !== 'string') return '';
+    return raw.trim().slice(0, ROOM_PASSWORD_MAX_LENGTH);
+}
+
+// Controls, zero-width chars, and bidi overrides enable invisible names and
+// RTL/LTR spoofing — a real vector in a bilingual chat. ZWNJ/ZWJ (U+200C/D)
+// stay: Arabic shaping and composite emoji need them.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control chars deliberately to strip them at the trust boundary
+const INVISIBLE_TEXT_PATTERN = /[\u0000-\u001F\u007F-\u009F\u200B\u200E\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+
+function sanitizeUserText(raw, maxLength) {
+    if (typeof raw !== 'string') return '';
+    const visible = raw.replace(INVISIBLE_TEXT_PATTERN, '').trim();
+    // Truncate by code points so an emoji straddling the cap is dropped
+    // whole instead of leaving a lone surrogate in persisted state.
+    return Array.from(visible).slice(0, maxLength).join('');
+}
+
+function sanitizeNickname(raw = '') {
+    return sanitizeUserText(raw, NICKNAME_MAX_LENGTH);
+}
+
+function sanitizeChatMessage(raw = '') {
+    return sanitizeUserText(raw, CHAT_MESSAGE_MAX_LENGTH);
+}
+
+function sanitizeBoardGoal(raw = '') {
+    if (typeof raw !== 'string') return '';
+    return raw.trim().slice(0, BOARD_GOAL_MAX_LENGTH);
+}
+
+function sanitizeBoardTaskText(raw = '') {
+    if (typeof raw !== 'string') return '';
+    return raw.trim().slice(0, BOARD_TASK_MAX_LENGTH);
+}
+
+function normalizeBoardPriority(raw) {
+    const numeric = Number.parseInt(raw, 10);
+    if (numeric === 1 || numeric === 2 || numeric === 3) {
+        return numeric;
+    }
+    return 2;
+}
+
+function normalizeBoardTask(raw = {}) {
+    const text = sanitizeBoardTaskText(raw.text);
+    if (!text) return null;
+    return {
+        id: typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : crypto.randomUUID(),
+        text,
+        priority: normalizeBoardPriority(raw.priority),
+        done: !!raw.done
+    };
+}
+
+function ensureRoomBoard(room) {
+    if (!room || typeof room !== 'object') {
+        return { goal: '', tasks: [] };
+    }
+    if (!room.board || typeof room.board !== 'object' || Array.isArray(room.board)) {
+        room.board = { goal: '', tasks: [] };
+    }
+    room.board.goal = sanitizeBoardGoal(room.board.goal);
+    if (!Array.isArray(room.board.tasks)) {
+        room.board.tasks = [];
+    }
+    room.board.tasks = room.board.tasks.map(normalizeBoardTask).filter(Boolean);
+    return room.board;
+}
+
+function cloneBoard(board = {}) {
+    const room = { board };
+    const safeBoard = ensureRoomBoard(room);
+    return {
+        goal: safeBoard.goal,
+        tasks: safeBoard.tasks.map((task) => ({
+            id: task.id,
+            text: task.text,
+            priority: task.priority,
+            done: !!task.done
+        }))
+    };
+}
+
+function generateRoomCode(rooms, length = ROOM_CODE_LENGTH) {
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+        let code = '';
+        for (let index = 0; index < length; index += 1) {
+            code += ROOM_CODE_ALPHABET[Math.floor(Math.random() * ROOM_CODE_ALPHABET.length)];
+        }
+        const normalized = normalizeRoom(code);
+        if (normalized && !rooms.has(normalized)) {
+            return normalized;
+        }
+    }
+    return crypto.randomUUID().replace(/[^A-Z0-9]/gi, '').slice(0, length).toUpperCase();
+}
+
+function buildIdentityKey(roomId, sessionId, clientId) {
+    if (!roomId) return null;
+    return `${roomId}:${sessionId || ''}:${clientId || ''}`;
+}
+
+function appendSetCookie(res, cookie) {
+    const existing = res.getHeader('Set-Cookie');
+    if (!existing) {
+        res.setHeader('Set-Cookie', cookie);
+    } else if (Array.isArray(existing)) {
+        res.setHeader('Set-Cookie', [...existing, cookie]);
+    } else {
+        res.setHeader('Set-Cookie', [existing, cookie]);
+    }
+}
+
+function parseCookies(cookieHeader = '') {
+    return cookieHeader.split(';').reduce((acc, part) => {
+        if (!part) return acc;
+        const [rawKey, ...rawValue] = part.split('=');
+        if (!rawKey) return acc;
+        const key = rawKey.trim();
+        if (!key) return acc;
+        const value = rawValue.join('=').trim();
+        try {
+            acc[key] = value ? decodeURIComponent(value) : '';
+        } catch (_err) {
+            acc[key] = value;
+        }
+        return acc;
+    }, {});
+}
+
+function normalizeClientId(raw = '') {
+    if (typeof raw !== 'string') return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    return trimmed.slice(0, CLIENT_ID_MAX_LENGTH);
+}
+
+function isSameIdentity(record = {}, sessionId, clientId) {
+    if (!record) return false;
+    if (sessionId && record.sessionId && record.sessionId === sessionId) return true;
+    if (clientId && record.clientId && record.clientId === clientId) return true;
+    return false;
+}
+
+/** @param {Record<string, any>} input */
+function sanitizeStatus(input = {}) {
+    if (!input || typeof input !== 'object') {
+        return { text: '', goal: '', visible: false, updatedAt: Date.now() };
+    }
+    const visible = input.visible !== false;
+    const safeText = typeof input.text === 'string' ? input.text.slice(0, 80) : '';
+    return {
+        text: visible ? safeText : '',
+        // Session goal rides on status: same 80-char cap as the board goal,
+        // stripped at the trust boundary, hidden when status is hidden.
+        goal: visible ? sanitizeUserText(input.goal, 80) : '',
+        visible,
+        manual: typeof input.manual === 'string' ? input.manual.slice(0, 40) : '',
+        manualPreset: typeof input.manualPreset === 'string' ? input.manualPreset : null,
+        autoSync: !!input.autoSync,
+        ambientType: typeof input.ambientType === 'string' ? input.ambientType.slice(0, 20) : null,
+        timerMode: input.timerMode === 'break' ? 'break' : (input.timerMode === 'focus' ? 'focus' : null),
+        updatedAt: typeof input.updatedAt === 'number' ? input.updatedAt : Date.now()
+    };
+}
+
+function createSystemMessage(text, username = '', action = '') {
+    return {
+        id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        author: 'system',
+        text,
+        username,
+        action,
+        timestamp: Date.now(),
+        type: 'system'
+    };
+}
+
+function normalizeOrigin(origin) {
+    if (!origin || typeof origin !== 'string') return null;
+    try {
+        return new URL(origin).origin;
+    } catch (_error) {
+        return null;
+    }
+}
+
+function getExpectedOrigin(headers = {}, mode = 'http', trustProxy = false) {
+    const host = headers.host;
+    if (!host) return null;
+    const forwardedProto = trustProxy && typeof headers['x-forwarded-proto'] === 'string'
+        ? headers['x-forwarded-proto'].split(',')[0].trim()
+        : '';
+    const protocol = forwardedProto || mode;
+    return `${protocol}://${host}`;
+}
+
+/**
+ * @param {{ sfuOrigin?: string, videoConfig?: Record<string, any> }} [options]
+ */
+function buildContentSecurityPolicy({ sfuOrigin = '', videoConfig = {} } = {}) {
+    const usesRealtimeKit = videoConfig.provider === VIDEO_PROVIDER_REALTIMEKIT;
+    const scriptSrc = ["script-src 'self' 'unsafe-inline'"];
+    const connectSrc = ["connect-src 'self'"];
+    const mediaSrc = ["media-src 'self' blob: mediastream:"];
+
+    if (usesRealtimeKit) {
+        scriptSrc.push('https://cdn.jsdelivr.net');
+        connectSrc.push(
+            'https://*.cloudflare.com',
+            'wss://*.cloudflare.com',
+            'https://*.cloudflarestream.com',
+            'wss://*.cloudflarestream.com'
+        );
+    }
+
+    return [
+        "default-src 'self'",
+        scriptSrc.join(' '),
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: blob:",
+        mediaSrc.join(' '),
+        connectSrc.join(' '),
+        sfuOrigin ? `frame-src 'self' ${sfuOrigin}` : "frame-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'self'"
+    ].join('; ');
+}
+
+/**
+ * @param {{ sfuOrigin?: string, videoConfig?: Record<string, any> }} [options]
+ */
+function buildPermissionsPolicy({ sfuOrigin = '', videoConfig = {} } = {}) {
+    // The SFU iframe is cross-origin; camera/mic/display-capture delegation
+    // through its allow="" attribute only works if the embedding document's
+    // policy allow-lists that origin too.
+    const allowList = sfuOrigin ? `(self "${sfuOrigin}")` : '(self)';
+    const displayCapture = videoConfig.screenshareEnabled ? allowList : '()';
+    return `camera=${allowList}, microphone=${allowList}, display-capture=${displayCapture}`;
+}
+
+function isOriginAllowed({ origin, expectedOrigin, allowedOrigins }) {
+    if (!origin) return true;
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (!normalizedOrigin) return false;
+    if (allowedOrigins.length > 0) {
+        return allowedOrigins.includes(normalizedOrigin);
+    }
+    if (!expectedOrigin) {
+        return false;
+    }
+    return normalizedOrigin === expectedOrigin;
+}
+
+function getSocketRequestIp(request, trustProxy) {
+    if (trustProxy) {
+        const forwardedFor = request.headers['x-forwarded-for'];
+        if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+            return normalizeIp(forwardedFor.split(',')[0]);
+        }
+    }
+    return normalizeIp(request.socket?.remoteAddress);
+}
+
+function createCoStudyServer(options = {}) {
+    const startedAt = Date.now();
+    const { env = process.env, mode = 'http', createServer } = options;
+    const config = resolveServerConfig({ env, mode });
+    const errorBuffer = createErrorBuffer({ capacity: 200 });
+    let operationalAlerts = null;
+    const earlyOperationalEvents = [];
+    const logger = createLogger({ service: 'halastudy' }, {
+        onEntry: errorBuffer.push,
+        onEvent: (entry) => {
+            if (operationalAlerts) operationalAlerts.observe(entry);
+            else if (earlyOperationalEvents.length < 100) earlyOperationalEvents.push(entry);
+        }
+    });
+    // Admin-toggleable runtime overrides. In-memory by design: a restart
+    // falls back to the env-configured defaults (fail-safe).
+    const runtimeFlags = { videoJoinDisabled: null };
+    const isVideoJoinDisabled = () => runtimeFlags.videoJoinDisabled ?? !!config.video.joinDisabled;
+    // Site-wide announcement banner (admin broadcast). Lazy-expired on read.
+    const announcementState = { current: null };
+    function getActiveAnnouncement(now = Date.now()) {
+        const current = announcementState.current;
+        if (!current) return null;
+        if (current.expiresAt && current.expiresAt <= now) {
+            announcementState.current = null;
+            return null;
+        }
+        return current;
+    }
+    const sfuOrigin = config.sfuAvailable ? new URL(config.sfuBaseUrl).origin : '';
+    const contentSecurityPolicy = buildContentSecurityPolicy({ sfuOrigin, videoConfig: config.video });
+    const permissionsPolicy = buildPermissionsPolicy({ sfuOrigin, videoConfig: config.video });
+    const pendingLeaveTimers = new Map();
+    const skippedDisconnects = new Set();
+    const rooms = new Map();
+    const meetingCreationLocks = new Map();
+    const rateLimiters = {
+        createRoom: new SlidingWindowRateLimiter(CREATE_ROOM_RATE),
+        joinRoom: new SlidingWindowRateLimiter(JOIN_ATTEMPT_RATE),
+        roomLookup: new SlidingWindowRateLimiter(ROOM_LOOKUP_RATE),
+        passwordFailures: new SlidingWindowRateLimiter(PASSWORD_FAILURE_RATE),
+        chatMessages: new SlidingWindowRateLimiter(CHAT_RATE),
+        boardMutations: new SlidingWindowRateLimiter(BOARD_RATE),
+        videoToken: new SlidingWindowRateLimiter(VIDEO_TOKEN_RATE),
+        videoHeartbeat: new SlidingWindowRateLimiter(VIDEO_HEARTBEAT_RATE),
+        authSignup: new SlidingWindowRateLimiter(AUTH_SIGNUP_RATE),
+        authLogin: new SlidingWindowRateLimiter(AUTH_LOGIN_RATE),
+        authFailure: new SlidingWindowRateLimiter(AUTH_FAILURE_RATE),
+        profileMutation: new SlidingWindowRateLimiter(PROFILE_MUTATION_RATE),
+        platformMutation: new SlidingWindowRateLimiter({ limit: 120, windowMs: 60000 }),
+        focusLog: new SlidingWindowRateLimiter(FOCUS_LOG_RATE),
+        adminLogin: new SlidingWindowRateLimiter(ADMIN_LOGIN_RATE),
+        metrics: new SlidingWindowRateLimiter(METRICS_RATE),
+        reports: new SlidingWindowRateLimiter(REPORT_RATE),
+        recoveryIp: new SlidingWindowRateLimiter({ limit: 10, windowMs: 600000 }),
+        recoveryAccount: new SlidingWindowRateLimiter({ limit: 3, windowMs: 600000 }),
+        recoveryComplete: new SlidingWindowRateLimiter({ limit: 20, windowMs: 600000 })
+    };
+    const videoProvider = createVideoProvider({ config: config.video, logger });
+    const videoSessionRegistry = createVideoSessionRegistry({ logger });
+    const videoMintLocks = new Set();
+    config.video.warnings.forEach((message) => {
+        logger.warn({
+            event: 'video_config_warning',
+            message
+        });
+    });
+    if (config.sessionSecretEphemeral) {
+        logger.warn({
+            event: 'session_secret_ephemeral',
+            message: 'SESSION_SECRET is not set — using an ephemeral secret; all sessions reset on restart.'
+        });
+    }
+    if (config.admin.partial) {
+        logger.warn({
+            event: 'admin_config_partial',
+            message: 'Only one of ADMIN_PATH / ADMIN_PASSWORD_HASH is set — admin portal stays disabled.'
+        });
+    }
+    const readinessState = {
+        config: true,
+        roomStore: false,
+        userStore: false,
+        socket: false
+    };
+
+    const app = express();
+    app.disable('x-powered-by');
+    app.set('trust proxy', config.trustProxy ? 1 : false);
+
+    const server = typeof createServer === 'function'
+        ? createServer(app)
+        : (() => {
+            throw new Error('createCoStudyServer requires a createServer(app) function.');
+        })();
+
+    const io = new Server(server, {
+        cors: {
+            origin(origin, callback) {
+                const normalizedOrigin = normalizeOrigin(origin);
+                const allowed = !origin
+                    || !config.allowedOrigins.length
+                    || !!(normalizedOrigin && config.allowedOrigins.includes(normalizedOrigin));
+                callback(null, allowed);
+            },
+            credentials: true
+        },
+        allowRequest: (req, callback) => {
+            const allowed = isOriginAllowed({
+                origin: req.headers.origin,
+                expectedOrigin: getExpectedOrigin(req.headers, config.mode, config.trustProxy),
+                allowedOrigins: config.allowedOrigins
+            });
+            callback(null, allowed);
+        }
+    });
+    readinessState.socket = true;
+
+    const platform = createPlatform({ userStateFile: config.userStateFile, secret: config.sessionSecret, logger, env });
+    const videoRevocations = createVideoRevocations({
+        file: `${config.roomStateFile}.video-grants.json`, provider: videoProvider, logger, start: platform.ready
+    });
+    operationalAlerts = createOperationalAlerts({
+        file: `${config.userStateFile}.alerts.json`, env, start: platform.ready
+    });
+    earlyOperationalEvents.forEach(operationalAlerts.observe);
+    earlyOperationalEvents.length = 0;
+    /** @type {any} */
+    let roomStore = createRoomStore({
+        filePath: config.roomStateFile,
+        roomHistoryLimit: ROOM_HISTORY_LIMIT,
+        normalizeRoom,
+        normalizeMediaMode,
+        normalizeVideoProvider,
+        buildVideoPolicy,
+        sanitizeRoomName,
+        sanitizeBoardGoal,
+        sanitizeBoardTaskText,
+        normalizeBoardPriority
+    });
+    if (platform.enabled) {
+        roomStore = createRecordStore({ platform, kind: 'rooms', legacyStore: roomStore, sanitize: roomStore.sanitizeRoom, logger });
+    }
+
+    // Persistence backend: Supabase profiles table when configured (accounts +
+    // dashboards), otherwise the local users.json file store (dev default).
+    let supabaseClient = null;
+    let userStore;
+    if (config.supabase.enabled) {
+        supabaseClient = createSupabaseClient({
+            url: config.supabase.url,
+            serviceKey: config.supabase.serviceKey
+        });
+        userStore = createSupabaseUserStore({ client: supabaseClient, logger });
+        logger.info({ event: 'user_store_backend', backend: 'supabase' });
+    } else {
+        userStore = createUserStore({ filePath: config.userStateFile, logger });
+        if (platform.enabled) {
+            userStore = createRecordStore({ platform, kind: 'accounts', legacyStore: userStore, sanitize: sanitizeUser, logger });
+        }
+        logger.info({ event: 'user_store_backend', backend: 'file' });
+    }
+
+    const backupScheduler = createBackupScheduler({
+        intervalMinutes: config.backup.intervalMinutes,
+        retentionCount: config.backup.retentionCount,
+        backupDir: config.roomStateBackupDir,
+        targets: [
+            ...(!roomStore.isPlatform ? [{ label: 'rooms', filePath: config.roomStateFile }] : []),
+            // Skip the users.json backup target when Supabase owns accounts —
+            // the file is never written in that mode.
+            ...(config.supabase.enabled || userStore.isPlatform ? [] : [{ label: 'users', filePath: config.userStateFile }])
+        ],
+        extraBackup: platform.enabled ? async (destination) => {
+            await platform.ready;
+            await Promise.all([roomStore.flush(rooms), userStore.flush(users)]);
+            return backupDatabase(platform.db, destination);
+        } : null,
+        logger
+    });
+    /** @type {Map<string, any>} userId -> user record */
+    const users = new Map();
+    /** @type {Map<string, string>} normalized email -> userId */
+    const usersByEmail = new Map();
+
+    function persistUsersSoon() {
+        return userStore.scheduleSave(users);
+    }
+
+    function loadPersistedUsers() {
+        // Supabase load is async (network); the file store is sync (disk). For
+        // Supabase we hydrate in the background and flip readiness when done —
+        // /api/ready stays not-ready until then, so the boot path never blocks.
+        if (typeof userStore.hydrate === 'function') {
+            userStore.hydrate()
+                .then((persistedUsers) => {
+                    for (const user of persistedUsers) {
+                        if (users.has(user.id)) continue; // don't clobber a signup that raced boot
+                        users.set(user.id, user);
+                        usersByEmail.set(user.email, user.id);
+                    }
+                    readinessState.userStore = true;
+                    logger.info({ event: 'user_store_hydrated', backend: 'supabase', count: persistedUsers.length });
+                })
+                .catch((error) => {
+                    logger.error({ event: 'user_store_hydrate_failed', error: error?.message });
+                });
+            return 0;
+        }
+        const persistedUsers = userStore.loadUsers({ strict: true });
+        persistedUsers.forEach((user) => {
+            users.set(user.id, user);
+            usersByEmail.set(user.email, user.id);
+        });
+        readinessState.userStore = true;
+        return persistedUsers.length;
+    }
+
+    /** Public projection — never expose passwordHash/tokenEpoch. */
+    function publicUser(user) {
+        return {
+            id: user.id,
+            email: user.email,
+            displayName: user.displayName,
+            avatarColor: user.avatarColor,
+            bio: user.bio,
+            createdAt: user.createdAt,
+            authProvider: user.authProvider || 'password',
+            emailVerified: !!user.emailVerifiedAt || (user.authProvider === 'google' && !!user.googleSub),
+            streak: { ...user.streak }
+        };
+    }
+
+    function setAuthCookie(req, res, user) {
+        const token = createSessionToken({
+            userId: user.id,
+            tokenEpoch: user.tokenEpoch,
+            secret: config.sessionSecret
+        });
+        const cookieParts = [
+            `${AUTH_COOKIE_NAME}=${token}`,
+            'Path=/',
+            'HttpOnly',
+            'SameSite=Lax',
+            `Max-Age=${SESSION_COOKIE_MAX_AGE}`
+        ];
+        if (req.secure) {
+            cookieParts.push('Secure');
+        }
+        appendSetCookie(res, cookieParts.join('; '));
+    }
+
+    function clearAuthCookie(req, res) {
+        const cookieParts = [
+            `${AUTH_COOKIE_NAME}=`,
+            'Path=/',
+            'HttpOnly',
+            'SameSite=Lax',
+            'Max-Age=0'
+        ];
+        if (req.secure) {
+            cookieParts.push('Secure');
+        }
+        appendSetCookie(res, cookieParts.join('; '));
+    }
+
+    /** Resolves a verified, live (not banned, epoch-current) user from an
+     *  auth token string, or null. Shared by HTTP middleware and sockets. */
+    function resolveUserFromToken(token) {
+        const verified = verifySessionToken(token, {
+            secret: config.sessionSecret,
+            maxAgeMs: AUTH_COOKIE_MAX_AGE_MS
+        });
+        if (!verified || verified.userId === ADMIN_USER_ID) return null;
+        const user = users.get(verified.userId);
+        if (!user || user.banned || user.tokenEpoch !== verified.tokenEpoch) return null;
+        return user;
+    }
+
+    function attachUser(req, _res, next) {
+        const cookies = parseCookies(req.headers.cookie || '');
+        const user = resolveUserFromToken(cookies[AUTH_COOKIE_NAME]);
+        if (user) {
+            req.user = user;
+            req.userId = user.id;
+        }
+        next();
+    }
+
+    function requireUser(req, res, next) {
+        if (!req.user) {
+            res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+            return;
+        }
+        next();
+    }
+
+    function disconnectUser(userId) {
+        for (const socket of io.sockets.sockets.values()) {
+            if (socket.data.userId === userId) socket.disconnect(true);
+        }
+    }
+
+    function getDefaultRoomVideoPolicy(policy = {}) {
+        const basePolicy = buildVideoPolicy(config.video);
+        return {
+            maxParticipants: Number.isInteger(policy.maxParticipants) && policy.maxParticipants > 0
+                ? Math.min(policy.maxParticipants, config.video.maxRoomParticipants)
+                : config.video.maxRoomParticipants,
+            recordingEnabled: false,
+            screenshareEnabled: !!basePolicy.screenshareEnabled,
+            micDefaultEnabled: false,
+            chatEnabled: !!basePolicy.chatEnabled
+        };
+    }
+
+    function getClientVideoPolicy(room) {
+        const roomPolicy = getDefaultRoomVideoPolicy(room?.videoPolicy);
+        return {
+            micDefaultEnabled: false,
+            recordingEnabled: false,
+            screenshareEnabled: !!roomPolicy.screenshareEnabled,
+            chatEnabled: !!roomPolicy.chatEnabled,
+            maxRoomParticipants: isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT : roomPolicy.maxParticipants,
+            maxGlobalParticipants: config.video.maxGlobalParticipants,
+            maxRoomDurationMinutes: config.video.maxRoomDurationMinutes
+        };
+    }
+
+    function getRoomVideoProvider(room) {
+        try {
+            return normalizeVideoProvider(room?.videoProvider || config.video.provider);
+        } catch (_error) {
+            return config.video.provider;
+        }
+    }
+
+    function applyRoomVideoDefaults(room) {
+        if (!room) return room;
+        room.videoProvider = getRoomVideoProvider(room);
+        room.videoProviderMeetingId = typeof room.videoProviderMeetingId === 'string' && room.videoProviderMeetingId.trim()
+            ? room.videoProviderMeetingId.trim()
+            : null;
+        room.videoProviderMeetingCreatedAt = Number.isFinite(room.videoProviderMeetingCreatedAt)
+            ? room.videoProviderMeetingCreatedAt
+            : null;
+        room.videoProviderStatus = ['active', 'closed', 'error'].includes(room.videoProviderStatus)
+            ? room.videoProviderStatus
+            : (room.videoProviderMeetingId ? 'active' : null);
+        room.videoPolicy = getDefaultRoomVideoPolicy(room.videoPolicy);
+        return room;
+    }
+
+    function buildVideoCapacityPayload(roomId) {
+        const normalizedRoom = normalizeRoom(roomId);
+        return {
+            roomId: normalizedRoom,
+            activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom),
+            activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+            maxRoomVideoParticipants: config.video.maxRoomParticipants,
+            maxGlobalVideoParticipants: config.video.maxGlobalParticipants
+        };
+    }
+
+    function emitVideoCapacity(roomId) {
+        io.to(roomId).emit('video-capacity-updated', buildVideoCapacityPayload(roomId));
+    }
+
+    function emitVideoSessionEnded(session) {
+        if (!session?.roomId) return;
+        void videoRevocations.revokeWhere((row) => row.socketId === session.socketId && row.roomId === session.roomId).catch(() => {});
+        io.to(session.roomId).emit('video-session-ended', {
+            roomId: session.roomId,
+            userId: session.userId,
+            clientSessionId: session.clientSessionId,
+            reason: session.leaveReason || 'left'
+        });
+        emitVideoCapacity(session.roomId);
+    }
+
+    function emitEndedVideoSessions(sessions = []) {
+        sessions.forEach(emitVideoSessionEnded);
+    }
+
+    function roomSnapshot(roomId) {
+        const normalized = normalizeRoom(roomId);
+        const room = rooms.get(normalized);
+        if (!room) {
+            return {
+                roomId: normalized,
+                name: normalized,
+                requirePassword: false,
+                mediaMode: MEDIA_MODE_MESH,
+                videoProvider: config.video.provider,
+                videoPolicy: getClientVideoPolicy(null),
+                activeVideoParticipantCount: 0,
+                maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
+                participantCount: 0,
+                participantLimit: config.meshParticipantLimit,
+                participants: [],
+                messages: [],
+                board: { goal: '', tasks: [] },
+                schedule: null
+            };
+        }
+        const scheduleChanged = syncRoomSchedule(room);
+        if (scheduleChanged) {
+            persistRoomsSoon();
+        }
+        applyRoomVideoDefaults(room);
+        const board = cloneBoard(ensureRoomBoard(room));
+        return {
+            roomId: normalized,
+            name: room.name || normalized,
+            isLobby: isLobbyRoom(room),
+            requirePassword: !!room.requirePassword,
+            mediaMode: normalizeMediaMode(room.mediaMode),
+            videoProvider: getRoomVideoProvider(room),
+            videoProviderStatus: room.videoProviderStatus || null,
+            videoPolicy: getClientVideoPolicy(room),
+            activeVideoParticipantCount: videoSessionRegistry.countActiveRoomVideoParticipants(normalized),
+            maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
+            participantCount: room.users.size,
+            participantLimit: isLobbyRoom(room)
+                ? LOBBY_PARTICIPANT_LIMIT
+                : (normalizeMediaMode(room.mediaMode) === MEDIA_MODE_MESH ? config.meshParticipantLimit : null),
+            participants: Array.from(room.users.values()).map((user) => ({
+                id: user.socketId,
+                name: user.name,
+                joinedAt: user.joinedAt,
+                cameraOn: !!user.cameraOn,
+                status: user.status || null,
+                avatarColor: user.avatarColor || null,
+                streakCurrent: Number.isInteger(user.streakCurrent) ? user.streakCurrent : null
+            })),
+            messages: room.messages,
+            board,
+            schedule: buildScheduleSummary(room.schedule)
+        };
+    }
+
+    // Safe pre-join view for a protected room. The public GET /api/rooms/:roomId
+    // endpoint must never leak protected-room internals (messages, board,
+    // participant details, schedule/private metadata, video provider/session
+    // state) to an unauthenticated reader. Full state is delivered only through
+    // the password-gated socket join-room flow. Fail closed.
+    function roomPreview(normalizedRoomId, room) {
+        return {
+            ok: true,
+            room: {
+                roomId: normalizedRoomId,
+                name: room.name || normalizedRoomId,
+                protected: true,
+                status: 'active',
+                participantCount: room.users.size,
+                requiresPassword: !!room.requirePassword,
+                requiresMembership: !!room.cohortId
+            }
+        };
+    }
+
+    function emitBoardState(roomId, room) {
+        io.to(roomId).emit('board-state', cloneBoard(ensureRoomBoard(room)));
+    }
+
+    function buildRuntimeRoom(room = {}) {
+        const schedule = normalizeSchedule(room.schedule, {
+            titleFallback: sanitizeRoomName(room.name || room.id || '') || normalizeRoom(room.id || room.roomId || room.code || ''),
+            strict: false
+        });
+        return applyRoomVideoDefaults({
+            id: normalizeRoom(room.id || room.roomId || room.code || ''),
+            name: sanitizeRoomName(room.name || room.id || '') || normalizeRoom(room.id || room.roomId || room.code || ''),
+            requirePassword: !!room.requirePassword,
+            passwordHash: room.passwordHash || null,
+            ownerUserId: typeof room.ownerUserId === 'string' ? room.ownerUserId : null,
+            cohortId: typeof room.cohortId === 'string' ? room.cohortId : null,
+            mediaMode: normalizeMediaMode(room.mediaMode),
+            videoProvider: room.videoProvider || config.video.provider,
+            videoProviderMeetingId: typeof room.videoProviderMeetingId === 'string' ? room.videoProviderMeetingId : null,
+            videoProviderMeetingCreatedAt: Number.isFinite(room.videoProviderMeetingCreatedAt) ? room.videoProviderMeetingCreatedAt : null,
+            videoProviderStatus: typeof room.videoProviderStatus === 'string' ? room.videoProviderStatus : null,
+            videoPolicy: room.videoPolicy,
+            createdAt: typeof room.createdAt === 'number' ? room.createdAt : Date.now(),
+            users: new Map(),
+            messages: Array.isArray(room.messages) ? room.messages.map((message) => ({ ...message })) : [],
+            board: cloneBoard(room.board),
+            reports: Array.isArray(room.reports) ? room.reports.map((report) => ({ ...report })) : [],
+            schedule,
+            identities: new Map(),
+            cleanupTimer: null
+        });
+    }
+
+    function getRoomMediaMode(room) {
+        return normalizeMediaMode(room?.mediaMode);
+    }
+
+    function roomHasSchedule(room) {
+        return !!(room?.schedule);
+    }
+
+    function isLobbyRoom(room) {
+        return !!room && room.id === LOBBY_ROOM_CODE;
+    }
+
+    function roomUsesMesh(room) {
+        return getRoomMediaMode(room) === MEDIA_MODE_MESH;
+    }
+
+    function roomUsesSfu(room) {
+        return getRoomMediaMode(room) === MEDIA_MODE_SFU;
+    }
+
+    function persistRoomsSoon() {
+        return roomStore.scheduleSave(rooms);
+    }
+
+    function syncRoomSchedule(room, now = Date.now()) {
+        if (!roomHasSchedule(room)) {
+            return false;
+        }
+        return rollScheduleAttendance(room.schedule, now);
+    }
+
+    function clearRoomCleanupTimer(room) {
+        if (!room?.cleanupTimer) return;
+        clearTimeout(room.cleanupTimer);
+        room.cleanupTimer = null;
+    }
+
+    function deleteRoom(roomId) {
+        const normalizedRoom = normalizeRoom(roomId);
+        const room = rooms.get(normalizedRoom);
+        if (!room) return false;
+        // The Lobby is permanent — never auto-delete or admin-close it out of
+        // existence. It is re-seeded at startup regardless, but guarding here
+        // keeps it alive within a running process.
+        if (isLobbyRoom(room)) return false;
+        clearRoomCleanupTimer(room);
+        void videoRevocations.revokeWhere((row) => row.roomId === normalizedRoom).catch(() => {});
+        rooms.delete(normalizedRoom);
+        persistRoomsSoon();
+        return true;
+    }
+
+    function ensureRoom(roomId, meta = {}) {
+        const normalized = normalizeRoom(roomId);
+        if (!normalized) return null;
+        if (!rooms.has(normalized)) {
+            const schedule = normalizeSchedule(meta.schedule, {
+                titleFallback: sanitizeRoomName(meta.name || normalized) || normalized,
+                strict: false
+            });
+            rooms.set(normalized, buildRuntimeRoom({
+                id: normalized,
+                name: meta.name || normalized,
+                requirePassword: !!meta.requirePassword,
+                passwordHash: meta.passwordHash || null,
+                ownerUserId: meta.ownerUserId || null,
+                mediaMode: normalizeMediaMode(meta.mediaMode),
+                videoProvider: meta.videoProvider || config.video.provider,
+                createdAt: meta.createdAt || Date.now(),
+                schedule,
+                board: {
+                    goal: sanitizeBoardGoal(
+                        (meta.board?.goal)
+                        || (schedule?.boardGoalTemplate)
+                    ),
+                    tasks: Array.isArray(meta.board?.tasks)
+                        ? meta.board.tasks.map(normalizeBoardTask).filter(Boolean)
+                        : []
+                }
+            }));
+        }
+        const room = rooms.get(normalized);
+        if (!room.identities) {
+            room.identities = new Map();
+        }
+        if (typeof room.name !== 'string') {
+            room.name = normalized;
+        }
+        if (typeof room.requirePassword !== 'boolean') {
+            room.requirePassword = !!room.passwordHash;
+        }
+        room.mediaMode = normalizeMediaMode(room.mediaMode);
+        applyRoomVideoDefaults(room);
+        room.schedule = normalizeSchedule(room.schedule, {
+            titleFallback: room.name || normalized,
+            strict: false
+        });
+        ensureRoomBoard(room);
+        clearRoomCleanupTimer(room);
+        return room;
+    }
+
+    function scheduleRoomCleanup(roomId) {
+        const room = rooms.get(roomId);
+        if (!room || room.users.size > 0 || room.cleanupTimer || room.cohortId || roomHasSchedule(room) || isLobbyRoom(room)) return;
+        room.cleanupTimer = setTimeout(() => deleteRoom(roomId), ROOM_TTL_MS);
+    }
+
+    function removeUserFromRoom(room, socketId, normalizedRoom, existingRecord = null) {
+        if (!room || !socketId) return false;
+        const record = existingRecord || room.users.get(socketId);
+        if (!record) return false;
+        emitEndedVideoSessions(videoSessionRegistry.markSocketSessionsLeft(socketId, 'room_switch'));
+
+        room.users.delete(socketId);
+
+        const identityKey = record.identityKey || buildIdentityKey(normalizedRoom, record.sessionId, record.clientId);
+        if (identityKey && room.identities && room.identities.get(identityKey) === socketId) {
+            room.identities.delete(identityKey);
+        }
+
+        const socketRef = io.sockets.sockets.get(socketId);
+        if (socketRef) {
+            socketRef.leave(normalizedRoom);
+            socketRef.data.roomId = null;
+        } else {
+            skippedDisconnects.add(socketId);
+        }
+        return true;
+    }
+
+    function loadPersistedRooms() {
+        if (typeof roomStore.hydrate === 'function') {
+            roomStore.hydrate().then(async (persistedRooms) => {
+                const scopes = new Map((await platform.db.query('SELECT id,cohort_id FROM halastudy.rooms')).rows.map((row) => [row.id, row.cohort_id]));
+                for (const persistedRoom of persistedRooms) {
+                    persistedRoom.cohortId = scopes.get(persistedRoom.id) || null;
+                    const runtimeRoom = buildRuntimeRoom(persistedRoom);
+                    rooms.set(runtimeRoom.id, runtimeRoom);
+                    if (!runtimeRoom.users.size) scheduleRoomCleanup(runtimeRoom.id);
+                }
+                seedLobbyRoom();
+                readinessState.roomStore = true;
+            }).catch(() => logger.error({ event: 'room_store_hydrate_failed' }));
+            return 0;
+        }
+        const persistedRooms = roomStore.loadRooms({ strict: true });
+        persistedRooms.forEach((persistedRoom) => {
+            const runtimeRoom = buildRuntimeRoom(persistedRoom);
+            if (!runtimeRoom.id) return;
+            rooms.set(runtimeRoom.id, runtimeRoom);
+            if (runtimeRoom.users.size === 0) {
+                scheduleRoomCleanup(runtimeRoom.id);
+            }
+        });
+        readinessState.roomStore = true;
+        return persistedRooms.length;
+    }
+
+    function resolveClientId(socket, candidate) {
+        const normalized = normalizeClientId(candidate);
+        if (normalized) {
+            socket.data.clientId = normalized;
+            return normalized;
+        }
+        if (socket.data.clientId) return socket.data.clientId;
+        const fallback = socket.data.sessionId || crypto.randomUUID();
+        socket.data.clientId = fallback;
+        return fallback;
+    }
+
+    function ackError(ack, errorCode) {
+        return ack({ ok: false, errorCode });
+    }
+
+    function getRequestIp(req) {
+        return normalizeIp(req.ip || req.socket.remoteAddress);
+    }
+
+    function getSessionIdFromSocket(socket) {
+        const header = (socket.handshake?.headers?.cookie) || '';
+        const cookies = parseCookies(header);
+        return verifyAnonSessionToken(cookies[SESSION_COOKIE_NAME], { secret: config.sessionSecret });
+    }
+
+    function getJoinSessionKey(socket) {
+        if (!socket.data.roomId) return null;
+        return `${socket.data.roomId}:${socket.data.sessionId || socket.id}`;
+    }
+
+    function checkSocketRateLimit(socket, limiter, key, ack) {
+        const result = limiter.consume(key);
+        if (result.allowed) return true;
+        socket.emit('rate-limited', { retryAfterMs: result.retryAfterMs });
+        ackError(ack, 'RATE_LIMITED');
+        return false;
+    }
+
+    function applyHttpRateLimit(_req, res, limiter, key) {
+        const result = limiter.consume(key);
+        if (result.allowed) return true;
+        res.status(429).json({
+            errorCode: 'RATE_LIMITED',
+            retryAfterMs: result.retryAfterMs
+        });
+        return false;
+    }
+
+    function sendVideoError(res, status, errorCode) {
+        res.status(status).json({
+            ok: false,
+            errorCode,
+            error: errorCode
+        });
+    }
+
+    function findRoomVideoMember(req, room, displayName, clientSessionId) {
+        const cookies = parseCookies(req.headers.cookie || '');
+        const sessionId = verifyAnonSessionToken(cookies[SESSION_COOKIE_NAME], { secret: config.sessionSecret }) || '';
+        const users = Array.from(room.users.values());
+        return users.find((user) => {
+            if (!user || (displayName && user.name !== displayName)) return false;
+            if (user.clientId !== clientSessionId && user.sessionId !== clientSessionId) return false;
+            const socket = io.sockets.sockets.get(user.socketId);
+            return !!((sessionId && user.sessionId === sessionId)
+                || (req.user && socket?.data.userId === req.user.id));
+        }) || null;
+    }
+
+    async function ensureRealtimeKitMeeting(roomId, room) {
+        applyRoomVideoDefaults(room);
+        if (room.videoProviderMeetingId && room.videoProviderStatus !== 'closed') {
+            return {
+                provider: getRoomVideoProvider(room),
+                meetingId: room.videoProviderMeetingId,
+                reused: true
+            };
+        }
+
+        const existingLock = meetingCreationLocks.get(roomId);
+        if (existingLock) return existingLock;
+
+        const createPromise = (async () => {
+            const meeting = await videoProvider.ensureRoomMeeting({
+                roomId,
+                roomName: room.name || roomId
+            });
+            room.videoProviderMeetingId = meeting.meetingId;
+            room.videoProviderMeetingCreatedAt = Date.now();
+            room.videoProviderStatus = 'active';
+            persistRoomsSoon();
+            logger.info({
+                event: 'video_meeting_ready',
+                provider: getRoomVideoProvider(room),
+                roomId,
+                meetingId: room.videoProviderMeetingId,
+                reused: !!meeting.reused
+            });
+            return meeting;
+        })();
+
+        meetingCreationLocks.set(roomId, createPromise);
+        try {
+            return await createPromise;
+        } catch (error) {
+            room.videoProviderStatus = 'error';
+            persistRoomsSoon();
+            throw error;
+        } finally {
+            meetingCreationLocks.delete(roomId);
+        }
+    }
+
+    async function refreshExpiredRoomMeetingIfIdle(roomId, room) {
+        if (!room?.videoProviderMeetingCreatedAt) return true;
+        const meetingAgeMs = Date.now() - room.videoProviderMeetingCreatedAt;
+        const maxMeetingAgeMs = config.video.maxRoomDurationMinutes * 60 * 1000;
+        if (meetingAgeMs <= maxMeetingAgeMs) return true;
+
+        const activeRoomVideoParticipants = videoSessionRegistry.countActiveRoomVideoParticipants(roomId);
+        if (activeRoomVideoParticipants > 0) {
+            return false;
+        }
+
+        const oldMeetingId = room.videoProviderMeetingId;
+        room.videoProviderMeetingId = null;
+        room.videoProviderMeetingCreatedAt = null;
+        room.videoProviderStatus = 'closed';
+        persistRoomsSoon();
+
+        if (oldMeetingId && typeof videoProvider.closeRoomMeeting === 'function') {
+            void videoProvider.closeRoomMeeting({ meetingId: oldMeetingId });
+        }
+        logger.info({
+            event: 'video_meeting_recycled',
+            provider: getRoomVideoProvider(room),
+            roomId,
+            oldMeetingId,
+            maxRoomDurationMinutes: config.video.maxRoomDurationMinutes
+        });
+        return true;
+    }
+
+    function isSameActiveVideoSession(session, roomId, userId, clientSessionId) {
+        return session
+            && !session.leftAt
+            && session.roomId === roomId
+            && session.userId === userId
+            && session.clientSessionId === clientSessionId;
+    }
+
+    function findActiveVideoSession(roomId, userId, clientSessionId) {
+        return videoSessionRegistry.listActive().find((session) => {
+            return isSameActiveVideoSession(session, roomId, userId, clientSessionId);
+        }) || null;
+    }
+
+    function originGuard(req, res, next) {
+        const origin = req.headers.origin;
+        const allowed = isOriginAllowed({
+            origin,
+            expectedOrigin: `${req.protocol}://${req.get('host')}`,
+            allowedOrigins: config.allowedOrigins
+        });
+
+        if (allowed) {
+            if (origin) {
+                res.setHeader('Vary', 'Origin');
+                res.setHeader('Access-Control-Allow-Origin', origin);
+                res.setHeader('Access-Control-Allow-Credentials', 'true');
+                res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+                res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+            }
+            if (req.method === 'OPTIONS') {
+                res.status(204).end();
+                return;
+            }
+            next();
+            return;
+        }
+
+        res.status(403).json({ error: 'Origin not allowed' });
+    }
+
+    function securityHeaders(_req, res, next) {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+        res.setHeader('Content-Security-Policy', contentSecurityPolicy);
+        res.setHeader('Permissions-Policy', permissionsPolicy);
+        next();
+    }
+
+    function sessionMiddleware(req, res, next) {
+        const cookies = parseCookies(req.headers.cookie || '');
+        // Only trust a session id the server itself signed; a forged/bare value
+        // verifies to null and we mint a fresh signed one.
+        let sessionId = verifyAnonSessionToken(cookies[SESSION_COOKIE_NAME], { secret: config.sessionSecret });
+        if (!sessionId) {
+            sessionId = crypto.randomUUID();
+            const token = createAnonSessionToken({ sessionId, secret: config.sessionSecret });
+            const cookieParts = [
+                `${SESSION_COOKIE_NAME}=${token}`,
+                'Path=/',
+                'HttpOnly',
+                'SameSite=Lax',
+                `Max-Age=${SESSION_COOKIE_MAX_AGE}`
+            ];
+            if (req.secure) {
+                cookieParts.push('Secure');
+            }
+            appendSetCookie(res, cookieParts.join('; '));
+        }
+        req.sessionId = sessionId;
+        next();
+    }
+
+    function evaluateReadiness({ logFailures = false } = {}) {
+        const checks = {
+            roomStore: readinessState.roomStore,
+            userStore: readinessState.userStore,
+            // @ts-expect-error internal socket.io flag for closed state
+            socket: readinessState.socket && !io._closed,
+            config: readinessState.config,
+            ...(platform.enabled ? { database: !!platform.db?.isHealthy() } : {})
+        };
+        const ready = Object.values(checks).every(Boolean);
+
+        if (!ready && logFailures) {
+            Object.entries(checks).forEach(([checkName, passed]) => {
+                if (!passed) {
+                    console.error(`Readiness check failed: ${checkName}`);
+                }
+            });
+        }
+
+        return {
+            ready,
+            checks
+        };
+    }
+
+    function seedLobbyRoom() {
+        // Ensure the reserved public Lobby always exists (fresh boot or after a
+        // persisted snapshot that predates it). ensureRoom is idempotent and
+        // clears any cleanup timer; the RealtimeKit meeting is still created
+        // lazily on first video-token request.
+        const lobby = ensureRoom(LOBBY_ROOM_CODE, { name: LOBBY_ROOM_NAME });
+        if (lobby) {
+            lobby.name = LOBBY_ROOM_NAME;
+            clearRoomCleanupTimer(lobby);
+        }
+        return lobby;
+    }
+
+    const loadedRoomCount = loadPersistedRooms();
+    seedLobbyRoom();
+    const loadedUserCount = loadPersistedUsers();
+    backupScheduler.start();
+    let attendanceSweep = null;
+    const videoSweepTimer = setInterval(() => {
+        const ended = videoSessionRegistry.sweepStaleVideoSessions();
+        emitEndedVideoSessions(ended);
+        if (config.backup.intervalMinutes > 0
+            && Date.now() - (backupScheduler.status.lastRunAt || startedAt) > config.backup.intervalMinutes * 120000) {
+            logger.warn({ event: 'backup_stale' });
+        }
+        // A member may arrive before a session's attendance window and then
+        // study quietly. Connected presence must not depend on another join.
+        if (platform.enabled && readinessState.userStore && !attendanceSweep) {
+            attendanceSweep = (async () => {
+                for (const socket of io.sockets.sockets.values()) {
+                    if (!socket.data.roomId || !socket.data.userId) continue;
+                    const cookies = parseCookies(socket.handshake?.headers?.cookie || '');
+                    const user = resolveUserFromToken(cookies[AUTH_COOKIE_NAME]);
+                    if (!user) { socket.disconnect(true); continue; }
+                    await platform.recordAttendance(socket.data.roomId, user);
+                }
+            })().catch(() => logger.error({ event: 'attendance_sweep_failed' }))
+                .finally(() => { attendanceSweep = null; });
+        }
+    }, VIDEO_SESSION_SWEEP_MS);
+    videoSweepTimer.unref();
+
+    let isShuttingDown = false;
+    async function flushRoomStateAndExit(signal) {
+        if (isShuttingDown) return;
+        isShuttingDown = true;
+        clearInterval(videoSweepTimer);
+        if (attendanceSweep) await attendanceSweep;
+        await backupScheduler.stop();
+        console.log(`Received ${signal}. Persisting room state to ${roomStore.filePath}...`);
+        const flushResults = await Promise.allSettled([
+            roomStore.flush(rooms),
+            userStore.flush(users),
+            videoRevocations.close()
+        ]);
+        flushResults.forEach((result) => {
+            if (result.status === 'rejected') {
+                logger.error({ event: 'storage_shutdown_failed' });
+                console.error('Final state flush failed:', result.reason);
+            }
+        });
+        if (platform.enabled) {
+            try { await platform.ready; await platform.billing.close?.(); await platform.db.close(); } catch (_error) {}
+        }
+        // Persist incidents emitted by every other component's final cleanup.
+        try { await operationalAlerts.close(); } catch (_error) {}
+        server.close(() => {
+            process.exit(0);
+        });
+        setTimeout(() => process.exit(0), 5000).unref();
+    }
+
+    process.once('SIGINT', () => {
+        void flushRoomStateAndExit('SIGINT');
+    });
+
+    process.once('SIGTERM', () => {
+        void flushRoomStateAndExit('SIGTERM');
+    });
+
+    app.use(securityHeaders);
+    app.use((req, res, next) => {
+        // Keep application/session URLs out of search without preventing
+        // crawlers from reading the noindex directive on the HTML response.
+        if (/^\/(?:api|auth|account(?:\.html)?|open(?:\.html)?|lobby(?:\.html)?|index\.html|study|workspace|room|app|plans|supervisor|recover|recovery\.html)(?:\/|$)/i.test(req.path)
+            || (config.admin.enabled && (req.path === config.admin.path || req.path.startsWith(`${config.admin.path}/`)))) {
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        }
+        next();
+    });
+    app.use(originGuard);
+    app.use(express.json());
+    app.use(sessionMiddleware);
+    app.use(attachUser);
+    app.use(['/api', '/auth/google'], (req, res, next) => {
+        if (!readinessState.userStore || !readinessState.roomStore) {
+            return res.status(503).json({ errorCode: 'STORAGE_STARTING' });
+        }
+        if (platform.enabled && platform.db && !platform.db.isHealthy()
+            && !['/health', '/ready'].includes(req.path)) {
+            return res.status(503).json({ errorCode: 'SERVICE_UNAVAILABLE' });
+        }
+        next();
+    });
+    app.use('/audio', express.static(path.join(__dirname, 'audio'), { maxAge: '7d' }));
+    app.use('/images', express.static(path.join(__dirname, 'images'), { maxAge: '1d' }));
+    // Raw source footage lives beside the published clips (gitignored, but
+    // present on rsync-style deploys) — never serve it.
+    app.use('/videos/hero/source', (_req, res) => res.status(404).end());
+    app.use('/videos', express.static(path.join(__dirname, 'videos'), { maxAge: '1d' }));
+    app.use('/js', express.static(path.join(__dirname, 'public', 'js'), { maxAge: '1h' }));
+    app.use('/css', express.static(path.join(__dirname, 'public', 'css'), { maxAge: '1h' }));
+    // The pages only need the stylesheets; the rest of design-system/ is
+    // internal documentation and must not be publicly fetchable.
+    app.use('/design-system', (req, res, next) => {
+        if (req.path.endsWith('.css')) return next();
+        res.status(404).end();
+    }, express.static(path.join(__dirname, 'design-system'), { maxAge: '1d' }));
+
+    app.use('/api', createAuthRouter({
+        recoveryMail: createRecoveryMail({
+            env: config.supabase.enabled ? { ...env, AUTH_MAIL_MODE: 'disabled' } : env,
+            directory: `${config.userStateFile}.mail`
+        }),
+        users,
+        usersByEmail,
+        rooms,
+        rateLimiters,
+        applyHttpRateLimit,
+        getRequestIp,
+        publicUser,
+        setAuthCookie,
+        clearAuthCookie,
+        persistUsersSoon,
+        flushUsers: () => userStore.flush(users),
+        requireUser,
+        disconnectUser,
+        preparePlatformDeletion: async (userId) => {
+            if (!platform.enabled) return () => {};
+            const owned = await platform.db.query('SELECT id FROM halastudy.cohorts WHERE owner_id=$1', [userId]);
+            const ids = new Set(owned.rows.map((row) => row.id));
+            return () => {
+                for (const room of rooms.values()) {
+                    if (!ids.has(room.cohortId)) continue;
+                    for (const socketId of room.users.keys()) io.sockets.sockets.get(socketId)?.disconnect(true);
+                    deleteRoom(room.id);
+                }
+            };
+        },
+        deletePlatformUser: (userId) => userStore.isPlatform ? Promise.resolve() : platform.removeUser(userId),
+        canDeleteWithProvider: (req) => {
+            const cookies = parseCookies(req.headers.cookie || '');
+            return verifyReauth(cookies[REAUTH_COOKIE], req.user, cookies[AUTH_COOKIE_NAME], config.sessionSecret);
+        },
+        // Analytics event log (Supabase only) — powers user + admin dashboards.
+        logFocusSession: typeof userStore.logFocusSession === 'function'
+            ? (payload) => userStore.logFocusSession(payload)
+            : null,
+        logger
+    }));
+
+    app.use('/api/platform', createPlatformRouter({
+        platform, requireUser, users, rooms, config, parseCookies, appendSetCookie, logger,
+        applyHttpRateLimit, rateLimiters, disconnectUser,
+        flushUsers: () => userStore.flush(users), flushRooms: () => roomStore.flush(rooms),
+        io, clearRoomCleanupTimer, deleteRoom, runtimeFlags, isVideoJoinDisabled, announcementState, backupScheduler,
+        operationalAlerts, videoRevocations
+    }));
+
+    // Google OAuth (only mounts real handlers when GOOGLE_* env is set; every
+    // route 404s otherwise, exactly like an unknown path).
+    app.use('/', createGoogleAuthRouter({
+        config: config.google,
+        users,
+        usersByEmail,
+        rateLimiters,
+        applyHttpRateLimit,
+        getRequestIp,
+        setAuthCookie,
+        appendSetCookie,
+        parseCookies,
+        persistUsersSoon,
+        sessionSecret: config.sessionSecret,
+        flushUsers: () => userStore.flush(users),
+        logger
+    }));
+
+    app.get('/manifest.webmanifest', (_req, res) => {
+        res.type('application/manifest+json');
+        res.sendFile(path.join(__dirname, 'public', 'manifest.webmanifest'));
+    });
+
+    app.get('/api/health', (_req, res) => {
+        res.json({
+            status: 'ok',
+            uptimeSeconds: Math.round(process.uptime()),
+            timestamp: new Date().toISOString(),
+            mode: config.mode
+        });
+    });
+
+    app.get('/api/ready', (_req, res) => {
+        const readiness = evaluateReadiness({ logFailures: true });
+        res.status(readiness.ready ? 200 : 503).json({
+            status: readiness.ready ? 'ready' : 'not_ready',
+            checks: readiness.checks
+        });
+    });
+
+    // Coarse public metrics for uptime monitors — no per-room or per-user
+    // detail (that lives behind the admin API).
+    app.get('/api/metrics', (req, res) => {
+        if (!applyHttpRateLimit(req, res, rateLimiters.metrics, getRequestIp(req))) return;
+        let participantCount = 0;
+        for (const room of rooms.values()) {
+            participantCount += room.users ? room.users.size : 0;
+        }
+        res.json({
+            status: 'ok',
+            uptimeSeconds: Math.round(process.uptime()),
+            roomCount: rooms.size,
+            participantCount,
+            activeVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+            memoryRssMb: Math.round(process.memoryUsage().rss / (1024 * 1024)),
+            mode: config.mode
+        });
+    });
+
+    app.get('/api/runtime-config', (_req, res) => {
+        res.json({
+            iceServers: cloneIceServerList(config.runtimeIceServers),
+            sfuBaseUrl: config.sfuBaseUrl,
+            sfuAvailable: config.sfuAvailable,
+            supportedMediaModes: [...config.supportedMediaModes],
+            meshParticipantLimit: config.meshParticipantLimit,
+            videoProvider: config.video.provider,
+            videoPolicy: getClientVideoPolicy(null),
+            activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+            maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
+            videoJoinDisabled: isVideoJoinDisabled(),
+            publicApiBaseUrl: config.video.publicApiBaseUrl,
+            googleAuthEnabled: config.google.enabled
+        });
+    });
+
+    app.post('/api/rooms/:roomId/video-token', async (req, res) => {
+        const { roomId } = req.params;
+        const requestIp = getRequestIp(req);
+        if (!applyHttpRateLimit(req, res, rateLimiters.videoToken, requestIp)) {
+            return;
+        }
+
+        const normalizedRoom = normalizeRoom(roomId);
+        const room = rooms.get(normalizedRoom);
+        if (!normalizedRoom || !room) {
+            sendVideoError(res, 404, 'ROOM_NOT_FOUND');
+            return;
+        }
+        if (!(await platform.canJoin(normalizedRoom, req.user))) {
+            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
+            return;
+        }
+
+        const displayName = sanitizeNickname(req.body?.displayName);
+        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
+        const rawRole = typeof req.body?.role === 'string' ? req.body.role.trim().toLowerCase() : '';
+        // 'student' is the legacy publisher role sent by normal mesh/private rooms
+        // and stays a publisher. The Lobby sends explicit 'viewer' | 'publisher'.
+        let role;
+        if (rawRole === 'viewer') {
+            role = 'viewer';
+        } else if (rawRole === 'publisher' || rawRole === 'student' || rawRole === '') {
+            role = 'publisher';
+        } else {
+            role = null;
+        }
+
+        if (!displayName || !clientSessionId || !role) {
+            sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
+            return;
+        }
+        if (isVideoJoinDisabled()) {
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'VIDEO_JOIN_DISABLED',
+                roomId: normalizedRoom,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants()
+            });
+            sendVideoError(res, 503, 'VIDEO_JOIN_DISABLED');
+            return;
+        }
+
+        applyRoomVideoDefaults(room);
+        const roomVideoProvider = getRoomVideoProvider(room);
+        if (roomVideoProvider !== VIDEO_PROVIDER_REALTIMEKIT) {
+            sendVideoError(res, 409, 'VIDEO_PROVIDER_UNAVAILABLE');
+            return;
+        }
+
+        const member = findRoomVideoMember(req, room, displayName, clientSessionId);
+        if (!member) {
+            sendVideoError(res, 403, 'ROOM_NOT_JOINED');
+            return;
+        }
+
+        // The Lobby is public: anyone may watch (viewer preset), but going on
+        // camera (publisher preset) requires a signed-in, ban-able account.
+        const authedUser = resolveUserFromToken(parseCookies(req.headers.cookie || '')[AUTH_COOKIE_NAME]);
+        if (isLobbyRoom(room) && role === 'publisher' && !authedUser) {
+            sendVideoError(res, 403, 'AUTH_REQUIRED');
+            return;
+        }
+
+        const userId = member.clientId || member.sessionId || clientSessionId;
+        const existingActive = findActiveVideoSession(normalizedRoom, userId, clientSessionId);
+        const activeGlobal = videoSessionRegistry.countActiveGlobalVideoParticipants();
+        const activeRoom = videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom);
+        const effectiveGlobal = activeGlobal - (existingActive ? 1 : 0);
+        const effectiveRoom = activeRoom - (existingActive ? 1 : 0);
+        const roomPolicy = getDefaultRoomVideoPolicy(room.videoPolicy);
+        const roomParticipantCap = isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT : roomPolicy.maxParticipants;
+
+        if (effectiveGlobal >= config.video.maxGlobalParticipants) {
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'GLOBAL_VIDEO_LIMIT_REACHED',
+                roomId: normalizedRoom,
+                activeGlobalVideoParticipants: activeGlobal
+            });
+            sendVideoError(res, 409, 'GLOBAL_VIDEO_LIMIT_REACHED');
+            return;
+        }
+        if (effectiveRoom >= roomParticipantCap) {
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'ROOM_FULL',
+                roomId: normalizedRoom,
+                activeRoomVideoParticipants: activeRoom
+            });
+            sendVideoError(res, 409, 'ROOM_FULL');
+            return;
+        }
+        try { await videoRevocations.drain(); }
+        catch { return sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE'); }
+        if (!videoRevocations.status().healthy || videoRevocations.status().pending) {
+            sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE');
+            return;
+        }
+        // Lock before any provider await. Repeated mints retire the old grant.
+        const mintKey = `${normalizedRoom}:${userId}:${clientSessionId}`;
+        if (videoMintLocks.has(mintKey)) {
+            sendVideoError(res, 409, 'VIDEO_REQUEST_PENDING');
+            return;
+        }
+        videoMintLocks.add(mintKey);
+        if (!await refreshExpiredRoomMeetingIfIdle(normalizedRoom, room)) {
+            videoMintLocks.delete(mintKey);
+            sendVideoError(res, 409, 'ROOM_DURATION_LIMIT_REACHED');
+            return;
+        }
+
+        if (videoSessionRegistry.countActiveGlobalVideoParticipants() - (existingActive ? 1 : 0) >= config.video.maxGlobalParticipants
+            || videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom) - (existingActive ? 1 : 0) >= roomParticipantCap) {
+            videoMintLocks.delete(mintKey);
+            sendVideoError(res, 409, 'ROOM_FULL');
+            return;
+        }
+        if (existingActive) emitVideoSessionEnded(videoSessionRegistry.markVideoSessionLeft(existingActive, 'replaced'));
+        videoSessionRegistry.registerVideoSession({
+            roomId: normalizedRoom,
+            userId,
+            clientSessionId,
+            socketId: member.socketId,
+            provider: roomVideoProvider,
+            providerMeetingId: room.videoProviderMeetingId,
+            displayName,
+            role,
+            joinedAt: existingActive?.joinedAt || Date.now(),
+            lastSeenAt: Date.now()
+        });
+
+        let issued = null;
+        let attempt = null;
+        let attemptMeeting = null;
+        try {
+            await videoRevocations.ready;
+            await videoRevocations.drain();
+            if (!videoRevocations.status().healthy || videoRevocations.status().pending) {
+                throw new Error('VIDEO_REVOCATION_PENDING');
+            }
+            const meeting = await ensureRealtimeKitMeeting(normalizedRoom, room);
+            attemptMeeting = meeting.meetingId;
+            attempt = await videoRevocations.track({
+                meetingId: meeting.meetingId, participantId: '*', roomId: normalizedRoom,
+                socketId: member.socketId
+            });
+            const presetName = role === 'viewer'
+                ? config.video.viewerPresetName
+                : config.video.defaultPresetName;
+            const tokenPayload = await videoProvider.createParticipantToken({
+                roomId: normalizedRoom,
+                meetingId: meeting.meetingId,
+                userId,
+                displayName,
+                presetName
+            });
+            issued = { meetingId: tokenPayload.meetingId, participantId: tokenPayload.participantId,
+                roomId: normalizedRoom, socketId: member.socketId };
+            await videoRevocations.track(issued);
+            await videoRevocations.forget(attempt);
+            attempt = null;
+            const currentUser = resolveUserFromToken(parseCookies(req.headers.cookie || '')[AUTH_COOKIE_NAME]);
+            const stillAllowed = await platform.canJoin(normalizedRoom, currentUser);
+            if (isShuttingDown || rooms.get(normalizedRoom) !== room || !stillAllowed
+                || (req.user && currentUser !== req.user)
+                || !io.sockets.sockets.get(member.socketId)?.connected
+                || !room.users.has(member.socketId)
+                || !findActiveVideoSession(normalizedRoom, userId, clientSessionId)) {
+                await videoRevocations.revokeWhere((row) => row.participantId === issued.participantId);
+                sendVideoError(res, 403, 'ROOM_NOT_JOINED');
+                return;
+            }
+
+            videoSessionRegistry.updateVideoSession({ roomId: normalizedRoom, userId, clientSessionId }, {
+                providerMeetingId: tokenPayload.meetingId,
+                providerParticipantId: tokenPayload.participantId,
+                lastSeenAt: Date.now()
+            });
+            emitVideoCapacity(normalizedRoom);
+            logger.info({
+                event: 'video_token_issued',
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                userId,
+                clientSessionId,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
+            });
+
+            res.json({
+                ok: true,
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                role,
+                meetingId: tokenPayload.meetingId,
+                participantId: tokenPayload.participantId,
+                authToken: tokenPayload.authToken,
+                expiresAt: tokenPayload.expiresAt || null,
+                policy: getClientVideoPolicy(room)
+            });
+        } catch (error) {
+            if (attempt) {
+                // A timed-out POST may have created a participant without returning
+                // its id. Retire that meeting; restart also replays this intent.
+                if (room.videoProviderMeetingId === attemptMeeting) {
+                    room.videoProviderStatus = 'closed';
+                    persistRoomsSoon();
+                }
+                await videoRevocations.revokeWhere((row) => row.id === attempt).catch(() => {});
+            }
+            if (issued) {
+                await videoRevocations.revokeWhere((row) => row.participantId === issued.participantId).catch(() => {});
+            }
+            videoSessionRegistry.markVideoSessionLeft({ roomId: normalizedRoom, userId, clientSessionId }, 'provider_failure');
+            emitVideoCapacity(normalizedRoom);
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'VIDEO_PROVIDER_UNAVAILABLE',
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                message: error.message
+            });
+            sendVideoError(res, error.status || 502, 'VIDEO_PROVIDER_UNAVAILABLE');
+        } finally {
+            videoMintLocks.delete(mintKey);
+        }
+    });
+
+    app.post('/api/rooms/:roomId/video-heartbeat', (req, res) => {
+        const requestIp = getRequestIp(req);
+        if (!applyHttpRateLimit(req, res, rateLimiters.videoHeartbeat, requestIp)) {
+            return;
+        }
+
+        const normalizedRoom = normalizeRoom(req.params.roomId);
+        const room = rooms.get(normalizedRoom);
+        if (!room) {
+            sendVideoError(res, 404, 'ROOM_NOT_FOUND');
+            return;
+        }
+        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
+        const displayName = sanitizeNickname(req.body?.displayName);
+        const member = clientSessionId
+            ? findRoomVideoMember(req, room, displayName, clientSessionId)
+            : null;
+        if (!member) return sendVideoError(res, 403, 'ROOM_NOT_JOINED');
+        const userId = member?.clientId || member?.sessionId || clientSessionId;
+        if (!clientSessionId || !userId) {
+            sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
+            return;
+        }
+        const session = videoSessionRegistry.touchVideoSession({ roomId: normalizedRoom, userId, clientSessionId });
+        if (!session) {
+            sendVideoError(res, 404, 'VIDEO_SESSION_NOT_FOUND');
+            return;
+        }
+        res.json({
+            ok: true,
+            ...buildVideoCapacityPayload(normalizedRoom)
+        });
+    });
+
+    app.post('/api/rooms/:roomId/video-leave', (req, res) => {
+        const normalizedRoom = normalizeRoom(req.params.roomId);
+        const room = rooms.get(normalizedRoom);
+        if (!room) {
+            sendVideoError(res, 404, 'ROOM_NOT_FOUND');
+            return;
+        }
+        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
+        const displayName = sanitizeNickname(req.body?.displayName);
+        const member = clientSessionId
+            ? findRoomVideoMember(req, room, displayName, clientSessionId)
+            : null;
+        if (!member) return sendVideoError(res, 403, 'ROOM_NOT_JOINED');
+        const userId = member?.clientId || member?.sessionId || clientSessionId;
+        if (!clientSessionId || !userId) {
+            sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
+            return;
+        }
+        const ended = videoSessionRegistry.markVideoSessionLeft({ roomId: normalizedRoom, userId, clientSessionId }, 'client_leave');
+        if (ended) emitVideoSessionEnded(ended);
+        res.json({
+            ok: true,
+            ...buildVideoCapacityPayload(normalizedRoom)
+        });
+    });
+
+    app.get('/api/rooms/:roomId', async (req, res) => {
+        const { roomId } = req.params;
+        const requestIp = getRequestIp(req);
+        if (!applyHttpRateLimit(req, res, rateLimiters.roomLookup, requestIp)) {
+            return;
+        }
+
+        if (!roomId) {
+            res.status(400).json({ error: 'Room id missing' });
+            return;
+        }
+
+        const normalizedRoom = normalizeRoom(roomId);
+        const room = rooms.get(normalizedRoom);
+        if (!room) {
+            res.status(404).json({ error: 'Room not found' });
+            return;
+        }
+
+        // Protected rooms leak nothing before a verified, password-gated join.
+        if (room.requirePassword || !(await platform.canJoin(normalizedRoom, req.user))) {
+            res.json(roomPreview(normalizedRoom, room));
+            return;
+        }
+
+        res.json(roomSnapshot(roomId));
+    });
+
+    registerPublicPages(app, __dirname);
+
+    app.get(['/open.html', '/open'], (_req, res) => {
+        res.sendFile(path.join(__dirname, 'open.html'));
+    });
+
+    app.get(['/app', '/plans', '/supervisor'], (_req, res) => {
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.sendFile(path.join(__dirname, 'platform.html'));
+    });
+
+    app.get(['/account.html', '/account'], (_req, res) => {
+        res.sendFile(path.join(__dirname, 'account.html'));
+    });
+    app.get(['/recover', '/recovery.html'], (_req, res) => {
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Referrer-Policy', 'no-referrer');
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.sendFile(path.join(__dirname, 'recovery.html'));
+    });
+
+    app.get(['/index.html', '/study', '/workspace', '/room'], (_req, res) => {
+        res.sendFile(path.join(__dirname, 'index.html'));
+    });
+
+    app.get(['/lobby', '/lobby.html'], (_req, res) => {
+        res.sendFile(path.join(__dirname, 'lobby.html'));
+    });
+
+    if (config.admin.enabled) {
+        app.use(config.admin.path, createAdminRouter({
+            config,
+            platform,
+            rooms,
+            users,
+            io,
+            rateLimiters,
+            applyHttpRateLimit,
+            getRequestIp,
+            runtimeFlags,
+            isVideoJoinDisabled,
+            errorBuffer,
+            backupScheduler,
+            videoSessionRegistry,
+            announcementState,
+            buildScheduleSummary,
+            deleteRoom,
+            persistUsersSoon,
+            persistRoomsSoon,
+            dashboard: typeof userStore.readAdminOverview === 'function'
+                ? {
+                    overview: () => userStore.readAdminOverview(),
+                    userStats: () => userStore.readUserStats(),
+                    dailyActive: () => userStore.readDailyActive()
+                }
+                : null,
+            logger
+        }));
+    }
+
+    // Announcement is also surfaced to pages that poll runtime config.
+    app.get('/api/announcement', (_req, res) => {
+        res.json({ ok: true, announcement: getActiveAnnouncement() });
+    });
+
+    // ---- Terminal handlers: keep these registered after every route ----
+    app.use((req, res) => {
+        if (req.path.startsWith('/api')) {
+            res.status(404).json({ errorCode: 'NOT_FOUND' });
+            return;
+        }
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.status(404).sendFile(path.join(__dirname, '404.html'));
+    });
+
+    // Express identifies error middleware by arity — the 4th param must stay.
+    app.use((err, req, res, _next) => {
+        logger.error({
+            event: 'unhandled_request_error',
+            method: req.method,
+            path: req.path,
+            message: err?.message
+        });
+        if (res.headersSent) return;
+        res.status(err?.status === 400 ? 400 : 500).json({
+            errorCode: err?.status === 400 ? 'BAD_REQUEST' : 'INTERNAL_ERROR'
+        });
+    });
+
+    io.on('connection', (socket) => {
+        const auth = socket.handshake?.auth;
+        const handshakeClientId = normalizeClientId(auth?.clientId);
+        const sessionId = getSessionIdFromSocket(socket) || handshakeClientId || crypto.randomUUID();
+        const ip = getSocketRequestIp(socket.request, config.trustProxy);
+
+        socket.data.sessionId = sessionId;
+        socket.data.clientId = handshakeClientId || sessionId;
+        socket.data.ip = ip;
+
+        // Same-origin pages send cookies on the Socket.IO handshake, so a
+        // signed-in browser gets its account attached to the socket.
+        const handshakeCookies = parseCookies(socket.handshake?.headers?.cookie || '');
+        const authedUser = resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME]);
+        socket.data.userId = authedUser ? authedUser.id : null;
+        // Account-bearing connections must retain a valid account session for
+        // every event. A revoked account never silently becomes a guest.
+        socket.use(async (packet, next) => {
+            if (!readinessState.roomStore || !readinessState.userStore) return next(new Error('STORAGE_STARTING'));
+            if (platform.enabled && platform.db && !platform.db.isHealthy()) {
+                const ack = packet.at(-1);
+                if (typeof ack === 'function') ack({ ok: false, errorCode: 'SERVICE_UNAVAILABLE' });
+                return next(new Error('SERVICE_UNAVAILABLE'));
+            }
+            if (socket.data.userId && !resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME])) {
+                socket.disconnect(true);
+                return next(new Error('AUTH_REQUIRED'));
+            }
+            if (socket.data.roomId && packet[0] !== 'join-room') {
+                try {
+                    if (!(await platform.canJoin(socket.data.roomId, resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME])))) {
+                        socket.disconnect(true);
+                        return next(new Error('ROOM_ACCESS_REVOKED'));
+                    }
+                } catch {
+                    return next(new Error('SERVICE_UNAVAILABLE'));
+                }
+            }
+            next();
+        });
+
+        // Late joiners still see an active admin broadcast.
+        const currentAnnouncement = getActiveAnnouncement();
+        if (currentAnnouncement) {
+            socket.emit('announcement', currentAnnouncement);
+        }
+
+        function getSocketUser() {
+            if (!socket.data.userId) return null;
+            return resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME]);
+        }
+
+        const onEvent = (event, handler) => onClientEvent(socket, event, handler, logger);
+
+        onEvent('create-room', async (payload = {}, ack) => {
+            const { roomName, password, requirePassword } = payload;
+            const cleanName = sanitizeRoomName(roomName);
+            const mediaMode = normalizeMediaMode(payload.mediaMode);
+            const schedule = payload.schedule === undefined || payload.schedule === null
+                ? null
+                : normalizeSchedule(payload.schedule, {
+                    titleFallback: cleanName,
+                    strict: true,
+                    now: Date.now()
+                });
+
+            if (!cleanName) {
+                return ackError(ack, 'ROOM_NAME_REQUIRED');
+            }
+            if (!checkSocketRateLimit(socket, rateLimiters.createRoom, ip, ack)) {
+                return;
+            }
+            if (!isValidRequestedMediaMode(payload.mediaMode)) {
+                return ackError(ack, 'ROOM_MEDIA_MODE_INVALID');
+            }
+            if (mediaMode === MEDIA_MODE_SFU && !config.sfuAvailable) {
+                return ackError(ack, 'ROOM_MEDIA_UNAVAILABLE');
+            }
+            if (payload.schedule !== undefined && payload.schedule !== null && !schedule) {
+                return ackError(ack, 'SCHEDULE_INVALID');
+            }
+            // Scheduled rooms attach attendance/streak commitments — those need
+            // a real account. Instant rooms stay guest-open.
+            if (schedule && !getSocketUser()) {
+                return ackError(ack, 'AUTH_REQUIRED_FOR_SCHEDULED');
+            }
+
+            const roomCode = generateRoomCode(rooms);
+            if (!roomCode || rooms.has(roomCode)) {
+                return ackError(ack, 'ROOM_CODE_GENERATION_FAILED');
+            }
+
+            const sanitizedPassword = sanitizeRoomPassword(password);
+            const shouldProtect = !!requirePassword && sanitizedPassword.length > 0;
+            let passwordHash = null;
+
+            if (shouldProtect) {
+                try {
+                    passwordHash = await hashPassword(sanitizedPassword);
+                } catch (err) {
+                    console.error('Password hash failed:', err);
+                    return ackError(ack, 'PASSWORD_HASH_FAILED');
+                }
+            }
+
+            try {
+                await platform.registerRoom(roomCode, getSocketUser());
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
+            ensureRoom(roomCode, {
+                name: cleanName,
+                requirePassword: shouldProtect,
+                passwordHash,
+                ownerUserId: getSocketUser()?.id || null,
+                mediaMode,
+                videoProvider: config.video.provider,
+                createdAt: Date.now(),
+                schedule
+            });
+
+            scheduleRoomCleanup(roomCode);
+            persistRoomsSoon();
+
+            const creator = getSocketUser();
+            if (creator) {
+                recordMyRoom(creator, { roomId: roomCode, name: cleanName, role: 'created' });
+                persistUsersSoon();
+            }
+
+            const snapshot = roomSnapshot(roomCode);
+
+            return ack({
+                ok: true,
+                room: {
+                    ...snapshot,
+                    code: roomCode
+                }
+            });
+        });
+
+        onEvent('join-room', async (payload = {}, ack) => {
+            const { roomId, username, clientId: payloadClientId, password } = payload;
+            const cleanName = sanitizeNickname(username);
+            const normalizedRoom = normalizeRoom(roomId);
+            const clientId = resolveClientId(socket, payloadClientId);
+
+            if (!cleanName) {
+                return ackError(ack, 'NICKNAME_REQUIRED');
+            }
+            if (!normalizedRoom) {
+                return ackError(ack, 'ROOM_CODE_REQUIRED');
+            }
+            if (!checkSocketRateLimit(socket, rateLimiters.joinRoom, ip, ack)) {
+                return;
+            }
+
+            const room = rooms.get(normalizedRoom);
+            if (!room) {
+                return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+            try {
+                if (!(await platform.canJoin(normalizedRoom, getSocketUser()))) return ackError(ack, 'ROOM_MEMBERSHIP_REQUIRED');
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
+            clearRoomCleanupTimer(room);
+            if (roomUsesSfu(room) && !config.sfuAvailable) {
+                return ackError(ack, 'ROOM_MEDIA_UNAVAILABLE');
+            }
+
+            const passwordFailureKey = `${ip}:${normalizedRoom}`;
+            const passwordFailureStatus = rateLimiters.passwordFailures.check(passwordFailureKey);
+            if (!passwordFailureStatus.allowed) {
+                return ackError(ack, 'RATE_LIMITED');
+            }
+
+            if (room.requirePassword) {
+                const providedPassword = sanitizeRoomPassword(password);
+                if (!providedPassword) {
+                    return ackError(ack, 'ROOM_PASSWORD_REQUIRED');
+                }
+                if (!room.passwordHash) {
+                    return ackError(ack, 'ROOM_PASSWORD_MISCONFIGURED');
+                }
+                try {
+                    const isValid = await verifyPassword(providedPassword, room.passwordHash);
+                    if (!isValid) {
+                        rateLimiters.passwordFailures.consume(passwordFailureKey);
+                        return ackError(ack, 'ROOM_PASSWORD_INVALID');
+                    }
+                    rateLimiters.passwordFailures.reset(passwordFailureKey);
+                } catch (err) {
+                    console.error('Password verification failed:', err);
+                    return ackError(ack, 'ROOM_PASSWORD_VERIFICATION_FAILED');
+                }
+            }
+
+            // Switching rooms on a live socket: leave the previous room first so
+            // we don't leak a phantom participant (and mesh capacity) in it. A
+            // plain refresh/rejoin of the same room falls through untouched.
+            const previousRoomId = socket.data.roomId;
+            if (previousRoomId && previousRoomId !== normalizedRoom) {
+                const previousRoom = rooms.get(previousRoomId);
+                if (previousRoom && removeUserFromRoom(previousRoom, socket.id, previousRoomId)) {
+                    io.to(previousRoomId).emit('presence', roomSnapshot(previousRoomId).participants);
+                }
+            }
+
+            let isRejoin = false;
+            const identityKey = buildIdentityKey(normalizedRoom, sessionId, clientId);
+
+            if (identityKey) {
+                const previousSocketId = room.identities.get(identityKey);
+                if (previousSocketId && previousSocketId !== socket.id) {
+                    if (removeUserFromRoom(room, previousSocketId, normalizedRoom)) {
+                        isRejoin = true;
+                    }
+                }
+            }
+
+            const userKey = `${normalizedRoom}:${cleanName}`;
+            const pendingTimer = pendingLeaveTimers.get(userKey);
+            if (pendingTimer) {
+                if (isSameIdentity(pendingTimer, sessionId, clientId)) {
+                    clearTimeout(pendingTimer.timeoutId);
+                    pendingLeaveTimers.delete(userKey);
+                    isRejoin = true;
+                } else {
+                    return ackError(ack, 'USERNAME_TAKEN');
+                }
+            }
+
+            const matchingUsers = Array.from(room.users.entries()).filter(([, user]) => user.name === cleanName);
+            const releasableUsers = [];
+            let hasConflict = false;
+
+            matchingUsers.forEach(([existingSocketId, user]) => {
+                if (isSameIdentity(user, sessionId, clientId)) {
+                    releasableUsers.push([existingSocketId, user]);
+                } else {
+                    hasConflict = true;
+                }
+            });
+
+            if (hasConflict) {
+                return ackError(ack, 'USERNAME_TAKEN');
+            }
+
+            releasableUsers.forEach(([oldSocketId, userRecord]) => {
+                if (removeUserFromRoom(room, oldSocketId, normalizedRoom, userRecord)) {
+                    isRejoin = true;
+                }
+            });
+
+            if (getRoomVideoProvider(room) === VIDEO_PROVIDER_MESH
+                && roomUsesMesh(room)
+                && !isRejoin
+                && room.users.size >= config.meshParticipantLimit) {
+                return ackError(ack, 'ROOM_FULL');
+            }
+
+            // The Lobby is a big SFU room, not mesh — cap present people (watchers
+            // + publishers) at its own limit rather than the mesh 4-cap.
+            if (isLobbyRoom(room) && !isRejoin && room.users.size >= LOBBY_PARTICIPANT_LIMIT) {
+                return ackError(ack, 'ROOM_FULL');
+            }
+
+            const scheduleChanged = recordScheduleJoin(room.schedule, Date.now());
+            const joiningUser = getSocketUser();
+            const userRecord = {
+                socketId: socket.id,
+                name: cleanName,
+                sessionId,
+                clientId,
+                identityKey,
+                joinedAt: Date.now(),
+                cameraOn: false,
+                status: null,
+                // Profile perks relayed to peers via presence (user content,
+                // not chrome — single-accent rule stays intact client-side).
+                avatarColor: joiningUser ? joiningUser.avatarColor : null,
+                streakCurrent: joiningUser ? joiningUser.streak.current : null
+            };
+
+            // Recheck after asynchronous password/authorization work. No await
+            // separates these capacity/name checks from reserving the seat.
+            try {
+                if (!(await platform.canJoin(normalizedRoom, getSocketUser()))) return ackError(ack, 'ROOM_MEMBERSHIP_REQUIRED');
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
+            if (!socket.connected || (joiningUser && !getSocketUser())) return ackError(ack, 'AUTH_REQUIRED');
+            if (rooms.get(normalizedRoom) !== room) return ackError(ack, 'ROOM_NOT_FOUND');
+            if (Array.from(room.users.values()).some((entry) => entry.name === cleanName && !isSameIdentity(entry, sessionId, clientId))) {
+                return ackError(ack, 'USERNAME_TAKEN');
+            }
+            const capacity = isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT
+                : getRoomVideoProvider(room) === VIDEO_PROVIDER_MESH && roomUsesMesh(room) ? config.meshParticipantLimit : Infinity;
+            if (!room.users.has(socket.id) && room.users.size >= capacity) return ackError(ack, 'ROOM_FULL');
+            room.users.set(socket.id, userRecord);
+            if (identityKey) {
+                room.identities.set(identityKey, socket.id);
+            }
+
+            socket.data.username = cleanName;
+            socket.data.roomId = normalizedRoom;
+            socket.join(normalizedRoom);
+
+            if (joiningUser) {
+                try {
+                    await platform.recordAttendance(normalizedRoom, joiningUser);
+                } catch {
+                    removeUserFromRoom(room, socket.id, normalizedRoom);
+                    socket.disconnect(true);
+                    return ackError(ack, 'SERVICE_UNAVAILABLE');
+                }
+                if (!socket.connected || !getSocketUser()) return ackError(ack, 'AUTH_REQUIRED');
+                recordMyRoom(joiningUser, { roomId: normalizedRoom, name: room.name, role: 'joined' });
+                persistUsersSoon();
+            }
+            const snapshot = roomSnapshot(normalizedRoom);
+            ack({ ok: true, room: snapshot });
+            if (scheduleChanged) {
+                persistRoomsSoon();
+            }
+
+            io.to(normalizedRoom).emit('presence', snapshot.participants);
+
+            if (!isRejoin) {
+                const systemMsg = createSystemMessage(`${cleanName} joined the room`, cleanName, 'join');
+                room.messages.push(systemMsg);
+                if (room.messages.length > ROOM_HISTORY_LIMIT) room.messages.shift();
+                io.to(normalizedRoom).emit('chat-message', systemMsg);
+                persistRoomsSoon();
+            }
+        });
+
+        onEvent('send-message', (payload = {}, ack) => {
+            const { text } = payload;
+            const currentRoom = socket.data.roomId;
+            const cleanText = sanitizeChatMessage(text);
+
+            if (!currentRoom) {
+                return ackError(ack, 'ROOM_NOT_JOINED');
+            }
+            if (!cleanText) {
+                return ackError(ack, 'MESSAGE_REQUIRED');
+            }
+            if (!checkSocketRateLimit(socket, rateLimiters.chatMessages, getJoinSessionKey(socket), ack)) {
+                return;
+            }
+
+            const room = rooms.get(currentRoom);
+            if (!room) {
+                return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+            const message = {
+                id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                author: socket.data.username,
+                text: cleanText,
+                timestamp: Date.now(),
+                type: 'user'
+            };
+
+            room.messages.push(message);
+            if (room.messages.length > ROOM_HISTORY_LIMIT) room.messages.shift();
+            io.to(currentRoom).emit('chat-message', message);
+            persistRoomsSoon();
+            ack({ ok: true });
+        });
+
+        onEvent('board-set-goal', (payload = {}, ack) => {
+            const currentRoom = socket.data.roomId;
+            if (!currentRoom) {
+                return ackError(ack, 'ROOM_NOT_JOINED');
+            }
+            if (!checkSocketRateLimit(socket, rateLimiters.boardMutations, getJoinSessionKey(socket), ack)) {
+                return;
+            }
+
+            const room = rooms.get(currentRoom);
+            if (!room) {
+                return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+
+            const board = ensureRoomBoard(room);
+            board.goal = sanitizeBoardGoal(payload.goal);
+            emitBoardState(currentRoom, room);
+            persistRoomsSoon();
+            ack({ ok: true, board: cloneBoard(board) });
+        });
+
+        onEvent('board-add-task', (payload = {}, ack) => {
+            const currentRoom = socket.data.roomId;
+            if (!currentRoom) {
+                return ackError(ack, 'ROOM_NOT_JOINED');
+            }
+            if (!checkSocketRateLimit(socket, rateLimiters.boardMutations, getJoinSessionKey(socket), ack)) {
+                return;
+            }
+
+            const room = rooms.get(currentRoom);
+            if (!room) {
+                return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+
+            const cleanText = sanitizeBoardTaskText(payload.text);
+            if (!cleanText) {
+                return ackError(ack, 'BOARD_TASK_REQUIRED');
+            }
+
+            const board = ensureRoomBoard(room);
+            board.tasks.push({
+                id: crypto.randomUUID(),
+                text: cleanText,
+                priority: normalizeBoardPriority(payload.priority),
+                done: false
+            });
+            emitBoardState(currentRoom, room);
+            persistRoomsSoon();
+            ack({ ok: true, board: cloneBoard(board) });
+        });
+
+        onEvent('board-toggle-task', (payload = {}, ack) => {
+            const currentRoom = socket.data.roomId;
+            if (!currentRoom) {
+                return ackError(ack, 'ROOM_NOT_JOINED');
+            }
+            if (!checkSocketRateLimit(socket, rateLimiters.boardMutations, getJoinSessionKey(socket), ack)) {
+                return;
+            }
+
+            const room = rooms.get(currentRoom);
+            if (!room) {
+                return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+
+            const board = ensureRoomBoard(room);
+            const targetTaskId = typeof payload.taskId === 'string' ? payload.taskId.trim() : '';
+            const task = board.tasks.find((entry) => entry.id === targetTaskId);
+            if (!task) {
+                return ackError(ack, 'BOARD_TASK_NOT_FOUND');
+            }
+
+            task.done = !!payload.done;
+            emitBoardState(currentRoom, room);
+            persistRoomsSoon();
+            ack({ ok: true, board: cloneBoard(board) });
+        });
+
+        onEvent('board-delete-task', (payload = {}, ack) => {
+            const currentRoom = socket.data.roomId;
+            if (!currentRoom) {
+                return ackError(ack, 'ROOM_NOT_JOINED');
+            }
+            if (!checkSocketRateLimit(socket, rateLimiters.boardMutations, getJoinSessionKey(socket), ack)) {
+                return;
+            }
+
+            const room = rooms.get(currentRoom);
+            if (!room) {
+                return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+
+            const board = ensureRoomBoard(room);
+            const targetTaskId = typeof payload.taskId === 'string' ? payload.taskId.trim() : '';
+            const taskIndex = board.tasks.findIndex((entry) => entry.id === targetTaskId);
+            if (taskIndex === -1) {
+                return ackError(ack, 'BOARD_TASK_NOT_FOUND');
+            }
+
+            board.tasks.splice(taskIndex, 1);
+            emitBoardState(currentRoom, room);
+            persistRoomsSoon();
+            ack({ ok: true, board: cloneBoard(board) });
+        });
+
+        onEvent('board-reorder-tasks', (payload = {}, ack) => {
+            const currentRoom = socket.data.roomId;
+            if (!currentRoom) {
+                return ackError(ack, 'ROOM_NOT_JOINED');
+            }
+            if (!checkSocketRateLimit(socket, rateLimiters.boardMutations, getJoinSessionKey(socket), ack)) {
+                return;
+            }
+
+            const room = rooms.get(currentRoom);
+            if (!room) {
+                return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+
+            const board = ensureRoomBoard(room);
+            const { taskIds } = payload;
+            if (!Array.isArray(taskIds) || taskIds.length !== board.tasks.length) {
+                return ackError(ack, 'BOARD_REORDER_INVALID');
+            }
+
+            const normalizedTaskIds = taskIds
+                .filter((taskId) => typeof taskId === 'string')
+                .map((taskId) => taskId.trim());
+            if (normalizedTaskIds.length !== board.tasks.length) {
+                return ackError(ack, 'BOARD_REORDER_INVALID');
+            }
+
+            const orderedTasks = [];
+            const taskMap = new Map(board.tasks.map((task) => [task.id, task]));
+            for (const taskId of normalizedTaskIds) {
+                const task = taskMap.get(taskId);
+                if (!task) {
+                    return ackError(ack, 'BOARD_REORDER_INVALID');
+                }
+                orderedTasks.push(task);
+                taskMap.delete(taskId);
+            }
+
+            if (taskMap.size > 0) {
+                return ackError(ack, 'BOARD_REORDER_INVALID');
+            }
+
+            board.tasks = orderedTasks;
+            emitBoardState(currentRoom, room);
+            persistRoomsSoon();
+            ack({ ok: true, board: cloneBoard(board) });
+        });
+
+        onEvent('camera-status', (payload = {}) => {
+            const { roomId } = socket.data;
+            if (!roomId) return;
+            const room = rooms.get(roomId);
+            if (!room) return;
+            if (!roomUsesMesh(room)) return;
+            const user = room.users.get(socket.id);
+            if (!user) return;
+            user.cameraOn = !!payload.camera;
+            io.to(roomId).emit('camera-status', { userId: socket.id, camera: user.cameraOn });
+        });
+
+        onEvent('rtc-offer', (payload = {}) => {
+            const { roomId } = socket.data;
+            const { targetId, sdp } = payload;
+            if (!roomId || !targetId || !sdp) return;
+            const room = rooms.get(roomId);
+            if (!room || !roomUsesMesh(room) || !room.users.has(targetId)) return;
+            io.to(targetId).emit('rtc-offer', { from: socket.id, sdp });
+        });
+
+        onEvent('rtc-answer', (payload = {}) => {
+            const { roomId } = socket.data;
+            const { targetId, sdp } = payload;
+            if (!roomId || !targetId || !sdp) return;
+            const room = rooms.get(roomId);
+            if (!room || !roomUsesMesh(room) || !room.users.has(targetId)) return;
+            io.to(targetId).emit('rtc-answer', { from: socket.id, sdp });
+        });
+
+        onEvent('rtc-ice', (payload = {}) => {
+            const { roomId } = socket.data;
+            const { targetId, candidate } = payload;
+            if (!roomId || !targetId || !candidate) return;
+            const room = rooms.get(roomId);
+            if (!room || !roomUsesMesh(room) || !room.users.has(targetId)) return;
+            io.to(targetId).emit('rtc-ice', { from: socket.id, candidate });
+        });
+
+        onEvent('user-status', (payload = {}, ack) => {
+            const { status } = payload || {};
+            const { roomId } = socket.data;
+            if (!roomId) return ack({ ok: false });
+            const room = rooms.get(roomId);
+            if (!room) return ack({ ok: false });
+            const user = room.users.get(socket.id);
+            if (!user) return ack({ ok: false });
+            const safeStatus = sanitizeStatus(status);
+            user.status = safeStatus;
+            io.to(roomId).emit('status-update', { userId: socket.id, status: safeStatus });
+            ack({ ok: true });
+        });
+
+        // Reports are silent: stored on the room for admin review, never
+        // broadcast, never exposed through client-facing snapshots.
+        onEvent('report-user', async (payload = {}, ack) => {
+            const currentRoom = socket.data.roomId;
+            if (!currentRoom) {
+                return ackError(ack, 'ROOM_NOT_JOINED');
+            }
+            const room = rooms.get(currentRoom);
+            if (!room) {
+                return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+            const reporter = room.users.get(socket.id);
+            if (!reporter) {
+                return ackError(ack, 'ROOM_NOT_JOINED');
+            }
+            const targetId = typeof payload.targetId === 'string' ? payload.targetId : '';
+            const target = room.users.get(targetId);
+            if (!target) {
+                return ackError(ack, 'PARTICIPANT_NOT_FOUND');
+            }
+            if (targetId === socket.id || isSameIdentity(target, socket.data.sessionId, socket.data.clientId)) {
+                return ackError(ack, 'CANNOT_REPORT_SELF');
+            }
+            if (!checkSocketRateLimit(socket, rateLimiters.reports, getJoinSessionKey(socket), ack)) {
+                return;
+            }
+            const reason = REPORT_REASONS.includes(payload.reason) ? payload.reason : 'other';
+            const report = {
+                id: `rpt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                reporterName: reporter.name || '',
+                reporterSessionIdPrefix: (socket.data.sessionId || '').slice(0, 8),
+                targetSocketId: targetId,
+                targetSessionIdPrefix: (target.sessionId || '').slice(0, 8),
+                targetClientId: target.clientId || '',
+                targetName: target.name || '',
+                reason,
+                detail: sanitizeUserText(payload.detail, REPORT_DETAIL_MAX_LENGTH),
+                createdAt: Date.now(),
+                status: 'open'
+            };
+            try {
+                const reporterUser = getSocketUser();
+                const targetUser = users.get(io.sockets.sockets.get(targetId)?.data?.userId);
+                await platform.ensureUser(reporterUser);
+                await platform.ensureUser(targetUser);
+                await platform.recordCase(currentRoom, report, reporterUser?.id, targetUser?.id);
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
+            if (!Array.isArray(room.reports)) room.reports = [];
+            room.reports.push(report);
+            if (room.reports.length > ROOM_REPORTS_LIMIT) {
+                room.reports.splice(0, room.reports.length - ROOM_REPORTS_LIMIT);
+            }
+            logger.warn({
+                event: 'user_reported',
+                roomId: currentRoom,
+                reportId: report.id,
+                reason,
+                targetName: report.targetName
+            });
+            persistRoomsSoon();
+            ack({ ok: true, reportId: report.id });
+        });
+
+        socket.on('disconnect', () => {
+            if (skippedDisconnects.has(socket.id)) {
+                skippedDisconnects.delete(socket.id);
+                return;
+            }
+
+            emitEndedVideoSessions(videoSessionRegistry.markSocketSessionsLeft(socket.id, 'socket_disconnect'));
+            const { roomId, sessionId: userSessionId, clientId: userClientId } = socket.data;
+            if (!roomId) return;
+            const room = rooms.get(roomId);
+            if (!room) return;
+
+            const user = room.users.get(socket.id);
+            room.users.delete(socket.id);
+
+            if (user) {
+                const identityKey = user.identityKey || buildIdentityKey(roomId, user.sessionId, user.clientId || userClientId);
+                if (identityKey && room.identities && room.identities.get(identityKey) === socket.id) {
+                    room.identities.delete(identityKey);
+                }
+            }
+
+            io.to(roomId).emit('camera-status', { userId: socket.id, camera: false });
+            const snapshot = roomSnapshot(roomId);
+            io.to(roomId).emit('presence', snapshot.participants);
+
+            if (user) {
+                const userKey = `${roomId}:${user.name}`;
+                const existingPending = pendingLeaveTimers.get(userKey);
+                if (existingPending) {
+                    clearTimeout(existingPending.timeoutId);
+                }
+
+                const timerRecord = {
+                    sessionId: user.sessionId || userSessionId,
+                    clientId: user.clientId || userClientId || socket.data.clientId || null,
+                    timeoutId: null
+                };
+
+                timerRecord.timeoutId = setTimeout(() => {
+                    const activeRecord = pendingLeaveTimers.get(userKey);
+                    if (activeRecord !== timerRecord) return;
+
+                    pendingLeaveTimers.delete(userKey);
+                    const currentRoom = rooms.get(roomId);
+                    if (currentRoom) {
+                        const systemMsg = createSystemMessage(`${user.name} left the room`, user.name, 'leave');
+                        currentRoom.messages.push(systemMsg);
+                        if (currentRoom.messages.length > ROOM_HISTORY_LIMIT) currentRoom.messages.shift();
+                        io.to(roomId).emit('chat-message', systemMsg);
+                        persistRoomsSoon();
+                    }
+                }, 3000);
+
+                pendingLeaveTimers.set(userKey, timerRecord);
+            }
+
+            scheduleRoomCleanup(roomId);
+        });
+    });
+
+    function listen(callback) {
+        server.listen(config.port, () => {
+            const startupSummary = {
+                event: 'startup',
+                mode: config.mode,
+                port: config.port,
+                roomStateFile: roomStore.filePath,
+                userStateFile: userStore.filePath,
+                loadedRoomCount,
+                loadedUserCount,
+                sessionSecretEphemeral: !!config.sessionSecretEphemeral,
+                adminEnabled: !!config.admin.enabled,
+                iceMode: config.iceMode,
+                sfuAvailable: config.sfuAvailable,
+                meshParticipantLimit: config.meshParticipantLimit,
+                videoProvider: config.video.provider,
+                maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
+                maxRoomVideoParticipants: config.video.maxRoomParticipants,
+                videoJoinDisabled: !!config.video.joinDisabled
+            };
+            console.log(JSON.stringify(startupSummary));
+            if (typeof callback === 'function') {
+                callback({
+                    config,
+                    roomStore,
+                    loadedRoomCount
+                });
+            }
+        });
+        return server;
+    }
+
+    return {
+        app,
+        server,
+        io,
+        config,
+        roomStore,
+        userStore,
+        videoSessionRegistry,
+        rooms,
+        users,
+        listen,
+        evaluateReadiness,
+        getLoadedRoomCount() {
+            return loadedRoomCount;
+        },
+        getLoadedUserCount() {
+            return loadedUserCount;
+        }
+    };
+}
+
+module.exports = {
+    createCoStudyServer,
+    DEFAULT_ICE_SERVERS
+};

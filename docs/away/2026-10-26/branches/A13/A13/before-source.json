@@ -1,0 +1,8 @@
+{
+  "head": "c4d6c50553f55704b4d4a788db28b05fa983047a",
+  "applicationUnmodified": true,
+  "sha256": {
+    "public/js/platform.js": "cadfefc38e714e1a85dcc73280772221c20423b9c607f340bb5b51c0f911a9b3",
+    "tests/smoke/circle-feedback-away.smoke.spec.js": "d394019a31017720e7feae652bf71c0f5873f09effa8b91d39d138da0274c446"
+  }
+}

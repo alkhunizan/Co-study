@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl" data-theme="light">
 <head>
   <meta charset="UTF-8">
@@ -13,9 +13,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/design-system/colors_and_type.css">
-  <link rel="stylesheet" href="/design-system/landing.css">
-  <script src="/js/halastudy-core.js"></script>
+  <link rel="stylesheet" href="/design-system/colors_and_type.css?v=20261021-refinement">
+  <link rel="stylesheet" href="/design-system/landing.css?v=20261021-refinement">
+  <script src="/js/halastudy-core.js?v=20261022-top20"></script>
+  <script src="/js/safe-return.js?v=20261021-refinement"></script>
   <script src="/js/ui.js" defer></script>
   <style>
     .account-shell {
@@ -146,13 +147,13 @@
 </head>
 <body class="is-open-page">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="Halastudy home">
+    <a class="brand" href="/">
       <span>Hala<em>study</em><span class="dot">.</span></span>
       <span class="divider" aria-hidden="true"></span>
       <span class="ar" aria-hidden="true">هلا</span>
     </a>
     <div class="topbar-right">
-      <div class="lang-switch" role="tablist" aria-label="Language">
+      <div class="lang-switch" role="group" aria-label="Language">
         <button type="button" id="lang-en" data-lang-value="en">EN</button>
         <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
       </div>
@@ -173,7 +174,7 @@
       </div>
 
       <form class="form-card" id="signin-form" autocomplete="on" novalidate>
-        <h3 class="form-title" data-lang="signinTitle">أهلاً من جديد</h3>
+        <h1 class="form-title" data-lang="signinTitle">أهلاً من جديد</h1>
         <div class="input-group">
           <label for="signin-email" data-lang="labelEmail">البريد الإلكتروني</label>
           <input type="email" id="signin-email" name="email" maxlength="254" data-force-ltr dir="ltr" autocomplete="email" placeholder="you@example.com" required>
@@ -186,10 +187,11 @@
           <button type="submit" class="btn btn-primary" data-lang="btnSignIn">ادخل</button>
         </div>
         <p class="form-feedback" id="signin-feedback"></p>
+        <a class="btn btn-secondary" href="/recover" data-lang="recoverAccount">استعادة الحساب</a>
       </form>
 
       <form class="form-card hidden" id="signup-form" autocomplete="on" novalidate>
-        <h3 class="form-title" data-lang="signupTitle">احجز مقعدك</h3>
+        <h1 class="form-title" data-lang="signupTitle">احجز مقعدك</h1>
         <div class="input-group">
           <label for="signup-nickname" data-lang="labelNickname">اسمك في الغرفة</label>
           <input type="text" id="signup-nickname" name="nickname" maxlength="20" autocomplete="nickname" required>
@@ -211,6 +213,7 @@
 
       <!-- Google Sign-In — revealed only when the server reports the provider
            is configured (runtime-config.googleAuthEnabled). Covers both tabs. -->
+      <div id="provider-unavailable" hidden></div>
       <div class="auth-oauth" data-google-auth hidden>
         <div class="oauth-divider"><span data-lang="orDivider">أو</span></div>
         <a class="btn btn-oauth" href="/auth/google" role="button">
@@ -227,8 +230,13 @@
 
     <!-- Signed-in view: account hub -->
     <section id="account-view" class="hidden">
+      <h1 class="form-title" data-lang="accountTitle">حسابك وخياراتك</h1>
+      <div class="form-actions"><a class="btn btn-primary" href="/app" data-lang="workspaceLink">مساحتي وتقدّمي</a><a class="btn btn-secondary" href="/plans">VIP · US$4.99</a></div>
       <div class="form-card">
-        <h3 class="form-title" data-lang="statsTitle">تركيزك</h3>
+        <h2 class="form-title" data-lang="statsTitle">سجلك السابق على الحساب</h2>
+        <p class="form-hint" data-lang="legacyHistoryNote">يشمل المؤقّت القديم والبيانات المستوردة. لا يمنح نقاطًا موثّقة. راجع تقدّمك الموثّق في مساحتك.</p>
+        <a href="/app#progress" class="btn btn-secondary" data-lang="verifiedProgress">تقدّمي الموثّق</a>
+        <div id="stats-unavailable" hidden></div>
         <div class="stats-row">
           <div class="stat-tile">
             <strong id="stat-streak" class="num-eastern">٠</strong>
@@ -246,7 +254,7 @@
       </div>
 
       <form class="form-card" id="profile-form" novalidate>
-        <h3 class="form-title" data-lang="profileTitle">ملفك</h3>
+        <h2 class="form-title" data-lang="profileTitle">ملفك</h2>
         <div class="input-group">
           <label for="profile-nickname" data-lang="labelNickname">اسمك في الغرفة</label>
           <input type="text" id="profile-nickname" maxlength="20" autocomplete="nickname">
@@ -263,11 +271,13 @@
           <button type="submit" class="btn btn-secondary" data-lang="btnSaveProfile">احفظ التغييرات</button>
         </div>
         <p class="form-feedback" id="profile-feedback"></p>
+        <a class="btn btn-secondary" href="/recover?mode=verify" data-lang="verifyEmail">تأكيد البريد الإلكتروني</a>
       </form>
 
       <div class="form-card">
-        <h3 class="form-title" data-lang="roomsTitle">غرفك</h3>
+        <h2 class="form-title" data-lang="roomsTitle">غرفك</h2>
         <div class="rooms-list" id="rooms-list"></div>
+        <div id="rooms-unavailable" hidden></div>
         <p class="form-note hidden" id="rooms-empty" data-lang="roomsEmpty">أول ما تفتح غرفة أو تدخل وحدة، بتلقاها هنا.</p>
       </div>
 
@@ -285,7 +295,7 @@
       </div>
 
       <div class="form-card danger-card" id="danger-card">
-        <h3 class="form-title" data-lang="dangerTitle">إدارة الحساب</h3>
+        <h2 class="form-title" data-lang="dangerTitle">إدارة الحساب</h2>
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" id="btn-signout" data-lang="btnSignOutFull">تسجيل الخروج</button>
         </div>
@@ -307,10 +317,12 @@
   <footer class="footer">
     <div><span data-lang="footerTag">هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.</span></div>
     <div class="links">
-      <a href="/" aria-label="Halastudy home"><span class="back-arrow" aria-hidden="true">←</span> Halastudy</a>
+      <a href="/"><span class="back-arrow" aria-hidden="true">←</span> Halastudy</a>
       <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
       <a href="/terms" data-lang="footerTerms">الشروط</a>
     </div>
+  
+    <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
   </footer>
 
   <script>
@@ -318,10 +330,13 @@
       const dict = {
         en: {
           pageTitle: 'Halastudy | Your account',
+          accountTitle: 'Your account and preferences',
           themeToggleTitle: 'Toggle theme',
           tabSignIn: 'Sign in',
           tabSignUp: 'New account',
           signinTitle: 'Welcome back',
+          recoverAccount: 'Forgot your password?',
+          verifyEmail: 'Verify email address',
           signupTitle: 'Save your seat',
           labelEmail: 'Email',
           labelPassword: 'Password',
@@ -332,6 +347,7 @@
           orDivider: 'or',
           btnGoogle: 'Continue with Google',
           errGoogle: 'Google sign-in didn’t complete. Try again.',
+<<<<<<< HEAD
           errLinkRequired: 'Sign in with your password, then link Google from this page.',
           errLinkEmailMismatch: 'Choose the Google account with the same verified email.',
           errGoogleSubjectInUse: 'That Google account is already linked elsewhere.',
@@ -343,6 +359,12 @@
           googleLinkedToast: 'Google account connected',
           statsTitle: 'Your focus',
           statStreak: 'Day streak',
+=======
+          statsTitle: 'Earlier recorded history',
+          legacyHistoryNote: 'Includes the earlier timer and imported history. It does not award validated points. See verified progress in your workspace.',
+          verifiedProgress: 'My verified progress',
+          statStreak: 'Last recorded streak',
+>>>>>>> viber/2026-10-27
           statBest: 'Best streak',
           statTotalFocus: 'Focus hours',
           profileTitle: 'Your profile',
@@ -356,12 +378,13 @@
           roomGone: 'Expired',
           dangerTitle: 'Account',
           btnSignOutFull: 'Sign out',
-          deleteNote: 'Deleting your account erases your email, focus minutes, and streak permanently. Per data-protection law this is immediate and irreversible.',
+          workspaceLink: 'My workspace and progress',
+          deleteNote: 'Delete your account and personal progress. Shared room content and operational records follow the privacy policy.',
           labelPasswordConfirm: 'Password to confirm',
           btnDeleteData: 'Delete my data',
           btnDeleteWithGoogle: 'Verify with Google and delete',
           deleteConfirmTitle: 'Delete this account?',
-          deleteConfirmBody: 'Everything goes: your email, focus history, streak, and room list. This cannot be undone.',
+          deleteConfirmBody: 'Your account, personal focus history, and memberships will be removed. Circles you own will be archived and their rooms closed. This cannot be undone.',
           deleteConfirmLabel: 'Delete forever',
           deleteCancelLabel: 'Keep my account',
           deleteTypePrompt: 'Type your room name to confirm',
@@ -377,6 +400,8 @@
           errACCOUNT_BANNED: 'This account has been suspended.',
           errRATE_LIMITED: 'Too many attempts. Wait a moment and try again.',
           errAUTH_REQUIRED: 'Please sign in again.',
+          errPERSISTENCE_UNAVAILABLE: 'Your changes could not be saved. Try again shortly.',
+          errLAST_SUPER_ADMIN: 'Assign another super admin before deleting this account.',
           errNETWORK: 'Connection hiccup. Try again.',
           footerTag: 'Halastudy · Online focus rooms for studying and working — study or work live, with serious people.',
           footerPrivacy: 'Privacy',
@@ -384,10 +409,13 @@
         },
         ar: {
           pageTitle: 'هلاستدي | حسابك',
+          accountTitle: 'حسابك وخياراتك',
           themeToggleTitle: 'تبديل المظهر',
           tabSignIn: 'دخول',
           tabSignUp: 'حساب جديد',
           signinTitle: 'أهلاً من جديد',
+          recoverAccount: 'نسيت كلمة المرور؟',
+          verifyEmail: 'تأكيد البريد الإلكتروني',
           signupTitle: 'احجز مقعدك',
           labelEmail: 'البريد الإلكتروني',
           labelPassword: 'كلمة المرور',
@@ -398,6 +426,7 @@
           orDivider: 'أو',
           btnGoogle: 'تابع مع جوجل',
           errGoogle: 'ما اكتمل الدخول عبر جوجل. جرّب مرة ثانية.',
+<<<<<<< HEAD
           errLinkRequired: 'ادخل بكلمة المرور، ثم اربط جوجل من هذه الصفحة.',
           errLinkEmailMismatch: 'اختر حساب جوجل الذي يحمل نفس البريد المؤكد.',
           errGoogleSubjectInUse: 'حساب جوجل هذا مربوط بحساب آخر.',
@@ -409,6 +438,12 @@
           googleLinkedToast: 'تم ربط حساب جوجل',
           statsTitle: 'تركيزك',
           statStreak: 'سلسلة الأيام',
+=======
+          statsTitle: 'سجلك السابق على الحساب',
+          legacyHistoryNote: 'يشمل المؤقّت القديم والبيانات المستوردة. لا يمنح نقاطًا موثّقة. راجع تقدّمك الموثّق في مساحتك.',
+          verifiedProgress: 'تقدّمي الموثّق',
+          statStreak: 'آخر سلسلة مسجّلة',
+>>>>>>> viber/2026-10-27
           statBest: 'أفضل سلسلة',
           statTotalFocus: 'ساعات التركيز',
           profileTitle: 'ملفك',
@@ -422,12 +457,13 @@
           roomGone: 'انتهت',
           dangerTitle: 'إدارة الحساب',
           btnSignOutFull: 'تسجيل الخروج',
-          deleteNote: 'حذف الحساب يمسح بريدك ودقائق تركيزك وسلسلتك نهائيًا. حسب نظام حماية البيانات، هذا الحذف فوري ولا يمكن التراجع عنه.',
+          workspaceLink: 'مساحتي وتقدّمي',
+          deleteNote: 'احذف حسابك وتقدّمك الشخصي. يخضع محتوى الغرف المشتركة والسجلات التشغيلية لسياسة الخصوصية.',
           labelPasswordConfirm: 'كلمة المرور للتأكيد',
           btnDeleteData: 'احذف بياناتي',
           btnDeleteWithGoogle: 'أكد عبر جوجل واحذف',
           deleteConfirmTitle: 'تحذف الحساب؟',
-          deleteConfirmBody: 'كل شيء يروح: بريدك، سجل تركيزك، سلسلتك، وقائمة غرفك. ما فيه رجعة.',
+          deleteConfirmBody: 'سيُحذف حسابك وسجل تركيزك الشخصي وعضوياتك، وستُؤرشف المجموعات التي تملكها وتُغلق غرفها. لا يمكن التراجع عن هذا الإجراء.',
           deleteConfirmLabel: 'احذف نهائيًا',
           deleteCancelLabel: 'خلّ الحساب',
           deleteTypePrompt: 'اكتب اسمك في الغرفة للتأكيد',
@@ -443,6 +479,8 @@
           errACCOUNT_BANNED: 'هذا الحساب موقوف.',
           errRATE_LIMITED: 'محاولات كثيرة. انتظر شوي وجرّب.',
           errAUTH_REQUIRED: 'سجّل دخولك من جديد.',
+          errPERSISTENCE_UNAVAILABLE: 'تعذّر حفظ التغييرات. حاول مرة أخرى بعد قليل.',
+          errLAST_SUPER_ADMIN: 'عيّن مسؤولًا أعلى آخر قبل حذف هذا الحساب.',
           errNETWORK: 'النت تعثّر. جرّب مرة ثانية.',
           footerTag: 'هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.',
           footerPrivacy: 'الخصوصية',
@@ -468,6 +506,7 @@
       if (themeBtn) themeBtn.addEventListener('click', core.toggleTheme);
 
       // Reveal Google Sign-In only when the server has the provider configured.
+<<<<<<< HEAD
       fetch('/api/runtime-config')
         .then((r) => r.json())
         .then((cfg) => {
@@ -482,6 +521,19 @@
           }
         })
         .catch(() => {});
+=======
+      async function loadAuthProviders() {
+        const unavailable = document.getElementById('provider-unavailable');
+        try {
+          const cfg = await core.requestJson('GET', '/api/runtime-config');
+          document.querySelectorAll('[data-google-auth]').forEach((el) => { el.hidden = !cfg.googleAuthEnabled; });
+          unavailable.hidden = true;
+        } catch (_error) {
+          core.showUnavailable(unavailable, loadAuthProviders);
+        }
+      }
+      void loadAuthProviders();
+>>>>>>> viber/2026-10-27
 
       const authView = document.getElementById('auth-view');
       const accountView = document.getElementById('account-view');
@@ -491,6 +543,30 @@
       const signupForm = document.getElementById('signup-form');
 
       function t(key) { return core.t(key) || key; }
+      async function accountRequest(method, path, body) {
+        try {
+          return await core.requestJson(method, path, body, { 'X-Halastudy-Account': currentUser?.id || '' });
+        } catch (error) {
+          if (['AUTH_ACCOUNT_CHANGED', 'AUTH_REQUIRED'].includes(error.code)) {
+            accountView.classList.add('hidden');
+            signinForm.reset(); signupForm.reset();
+            document.getElementById('profile-form').reset();
+            document.getElementById('delete-password').value = '';
+            location.reload();
+          }
+          throw error;
+        }
+      }
+      async function checkAccountIdentity() {
+        if (!currentUser) return;
+        try {
+          const user = await auth.refreshUser();
+          if (user?.id !== currentUser.id) { accountView.classList.add('hidden'); location.reload(); }
+        } catch { /* Existing draft stays; server pin still rejects stale writes. */ }
+      }
+      window.addEventListener('focus', checkAccountIdentity);
+      window.addEventListener('pageshow', checkAccountIdentity);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) void checkAccountIdentity(); });
 
       // Capture callback results before scrubbing them so reauth flows can
       // finish only after the account session has been loaded below.
@@ -504,7 +580,11 @@
           fb.textContent = t(feedbackKey);
         }
       }
-      if (authParam) history.replaceState(null, '', location.pathname);
+      if (authParam) {
+        const cleaned = new URL(location.href);
+        cleaned.searchParams.delete('auth');
+        history.replaceState(null, '', cleaned.pathname + cleaned.search + cleaned.hash);
+      }
 
       // Emotional numbers (streak, focus hours) render Eastern in Arabic — the
       // .num-eastern CSS class alone doesn't convert ASCII digits (DESIGN.md §5).
@@ -516,7 +596,7 @@
         ar: { amber: 'كراك', sage: 'مريمية', terracotta: 'طيني', dusk: 'غسق', sand: 'رملي', stone: 'حجري' }
       };
       function errText(error) {
-        return t(`err${error && error.code ? error.code : 'NETWORK'}`);
+        return core.t(`err${error && error.code ? error.code : 'NETWORK'}`) || t('errNETWORK');
       }
       function setFeedback(id, message, kind) {
         const el = document.getElementById(id);
@@ -525,6 +605,7 @@
       }
       function resolveNextUrl() {
         const next = new URLSearchParams(location.search).get('next') || '';
+<<<<<<< HEAD
         if (!next || next.includes('\\')) return '/open.html';
         let decoded = next;
         try {
@@ -546,7 +627,13 @@
         } catch (error) {
           return '/open.html';
         }
+=======
+        return window.HalaSafeReturn(next, '/open.html');
+>>>>>>> viber/2026-10-27
       }
+      document.querySelectorAll('a[href="/auth/google"]').forEach((link) => {
+        link.href = `/auth/google?next=${encodeURIComponent(resolveNextUrl())}`;
+      });
 
       /* ---------- tabs ---------- */
       function setTab(which) {
@@ -555,11 +642,23 @@
         tabSignup.classList.toggle('is-on', !signin);
         tabSignin.setAttribute('aria-selected', String(signin));
         tabSignup.setAttribute('aria-selected', String(!signin));
+        tabSignin.tabIndex = signin ? 0 : -1;
+        tabSignup.tabIndex = signin ? -1 : 0;
         signinForm.classList.toggle('hidden', !signin);
         signupForm.classList.toggle('hidden', signin);
       }
       tabSignin.addEventListener('click', () => setTab('signin'));
       tabSignup.addEventListener('click', () => setTab('signup'));
+      [tabSignin, tabSignup].forEach((tab, index) => {
+        tab.addEventListener('keydown', (event) => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : 1 - index;
+          setTab(next ? 'signup' : 'signin');
+          [tabSignin, tabSignup][next].focus();
+        });
+      });
+      setTab('signin');
       if (new URLSearchParams(location.search).get('signup') === '1' || location.hash === '#signup') {
         setTab('signup');
       }
@@ -695,22 +794,36 @@
 
       async function loadAccount(user) {
         currentUser = user;
+        const deletePassword = document.getElementById('delete-password');
+        deletePassword.closest('.input-group').hidden = user.authProvider === 'google';
         authView.classList.add('hidden');
         accountView.classList.remove('hidden');
         document.getElementById('profile-nickname').value = user.displayName;
         document.getElementById('profile-bio').value = user.bio || '';
         renderAuthMethodControls();
         renderSwatches(user.avatarColor);
-        renderStats(null, user.streak);
+        for (const id of ['stat-streak', 'stat-best', 'stat-hours']) document.getElementById(id).textContent = '—';
+        await Promise.all([loadStats(), loadRooms()]);
+      }
+      async function loadStats() {
         try {
-          const stats = await core.requestJson('GET', '/api/me/stats');
+          const stats = await accountRequest('GET', '/api/me/stats');
+          if (!Number.isFinite(stats.focusStats?.totalFocusMinutes)
+              || !Number.isFinite(stats.streak?.current) || !Number.isFinite(stats.streak?.best)) throw new Error('RESPONSE_INVALID');
           renderStats(stats.focusStats, stats.streak);
-        } catch (e) { /* stats stay at defaults */ }
-        try {
-          const mine = await core.requestJson('GET', '/api/me/rooms');
-          renderRooms(mine.rooms || []);
+          document.getElementById('stats-unavailable').hidden = true;
         } catch (e) {
-          renderRooms([]);
+          core.showUnavailable(document.getElementById('stats-unavailable'), loadStats);
+        }
+      }
+      async function loadRooms() {
+        try {
+          const mine = await accountRequest('GET', '/api/me/rooms');
+          if (!Array.isArray(mine.rooms)) throw new Error('RESPONSE_INVALID');
+          renderRooms(mine.rooms);
+          document.getElementById('rooms-unavailable').hidden = true;
+        } catch (e) {
+          core.showUnavailable(document.getElementById('rooms-unavailable'), loadRooms);
         }
         if (authParam === 'google_linked') {
           window.HalaUI.toast(t('googleLinkedToast'), { kind: 'success' });
@@ -732,7 +845,7 @@
         setFeedback('profile-feedback', '');
         const selectedSwatch = document.querySelector('#swatch-row input:checked');
         try {
-          const payload = await core.requestJson('PATCH', '/api/me/profile', {
+          const payload = await accountRequest('PATCH', '/api/me/profile', {
             displayName: document.getElementById('profile-nickname').value,
             avatarColor: selectedSwatch ? selectedSwatch.value : 'amber',
             bio: document.getElementById('profile-bio').value
@@ -745,16 +858,32 @@
       });
 
       document.getElementById('btn-signout').addEventListener('click', async () => {
-        await auth.signout();
-        window.HalaUI.toast(t('signedOutToast'));
-        setTimeout(() => location.assign('/'), 400);
+        try {
+          await auth.signout();
+          window.HalaUI.toast(t('signedOutToast'));
+          setTimeout(() => location.assign('/'), 400);
+        } catch (error) {
+          setFeedback('profile-feedback', errText(error), 'error');
+        }
       });
 
+<<<<<<< HEAD
       document.getElementById('btn-link-google').addEventListener('click', async () => {
         setFeedback('google-link-feedback', '');
         const password = document.getElementById('google-link-password').value;
         if (!password) {
           setFeedback('google-link-feedback', t('errINVALID_CREDENTIALS'), 'error');
+=======
+      document.getElementById('btn-delete').addEventListener('click', async () => {
+        setFeedback('danger-feedback', '');
+        const password = document.getElementById('delete-password').value;
+        if (currentUser?.authProvider === 'google' && new URLSearchParams(location.search).get('reauth') !== 'complete') {
+          location.assign('/auth/google?purpose=delete');
+          return;
+        }
+        if (!password && currentUser?.authProvider !== 'google') {
+          setFeedback('danger-feedback', t('errINVALID_CREDENTIALS'), 'error');
+>>>>>>> viber/2026-10-27
           return;
         }
         try {
@@ -784,10 +913,19 @@
 
       async function deleteAccount(body) {
         try {
+<<<<<<< HEAD
           await core.requestJson('DELETE', '/api/me', body);
+=======
+          await accountRequest('DELETE', '/api/me', { password });
+          core.clearStudyStorage(currentUser?.id);
+>>>>>>> viber/2026-10-27
           window.HalaUI.toast(t('deletedToast'));
           setTimeout(() => location.assign('/'), 800);
         } catch (error) {
+          if (error.code === 'REAUTH_REQUIRED') {
+            location.assign('/auth/google?purpose=delete');
+            return;
+          }
           setFeedback('danger-feedback', errText(error), 'error');
         }
       }
@@ -819,8 +957,9 @@
         } else {
           authView.classList.remove('hidden');
         }
-      });
+      }).catch(() => core.showUnavailable());
     })();
   </script>
 </body>
 </html>
+

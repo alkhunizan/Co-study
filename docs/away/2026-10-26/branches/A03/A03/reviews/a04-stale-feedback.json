@@ -1,0 +1,35 @@
+{
+  "source": "2981761a5d60cbe7cd09a5a08c1b0fa9b8a65d99",
+  "scope": "Exact form() and load() functions extracted unchanged; controlled local API outcomes",
+  "afterNewerSuccess": {
+    "key": "studySaved",
+    "error": false
+  },
+  "afterOlderFailure": {
+    "key": "studySavedRefreshFailed",
+    "error": true
+  },
+  "loadFailureCalls": 0,
+  "allMessages": [
+    {
+      "key": "studyLoading",
+      "error": false
+    },
+    {
+      "key": "studyLoading",
+      "error": false
+    },
+    {
+      "key": "",
+      "error": false
+    },
+    {
+      "key": "studySaved",
+      "error": false
+    },
+    {
+      "key": "studySavedRefreshFailed",
+      "error": true
+    }
+  ]
+}

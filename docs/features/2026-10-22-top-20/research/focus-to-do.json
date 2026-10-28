@@ -1,0 +1,29 @@
+{
+  "query": "Focus To-Do features tasks projects subtasks tags Pomodoro statistics reminders official",
+  "retrievedDate": "2026-10-22",
+  "request_id": "11fd6a9b-8788-4757-8b88-b532e337b668",
+  "originalResultSha256": "fea4d23d9c7ca32633daa8f84b8c149c8395693bfded42e3e73f7645b96718ca",
+  "note": "Official-source search metadata; full page text omitted from the review packet. See RESEARCH.md for the feature synthesis.",
+  "results": [
+    {
+      "url": "https://www.focustodo.cn",
+      "title": "Focus To-Do - Pomodoro Technique & Tasks",
+      "score": 0.78393924
+    },
+    {
+      "url": "https://www.focustodo.cn/contact-us",
+      "title": "Contact Us",
+      "score": 0.34833524
+    },
+    {
+      "url": "https://www.focustodo.cn?lang=zh_CN",
+      "title": "专注清单 - 番茄工作法 & 任务清单（番茄钟app）",
+      "score": 0.33777177
+    },
+    {
+      "url": "https://www.focustodo.cn/privacy-policy",
+      "title": "Privacy Policy",
+      "score": 0.3018871
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+const crypto = require('node:crypto');
+const { audit, hash, requireCondition, lockUser } = require('./common');
+
+function nextMonth(timestamp) {
+    const date = new Date(timestamp);
+    const day = date.getUTCDate();
+    date.setUTCDate(1);
+    date.setUTCMonth(date.getUTCMonth() + 1);
+    const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+    date.setUTCDate(Math.min(day, lastDay));
+    return date.getTime();
+}
+
+function createBilling(db, mode, now = Date.now) {
+    async function checkout(userId) {
+        requireCondition(mode === 'test', 'CHECKOUT_UNCONFIGURED', 503);
+        return db.transaction(async (tx) => {
+            await lockUser(tx, userId);
+            await tx.query(`UPDATE halastudy.subscriptions SET status='expired'
+                WHERE user_id=$1 AND mode='test' AND period_end<=$2 AND status IN ('active','past_due','pending')`, [userId, now()]);
+            const active = await tx.query(`SELECT id FROM halastudy.subscriptions
+                WHERE user_id=$1 AND mode='test' AND status IN ('active','past_due','pending')`, [userId]);
+            requireCondition(!active.rows.length, 'ALREADY_SUBSCRIBED', 409);
+            await tx.query(`UPDATE halastudy.checkout_sessions SET status='canceled' WHERE user_id=$1 AND status='pending'`, [userId]);
+            const id = crypto.randomUUID();
+            const token = crypto.randomBytes(32).toString('base64url');
+            await tx.query(`INSERT INTO halastudy.checkout_sessions(id,user_id,token_hash,status,expires_at,created_at)
+                VALUES($1,$2,$3,'pending',$4,$5)`, [id, userId, hash(token), now() + 15 * 60000, now()]);
+            await audit(tx, userId, 'checkout.test.created', id);
+            return { id, token, amountMinor: 499, currency: 'USD', interval: 'month', mode: 'test' };
+        });
+    }
+    async function complete(userId, id, token, outcome) {
+        requireCondition(mode === 'test', 'CHECKOUT_UNCONFIGURED', 503);
+        requireCondition(['success', 'declined', 'cancel'].includes(outcome), 'OUTCOME_INVALID');
+        return db.transaction(async (tx) => {
+            await lockUser(tx, userId);
+            const checkoutRow = (await tx.query('SELECT * FROM halastudy.checkout_sessions WHERE id=$1 AND user_id=$2 FOR UPDATE', [id, userId])).rows[0];
+            requireCondition(checkoutRow && checkoutRow.token_hash === hash(token), 'CHECKOUT_NOT_FOUND', 404);
+            if (checkoutRow.status === 'completed') return { status: 'completed', subscriptionId: checkoutRow.subscription_id };
+            requireCondition(checkoutRow.status === 'pending' && Number(checkoutRow.expires_at) > now(), 'CHECKOUT_EXPIRED', 409);
+            if (outcome !== 'success') {
+                await tx.query(`UPDATE halastudy.checkout_sessions SET status='canceled' WHERE id=$1`, [id]);
+                await audit(tx, userId, `checkout.test.${outcome}`, id);
+                return { status: outcome };
+            }
+            const subscriptionId = crypto.randomUUID();
+            await tx.query(`INSERT INTO halastudy.subscriptions
+                (id,user_id,plan,mode,provider,provider_reference,status,amount_minor,currency,period_start,period_end,created_at)
+                VALUES($1,$2,'vip','test','local_simulator',$3,'active',499,'USD',$4,$5,$4)`,
+            [subscriptionId, userId, `test_${id}`, now(), nextMonth(now())]);
+            await tx.query(`UPDATE halastudy.checkout_sessions SET status='completed',subscription_id=$2 WHERE id=$1`, [id, subscriptionId]);
+            await audit(tx, userId, 'subscription.test.activated', subscriptionId);
+            return { status: 'completed', subscriptionId };
+        });
+    }
+    async function cancel(userId, cancelAtEnd) {
+        requireCondition(mode === 'test', 'BILLING_UNCONFIGURED', 503);
+        return db.transaction(async (tx) => {
+            await lockUser(tx, userId);
+            const result = await tx.query(`UPDATE halastudy.subscriptions SET cancel_at_period_end=$3
+                WHERE user_id=$1 AND mode='test' AND status='active' AND period_end>$2 RETURNING id`,
+            [userId, now(), cancelAtEnd]);
+            requireCondition(result.rows.length === 1, 'SUBSCRIPTION_NOT_FOUND', 404);
+            await audit(tx, userId, cancelAtEnd ? 'subscription.cancel_scheduled' : 'subscription.cancel_removed', result.rows[0].id);
+            return { cancelAtPeriodEnd: cancelAtEnd };
+        });
+    }
+    return { checkout, complete, cancel };
+}
+
+module.exports = { createBilling, nextMonth };

@@ -49,6 +49,7 @@ runtime/
 *.pid
 *.sock
 *.log
+<<<<<<< HEAD
 *.hsbackup
 diagnostics/
 docs/reports/*-diagnostic.*
@@ -64,3 +65,20 @@ credentials/
 *.pfx
 .auth/
 playwright/.auth/
+=======
+# Secrets and runtime state must never enter the image build context.
+.env*
+!.env.example
+data
+# Review artifacts can contain synthetic sessions and local database snapshots.
+docs
+.gstack
+playwright-report
+test-results
+tests
+README_AR.md
+DEPLOYMENT.md
+nginx.conf
+ecosystem.config.js
+playwright.config.js
+>>>>>>> viber/2026-10-27

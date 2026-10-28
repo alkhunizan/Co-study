@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-26T18:30:06.573Z",
+  "htmlSha256": "a33c83fc4f679cd2a75e5f4c613cd57fdb72aee373a8908e0793dccb8a244fb5",
+  "checkedLinks": 52,
+  "checkedMarkdownLinks": 20,
+  "missing": [],
+  "missingMarkdown": [],
+  "records": [
+    {
+      "width": 1440,
+      "overflow": false,
+      "sections": 8,
+      "images": 14,
+      "missingAlt": 0,
+      "external": [],
+      "errors": [],
+      "violations": []
+    },
+    {
+      "width": 390,
+      "overflow": false,
+      "sections": 8,
+      "images": 14,
+      "missingAlt": 0,
+      "external": [],
+      "errors": [],
+      "violations": []
+    }
+  ]
+}

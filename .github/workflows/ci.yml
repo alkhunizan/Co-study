@@ -13,6 +13,35 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  postgres-resilience:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: hardening
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: halastudy_hardening_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hardening -d halastudy_hardening_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Real database failure and recovery tests
+        env:
+          HALASTUDY_TEST_DATABASE_URL: postgresql://hardening:local-ci-only@127.0.0.1:5432/halastudy_hardening_test
+        run: node --test tests/postgres/outages.test.js
+
   quality:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -103,6 +132,6 @@ jobs:
         with:
           name: playwright-${{ matrix.project }}
           path: |
-            playwright-report/
-            test-results/
+            docs/implementation/2026-10-20-platform/evidence/browser-report/
+            docs/implementation/2026-10-20-platform/evidence/browser-results/
           if-no-files-found: ignore

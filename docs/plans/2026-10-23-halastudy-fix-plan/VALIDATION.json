@@ -1,0 +1,77 @@
+{
+  "validatedAt": "2026-10-23T07:07:45.409757+00:00",
+  "status": "PASS",
+  "scope": "Plan package validation only; application tests and production checks were not run.",
+  "planningHead": "75bdf965a9d097d85fb98a03f602ea162481b5ae",
+  "counts": {
+    "executionTasks": 13,
+    "studyFeatures": 20,
+    "uncountedBoundaryControls": 26,
+    "denialOnlyControls": 5,
+    "remainingFileReviews": 58,
+    "localMarkdownLinks": 6,
+    "referencedSuites": 11
+  },
+  "baselineWorklistsMatch": true,
+  "links": [
+    {
+      "document": "PLAN.md",
+      "label": "findings",
+      "target": "../../viber/2026-10-23/FINDINGS.md",
+      "exists": true
+    },
+    {
+      "document": "PLAN.md",
+      "label": "run and receipt",
+      "target": "../../viber/2026-10-23/RUN.md",
+      "exists": true
+    },
+    {
+      "document": "PLAN.md",
+      "label": "before/after gallery",
+      "target": "../../viber/2026-10-23/review.html",
+      "exists": true
+    },
+    {
+      "document": "PLAN.md",
+      "label": "twenty features",
+      "target": "../../features/2026-10-22-top-20/FEATURES.md",
+      "exists": true
+    },
+    {
+      "document": "PLAN.md",
+      "label": "ACCEPTANCE.md",
+      "target": "ACCEPTANCE.md",
+      "exists": true
+    },
+    {
+      "document": "PLAN.md",
+      "label": "COVERAGE.md",
+      "target": "COVERAGE.md",
+      "exists": true
+    }
+  ],
+  "referencedSuites": [
+    "tests/integration/supabase-deadline.integration.test.js",
+    "tests/integration/supabase-error-privacy.integration.test.js",
+    "tests/integration/foundations.integration.test.js",
+    "tests/smoke/network-timeout.smoke.spec.js",
+    "tests/smoke/account-errors.smoke.spec.js",
+    "tests/smoke/study-tools.smoke.spec.js",
+    "tests/integration/study-tools.integration.test.js",
+    "tests/integration/study-routine.integration.test.js",
+    "tests/integration/circle-lifecycle.integration.test.js",
+    "tests/integration/platform-api.integration.test.js",
+    "tests/integration/platform-storage.integration.test.js"
+  ],
+  "applicationUnchangedFromTestedSource": true,
+  "newProductionRequests": 0,
+  "files": {
+    "ACCEPTANCE.md": "c891dab1206e62f09964043c4399c0c8872d479aae9ae2ce170f54328e0b1513",
+    "CHECKPOINT.md": "808e1437496ea8771b3b4bcf2c8eea34268d3f904cb5bce5aa1928332bbc2386",
+    "COVERAGE.md": "76c11e6f74f9373a8e408a53c90f60b86766a3a9a007fcf1b254eee18894c3a7",
+    "PLAN.md": "6770a81522d6b009b05ef5fea447216fa41c2da5f7e59c8e7e941d11d68574fc",
+    "sources.json": "ea4ecb51cd5674599f67d9fb4af525523c84b9c659af12c6c9a536b3dfc80b9b"
+  },
+  "errors": []
+}

@@ -1,0 +1,9 @@
+# This is a fixed evidence packet: preserve the bytes recorded in its manifest.
+* -text
+*.md diff
+*.py diff
+*.ps1 diff
+*.cjs diff
+*.html diff
+*.json diff
+*.ndjson diff

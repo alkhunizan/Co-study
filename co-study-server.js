@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { Server } = require('socket.io');
+const { onClientEvent } = require('./services/socket-boundary');
 const { createRoomStore } = require('./room-store');
 const {
     VIDEO_PROVIDER_MESH,
@@ -15,6 +16,8 @@ const { createLogger } = require('./services/logging/logger');
 const { createCompatibilityTelemetry } = require('./services/compatibility/telemetry');
 const { createErrorBuffer } = require('./services/ops/error-buffer');
 const { createBackupScheduler } = require('./services/ops/backup-scheduler');
+const { createOperationalAlerts } = require('./services/ops/alerts');
+const { registerPublicPages } = require('./services/seo/public-pages');
 const { createAdminRouter } = require('./services/admin/admin-routes');
 const { resolveListenHost } = require('./services/config/network');
 const { resolveSessionSecrets } = require('./services/config/secrets');
@@ -26,7 +29,9 @@ const {
     verifyAnonSessionToken
 } = require('./services/auth');
 const { createAuthRouter } = require('./services/auth/auth-routes');
+const { createRecoveryMail } = require('./services/auth/recovery');
 const { createGoogleAuthRouter } = require('./services/auth/google-routes');
+<<<<<<< HEAD
 const { createOAuthSecurity } = require('./services/auth/oauth-security');
 const {
     createKeyedMutationCoordinator,
@@ -34,10 +39,19 @@ const {
 } = require('./services/auth/user-mutation-coordinator');
 const { createUserStore, recordMyRoom } = require('./user-store');
 const { createFileUserPersistence } = require('./services/persistence/file-user-persistence');
+=======
+const { COOKIE_NAME: REAUTH_COOKIE, verifyReauth } = require('./services/auth/reauth');
+const { createUserStore, recordMyRoom, sanitizeUser } = require('./user-store');
+>>>>>>> viber/2026-10-27
 const { createSupabaseClient } = require('./services/supabase/client');
 const { createSupabaseUserStore } = require('./supabase-user-store');
+const { createPlatform } = require('./services/platform');
+const { createPlatformRouter } = require('./services/platform/routes');
+const { createRecordStore } = require('./services/platform/record-store');
+const { backupDatabase } = require('./services/platform/maintenance');
 const { createVideoProvider } = require('./services/video');
 const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
+<<<<<<< HEAD
 const { createVideoSessionStore } = require('./services/video/video-session-store');
 const {
     createWebhookDeduplicator,
@@ -46,6 +60,9 @@ const {
 } = require('./services/video/realtimekit-webhook');
 const { SlidingWindowRateLimiter } = require('./services/security/bounded-rate-limiter');
 const { validateSocketRequest } = require('./services/socket/socket-request-validator');
+=======
+const { createVideoRevocations } = require('./services/video/revocations');
+>>>>>>> viber/2026-10-27
 const {
     buildScheduleSummary,
     findOpenOccurrence,
@@ -88,10 +105,15 @@ const ROOM_PASSWORD_MAX_LENGTH = 64;
 const NICKNAME_MAX_LENGTH = 20;
 const CHAT_MESSAGE_MAX_LENGTH = 500;
 const BOARD_GOAL_MAX_LENGTH = 80;
+<<<<<<< HEAD
 const BOARD_TASK_MAX_BYTES = 500;
 const BOARD_TASK_LIMIT = 100;
 const BOARD_TASK_ID_MAX_LENGTH = 128;
 const BOARD_SERIALIZED_MAX_BYTES = 64 * 1024;
+=======
+const BOARD_TASK_MAX_LENGTH = 120;
+const BOARD_TASK_LIMIT = 100;
+>>>>>>> viber/2026-10-27
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const MEDIA_MODE_MESH = 'mesh';
 const MEDIA_MODE_SFU = 'sfu';
@@ -657,12 +679,21 @@ function sanitizeStatus(input = {}) {
         // stripped at the trust boundary, hidden when status is hidden.
         goal: sanitizeUserText(input.goal, 80),
         visible,
+<<<<<<< HEAD
         manual: typeof input.manual === 'string' ? input.manual.slice(0, 40) : '',
         manualPreset: typeof input.manualPreset === 'string' ? input.manualPreset : null,
         autoSync: !!input.autoSync,
         ambientType: typeof input.ambientType === 'string' ? input.ambientType.slice(0, 20) : null,
         timerMode: input.timerMode === 'break' ? 'break' : (input.timerMode === 'focus' ? 'focus' : null),
         updatedAt
+=======
+        manual: visible && typeof input.manual === 'string' ? input.manual.slice(0, 40) : '',
+        manualPreset: visible && typeof input.manualPreset === 'string' ? input.manualPreset.slice(0, 40) : null,
+        autoSync: visible && !!input.autoSync,
+        ambientType: visible && typeof input.ambientType === 'string' ? input.ambientType.slice(0, 20) : null,
+        timerMode: visible ? (input.timerMode === 'break' ? 'break' : (input.timerMode === 'focus' ? 'focus' : null)) : null,
+        updatedAt: typeof input.updatedAt === 'number' ? input.updatedAt : Date.now()
+>>>>>>> viber/2026-10-27
     };
 }
 
@@ -767,6 +798,7 @@ function getSocketRequestIp(request, trustProxy) {
 }
 
 function createCoStudyServer(options = {}) {
+    const startedAt = Date.now();
     const { env = process.env, mode = 'http', createServer } = options;
     const roomSaveDebounceMs = Number.isFinite(options.roomSaveDebounceMs)
         ? Math.max(0, options.roomSaveDebounceMs)
@@ -780,12 +812,24 @@ function createCoStudyServer(options = {}) {
     const config = resolveServerConfig({ env, mode });
     const oauthSecurity = createOAuthSecurity({ secret: config.sessionSecret });
     const errorBuffer = createErrorBuffer({ capacity: 200 });
+<<<<<<< HEAD
     const logger = createLogger({ service: 'halastudy' }, { onEntry: errorBuffer.push });
     const compatibilityTelemetry = options.compatibilityTelemetry || createCompatibilityTelemetry({ logger });
     if (typeof compatibilityTelemetry.record !== 'function'
         || typeof compatibilityTelemetry.snapshot !== 'function') {
         throw new TypeError('createCoStudyServer compatibilityTelemetry must expose record() and snapshot().');
     }
+=======
+    let operationalAlerts = null;
+    const earlyOperationalEvents = [];
+    const logger = createLogger({ service: 'halastudy' }, {
+        onEntry: errorBuffer.push,
+        onEvent: (entry) => {
+            if (operationalAlerts) operationalAlerts.observe(entry);
+            else if (earlyOperationalEvents.length < 100) earlyOperationalEvents.push(entry);
+        }
+    });
+>>>>>>> viber/2026-10-27
     // Admin-toggleable runtime overrides. In-memory by design: a restart
     // falls back to the env-configured defaults (fail-safe).
     const runtimeFlags = { videoJoinDisabled: null };
@@ -826,13 +870,18 @@ function createCoStudyServer(options = {}) {
         authLogin: new SlidingWindowRateLimiter(AUTH_LOGIN_RATE),
         authFailure: new SlidingWindowRateLimiter(AUTH_FAILURE_RATE),
         profileMutation: new SlidingWindowRateLimiter(PROFILE_MUTATION_RATE),
+        platformMutation: new SlidingWindowRateLimiter({ limit: 120, windowMs: 60000 }),
         focusLog: new SlidingWindowRateLimiter(FOCUS_LOG_RATE),
         adminLogin: new SlidingWindowRateLimiter(ADMIN_LOGIN_RATE),
         metrics: new SlidingWindowRateLimiter(METRICS_RATE),
-        reports: new SlidingWindowRateLimiter(REPORT_RATE)
+        reports: new SlidingWindowRateLimiter(REPORT_RATE),
+        recoveryIp: new SlidingWindowRateLimiter({ limit: 10, windowMs: 600000 }),
+        recoveryAccount: new SlidingWindowRateLimiter({ limit: 3, windowMs: 600000 }),
+        recoveryComplete: new SlidingWindowRateLimiter({ limit: 20, windowMs: 600000 })
     };
     const videoProvider = options.videoProvider || createVideoProvider({ config: config.video, logger });
     const videoSessionRegistry = createVideoSessionRegistry({ logger });
+    const videoMintLocks = new Set();
     config.video.warnings.forEach((message) => {
         logger.warn({
             event: 'video_config_warning',
@@ -892,7 +941,22 @@ function createCoStudyServer(options = {}) {
     });
     readinessState.socket = true;
 
+<<<<<<< HEAD
     const roomStore = options.roomStore || createRoomStore({
+=======
+    const platform = createPlatform({ userStateFile: config.userStateFile, secret: config.sessionSecret, logger, env,
+        isCurrentUser: (user, epoch) => users.get(user.id) === user && user.tokenEpoch === epoch && !user.banned });
+    const videoRevocations = createVideoRevocations({
+        file: `${config.roomStateFile}.video-grants.json`, provider: videoProvider, logger, start: platform.ready
+    });
+    operationalAlerts = createOperationalAlerts({
+        file: `${config.userStateFile}.alerts.json`, env, start: platform.ready
+    });
+    earlyOperationalEvents.forEach(operationalAlerts.observe);
+    earlyOperationalEvents.length = 0;
+    /** @type {any} */
+    let roomStore = createRoomStore({
+>>>>>>> viber/2026-10-27
         filePath: config.roomStateFile,
         roomHistoryLimit: ROOM_HISTORY_LIMIT,
         normalizeRoom,
@@ -904,6 +968,7 @@ function createCoStudyServer(options = {}) {
         sanitizeBoardTaskText,
         normalizeBoardPriority
     });
+<<<<<<< HEAD
     const realtimeKitWebhookDeduplicator = options.realtimeKitWebhookDeduplicator
         || createWebhookDeduplicator({
             filePath: config.realtimeKitWebhookStateFile,
@@ -917,6 +982,11 @@ function createCoStudyServer(options = {}) {
     let realtimeKitProviderInitialized = false;
     let realtimeKitProviderAvailable = config.video.provider !== VIDEO_PROVIDER_REALTIMEKIT;
     let realtimeKitReconciliationPromise = null;
+=======
+    if (platform.enabled) {
+        roomStore = createRecordStore({ platform, kind: 'rooms', legacyStore: roomStore, sanitize: roomStore.sanitizeRoom, logger });
+    }
+>>>>>>> viber/2026-10-27
 
     // Persistence backend: Supabase profiles table when configured (accounts +
     // dashboards), otherwise the local users.json file store (dev default).
@@ -936,11 +1006,18 @@ function createCoStudyServer(options = {}) {
         });
         logger.info({ event: 'user_store_backend', backend: 'supabase' });
     } else {
+<<<<<<< HEAD
         userStore = createUserStore({
             filePath: config.userStateFile,
             logger,
             onLegacyAuthProvider: () => compatibilityTelemetry.record('auth_provider_fallback')
         });
+=======
+        userStore = createUserStore({ filePath: config.userStateFile, logger });
+        if (platform.enabled) {
+            userStore = createRecordStore({ platform, kind: 'accounts', legacyStore: userStore, sanitize: sanitizeUser, logger });
+        }
+>>>>>>> viber/2026-10-27
         logger.info({ event: 'user_store_backend', backend: 'file' });
     }
 
@@ -948,6 +1025,7 @@ function createCoStudyServer(options = {}) {
         intervalMinutes: config.backup.intervalMinutes,
         retentionCount: config.backup.retentionCount,
         backupDir: config.roomStateBackupDir,
+<<<<<<< HEAD
         targets: config.backup.plaintextSnapshotsAllowed
             ? [
                 { label: 'rooms', filePath: config.roomStateFile },
@@ -955,6 +1033,19 @@ function createCoStudyServer(options = {}) {
                 ...(config.supabase.enabled ? [] : [{ label: 'users', filePath: config.userStateFile }])
             ]
             : [],
+=======
+        targets: [
+            ...(!roomStore.isPlatform ? [{ label: 'rooms', filePath: config.roomStateFile }] : []),
+            // Skip the users.json backup target when Supabase owns accounts —
+            // the file is never written in that mode.
+            ...(config.supabase.enabled || userStore.isPlatform ? [] : [{ label: 'users', filePath: config.userStateFile }])
+        ],
+        extraBackup: platform.enabled ? async (destination) => {
+            await platform.ready;
+            await Promise.all([roomStore.flush(rooms), userStore.flush(users)]);
+            return backupDatabase(platform.db, destination);
+        } : null,
+>>>>>>> viber/2026-10-27
         logger
     });
     /** @type {Map<string, any>} userId -> user record */
@@ -980,9 +1071,31 @@ function createCoStudyServer(options = {}) {
         return fileUserPersistence.persistUser(user);
     }
 
+<<<<<<< HEAD
     function deleteUserImmediate(user) {
         if (typeof userStore.deleteUser === 'function') {
             return userStore.deleteUser(user);
+=======
+    function loadPersistedUsers() {
+        // Supabase load is async (network); the file store is sync (disk). For
+        // Supabase we hydrate in the background and flip readiness when done —
+        // /api/ready stays not-ready until then, so the boot path never blocks.
+        if (typeof userStore.hydrate === 'function') {
+            userStore.hydrate()
+                .then((persistedUsers) => {
+                    for (const user of persistedUsers) {
+                        if (users.has(user.id)) continue; // don't clobber a signup that raced boot
+                        users.set(user.id, user);
+                        usersByEmail.set(user.email, user.id);
+                    }
+                    readinessState.userStore = true;
+                    logger.info({ event: 'user_store_hydrated', backend: 'supabase', count: persistedUsers.length });
+                })
+                .catch((error) => {
+                    logger.error({ event: 'user_store_hydrate_failed', error: error?.message });
+                });
+            return 0;
+>>>>>>> viber/2026-10-27
         }
         return fileUserPersistence.deleteUser(user);
     }
@@ -1046,10 +1159,15 @@ function createCoStudyServer(options = {}) {
             avatarColor: user.avatarColor,
             bio: user.bio,
             createdAt: user.createdAt,
+<<<<<<< HEAD
             authMethods: {
                 password: user.passwordEnabled !== false && !!user.passwordHash,
                 google: !!user.googleSub
             },
+=======
+            authProvider: user.authProvider || 'password',
+            emailVerified: !!user.emailVerifiedAt || (user.authProvider === 'google' && !!user.googleSub),
+>>>>>>> viber/2026-10-27
             streak: { ...user.streak }
         };
     }
@@ -1137,6 +1255,12 @@ function createCoStudyServer(options = {}) {
         next();
     }
 
+    function disconnectUser(userId) {
+        for (const socket of io.sockets.sockets.values()) {
+            if (socket.data.userId === userId) socket.disconnect(true);
+        }
+    }
+
     function getDefaultRoomVideoPolicy(policy = {}) {
         const basePolicy = buildVideoPolicy(config.video);
         return {
@@ -1204,6 +1328,7 @@ function createCoStudyServer(options = {}) {
 
     function emitVideoSessionEnded(session) {
         if (!session?.roomId) return;
+        void videoRevocations.revokeWhere((row) => row.socketId === session.socketId && row.roomId === session.roomId).catch(() => {});
         io.to(session.roomId).emit('video-session-ended', {
             roomId: session.roomId,
             reason: session.leaveReason || 'left'
@@ -1568,7 +1693,6 @@ function createCoStudyServer(options = {}) {
                 cameraOn: !!user.cameraOn,
                 status: user.status || null,
                 avatarColor: user.avatarColor || null,
-                streakCurrent: Number.isInteger(user.streakCurrent) ? user.streakCurrent : null
             })),
             messages: room.messages,
             board,
@@ -1590,7 +1714,8 @@ function createCoStudyServer(options = {}) {
                 protected: true,
                 status: 'active',
                 participantCount: room.users.size,
-                requiresPassword: true
+                requiresPassword: !!room.requirePassword,
+                requiresMembership: !!room.cohortId
             }
         };
     }
@@ -1625,6 +1750,8 @@ function createCoStudyServer(options = {}) {
                 : null,
             requirePassword: !!room.requirePassword,
             passwordHash: room.passwordHash || null,
+            ownerUserId: typeof room.ownerUserId === 'string' ? room.ownerUserId : null,
+            cohortId: typeof room.cohortId === 'string' ? room.cohortId : null,
             mediaMode: normalizeMediaMode(room.mediaMode),
             videoProvider: room.videoProvider || config.video.provider,
             videoProviderMeetingId: typeof room.videoProviderMeetingId === 'string' ? room.videoProviderMeetingId : null,
@@ -2144,6 +2271,7 @@ function createCoStudyServer(options = {}) {
         }
 
         clearRoomCleanupTimer(room);
+<<<<<<< HEAD
         for (const [pendingKey, pendingRecord] of pendingLeaveTimers.entries()) {
             if (!pendingKey.startsWith(`${normalizedRoom}:`)) continue;
             clearTimeout(pendingRecord.timeoutId);
@@ -2285,6 +2413,12 @@ function createCoStudyServer(options = {}) {
 
     function closeRoomLifecycle(roomId, options = {}) {
         return runRoomLifecycleOperation(roomId, () => performCloseRoomLifecycle(roomId, options));
+=======
+        void videoRevocations.revokeWhere((row) => row.roomId === normalizedRoom).catch(() => {});
+        rooms.delete(normalizedRoom);
+        persistRoomsSoon();
+        return true;
+>>>>>>> viber/2026-10-27
     }
 
     function ensureRoom(roomId, meta = {}) {
@@ -2304,6 +2438,7 @@ function createCoStudyServer(options = {}) {
                 lifecycleEpoch: 0,
                 requirePassword: !!meta.requirePassword,
                 passwordHash: meta.passwordHash || null,
+                ownerUserId: meta.ownerUserId || null,
                 mediaMode: normalizeMediaMode(meta.mediaMode),
                 videoProvider: meta.videoProvider || config.video.provider,
                 createdAt: meta.createdAt || Date.now(),
@@ -2342,6 +2477,7 @@ function createCoStudyServer(options = {}) {
 
     function scheduleRoomCleanup(roomId) {
         const room = rooms.get(roomId);
+<<<<<<< HEAD
         if (!room || room.cleanupTimer || isLobbyRoom(room) || roomIsClosed(room)) return;
 
         if (roomHasSchedule(room)) {
@@ -2370,6 +2506,10 @@ function createCoStudyServer(options = {}) {
             });
         }, delayMs);
         room.cleanupTimer.unref?.();
+=======
+        if (!room || room.users.size > 0 || room.cleanupTimer || room.cohortId || roomHasSchedule(room) || isLobbyRoom(room)) return;
+        room.cleanupTimer = setTimeout(() => deleteRoom(roomId), ROOM_TTL_MS);
+>>>>>>> viber/2026-10-27
     }
 
     function schedulePendingRoomLeave(roomId, user, context = {}) {
@@ -2517,6 +2657,7 @@ function createCoStudyServer(options = {}) {
         if (!room || !socketId) return false;
         const record = existingRecord || room.users.get(socketId);
         if (!record) return false;
+        emitEndedVideoSessions(videoSessionRegistry.markSocketSessionsLeft(socketId, 'room_switch'));
 
         room.users.delete(socketId);
 
@@ -2683,6 +2824,20 @@ function createCoStudyServer(options = {}) {
     }
 
     function loadPersistedRooms() {
+        if (typeof roomStore.hydrate === 'function') {
+            roomStore.hydrate().then(async (persistedRooms) => {
+                const scopes = new Map((await platform.db.query('SELECT id,cohort_id FROM halastudy.rooms')).rows.map((row) => [row.id, row.cohort_id]));
+                for (const persistedRoom of persistedRooms) {
+                    persistedRoom.cohortId = scopes.get(persistedRoom.id) || null;
+                    const runtimeRoom = buildRuntimeRoom(persistedRoom);
+                    rooms.set(runtimeRoom.id, runtimeRoom);
+                    if (!runtimeRoom.users.size) scheduleRoomCleanup(runtimeRoom.id);
+                }
+                seedLobbyRoom();
+                readinessState.roomStore = true;
+            }).catch(() => logger.error({ event: 'room_store_hydrate_failed' }));
+            return 0;
+        }
         const persistedRooms = roomStore.loadRooms({ strict: true });
         persistedRooms.forEach((persistedRoom) => {
             if (persistedRoom.schemaVersion !== ROOM_SCHEMA_VERSION) {
@@ -2756,6 +2911,7 @@ function createCoStudyServer(options = {}) {
         });
     }
 
+<<<<<<< HEAD
     function resolveRoomMembership(req, room, roomId) {
         const rawHeader = req.headers['x-halastudy-membership'];
         const token = normalizeOpaqueId(Array.isArray(rawHeader) ? rawHeader[0] : rawHeader);
@@ -2796,6 +2952,19 @@ function createCoStudyServer(options = {}) {
             && session.userId === resolvedMembership.member.identityId
         ));
         return matches.length === 1 ? matches[0].videoSessionId : null;
+=======
+    function findRoomVideoMember(req, room, displayName, clientSessionId) {
+        const cookies = parseCookies(req.headers.cookie || '');
+        const sessionId = verifyAnonSessionToken(cookies[SESSION_COOKIE_NAME], { secret: config.sessionSecret }) || '';
+        const users = Array.from(room.users.values());
+        return users.find((user) => {
+            if (!user || (displayName && user.name !== displayName)) return false;
+            if (user.clientId !== clientSessionId && user.sessionId !== clientSessionId) return false;
+            const socket = io.sockets.sockets.get(user.socketId);
+            return !!((sessionId && user.sessionId === sessionId)
+                || (req.user && socket?.data.userId === req.user.id));
+        }) || null;
+>>>>>>> viber/2026-10-27
     }
 
     async function ensureRealtimeKitMeeting(roomId, room) {
@@ -3261,7 +3430,8 @@ function createCoStudyServer(options = {}) {
             videoSessionStore: readinessState.videoSessionStore,
             // @ts-expect-error internal socket.io flag for closed state
             socket: readinessState.socket && !io._closed,
-            config: readinessState.config
+            config: readinessState.config,
+            ...(platform.enabled ? { database: !!platform.db?.isHealthy() } : {})
         };
         const ready = Object.values(checks).every(Boolean);
 
@@ -3292,6 +3462,7 @@ function createCoStudyServer(options = {}) {
         return lobby;
     }
 
+<<<<<<< HEAD
     let loadedRoomCount = 0;
     let loadedUserCount = 0;
     let initialized = false;
@@ -3430,6 +3601,36 @@ function createCoStudyServer(options = {}) {
         }, ROOM_EVENT_DRAIN_RETRY_MS);
         roomEventDrainTimer.unref();
     }
+=======
+    const loadedRoomCount = loadPersistedRooms();
+    seedLobbyRoom();
+    const loadedUserCount = loadPersistedUsers();
+    backupScheduler.start();
+    let attendanceSweep = null;
+    const videoSweepTimer = setInterval(() => {
+        const ended = videoSessionRegistry.sweepStaleVideoSessions();
+        emitEndedVideoSessions(ended);
+        if (config.backup.intervalMinutes > 0
+            && Date.now() - (backupScheduler.status.lastRunAt || startedAt) > config.backup.intervalMinutes * 120000) {
+            logger.warn({ event: 'backup_stale' });
+        }
+        // A member may arrive before a session's attendance window and then
+        // study quietly. Connected presence must not depend on another join.
+        if (platform.enabled && readinessState.userStore && !attendanceSweep) {
+            attendanceSweep = (async () => {
+                for (const socket of io.sockets.sockets.values()) {
+                    if (!socket.data.roomId || !socket.data.userId) continue;
+                    const cookies = parseCookies(socket.handshake?.headers?.cookie || '');
+                    const user = resolveUserFromToken(cookies[AUTH_COOKIE_NAME]);
+                    if (!user) { socket.disconnect(true); continue; }
+                    await platform.recordAttendance(socket.data.roomId, user);
+                }
+            })().catch(() => logger.error({ event: 'attendance_sweep_failed' }))
+                .finally(() => { attendanceSweep = null; });
+        }
+    }, VIDEO_SESSION_SWEEP_MS);
+    videoSweepTimer.unref();
+>>>>>>> viber/2026-10-27
 
     let isShuttingDown = false;
     let inFlightMutations = 0;
@@ -3477,6 +3678,7 @@ function createCoStudyServer(options = {}) {
     async function flushRoomStateAndExit(signal) {
         if (isShuttingDown) return;
         isShuttingDown = true;
+<<<<<<< HEAD
         const hardExitTimer = setTimeout(() => {
             console.error('Graceful shutdown exceeded 15 seconds.');
             process.exit(1);
@@ -3522,10 +3724,22 @@ function createCoStudyServer(options = {}) {
             flushRoomsImmediate(),
             userStore.flush(users),
             videoSessionStore.flush(videoSessionRegistry.exportPersistentState())
+=======
+        clearInterval(videoSweepTimer);
+        if (attendanceSweep) await attendanceSweep;
+        await backupScheduler.stop();
+        await recoveryMail.close?.();
+        console.log(`Received ${signal}. Persisting room state to ${roomStore.filePath}...`);
+        const flushResults = await Promise.allSettled([
+            roomStore.flush(rooms),
+            userStore.flush(users),
+            videoRevocations.close()
+>>>>>>> viber/2026-10-27
         ]);
         let exitCode = 0;
         flushResults.forEach((result) => {
             if (result.status === 'rejected') {
+<<<<<<< HEAD
                 exitCode = 1;
                 console.error('Final state flush failed:', result.reason);
             }
@@ -3533,6 +3747,21 @@ function createCoStudyServer(options = {}) {
         await serverClosed;
         clearTimeout(hardExitTimer);
         process.exit(exitCode);
+=======
+                logger.error({ event: 'storage_shutdown_failed' });
+                console.error('Final state flush failed:', result.reason);
+            }
+        });
+        if (platform.enabled) {
+            try { await platform.ready; await platform.billing.close?.(); await platform.db.close(); } catch (_error) {}
+        }
+        // Persist incidents emitted by every other component's final cleanup.
+        try { await operationalAlerts.close(); } catch (_error) {}
+        server.close(() => {
+            process.exit(0);
+        });
+        setTimeout(() => process.exit(0), 5000).unref();
+>>>>>>> viber/2026-10-27
     }
 
     if (options.registerSignalHandlers !== false) {
@@ -3546,6 +3775,15 @@ function createCoStudyServer(options = {}) {
     }
 
     app.use(securityHeaders);
+    app.use((req, res, next) => {
+        // Keep application/session URLs out of search without preventing
+        // crawlers from reading the noindex directive on the HTML response.
+        if (/^\/(?:api|auth|account(?:\.html)?|open(?:\.html)?|lobby(?:\.html)?|index\.html|study|workspace|room|app|plans|supervisor|recover|recovery\.html)(?:\/|$)/i.test(req.path)
+            || (config.admin.enabled && (req.path === config.admin.path || req.path.startsWith(`${config.admin.path}/`)))) {
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        }
+        next();
+    });
     app.use(originGuard);
     app.post(
         '/api/webhooks/realtimekit',
@@ -3637,6 +3875,7 @@ function createCoStudyServer(options = {}) {
     app.use(express.json());
     app.use(sessionMiddleware);
     app.use(attachUser);
+<<<<<<< HEAD
     app.use(mutationDrainMiddleware);
     app.get([...COMPRESSED_AMBIENT_AUDIO_ALIASES.keys()], (req, res) => {
         const fileName = COMPRESSED_AMBIENT_AUDIO_ALIASES.get(req.path.toLowerCase());
@@ -3648,6 +3887,17 @@ function createCoStudyServer(options = {}) {
         res.sendFile(path.join(__dirname, 'audio', fileName), {
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
+=======
+    app.use(['/api', '/auth/google'], (req, res, next) => {
+        if (!readinessState.userStore || !readinessState.roomStore) {
+            return res.status(503).json({ errorCode: 'STORAGE_STARTING' });
+        }
+        if (platform.enabled && platform.db && !platform.db.isHealthy()
+            && !['/health', '/ready'].includes(req.path)) {
+            return res.status(503).json({ errorCode: 'SERVICE_UNAVAILABLE' });
+        }
+        next();
+>>>>>>> viber/2026-10-27
     });
     app.use('/audio', express.static(path.join(__dirname, 'audio'), { maxAge: '7d' }));
     app.use('/images', express.static(path.join(__dirname, 'images'), { maxAge: '1d' }));
@@ -3656,6 +3906,7 @@ function createCoStudyServer(options = {}) {
     app.use('/videos/hero/source', (_req, res) => res.status(404).end());
     app.use('/videos', express.static(path.join(__dirname, 'videos'), { maxAge: '1d' }));
     app.use('/js', express.static(path.join(__dirname, 'public', 'js'), { maxAge: '1h' }));
+    app.use('/css', express.static(path.join(__dirname, 'public', 'css'), { maxAge: '1h' }));
     // The pages only need the stylesheets; the rest of design-system/ is
     // internal documentation and must not be publicly fetchable.
     app.use('/design-system', (req, res, next) => {
@@ -3663,7 +3914,12 @@ function createCoStudyServer(options = {}) {
         res.status(404).end();
     }, express.static(path.join(__dirname, 'design-system'), { maxAge: '1d' }));
 
+    const recoveryMail = createRecoveryMail({
+        env: config.supabase.enabled ? { ...env, AUTH_MAIL_MODE: 'disabled' } : env,
+        directory: `${config.userStateFile}.mail`, platform, isReady: () => readinessState.userStore
+    });
     app.use('/api', createAuthRouter({
+        recoveryMail,
         users,
         usersByEmail,
         rooms,
@@ -3685,11 +3941,37 @@ function createCoStudyServer(options = {}) {
         runUserMutation,
         flushUsers: () => userStore.flush(users),
         requireUser,
+        disconnectUser,
+        preparePlatformDeletion: async (userId) => {
+            if (!platform.enabled) return () => {};
+            const owned = await platform.db.query('SELECT id FROM halastudy.cohorts WHERE owner_id=$1', [userId]);
+            const ids = new Set(owned.rows.map((row) => row.id));
+            return () => {
+                for (const room of rooms.values()) {
+                    if (!ids.has(room.cohortId)) continue;
+                    for (const socketId of room.users.keys()) io.sockets.sockets.get(socketId)?.disconnect(true);
+                    deleteRoom(room.id);
+                }
+            };
+        },
+        deletePlatformUser: (userId) => userStore.isPlatform ? Promise.resolve() : platform.removeUser(userId),
+        canDeleteWithProvider: (req) => {
+            const cookies = parseCookies(req.headers.cookie || '');
+            return verifyReauth(cookies[REAUTH_COOKIE], req.user, cookies[AUTH_COOKIE_NAME], config.sessionSecret);
+        },
         // Analytics event log (Supabase only) — powers user + admin dashboards.
         logFocusSession: typeof userStore.logFocusSession === 'function'
             ? (payload) => userStore.logFocusSession(payload)
             : null,
         logger
+    }));
+
+    app.use('/api/platform', createPlatformRouter({
+        platform, requireUser, users, rooms, config, parseCookies, appendSetCookie, logger,
+        applyHttpRateLimit, rateLimiters, disconnectUser,
+        flushUsers: () => userStore.flush(users), flushRooms: () => roomStore.flush(rooms),
+        io, clearRoomCleanupTimer, deleteRoom, runtimeFlags, isVideoJoinDisabled, announcementState, backupScheduler,
+        operationalAlerts, videoRevocations
     }));
 
     // Google OAuth (only mounts real handlers when GOOGLE_* env is set; every
@@ -3708,7 +3990,11 @@ function createCoStudyServer(options = {}) {
         runUserMutation,
         runGoogleSubjectMutation,
         sessionSecret: config.sessionSecret,
+<<<<<<< HEAD
         oauthSecurity,
+=======
+        flushUsers: () => userStore.flush(users),
+>>>>>>> viber/2026-10-27
         logger
     }));
 
@@ -3796,6 +4082,10 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 404, 'ROOM_NOT_FOUND');
             return;
         }
+        if (!(await platform.canJoin(normalizedRoom, req.user))) {
+            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
+            return;
+        }
 
         const displayName = sanitizeNickname(req.body?.displayName);
         const rawRole = typeof req.body?.role === 'string' ? req.body.role.trim().toLowerCase() : '';
@@ -3860,6 +4150,7 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE');
             return;
         }
+<<<<<<< HEAD
         const tokenOperation = createRealtimeKitVideoTokenOperation({
             req,
             res,
@@ -3867,6 +4158,51 @@ function createCoStudyServer(options = {}) {
             normalizedRoom,
             member,
             requestIp,
+=======
+        if (effectiveRoom >= roomParticipantCap) {
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'ROOM_FULL',
+                roomId: normalizedRoom,
+                activeRoomVideoParticipants: activeRoom
+            });
+            sendVideoError(res, 409, 'ROOM_FULL');
+            return;
+        }
+        try { await videoRevocations.drain(); }
+        catch { return sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE'); }
+        if (!videoRevocations.status().healthy || videoRevocations.status().pending) {
+            sendVideoError(res, 503, 'VIDEO_PROVIDER_UNAVAILABLE');
+            return;
+        }
+        // Lock before any provider await. Repeated mints retire the old grant.
+        const mintKey = `${normalizedRoom}:${userId}:${clientSessionId}`;
+        if (videoMintLocks.has(mintKey)) {
+            sendVideoError(res, 409, 'VIDEO_REQUEST_PENDING');
+            return;
+        }
+        videoMintLocks.add(mintKey);
+        if (!await refreshExpiredRoomMeetingIfIdle(normalizedRoom, room)) {
+            videoMintLocks.delete(mintKey);
+            sendVideoError(res, 409, 'ROOM_DURATION_LIMIT_REACHED');
+            return;
+        }
+
+        if (videoSessionRegistry.countActiveGlobalVideoParticipants() - (existingActive ? 1 : 0) >= config.video.maxGlobalParticipants
+            || videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom) - (existingActive ? 1 : 0) >= roomParticipantCap) {
+            videoMintLocks.delete(mintKey);
+            sendVideoError(res, 409, 'ROOM_FULL');
+            return;
+        }
+        if (existingActive) emitVideoSessionEnded(videoSessionRegistry.markVideoSessionLeft(existingActive, 'replaced'));
+        videoSessionRegistry.registerVideoSession({
+            roomId: normalizedRoom,
+            userId,
+            clientSessionId,
+            socketId: member.socketId,
+            provider: roomVideoProvider,
+            providerMeetingId: room.videoProviderMeetingId,
+>>>>>>> viber/2026-10-27
             displayName,
             role,
             roomVideoProvider
@@ -3874,6 +4210,7 @@ function createCoStudyServer(options = {}) {
         const prepared = await runRoomLifecycleOperation(normalizedRoom, tokenOperation.prepare);
         if (!prepared) return;
 
+<<<<<<< HEAD
         let tokenPayload;
         try {
             // Do not hold the lifecycle lock while waiting on the provider.
@@ -3883,6 +4220,103 @@ function createCoStudyServer(options = {}) {
         } catch (error) {
             await runRoomLifecycleOperation(normalizedRoom, () => tokenOperation.handleFailure(error));
             return;
+=======
+        let issued = null;
+        let attempt = null;
+        let attemptMeeting = null;
+        try {
+            await videoRevocations.ready;
+            await videoRevocations.drain();
+            if (!videoRevocations.status().healthy || videoRevocations.status().pending) {
+                throw new Error('VIDEO_REVOCATION_PENDING');
+            }
+            const meeting = await ensureRealtimeKitMeeting(normalizedRoom, room);
+            attemptMeeting = meeting.meetingId;
+            attempt = await videoRevocations.track({
+                meetingId: meeting.meetingId, participantId: '*', roomId: normalizedRoom,
+                socketId: member.socketId
+            });
+            const presetName = role === 'viewer'
+                ? config.video.viewerPresetName
+                : config.video.defaultPresetName;
+            const tokenPayload = await videoProvider.createParticipantToken({
+                roomId: normalizedRoom,
+                meetingId: meeting.meetingId,
+                userId,
+                displayName,
+                presetName
+            });
+            issued = { meetingId: tokenPayload.meetingId, participantId: tokenPayload.participantId,
+                roomId: normalizedRoom, socketId: member.socketId };
+            await videoRevocations.track(issued);
+            await videoRevocations.forget(attempt);
+            attempt = null;
+            const currentUser = resolveUserFromToken(parseCookies(req.headers.cookie || '')[AUTH_COOKIE_NAME]);
+            const stillAllowed = await platform.canJoin(normalizedRoom, currentUser);
+            if (isShuttingDown || rooms.get(normalizedRoom) !== room || !stillAllowed
+                || (req.user && currentUser !== req.user)
+                || !io.sockets.sockets.get(member.socketId)?.connected
+                || !room.users.has(member.socketId)
+                || !findActiveVideoSession(normalizedRoom, userId, clientSessionId)) {
+                await videoRevocations.revokeWhere((row) => row.participantId === issued.participantId);
+                sendVideoError(res, 403, 'ROOM_NOT_JOINED');
+                return;
+            }
+
+            videoSessionRegistry.updateVideoSession({ roomId: normalizedRoom, userId, clientSessionId }, {
+                providerMeetingId: tokenPayload.meetingId,
+                providerParticipantId: tokenPayload.participantId,
+                lastSeenAt: Date.now()
+            });
+            emitVideoCapacity(normalizedRoom);
+            logger.info({
+                event: 'video_token_issued',
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                userId,
+                clientSessionId,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                activeRoomVideoParticipants: videoSessionRegistry.countActiveRoomVideoParticipants(normalizedRoom)
+            });
+
+            res.json({
+                ok: true,
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                role,
+                meetingId: tokenPayload.meetingId,
+                participantId: tokenPayload.participantId,
+                authToken: tokenPayload.authToken,
+                expiresAt: tokenPayload.expiresAt || null,
+                policy: getClientVideoPolicy(room)
+            });
+        } catch (error) {
+            if (attempt) {
+                // A timed-out POST may have created a participant without returning
+                // its id. Retire that meeting; restart also replays this intent.
+                if (room.videoProviderMeetingId === attemptMeeting) {
+                    room.videoProviderStatus = 'closed';
+                    persistRoomsSoon();
+                }
+                await videoRevocations.revokeWhere((row) => row.id === attempt).catch(() => {});
+            }
+            if (issued) {
+                await videoRevocations.revokeWhere((row) => row.participantId === issued.participantId).catch(() => {});
+            }
+            videoSessionRegistry.markVideoSessionLeft({ roomId: normalizedRoom, userId, clientSessionId }, 'provider_failure');
+            emitVideoCapacity(normalizedRoom);
+            logger.warn({
+                event: 'video_token_rejected',
+                reason: 'VIDEO_PROVIDER_UNAVAILABLE',
+                provider: roomVideoProvider,
+                roomId: normalizedRoom,
+                activeGlobalVideoParticipants: videoSessionRegistry.countActiveGlobalVideoParticipants(),
+                message: error.message
+            });
+            sendVideoError(res, error.status || 502, 'VIDEO_PROVIDER_UNAVAILABLE');
+        } finally {
+            videoMintLocks.delete(mintKey);
+>>>>>>> viber/2026-10-27
         }
         await runRoomLifecycleOperation(normalizedRoom, () => tokenOperation.finalize(tokenPayload));
     });
@@ -3899,6 +4333,7 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 404, 'ROOM_NOT_FOUND');
             return;
         }
+<<<<<<< HEAD
         const resolvedMembership = resolveRoomMembership(req, room, normalizedRoom);
         if (!resolvedMembership) {
             sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
@@ -3911,6 +4346,16 @@ function createCoStudyServer(options = {}) {
             'video_heartbeat_legacy_shape'
         );
         if (!videoSessionId) {
+=======
+        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
+        const displayName = sanitizeNickname(req.body?.displayName);
+        const member = clientSessionId
+            ? findRoomVideoMember(req, room, displayName, clientSessionId)
+            : null;
+        if (!member) return sendVideoError(res, 403, 'ROOM_NOT_JOINED');
+        const userId = member?.clientId || member?.sessionId || clientSessionId;
+        if (!clientSessionId || !userId) {
+>>>>>>> viber/2026-10-27
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
             return;
         }
@@ -3940,6 +4385,7 @@ function createCoStudyServer(options = {}) {
             sendVideoError(res, 404, 'ROOM_NOT_FOUND');
             return;
         }
+<<<<<<< HEAD
         const resolvedMembership = resolveRoomMembership(req, room, normalizedRoom);
         if (!resolvedMembership) {
             sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
@@ -3952,6 +4398,16 @@ function createCoStudyServer(options = {}) {
             'video_leave_legacy_shape'
         );
         if (!videoSessionId) {
+=======
+        const clientSessionId = normalizeClientId(req.body?.clientSessionId);
+        const displayName = sanitizeNickname(req.body?.displayName);
+        const member = clientSessionId
+            ? findRoomVideoMember(req, room, displayName, clientSessionId)
+            : null;
+        if (!member) return sendVideoError(res, 403, 'ROOM_NOT_JOINED');
+        const userId = member?.clientId || member?.sessionId || clientSessionId;
+        if (!clientSessionId || !userId) {
+>>>>>>> viber/2026-10-27
             sendVideoError(res, 400, 'VIDEO_REQUEST_INVALID');
             return;
         }
@@ -3977,6 +4433,7 @@ function createCoStudyServer(options = {}) {
         });
     });
 
+<<<<<<< HEAD
     app.delete('/api/rooms/:roomId', requireUser, async (req, res) => {
         const normalizedRoom = normalizeRoom(req.params.roomId);
         const room = rooms.get(normalizedRoom);
@@ -4009,6 +4466,9 @@ function createCoStudyServer(options = {}) {
     });
 
     app.get('/api/rooms/:roomId', (req, res) => {
+=======
+    app.get('/api/rooms/:roomId', async (req, res) => {
+>>>>>>> viber/2026-10-27
         const { roomId } = req.params;
         const requestIp = getRequestIp(req);
         if (!applyHttpRateLimit(req, res, rateLimiters.roomLookup, requestIp)) {
@@ -4035,7 +4495,7 @@ function createCoStudyServer(options = {}) {
         }
 
         // Protected rooms leak nothing before a verified, password-gated join.
-        if (room.requirePassword) {
+        if (room.requirePassword || !(await platform.canJoin(normalizedRoom, req.user))) {
             res.json(roomPreview(normalizedRoom, room));
             return;
         }
@@ -4043,37 +4503,25 @@ function createCoStudyServer(options = {}) {
         res.json(roomSnapshot(roomId));
     });
 
-    app.get('/', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'landing.html'));
-    });
+    registerPublicPages(app, __dirname);
 
     app.get(['/open.html', '/open'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'open.html'));
     });
 
-    app.get(['/privacy.html', '/privacy'], (_req, res) => {
-        res.sendFile(path.join(__dirname, 'privacy.html'));
-    });
-
-    app.get(['/terms.html', '/terms'], (_req, res) => {
-        res.sendFile(path.join(__dirname, 'terms.html'));
-    });
-
-    app.get(['/blog.html', '/blog'], (_req, res) => {
-        res.sendFile(path.join(__dirname, 'blog.html'));
-    });
-
-    // Individual blog posts — explicit slug→file map (no dynamic path lookup, so
-    // no traversal surface). Add a line here per new article.
-    app.get('/blog/best-online-group-study-rooms-saudi', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'blog-best-study-rooms.html'));
-    });
-    app.get('/blog/study-with-me-online-arabic', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'blog-study-with-me.html'));
+    app.get(['/app', '/plans', '/supervisor'], (_req, res) => {
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.sendFile(path.join(__dirname, 'platform.html'));
     });
 
     app.get(['/account.html', '/account'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'account.html'));
+    });
+    app.get(['/recover', '/recovery.html'], (_req, res) => {
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Referrer-Policy', 'no-referrer');
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.sendFile(path.join(__dirname, 'recovery.html'));
     });
 
     app.get(['/index.html', '/study', '/workspace', '/room'], (_req, res) => {
@@ -4087,6 +4535,7 @@ function createCoStudyServer(options = {}) {
     if (config.admin.enabled) {
         app.use(config.admin.path, createAdminRouter({
             config,
+            platform,
             rooms,
             users,
             io,
@@ -4127,6 +4576,7 @@ function createCoStudyServer(options = {}) {
             res.status(404).json({ errorCode: 'NOT_FOUND' });
             return;
         }
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
         res.status(404).sendFile(path.join(__dirname, '404.html'));
     });
 
@@ -4174,9 +4624,37 @@ function createCoStudyServer(options = {}) {
         socket.data.clientId = handshakeClientId || sessionId;
         socket.data.ip = ip;
         socket.data.userId = authedUser ? authedUser.id : null;
+<<<<<<< HEAD
         socket.data.identityId = authedUser ? `user:${authedUser.id}` : `anon:${sessionId}`;
         socket.data.membershipToken = null;
         socket.data.connectionGeneration = 0;
+=======
+        // Account-bearing connections must retain a valid account session for
+        // every event. A revoked account never silently becomes a guest.
+        socket.use(async (packet, next) => {
+            if (!readinessState.roomStore || !readinessState.userStore) return next(new Error('STORAGE_STARTING'));
+            if (platform.enabled && platform.db && !platform.db.isHealthy()) {
+                const ack = packet.at(-1);
+                if (typeof ack === 'function') ack({ ok: false, errorCode: 'SERVICE_UNAVAILABLE' });
+                return next(new Error('SERVICE_UNAVAILABLE'));
+            }
+            if (socket.data.userId && !resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME])) {
+                socket.disconnect(true);
+                return next(new Error('AUTH_REQUIRED'));
+            }
+            if (socket.data.roomId && packet[0] !== 'join-room') {
+                try {
+                    if (!(await platform.canJoin(socket.data.roomId, resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME])))) {
+                        socket.disconnect(true);
+                        return next(new Error('ROOM_ACCESS_REVOKED'));
+                    }
+                } catch {
+                    return next(new Error('SERVICE_UNAVAILABLE'));
+                }
+            }
+            next();
+        });
+>>>>>>> viber/2026-10-27
 
         // Late joiners still see an active admin broadcast.
         const currentAnnouncement = getActiveAnnouncement();
@@ -4186,10 +4664,10 @@ function createCoStudyServer(options = {}) {
 
         function getSocketUser() {
             if (!socket.data.userId) return null;
-            const user = users.get(socket.data.userId);
-            return user && !user.banned ? user : null;
+            return resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME]);
         }
 
+<<<<<<< HEAD
         function getAuthenticatedSocketUser(socketRef) {
             const userId = socketRef?.data?.userId;
             if (!userId) return null;
@@ -4289,6 +4767,11 @@ function createCoStudyServer(options = {}) {
         }
 
         onRequest('create-room', async (payload, ack) => {
+=======
+        const onEvent = (event, handler) => onClientEvent(socket, event, handler, logger);
+
+        onEvent('create-room', async (payload = {}, ack) => {
+>>>>>>> viber/2026-10-27
             const { roomName, password, requirePassword } = payload;
             const cleanName = sanitizeRoomName(roomName);
             const mediaMode = normalizeMediaMode(payload.mediaMode);
@@ -4331,7 +4814,10 @@ function createCoStudyServer(options = {}) {
             }
 
             const sanitizedPassword = sanitizeRoomPassword(password);
-            const shouldProtect = !!requirePassword && sanitizedPassword.length > 0;
+            const shouldProtect = !!requirePassword;
+            if (shouldProtect && !sanitizedPassword) {
+                return ackError(ack, 'ROOM_PASSWORD_REQUIRED');
+            }
             let passwordHash = null;
 
             if (shouldProtect) {
@@ -4343,6 +4829,7 @@ function createCoStudyServer(options = {}) {
                 }
             }
 
+<<<<<<< HEAD
             let createdRoom = null;
             let stagedCreateEvents = [];
             try {
@@ -4390,6 +4877,23 @@ function createCoStudyServer(options = {}) {
                 });
                 return ackError(ack, 'PERSISTENCE_UNAVAILABLE');
             }
+=======
+            try {
+                await platform.registerRoom(roomCode, getSocketUser());
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
+            ensureRoom(roomCode, {
+                name: cleanName,
+                requirePassword: shouldProtect,
+                passwordHash,
+                ownerUserId: getSocketUser()?.id || null,
+                mediaMode,
+                videoProvider: config.video.provider,
+                createdAt: Date.now(),
+                schedule
+            });
+>>>>>>> viber/2026-10-27
 
             if (creator) {
                 try {
@@ -4433,7 +4937,11 @@ function createCoStudyServer(options = {}) {
             });
         });
 
+<<<<<<< HEAD
         onRequest('join-room', async (payload, ack) => {
+=======
+        onEvent('join-room', async (payload = {}, ack) => {
+>>>>>>> viber/2026-10-27
             const { roomId, username, clientId: payloadClientId, password } = payload;
             const joinConnectionGeneration = socket.data.connectionGeneration;
             const authenticatedUserIdAtStart = socket.data.userId || null;
@@ -4473,6 +4981,7 @@ function createCoStudyServer(options = {}) {
             if (!room || roomIsClosed(room)) {
                 return ackError(ack, 'ROOM_NOT_FOUND');
             }
+<<<<<<< HEAD
             const joinNow = Date.now();
             if (Number.isFinite(room.expiresAt) && room.expiresAt <= joinNow) {
                 void closeRoomLifecycle(normalizedRoom, { reason: 'expired' }).catch((error) => {
@@ -4485,6 +4994,12 @@ function createCoStudyServer(options = {}) {
                 : null;
             if (roomHasSchedule(room) && initialScheduleOccurrenceAt === null) {
                 return ackError(ack, 'ROOM_SCHEDULE_NOT_OPEN');
+=======
+            try {
+                if (!(await platform.canJoin(normalizedRoom, getSocketUser()))) return ackError(ack, 'ROOM_MEMBERSHIP_REQUIRED');
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+>>>>>>> viber/2026-10-27
             }
             if (roomUsesSfu(room) && !config.sfuAvailable) {
                 return ackError(ack, 'ROOM_MEDIA_UNAVAILABLE');
@@ -4519,12 +5034,17 @@ function createCoStudyServer(options = {}) {
                 }
             }
 
+<<<<<<< HEAD
             // Preflight the complete target-room transition before mutating the
             // source room. This keeps a failed switch from ejecting the caller.
             const previousRoomId = socket.data.roomId;
             const identityId = socket.data.identityId;
             const identityKey = buildIdentityKey(normalizedRoom, identityId);
             const releasableUsers = new Map();
+=======
+            let isRejoin = false;
+            const identityKey = buildIdentityKey(normalizedRoom, sessionId, clientId);
+>>>>>>> viber/2026-10-27
 
             if (identityKey) {
                 const previousSocketId = room.identities.get(identityKey);
@@ -4829,11 +5349,39 @@ function createCoStudyServer(options = {}) {
                 // Profile perks relayed to peers via presence (user content,
                 // not chrome — single-accent rule stays intact client-side).
                 avatarColor: joiningUser ? joiningUser.avatarColor : null,
-                streakCurrent: joiningUser ? joiningUser.streak.current : null
             };
 
+<<<<<<< HEAD
             // No await occurs between the liveness check above and this
             // reversible runtime transition.
+=======
+            // Recheck after asynchronous password/authorization work. No await
+            // separates these capacity/name checks from reserving the seat.
+            try {
+                if (!(await platform.canJoin(normalizedRoom, getSocketUser()))) return ackError(ack, 'ROOM_MEMBERSHIP_REQUIRED');
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
+            if (!socket.connected || (joiningUser && !getSocketUser())) return ackError(ack, 'AUTH_REQUIRED');
+            if (rooms.get(normalizedRoom) !== room) return ackError(ack, 'ROOM_NOT_FOUND');
+            if (Array.from(room.users.values()).some((entry) => entry.name === cleanName && !isSameIdentity(entry, sessionId, clientId))) {
+                return ackError(ack, 'USERNAME_TAKEN');
+            }
+            const capacity = isLobbyRoom(room) ? LOBBY_PARTICIPANT_LIMIT
+                : getRoomVideoProvider(room) === VIDEO_PROVIDER_MESH && roomUsesMesh(room) ? config.meshParticipantLimit : Infinity;
+            if (!room.users.has(socket.id) && room.users.size >= capacity) return ackError(ack, 'ROOM_FULL');
+            // Read current membership after every authorization await. Moving a
+            // seat is synchronous so overlapping joins cannot retain two rooms,
+            // and a denied destination leaves the existing seat/deadline intact.
+            const previousRoomId = socket.data.roomId;
+            if (previousRoomId && previousRoomId !== normalizedRoom) {
+                const previousRoom = rooms.get(previousRoomId);
+                if (previousRoom && removeUserFromRoom(previousRoom, socket.id, previousRoomId)) {
+                    io.to(previousRoomId).emit('presence', roomSnapshot(previousRoomId).participants);
+                }
+            }
+            clearRoomCleanupTimer(room);
+>>>>>>> viber/2026-10-27
             room.users.set(socket.id, userRecord);
             if (identityKey) {
                 if (!targetIdentityOwners.has(identityKey)) {
@@ -4846,6 +5394,7 @@ function createCoStudyServer(options = {}) {
             socket.data.roomId = normalizedRoom;
             socket.join(normalizedRoom);
 
+<<<<<<< HEAD
             try {
                 // The durable commit point atomically replaces the private
                 // prepared saga with deliverable lifecycle events. Runtime
@@ -4960,6 +5509,24 @@ function createCoStudyServer(options = {}) {
                         ? error.code
                         : 'PERSISTENCE_UNAVAILABLE'
                 );
+=======
+            if (joiningUser) {
+                try {
+                    await platform.recordAttendance(normalizedRoom, joiningUser);
+                } catch {
+                    removeUserFromRoom(room, socket.id, normalizedRoom);
+                    socket.disconnect(true);
+                    return ackError(ack, 'SERVICE_UNAVAILABLE');
+                }
+                if (!socket.connected || !getSocketUser()) return ackError(ack, 'AUTH_REQUIRED');
+                recordMyRoom(joiningUser, { roomId: normalizedRoom, name: room.name, role: 'joined' });
+                persistUsersSoon();
+            }
+            const snapshot = roomSnapshot(normalizedRoom);
+            ack({ ok: true, room: snapshot });
+            if (scheduleChanged) {
+                persistRoomsSoon();
+>>>>>>> viber/2026-10-27
             }
 
             if (sourceRecord) invalidateMembershipToken(sourceRecord.membershipToken);
@@ -5004,7 +5571,11 @@ function createCoStudyServer(options = {}) {
             }
         });
 
+<<<<<<< HEAD
         onRequest('send-message', (payload, ack) => {
+=======
+        onEvent('send-message', (payload = {}, ack) => {
+>>>>>>> viber/2026-10-27
             const { text } = payload;
             const currentRoom = socket.data.roomId;
             const cleanText = sanitizeChatMessage(text);
@@ -5038,7 +5609,11 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true });
         });
 
+<<<<<<< HEAD
         onRequest('board-set-goal', (payload, ack) => {
+=======
+        onEvent('board-set-goal', (payload = {}, ack) => {
+>>>>>>> viber/2026-10-27
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -5059,7 +5634,11 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
+<<<<<<< HEAD
         onRequest('board-add-task', (payload, ack) => {
+=======
+        onEvent('board-add-task', (payload = {}, ack) => {
+>>>>>>> viber/2026-10-27
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -5082,10 +5661,15 @@ function createCoStudyServer(options = {}) {
             }
 
             const board = ensureRoomBoard(room);
+<<<<<<< HEAD
             if (board.tasks.length >= BOARD_TASK_LIMIT) {
                 return ackError(ack, 'BOARD_TASK_LIMIT_REACHED');
             }
             const nextTask = {
+=======
+            if (board.tasks.length >= BOARD_TASK_LIMIT) return ackError(ack, 'BOARD_TASK_LIMIT');
+            board.tasks.push({
+>>>>>>> viber/2026-10-27
                 id: crypto.randomUUID(),
                 text: cleanText,
                 priority: normalizeBoardPriority(payload.priority),
@@ -5104,7 +5688,11 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
+<<<<<<< HEAD
         onRequest('board-toggle-task', (payload, ack) => {
+=======
+        onEvent('board-toggle-task', (payload = {}, ack) => {
+>>>>>>> viber/2026-10-27
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -5131,7 +5719,11 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
+<<<<<<< HEAD
         onRequest('board-delete-task', (payload, ack) => {
+=======
+        onEvent('board-delete-task', (payload = {}, ack) => {
+>>>>>>> viber/2026-10-27
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -5158,7 +5750,11 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
+<<<<<<< HEAD
         onRequest('board-reorder-tasks', (payload, ack) => {
+=======
+        onEvent('board-reorder-tasks', (payload = {}, ack) => {
+>>>>>>> viber/2026-10-27
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -5206,8 +5802,15 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true, board: cloneBoard(board) });
         });
 
+<<<<<<< HEAD
         onRequest('camera-status', (payload, ack) => {
             const room = resolveMeshSignalRoom(ack);
+=======
+        onEvent('camera-status', (payload = {}) => {
+            const { roomId } = socket.data;
+            if (!roomId) return;
+            const room = rooms.get(roomId);
+>>>>>>> viber/2026-10-27
             if (!room) return;
             const user = room.users.get(socket.id);
             if (!user) return ackError(ack, 'ROOM_NOT_JOINED');
@@ -5216,7 +5819,12 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true });
         });
 
+<<<<<<< HEAD
         onRequest('rtc-offer', (payload, ack) => {
+=======
+        onEvent('rtc-offer', (payload = {}) => {
+            const { roomId } = socket.data;
+>>>>>>> viber/2026-10-27
             const { targetId, sdp } = payload;
             const room = resolveMeshSignalRoom(ack);
             if (!room) return;
@@ -5226,7 +5834,12 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true });
         });
 
+<<<<<<< HEAD
         onRequest('rtc-answer', (payload, ack) => {
+=======
+        onEvent('rtc-answer', (payload = {}) => {
+            const { roomId } = socket.data;
+>>>>>>> viber/2026-10-27
             const { targetId, sdp } = payload;
             const room = resolveMeshSignalRoom(ack);
             if (!room) return;
@@ -5236,7 +5849,12 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true });
         });
 
+<<<<<<< HEAD
         onRequest('rtc-ice', (payload, ack) => {
+=======
+        onEvent('rtc-ice', (payload = {}) => {
+            const { roomId } = socket.data;
+>>>>>>> viber/2026-10-27
             const { targetId, candidate } = payload;
             const room = resolveMeshSignalRoom(ack);
             if (!room) return;
@@ -5246,7 +5864,11 @@ function createCoStudyServer(options = {}) {
             ack({ ok: true });
         });
 
+<<<<<<< HEAD
         onRequest('user-status', (payload, ack) => {
+=======
+        onEvent('user-status', (payload = {}, ack) => {
+>>>>>>> viber/2026-10-27
             const { status } = payload || {};
             const { roomId } = socket.data;
             if (!roomId) return ack({ ok: false });
@@ -5262,7 +5884,11 @@ function createCoStudyServer(options = {}) {
 
         // Reports are silent: stored on the room for admin review, never
         // broadcast, never exposed through client-facing snapshots.
+<<<<<<< HEAD
         onRequest('report-user', (payload, ack) => {
+=======
+        onEvent('report-user', async (payload = {}, ack) => {
+>>>>>>> viber/2026-10-27
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -5300,6 +5926,15 @@ function createCoStudyServer(options = {}) {
                 createdAt: Date.now(),
                 status: 'open'
             };
+            try {
+                const reporterUser = getSocketUser();
+                const targetUser = users.get(io.sockets.sockets.get(targetId)?.data?.userId);
+                await platform.ensureUser(reporterUser);
+                await platform.ensureUser(targetUser);
+                await platform.recordCase(currentRoom, report, reporterUser?.id, targetUser?.id);
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
             if (!Array.isArray(room.reports)) room.reports = [];
             room.reports.push(report);
             if (room.reports.length > ROOM_REPORTS_LIMIT) {

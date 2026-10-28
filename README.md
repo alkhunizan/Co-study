@@ -16,15 +16,29 @@ This release ships with:
 - Custom room names with shareable room codes
 - Optional password protection with PBKDF2 hashing
 - Optional accounts (email + password, no verification wall): synced focus minutes and day streaks, My Rooms with one-click rejoin, reserved nickname, avatar accent + bio. Instant rooms stay guest-open; scheduled rooms require an account
+<<<<<<< HEAD
 - Self-serve, immediate delete-my-data flow on the account page (PDPL)
 - Hidden admin ops console at an env-secret path: live overview, room inspect/force-close/kick, runtime video kill-switch, user ban/unban, site-wide broadcast banner, backup-now, recent errors
 - Cloudflare RealtimeKit video rooms with server-issued participant tokens; mesh is local-development-only
+=======
+- Reauthenticated account deletion with durable failure handling and session revocation; shared content/backups are explained in the privacy policy
+- Member workspace at `/app`, private circles and assigned supervisors at `/supervisor`, and one VIP offer at `/plans`: USD 4.99/month
+- DigetPay hosted checkout adapter for sandbox testing, with server-verified payments and refund reconciliation; production charges and automatic renewal remain disabled. [Setup and limits](docs/payments/2026-10-20-digetpay/IMPLEMENTATION.md)
+- Named staff roles with authenticator MFA, recovery codes, audit events, moderation and operating controls; first-owner bootstrap retires shared-admin access
+- Server-timed sessions, pause/resume, bounded heartbeat credit, deduplicated points and achievements
+- Cloudflare RealtimeKit video rooms with server-issued participant tokens, plus legacy mesh fallback
+>>>>>>> viber/2026-10-27
 - Live Socket.IO chat and room presence
 - Pomodoro timer with daily focus tracking
 - Shared room board, room status sharing, and ambient sounds
 - Reusable scheduled rooms with Riyadh-based cadence, countdowns, calendar export, and WhatsApp-ready invites
+<<<<<<< HEAD
 - Disk-backed room persistence for chat history and board state
 - Local-development mesh/ICE diagnostics (disabled in production)
+=======
+- Transactional PostgreSQL-compatible account, room and platform storage; embedded PGlite for local development
+- TURN-ready runtime ICE config
+>>>>>>> viber/2026-10-27
 - Launch guardrails: 20 global active video participants, 20 per room, mic off by default, recording off
 - AI focus monitoring through the browser FaceDetector API
 - Health/readiness/metrics endpoints, abuse controls, automated + manual state backup/restore, bilingual 404, and a PWA manifest
@@ -41,6 +55,8 @@ npm start
 ```
 
 Open `http://localhost:3000`.
+
+For an isolated local platform review, run `npm run platform:preview` and open `http://127.0.0.1:3470/app`. See [platform operations and migration](docs/implementation/2026-10-20-platform/OPERATIONS.md) for test checkout, first-owner setup, storage, backups and remaining production integrations.
 
 ### Local Secure-Context Testing
 
@@ -69,6 +85,7 @@ npm run test:ci
 ## Operator Commands
 
 ```bash
+<<<<<<< HEAD
 npm run backup:state
 npm run restore:state -- /absolute/path/to/artifact.hsbackup
 npm run restore:state -- /absolute/path/to/artifact.hsbackup --apply --writer-stopped
@@ -79,6 +96,14 @@ Restore defaults to a checksum/schema/tombstone dry run. Applying is an offline
 operator action: stop the single app writer first, supply both apply flags, then
 start the app and run `verify:deploy`. See
 [`docs/BACKUP-RESTORE.md`](docs/BACKUP-RESTORE.md).
+=======
+npm run platform:backup -- --directory /absolute/path/to/database --file /absolute/path/to/backups/platform.json
+npm run platform:restore -- --directory /absolute/path/to/empty-database --file /absolute/path/to/backups/platform.json
+npm run verify:deploy -- https://your-domain.com
+```
+
+Offline backup/restore requires stopping the app. Restore targets an empty database and invalidates previous sessions. The named-staff console and scheduler can create snapshots while the app runs. `backup:rooms`/`restore:rooms` apply only to the legacy JSON mode.
+>>>>>>> viber/2026-10-27
 
 ## Stack
 
@@ -183,6 +208,7 @@ Launch cost guardrail:
 
 This stays under the $500 launch cap only while the 20-user global cap remains enforced and recording/screenshare/AI/transcription extras stay off.
 
+<<<<<<< HEAD
 Run `npm run cloudflare:cost-check` from the deployed service environment. It
 uses the durable video registry, webhook acceptance journal, and optional
 `VIDEO_SESSION_LOG_FILE` locally; it never calls Cloudflare or requires provider
@@ -191,8 +217,11 @@ is an early notice/warning and exit 1 is a critical threshold or invalid local
 evidence, which lets cron or the process monitor route alerts by severity.
 
 Room persistence stores room metadata, protected-room password hashes, chat history, shared board state, and scheduled-room metadata/attendance on disk. Live presence, socket IDs, camera state, and other transient participant state remain memory-only.
+=======
+Platform storage imports legacy JSON once into the `halastudy` SQL schema. Live presence, socket IDs and camera state remain memory-only. Supabase profile storage remains a compatibility path that needs its own account backup.
+>>>>>>> viber/2026-10-27
 
-This persistence layer is designed for a single app instance. Keep PM2 at one process, back up the state file, and do restores while the app is stopped.
+Keep PM2 at one process. Runtime locks refuse concurrent instances. Back up the canonical database; disabling the platform after migration would read stale JSON and is not a safe rollback. See the [operations guide](docs/implementation/2026-10-20-platform/OPERATIONS.md).
 
 ## Manual Media QA
 

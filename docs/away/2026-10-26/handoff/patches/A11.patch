@@ -1,0 +1,220 @@
+diff --git a/docs/away/2026-10-26/A11/RESULT.md b/docs/away/2026-10-26/A11/RESULT.md
+new file mode 100644
+index 0000000..5f58691
+--- /dev/null
++++ b/docs/away/2026-10-26/A11/RESULT.md
+@@ -0,0 +1,27 @@
++# A11: retain guided focus after task-link failure
++
++Refill source: existing F07/F09 acceptance for task-linked guided rounds and failure recovery. Baselinec4d6c50. Candidate score3/3/3. This is guidance only and cannot grant credited time.
++
++Acceptance recorded before implementation:
++1. When starting focus succeeds but task attachment fails, the guide retains that exact running session, shows a localized error and offers usable Pause/Stop instead of getting stuck at Begin.
++2. Retrying attachment links the selected task to the original session exactly once; reload preserves the guide and task. No duplicate focus session or extra rewards are created.
++3. The same recovery works at the next focus round after a break. Failure before focus starts leaves the guide ready for retry.
++4. Cover English1440 and Arabic390 with server-state assertions and usable fallback-font screenshots.
++
++## Local result
++
++Application/test commit:19c4c5b. Three before cases failed with the server session active but the guide missing Pause; the failed-start positive control passed. All four after cases passed. Evidence: `../evidence/a11-before.log` and `../evidence/a11-after.log`.
++
++The guide now retains its acknowledged session and running state before attempting the separate task link. The finally path stores and renders the resulting state even if a later step fails. Task attachment still uses the existing server checks and retry control. The two starts share this ordering, including the next round after a break.
++
++Arabic390 error and English1440 recovered screenshots were visually inspected. Primary controls remain readable and on-screen with no horizontal overflow; the same account/session/task persists through retry, Pause and reload. These are offline fallback-font captures. Client clock advancement does not grant server credit, as the next-round case asserts.
++
++All four static checks passed on the final source. Integration finished168/169; an existing recovery fixture failed in its local message JSON parser. The changed browser guide is not loaded by that fixture, but the failure's cause remains unresolved because the away guard rejected the read-only follow-up inspection; no equivalent read was attempted. Full browser finished81 pass,2 failures (privacy blur and expired date fixture),1 offline font skip,4 not run after the serial camera failure. All four guide cases passed again. Source manifest d7620e77ad1530b72e00155f9f1e0bb9defee4db13f89f93511e06ecb4e36700 matched before/after. Existing body-parser audit and release/remote holds remain.
++
++After the broad queue stopped, the original app suite passed8/8 alone in a11-app-isolated.log. The camera case and all four previously unexecuted cases passed, with the same clean source manifest before/after. Both receipts remain. No camera code, assertion or timeout changed, and the cause of its intermittent result is not established. This passing browser follow-up does not resolve the separate integration-fixture failure.
++
++Independent read-only review of the guide/state-machine diff and the four regression cases found no further concrete issue. This does not erase the unresolved full integration gate.
++
++## Scope review
++
++The changed orchestration never grants time or points. Focus start and attachment remain separate authenticated server operations. Session ID is retained only after start succeeds, and an attachment error propagates to existing localized feedback. Stop retains the existing current-session comparison. Source review covers study-routine, focus-client and the existing task-attachment route one hop. No new rendering of untrusted HTML, storage credential, permission, schema or provider change.
+diff --git a/public/js/study-workspace.js b/public/js/study-workspace.js
+index af84c7c..3fd27e6 100644
+--- a/public/js/study-workspace.js
++++ b/public/js/study-workspace.js
+@@ -568,6 +568,14 @@
+             renderFocus();
+         }
+     }
++    async function startGuidedFocus() {
++        const session = await g.HalaFocus.start();
++        // Starting focus and attaching its task are separate server operations.
++        routine.sessionId = session.id;
++        routine = g.HalaRoutine.transition(routine, 'start', Date.now());
++        storeRoutine();
++        await bindFocus(session.id);
++    }
+     async function routineAction(action) {
+         if (!routine || routineBusy) return;
+         routineBusy = true;
+@@ -584,11 +592,8 @@
+             if (action === 'start') {
+                 if (routine.phase === 'focus') {
+                     if (routine.status === 'ready' && activeFocus()) throw { code: 'routineBusy' };
+-                    const session = await g.HalaFocus.start();
+-                    await bindFocus(session.id);
+-                    routine.sessionId = session.id;
+-                }
+-                routine = g.HalaRoutine.transition(routine, 'start', Date.now());
++                    await startGuidedFocus();
++                } else routine = g.HalaRoutine.transition(routine, 'start', Date.now());
+             } else if (action === 'pause') {
+                 if (routine.phase === 'focus' && current?.id === routine.sessionId && current.state === 'active')
+                     await g.HalaFocus.pause();
+@@ -598,10 +603,7 @@
+                     await g.HalaFocus.complete();
+                 routine = g.HalaRoutine.transition(routine, 'next', Date.now());
+                 if (routine.phase === 'focus' && routine.status === 'ready') {
+-                    const session = await g.HalaFocus.start();
+-                    await bindFocus(session.id);
+-                    routine.sessionId = session.id;
+-                    routine = g.HalaRoutine.transition(routine, 'start', Date.now());
++                    await startGuidedFocus();
+                 }
+                 await g.HalaPlatform.refresh();
+             } else if (action === 'stop') {
+@@ -610,10 +612,10 @@
+                 routine = null;
+                 focusRoutine.value = '';
+             }
+-            storeRoutine();
+-            renderGuide();
+         } finally {
+             routineBusy = false;
++            storeRoutine();
++            renderGuide();
+         }
+     }
+     function renderGuide() {
+diff --git a/tests/smoke/guide-recovery-away.smoke.spec.js b/tests/smoke/guide-recovery-away.smoke.spec.js
+new file mode 100644
+index 0000000..118f5eb
+--- /dev/null
++++ b/tests/smoke/guide-recovery-away.smoke.spec.js
+@@ -0,0 +1,123 @@
++const { test, expect } = require('@playwright/test');
++const { randomUUID } = require('node:crypto');
++const { startServer } = require('../helpers/server-control');
++const { signupUser } = require('../helpers/auth-helpers');
++
++async function guideFixture(browser, language, width) {
++    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh' } });
++    const account = await signupUser(server, { displayName: 'Synthetic guide recovery' });
++    const request = (path, method = 'GET', body = undefined) => server.request(`/api/platform${path}`, {
++        method, body, headers: { Cookie: account.cookie },
++    });
++    const task = (await request('/study/tasks', 'POST', {
++        title: 'Review chapter / مراجعة الفصل', priority: 'normal', recurrence: 'none',
++        steps: [], estimate_minutes: 25, requestId: randomUUID(),
++    })).body;
++    const routine = await request('/study/routines', 'POST', {
++        name: 'Gentle pair / جولتان', focus_minutes: 5, break_minutes: 5, long_break_minutes: 10,
++        cycles: 2, long_every: 2, requestId: randomUUID(),
++    });
++    expect(routine.status).toBe(200);
++    const context = await browser.newContext({ viewport: { width, height: 960 } });
++    await context.addCookies(account.cookie.split(';').map((part) => {
++        const [name, ...value] = part.trim().split('=');
++        return { name, value: value.join('='), url: server.baseUrl };
++    }));
++    await context.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language);
++    const page = await context.newPage();
++    await page.clock.install();
++    await page.goto(`${server.baseUrl}/app#planner`);
++    await expect(page.locator('#study-task-list .row')).toHaveCount(1);
++    await page.locator('.study-tabs [data-lang=routinesTab]').click();
++    await page.locator('#study-routine-list [data-lang=useRoutine]').click();
++    await page.locator('#study-focus-task').selectOption(task.id);
++    const current = async () => (await request('/progress')).body.current;
++    return { server, page, context, request, current, task,
++        close: async () => { await context.close(); await server.stop(); } };
++}
++
++for (const { language, width } of [{ language: 'en', width: 1440 }, { language: 'ar', width: 390 }]) {
++    test(`guide retains started session when attachment fails (${language}, ${width})`, async ({ browser }, info) => {
++        const f = await guideFixture(browser, language, width);
++        let reject = true;
++        let starts = 0;
++        f.page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/focus/start')) starts++; });
++        try {
++            await f.page.route('**/api/platform/study/focus/*/task', route => {
++                if (reject) { reject = false; return route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"PERSISTENCE_UNAVAILABLE"}' }); }
++                return route.continue();
++            });
++            await f.page.locator('#study-guide [data-lang=routineBegin]').click();
++            await expect(f.page.locator('#study-status')).toBeVisible();
++            const session = await f.current();
++            expect(session.state).toBe('active');
++            await expect(f.page.locator('#study-guide [data-lang=routinePause]')).toBeVisible();
++            expect((await f.request('/study/overview')).body.focusLink).toBeNull();
++            await f.page.screenshot({ path: info.outputPath(`guide-link-error-${language}-${width}.png`), fullPage: true });
++            await f.page.locator('[data-lang=attachTask]').click();
++            await expect(f.page.locator('#study-focus-task')).toBeDisabled();
++            const linked = (await f.request('/study/overview')).body.focusLink;
++            expect(linked.task_id).toBe(f.task.id);
++            expect(linked.session_id).toBe(session.id);
++            await f.page.locator('#study-guide [data-lang=routinePause]').click();
++            await expect(f.page.locator('#study-guide [data-lang=routineResume]')).toBeVisible();
++            expect((await f.current()).state).toBe('paused');
++            await f.page.reload();
++            await expect(f.page.locator('#study-guide [data-lang=routineResume]')).toBeVisible();
++            await expect(f.page.locator('#study-focus-task')).toHaveValue(f.task.id);
++            expect((await f.current()).id).toBe(session.id);
++            expect(starts).toBe(1);
++            expect(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
++            await f.page.screenshot({ path: info.outputPath(`guide-link-recovered-${language}-${width}.png`), fullPage: true });
++        } finally { await f.close(); }
++    });
++}
++
++test('next guided round retains its started session after attachment failure', async ({ browser }) => {
++    const f = await guideFixture(browser, 'en', 1440);
++    try {
++        await f.page.locator('#study-guide [data-lang=routineBegin]').click();
++        await expect(f.page.locator('#study-guide [data-lang=routinePause]')).toBeVisible();
++        const first = await f.current();
++        await f.page.clock.fastForward(5 * 60000 + 1000);
++        await expect(f.page.locator('#study-guide [data-lang=routineNext]')).toBeVisible();
++        await f.page.locator('#study-guide [data-lang=routineNext]').click();
++        await expect(f.page.locator('#study-guide')).toContainText('Short break');
++        await f.page.clock.fastForward(5 * 60000 + 1000);
++        await expect(f.page.locator('#study-guide [data-lang=routineNextRound]')).toBeVisible();
++        await f.page.route('**/api/platform/study/focus/*/task', route => route.fulfill({
++            status: 503, contentType: 'application/json', body: '{"error":"PERSISTENCE_UNAVAILABLE"}',
++        }));
++        await f.page.locator('#study-guide [data-lang=routineNextRound]').click();
++        await expect(f.page.locator('#study-status')).toBeVisible();
++        const second = await f.current();
++        expect(second.id).not.toBe(first.id);
++        expect(second.state).toBe('active');
++        await expect(f.page.locator('#study-guide [data-lang=routinePause]')).toBeVisible();
++        await f.page.locator('#study-guide [data-lang=routineStop]').click();
++        await expect(f.page.locator('#study-guide')).toBeHidden();
++        expect((await f.current()).id).toBe(second.id);
++        expect((await f.current()).state).toBe('paused');
++        const journal = (await f.request('/study/journal')).body.sessions;
++        expect(journal.filter(item => item.state === 'completed')).toHaveLength(1);
++        expect(Number(journal.find(item => item.id === first.id).credited_ms)).toBeLessThan(60000);
++    } finally { await f.close(); }
++});
++
++test('failed focus start keeps guide ready and allows one successful retry', async ({ browser }) => {
++    const f = await guideFixture(browser, 'ar', 390);
++    try {
++        let reject = true;
++        await f.page.route('**/api/platform/focus/start', route => {
++            if (reject) { reject = false; return route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"PERSISTENCE_UNAVAILABLE"}' }); }
++            return route.continue();
++        });
++        await f.page.locator('#study-guide [data-lang=routineBegin]').click();
++        await expect(f.page.locator('#study-status')).toBeVisible();
++        await expect(f.page.locator('#study-guide [data-lang=routineBegin]')).toBeEnabled();
++        expect(await f.current()).toBeNull();
++        await f.page.locator('#study-guide [data-lang=routineBegin]').click();
++        await expect(f.page.locator('#study-guide [data-lang=routinePause]')).toBeVisible();
++        expect((await f.current()).state).toBe('active');
++    } finally { await f.close(); }
++});

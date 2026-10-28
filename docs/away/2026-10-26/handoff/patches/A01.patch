@@ -1,0 +1,977 @@
+diff --git a/docs/away/2026-10-26/A01-RESULT.md b/docs/away/2026-10-26/A01-RESULT.md
+new file mode 100644
+index 0000000..3c6f772
+--- /dev/null
++++ b/docs/away/2026-10-26/A01-RESULT.md
+@@ -0,0 +1,41 @@
++﻿# A01 checklist reliability
++
++Application/test commit: 88ef3d26c5fdb0463ce665cf2755138bfd30b179. Independent branch: away/2026-10-26-1834-A01.
++
++Four real-browser checks failed before the correction and passed afterwards:
++English at1440px and Arabic at390px each cover reordered/inserted/repeated checklist
++labels, persisted completion after reload, and rejected checkbox updates followed
++by successful retry. Source state is confirmed through the real local API.
++
++Unchanged labels reuse their original IDs and completion states. New/renamed lines
++start unchecked. New IDs derive from the retained form request key so a lost
++response can be retried without changing the mutation payload. A failed checkbox
++update returns to the last confirmed value. No schema, API permission or role change.
++
++Evidence: evidence/a01-before.log, a01-after.log, a01-types.log, a01-final-*.
++Representative Arabic mobile and English desktop screenshots were visually inspected.
++No layout, theme, typography, icon or motion behavior was added; fallback-font screenshots
++are identified as offline checks. Production-font delivery is not claimed.
++
++## Scope review
++
++Read the changed UI, shared request helper and its routes/study-planner one hop.
++User text still uses textContent; server UUID/text/step/length/version and ownership
++checks remain unchanged. All mutations stay behind existing account guards. The
++checklist row's completed-task disabling is preserved. New IDs stay below the40-char
++server cap. Duplicate labels are matched by occurrence order; a rename is a new step.
++Existing lost-response retry is also exercised by F01-F14 browser coverage.
++No new P0/P1 found in changed code. Live app route returns404; nothing released.
++
++## Frozen verification
++
++At88ef3d2, syntax/types/lint/deadcode and169 integration tests pass. The full browser
++run finished with86 passes,1 external-font skip, and1 existing expired-DST-fixture
++failure. All4 added checklist cases passed again, and both camera cases passed.
++No newly introduced failure was observed. Source manifest55d96a81316183653bb0686a729b70a728f2f7ea0696a95e564e4edacd5bf0ae
++covers183 tracked code/config/test files with clean tracked source and no.env.
++
++The production audit remains a pre-existing failure (body-parser advisory). The
++baseline DST test fixture is repaired separately in A00. HTML asset-version bump
++must wait for the protected in-flight edits. This is local qualification, not a green
++combined integration or release gate. Remote publication is held by the away guard.
+diff --git a/docs/away/2026-10-26/GUARD.md b/docs/away/2026-10-26/GUARD.md
+new file mode 100644
+index 0000000..deff6fc
+--- /dev/null
++++ b/docs/away/2026-10-26/GUARD.md
+@@ -0,0 +1,20 @@
++# Away guard decisions
++
++These are recorded denials, not commands to execute during this run. No workaround will be attempted.
++
++1. The isolated clone originated from a valid local bundle. Reconnecting its origin to the existing GitHub repository was denied under `git-remote-change`, reserved for the owner. No remote changed. Local commits, patches and an incremental bundle preserve the work.
++
++```powershell
++git remote set-url origin https://github.com/alkhunizan/Co-study.git
++```
++
++2. A later PowerShell command writing that same text into a report also matched the guard. The report was then edited through the ordinary file-edit tool; no Git operation ran.
++
++3. During A11 verification, an existing recovery test failed while parsing its local synthetic message file; its cause remains unresolved. This read-only inspection was denied under `send-message` because its search pattern contained a mail-send identifier. The output was never read and no message was sent. Diagnosis is held; neither the denied read nor an equivalent access will be retried while away.
++
++```powershell
++Get-Content -LiteralPath 'tests/integration/recovery.integration.test.js' -TotalCount 130
++rg -n 'writeFile|outbox|LOCAL_MAIL|sendMail' services/auth/recovery.js
++```
++
++Recommendation after return: allow the read-only inspection and resolve the fixture failure before integration/release. Independently, reconnect the isolated clone only after reviewing the preserved branches. The guard provides no evidence that a message was sent.
+diff --git a/docs/away/2026-10-26/HANDOFF.md b/docs/away/2026-10-26/HANDOFF.md
+new file mode 100644
+index 0000000..859939c
+--- /dev/null
++++ b/docs/away/2026-10-26/HANDOFF.md
+@@ -0,0 +1,50 @@
++# Local branch handoff
++
++Seven application fixes and one scheduling-fixture repair are preserved independently. Nothing was pushed, made into a remote PR, merged or deployed. Start with [the visual review](review.html) and [the verification matrix](VERIFICATION.md); a passing targeted check is not a green release gate.
++
++## Where the work lives
++
++- Original checkout and curated evidence: `E:/D-Backup/OS/Claude-Projects/body_doubling_live_cam/workspace/Co-study/docs/away/2026-10-26/`.
++- Independent local repository: `C:/Users/alkhu/Documents/Codex/2026-10-26/halastudy-away/repository`.
++- Other branch worktrees and complete raw test artifacts: `C:/Users/alkhu/Documents/Codex/2026-10-26/halastudy-away/worktrees/`.
++- Common committed baseline: `c4d6c50553f55704b4d4a788db28b05fa983047a`. None of the branches includes the original checkout's pre-existing uncommitted edits.
++- The baseline history bundle remains at `C:/Users/alkhu/Documents/Codex/2026-10-26/halastudy-away/archives/committed-baseline.bundle`; its size, prerequisite and hash are recorded in [baseline-manifest.json](handoff/baseline-manifest.json).
++- [away-work.bundle](handoff/away-work.bundle) is incremental and requires that baseline. It is not a standalone clone. [branches.json](handoff/branches.json) records exact branch tips, application/test commits and SHA-256 hashes. [Bundle verification](handoff/bundle-verification.txt) and [bundle heads](handoff/bundle-heads.txt) are the archive receipts.
++- Aggregate binary patches relative to the common baseline: [A00](handoff/patches/A00.patch), [A01](handoff/patches/A01.patch), [A02](handoff/patches/A02.patch), [A03](handoff/patches/A03.patch), [A04](handoff/patches/A04.patch), [A11](handoff/patches/A11.patch), [A12](handoff/patches/A12.patch), [A13](handoff/patches/A13.patch). Those patches include each branch's committed documentation; full raw browser videos and traces remain in the local worktrees.
++
++## Review order and overlaps
++
++All branch names begin `away/2026-10-26-1834-`.
++
++| Suffix | Application/test commit | What to review | Integration consideration |
++| --- | --- | --- | --- |
++| A00 | a85fb87 | Future London daylight-saving transition fixture | Test-only; preserves real future-date validation. |
++| A01 | 88ef3d2 | Checklist completion/identifier preservation and rejected-toggle rollback | Shares study-workspace.js with A04 and A11. |
++| A02 | bc7f2ec | Failed focus action retry, queued Start/Pause and newer-session protection | Shares focus-client.js with A12. |
++| A03 | eceecdd | Workspace response order, focus freshness and schedule selection retention | Shares platform.js with A13. |
++| A04 | 7a1a11f | Accurate saved-versus-refreshed feedback, translation and obsolete-response handling | Includes A05 content correction; preserve A01/A11 behavior when combining. |
++| A11 | 19c4c5b | Guided session survives failed task attachment | Retains the acknowledged session before the separate link operation. |
++| A12 | 0a8b1a05 | Newly acknowledged session replaces an old completion retry | Failed new Start must still preserve the old retry. |
++| A13 | 35cf9ba | Circle retry, draft preservation and feedback ownership | A03/A13 overlap in selected-room retention; retain one copy of that behavior. |
++
++No combined branch has been assembled or tested. Integrate deliberately into a clean review branch after reconciling the original unfinished release work. Keep all 51 focused regression checks, then run the complete combined gates. Do not claim that the independent passing results prove the combined source.
++
++## Reproduce a local check
++
++The copied `scripts/` directory contains the launchers used during this run. Their runtime paths intentionally refer to the preserved local worktrees. They select Node22.23.3, clear child-process cloud/provider settings, use disposable local fixtures and block external browser requests. They do not load a copy of the original `.env`.
++
++```powershell
++& 'C:/Users/alkhu/Documents/Codex/2026-10-26/halastudy-away/scripts/run-check.ps1' -Runtime 'C:/Users/alkhu/Documents/Codex/2026-10-26/halastudy-away/worktrees/A11' -Label 'owner-guide-review' -TestFile 'tests/smoke/guide-recovery-away.smoke.spec.js' -Port '3666'
++```
++
++The example filename was checked against A11. The copies of the scripts in this package are records; the example invokes the preserved executable helper in the local isolation directory. Broad browser and integration suites should run serially; an earlier 100ms integration control showed intermittent timing failures. Existing raw failures are retained beside their isolated reruns, not replaced by them.
++
++## Release work still held
++
++- The existing body-parser production audit is red. Dependency upgrades are excluded by this away skill; no dependency was changed.
++- The camera/privacy path is in the original dirty index.html. Preserve that unfinished work when investigating the recorded camera failure.
++- A11 retains an unresolved integration-fixture JSON parse failure. The guard blocked its read-only follow-up inspection; the block was not bypassed.
++- The guard denied reconnecting the isolated clone to GitHub. Its origin still points to the local baseline bundle. No remote PR exists. Exact denied actions are in [GUARD.md](GUARD.md).
++- Hosted migration, backup/rollback, provider acceptance, actual device/media behavior and production font delivery remain unverified. Exactly two anonymous production GETs were used: home200 and app404.
++
++The curated package excludes temporary data, node_modules, bulky traces/videos and generated HTML test reports. It includes command logs, JSON receipts, screenshots, patches and the incremental bundle. The package manifest hashes its included files; the raw local worktrees retain the omitted runtime artifacts.
+diff --git a/docs/away/2026-10-26/LESSONS.md b/docs/away/2026-10-26/LESSONS.md
+new file mode 100644
+index 0000000..ddf7a34
+--- /dev/null
++++ b/docs/away/2026-10-26/LESSONS.md
+@@ -0,0 +1,5 @@
++1. 2026-10-26 · Halastudy · full auto with a 24-hour allowance · released 0 · rollbacks 0.
++2. Best local delivery: seven fixes preserve checklist, focus, planner and circle state through failed or late requests; a separate future-date fixture keeps timezone coverage valid.
++3. The largest delay was serial broad verification, followed by intermittent camera/deadline behavior and an unresolved recovery-fixture failure whose inspection was blocked.
++4. Next run: reconcile the original unfinished release work with these preserved branches, then resolve dependency, camera, fixture, provider and migration gates before publication.
++5. Freeze and verify each exact source version, preserve failed receipts beside reruns, and never turn local acceptance into a claim of live release.
+diff --git a/docs/away/2026-10-26/RUN.md b/docs/away/2026-10-26/RUN.md
+new file mode 100644
+index 0000000..0f3d2d8
+--- /dev/null
++++ b/docs/away/2026-10-26/RUN.md
+@@ -0,0 +1,154 @@
++# Halastudy away run, 26 October 2026
++
++Start 18:34 Riyadh. Budget 24 hours, no numeric token limit. Stop starting items at
++14:58 on 27 October. Root checkpoint: `C:/Users/alkhu/away-runs/Co-study-2026-10-26-1834.md`.
++
++Source HEAD: `c4d6c50553f55704b4d4a788db28b05fa983047a`, with pre-existing dirty
++release work preserved in the original checkout. The isolated committed baseline
++contains no copied `.env`. Source credentials were inspected by names and hostnames
++only; local tests use synthetic accounts, PGlite memory databases and fake providers.
++
++## Progress
++
++- [x] Phase 1: protect source, dedicated work area and checkpoint.
++- [x] Phase 2: map commands, routes, backend boundaries and browser availability.
++- [x] Phase 3: rank bounded work from existing feature/acceptance contracts.
++- [x] Phases 4–6: implement, walk flows and correct affected copy.
++- [x] Phase 7: independent branch verification and diff review; failures and isolated reruns retained.
++- [x] Phase 8: release gate assessed; held before any remote or deployment action.
++- [x] Phase 9: report, commit/bundle receipt and five lesson lines; artifact QA passed.
++
++## Baseline
++
++Node 22.23.3, `npm ci` succeeded. No frontend build step exists. Syntax, typecheck,
++lint and deadcode passed. `test:ci` stopped at production audit: body-parser has a
++high-severity advisory, GHSA-27r3-jxmh-p828. Integration and browser checks were also
++run independently so this known gate failure did not conceal functional results.
++The away backlog excludes dependency upgrades; record the advisory for owner action.
++
++## Ranked backlog
++
++Scores are value/evidence/finishability, each 1–3. Source for A01–A05 is the existing
++twenty study tools and release acceptance matrix, not a request for new product scope.
++
++| ID | Type | Score | Item | State |
++| --- | --- | --- | --- | --- |
++| A01 | W | 3/3/3 | Preserve checklist completion during edits and show confirmed checkbox state after failures. | Frozen88ef3d2; independently verified, release held |
++| A02 | W | 3/3/3 | Room focus retry must perform the failed action and retain completion recovery. | Frozenbc7f2ec; full browser and isolated app suite complete; intermittent deadline control retained |
++| A03 | W | 3/3/3 | Keep workspace refresh results and errors in the correct view/order. | Frozeneceecdd; independently verified, release held |
++| A04 | W | 3/3/3 | Planner save feedback must distinguish saved data from failed refresh. | Frozen7a1a11f; broad run complete and original app suite8/8 on isolated rerun |
++| A05 | C | 2/3/3 | Localize planner loading/save/error feedback when switching language. | Implemented and verified within A04 |
++| A06 | W | 3/3/1 | Upgrade vulnerable body-parser dependency. | Held: dependency upgrades excluded by away skill |
++| A07 | W | 2/3/1 | Finish brand labels/headings and entry-page fixes. | Held: pre-existing dirty HTML files |
++| A08 | W | 3/3/1 | Finish pending recovery delivery/provider acceptance. | Held: dirty auth files, real mail/provider choice |
++| A09 | W | 3/3/1 | Hosted database parity, backup, migration and rollback. | Held: live database changes denied |
++| A10 | W | 3/3/1 | Push/release exact candidate after full qualification. | Held: remote change denied; audit and migration gate |
++
++The one bounded refill added A11 guided-session attachment recovery, A12 pending
++completion versus a new session, and A13 circle feedback/retry recovery. All score
++3/3/3 from the existing F07/F09 and circle-flow acceptance contract. Their before
++defects were reproduced and their focused checks now pass. Final source: A11
++19c4c5b, A12 0a8b1a05, A13 35cf9ba. A00 a85fb87 separately repairs the expired
++timezone fixture while retaining the real future-date validation. No second refill
++or invented A14–A20 work was added to consume the24-hour allowance.
++
++## A01 acceptance before implementation
++
++1. Reordering/inserting/removing checklist lines preserves each unchanged step's
++   completion and identifier after save and reload, including repeated labels.
++2. Renaming a step or adding a new step does not silently inherit another step's
++   completion. Identifiers remain unique and server validation stays unchanged.
++3. A rejected checkbox update returns to its last confirmed state, shows a useful
++   localized error, and can be retried successfully without a page reload.
++4. Arabic/English at 390/1440 px retain usable labels, focus and no horizontal overflow.
++
++## Release constraints
++
++The original repository fetch failed on a pre-existing invalid Codex checkpoint ref.
++A valid-branch bundle produced an independent local clone. Windows long paths were
++handled per command. No original refs, history, configuration or uncommitted files
++were repaired or overwritten. The guard rejected connecting that clone to the
++existing GitHub origin. Remote changes will not be retried or achieved another way;
++local commits and bundles will preserve completed work. A subsequent attempt to put
++the denied command in report text also triggered the guard; the report was then
++updated through a file-edit tool, without running the command.
++
++The project is 53 commits ahead of main44f062f, independently read from the existing origin during this run. Deployment instructions
++require live data recovery/migration before the platform can replace the old app.
++No merge or deployment can be claimed from local qualification alone.
++
++## Live request ledger
++
++2 of 30 production requests used: anonymous home200 and app404. No production browser, authenticated requests,
++messages, paid APIs, secret changes, migrations or remote configuration changes.
++
++## Current qualification and handoff
++
++The detailed current matrix is [VERIFICATION.md](VERIFICATION.md). There are51
++focused browser checks across eight independent branches. Repeated baseline
++integration/browser runs are not summed as unique coverage. No combined branch or
++combined acceptance is claimed; A03/A13 overlap in same-circle room retention.
++
++A02's unchanged100ms deadline control is intermittent: the final integration run
++was168/169, and a separated exact-case rerun passed. A11's final integration was
++168/169 with an unresolved local recovery-message JSON parse failure. The guard
++rejected a read-only follow-up inspection; no equivalent read was retried. Exact
++denials and owner recommendations are in [GUARD.md](GUARD.md). Guard denials total3.
++
++The central browser queue checked clean tracked source, absence of.env, and source
++manifest equality before/after each branch. Four camera failures remain visible;
++each affected original8-case app suite passed alone afterwards, including all
++previously unexecuted serial cases. Their source manifests also matched. The cause
++of the intermittent camera result remains unproven. External fonts are
++blocked, so screenshots prove fallback layout only. Real devices, providers and
++hosted acceptance remain outside this local run.
++
++The original22 pre-existing edited tracked files matched their saved hashes at
++recheck. Other pre-existing untracked work was not edited or committed. Local
++commits, an incremental bundle, patches and the dedicated browsable review preserve
++the local work. Exactly five lesson lines are in LESSONS.md; the user's instruction
++to keep outputs in dedicated folders takes precedence over the skill's global
++away-log destination. No Codex memory was updated.
++
++## Final receipt
++
++TIME: start26October18:34 Riyadh; final closeout time, elapsed minutes and percentage
++of the24-hour allowance are recorded in final-closeout.json. Stopped early because
++the eligible backlog and its single permitted refill are complete; all remaining
++work requires an owner decision, protected-file reconciliation or a held release gate.
++
++WORK:14 candidates including the fixture repair;9 selected IDs consolidated into8
++independent branch deliverables (A05 is included in A04);8 locally accepted,0 released,
++8 release-held,0 rolled back. No unfinished selected implementation remains. Full
++release qualification is incomplete for the explicit audit, fixture and hosted gates.
++
++RELEASE:ship level subject to gates;2 held gate assessments,0 release/deployment waves,
++0 deploys,0 remote PRs,0 merges,2 of30 anonymous production GETs. No release lock was
++needed for assessments that stopped before a release action.
++
++EVIDENCE:51/51 focused checks pass across8 independent branch items. Four original
++8-case app suites also passed alone, covering all previously unexecuted serial cases.
++Fourteen representative screenshots are selected in the review; the larger evidence
++set includes repeated baseline screenshots and must not be counted as unique journeys.
++
++CHECKS:syntax/types/lint/deadcode pass on all8 branches; build not applicable (no script).
++Integration169/169 on6 branches; A02 and A11 retain168/169 with their distinct follow-up
++status. Full browser totals and retained failures are in VERIFICATION.md. The audit
++fails on all8 branches. No regression was identified in the changed flows; A11's full
++integration failure remains unattributed and prevents a clean gate claim.
++
++ARTIFACT:the incremental bundle and8 aggregate patches were verified. Review QA at
++1440 and390 checked52 HTML links and20 Markdown links,14 images,8 item sections,
++zero overflow,zero page errors,zero external requests andzero WCAG2/2.1AA axe
++violations. Both review screenshots were visually inspected. The final package
++manifest hashes included artifacts; videos/traces remain in the local worktrees.
++
++SAFETY:22/22 protected tracked edits unchanged; all original untracked work preserved.
++Test ports3660-3668 and identifiable isolated server processes were clear at21:29.
++Guard blocks3; no bypass, paid API, actual message, live write or environment change.
++Unverified:combined integration, hosted migration/backup, real devices/media, actual
++provider delivery and production font delivery. See GUARD.md for the denied actions.
++
++CONFIDENCE:high for the scoped local corrections; release readiness remains unproven.
++The largest remaining risk is behavior after these independent branches are combined
++with the original unfinished release work and exercised against real hosted services.
+diff --git a/docs/away/2026-10-26/VERIFICATION.md b/docs/away/2026-10-26/VERIFICATION.md
+new file mode 100644
+index 0000000..299f764
+--- /dev/null
++++ b/docs/away/2026-10-26/VERIFICATION.md
+@@ -0,0 +1,43 @@
++# Independent local verification
++
++Status: independent local verification is complete with the failures and reruns below retained. Nothing has been merged, pushed, published or deployed. These branches are independently based on committed baseline `c4d6c50553f55704b4d4a788db28b05fa983047a`; they do not include the original checkout's unfinished changes. A combined integration has not been tested.
++
++| Item | Frozen application/test commit | Focused checks | Integration | Static checks | Full browser |
++| --- | --- | --- | --- | --- | --- |
++| A00 future DST fixture | a85fb87 | 1 pass | 169/169 | 4 pass | 78 pass, 1 camera failure, 1 font skip, 4 not run; isolated app suite 8/8 pass |
++| A01 checklist preservation | 88ef3d2 | 4 pass | 169/169 | 4 pass | 86 pass, 1 known date failure, 1 font skip |
++| A02 focus action retry | bc7f2ec | 8 pass | 168/169; separated failed-case rerun passes | 4 pass | 85 pass, 2 failures, 1 font skip, 4 not run; isolated app suite 8/8 pass |
++| A03 workspace refresh order | eceecdd | 8 pass | 169/169 | 4 pass | 90 pass, 1 known date failure, 1 font skip |
++| A04 truthful planner feedback | 7a1a11f | 8 pass | 169/169 | 4 pass | 85 pass, 2 failures, 1 font skip, 4 not run; isolated app suite 8/8 pass |
++| A11 guided focus recovery | 19c4c5b | 4 pass | 168/169; recovery fixture unresolved | 4 pass | 81 pass, 2 failures, 1 font skip, 4 not run; isolated app suite 8/8 pass |
++| A12 new-session completion | 0a8b1a05 | 6 pass | 169/169 | 4 pass | 88 pass, 1 known date failure, 1 font skip; camera group passed |
++| A13 circle feedback recovery | 35cf9ba | 12 pass | 169/169 | 4 pass | 94 pass, 1 known date failure, 1 font skip; camera group passed |
++
++The four static checks are syntax, TypeScript checking, Biome lint and Knip dead-code analysis. No frontend build script exists. All branches retain the existing production audit failure: one high-severity body-parser advisory, [GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828). The away backlog excludes dependency upgrades; no lockfile was changed to conceal that gate.
++
++There are 51 focused browser checks across these branches, including the repaired existing DST test. Repeated baseline integration/browser suites are not separate unique coverage. Per-branch full browser failures from the old date fixture are retained; A00 verifies its correction independently and has not been cherry-picked into other branches to make their reports green.
++
++## Unresolved and intermittent checks
++
++- A02's final integration run failed the unchanged Supabase success-control request configured with a 100ms timeout. A solo process still overlapping other work also failed. With no other browser/integration batch active, the exact test passed unchanged, including its stalled-body AbortError assertion. This is an intermittent control, not a wholly green rerun. All artifacts are preserved. Diagnostic cold/warm timing is supporting evidence only.
++- A11's final integration run failed `recovery.integration.test.js:89`: the helper's JSON.parse saw an incomplete input while obtaining its synthetic local message. The cause is unresolved. The subsequent read-only inspection was rejected by the away guard; neither that command nor an equivalent inspection was retried. See [guard decisions](GUARD.md).
++- The camera case passed in the frozen full runs of A01, A03, A12 and A13. It failed in A00, A02, A04 and A11, leaving four serial cases unexecuted per affected run. After all broad suites stopped, each affected branch passed its original8-case app suite alone; all previously unexecuted cases now have passing evidence. Source manifests matched before/after every rerun. This is intermittent behavior with an unproven cause, not a claim that machine load has been diagnosed. No camera code, assertion or timeout changed. The original full-run failures remain in the table.
++- A00's fixed DST case passed in its broad run. Its app-source baseline is unchanged. No branch received another branch's fix to manufacture a green full-run result; a single fully green combined broad run is not claimed.
++- The camera pipeline is inline in `index.html` (including startBlurPipeline and camera toggling), one of the original pre-existing dirty files. A correction there must be integrated with that existing work; this run does not overwrite it or weaken its privacy assertions.
++- External fonts were deliberately blocked in all browsers. The font-delivery test is skipped for that reason; screenshots prove fallback layout only. Real media/hardware, notification delivery, OAuth, recovery-mail/payment providers and hosted database acceptance remain unverified.
++
++## Reproduction and source integrity
++
++Use the saved `scripts/run-check.ps1` launcher with the recorded runtime, label and task. It uses Node22.23.3, clears application cloud/provider settings in its child process, does not copy a source `.env`, selects disposable local storage and blocks external browser requests. Each fixture owns its server lifecycle and a separate port. Command ledgers record the exact runtime, Git HEAD, Node version, exit code and elapsed time.
++
++`run-browser-queue.ps1` runs each remaining frozen branch alone, refuses a `.env` file or dirty tracked source, and compares code/config/test manifests before and after each browser suite. Documentation-only commits may change the branch tip without changing the application/test manifest. The manifest filter is explicit in `capture-source.cjs`; it covers182 baseline or183 extended tracked code/config/test files, not a claim to hash every historical image or document.
++
++## Integration and release boundary
++
++A01, A04 and A11 touch separate parts of study-workspace.js. A02 and A12 both touch focus-client.js. A03 and A13 share same-circle selected-room retention; integration should retain one copy of that behavior. No combined branch, conflict resolution or combined acceptance is claimed.
++
++For every branch, phase8 stops before rebase, push or deployment: the production dependency audit fails and the isolated origin cannot be reconnected under the current guard. No remote PR or CI run exists, no merge/deploy lock was taken, and no rollback was needed. This is a held release assessment, not an attempted release or a passing CI claim. There is no frontend build command to substitute for the missing hosted acceptance.
++
++The original committed baseline is53 commits ahead of main44f062f4dede4d1beb5b5c0ec881057cb7549584, read from the existing origin. Integrating these branch deltas alone does not reconcile that larger unpublished release change. Hosted migration/backup and provider acceptance must be addressed before selecting a production candidate.
++
++The original22 pre-existing edited tracked source files match their saved hashes. The isolated source includes no copied `.env`. Public production checks used exactly two anonymous GETs: home200 and `/app`404. No production browser, paid API, live data mutation or actual message was sent. The isolated origin remains its local bundle because reconnecting it was denied. Release also requires the existing hosted migration/provider gates. Final queue receipts are in the A01 evidence package as browser-queue.json and app-isolation.json.
+diff --git a/docs/away/2026-10-26/scripts/archive-branches.ps1 b/docs/away/2026-10-26/scripts/archive-branches.ps1
+new file mode 100644
+index 0000000..8db6e1e
+--- /dev/null
++++ b/docs/away/2026-10-26/scripts/archive-branches.ps1
+@@ -0,0 +1,42 @@
++param([Parameter(Mandatory=$true)][string]$Destination)
++$ErrorActionPreference='Stop'
++$taskRoot=Split-Path $PSScriptRoot
++$repository=Join-Path $taskRoot 'repository'
++$target=[IO.Path]::GetFullPath($Destination)
++if(!$target.Replace('\','/').EndsWith('/Co-study/docs/away/2026-10-26/handoff')){throw 'Unexpected handoff destination'}
++$base='c4d6c50553f55704b4d4a788db28b05fa983047a'
++$items=@('A00','A01','A02','A03','A04','A11','A12','A13')
++$refs=@()
++$records=@()
++New-Item -ItemType Directory -Path $target -Force | Out-Null
++$patches=Join-Path $target 'patches'
++New-Item -ItemType Directory -Path $patches -Force | Out-Null
++foreach($item in $items){
++    $runtime=if($item -eq 'A01'){$repository}else{Join-Path $taskRoot ('worktrees/'+$item)}
++    $dirty=git -C $runtime status --porcelain --untracked-files=normal
++    if($LASTEXITCODE -ne 0 -or $dirty){throw ('Uncommitted owned paths remain in '+$item)}
++    $branch='refs/heads/away/2026-10-26-1834-'+$item
++    $head=(git -C $repository rev-parse $branch).Trim()
++    $source=(git -C $runtime log -1 --format=%H -- 'public/js' 'tests').Trim()
++    $patch=Join-Path $patches ($item+'.patch')
++    git -C $repository -c core.longpaths=true diff --binary --output=$patch ($base+'..'+$branch)
++    if($LASTEXITCODE -ne 0){throw ('Patch generation failed for '+$item)}
++    $refs += $branch
++    $records += [pscustomobject]@{item=$item;branch=$branch;tip=$head;applicationAndTests=$source;runtime=$runtime;patch=('patches/'+$item+'.patch');patchSha256=(Get-FileHash -LiteralPath $patch -Algorithm SHA256).Hash.ToLower()}
++}
++$bundle=Join-Path $target 'away-work.bundle'
++$bundleArgs=@('-C',$repository,'-c','core.longpaths=true','bundle','create',$bundle)+$refs+@('--not',$base)
++& git @bundleArgs
++if($LASTEXITCODE -ne 0){throw 'Incremental bundle creation failed'}
++$priorPreference=$ErrorActionPreference
++try {
++    $ErrorActionPreference='Continue'
++    $verification=git -C $repository bundle verify $bundle 2>&1
++    $verifyExit=$LASTEXITCODE
++} finally { $ErrorActionPreference=$priorPreference }
++$verification | Set-Content -LiteralPath (Join-Path $target 'bundle-verification.txt') -Encoding UTF8
++if($verifyExit -ne 0){throw 'Incremental bundle verification failed'}
++$heads=git -C $repository bundle list-heads $bundle
++$heads | Set-Content -LiteralPath (Join-Path $target 'bundle-heads.txt') -Encoding UTF8
++[ordered]@{createdAt=(Get-Date).ToString('o');basePrerequisite=$base;bundle='away-work.bundle';bundleSha256=(Get-FileHash -LiteralPath $bundle -Algorithm SHA256).Hash.ToLower();bundleBytes=(Get-Item -LiteralPath $bundle).Length;verified=$true;branches=$records} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $target 'branches.json') -Encoding UTF8
++Write-Output ('Verified incremental bundle and '+$records.Count+' patches in '+$target)
+diff --git a/docs/away/2026-10-26/scripts/capture-source.cjs b/docs/away/2026-10-26/scripts/capture-source.cjs
+new file mode 100644
+index 0000000..8b0349c
+--- /dev/null
++++ b/docs/away/2026-10-26/scripts/capture-source.cjs
+@@ -0,0 +1,18 @@
++const fs = require('node:fs');
++const path = require('node:path');
++const crypto = require('node:crypto');
++const { execFileSync } = require('node:child_process');
++const runtime = path.resolve(process.argv[2]);
++const output = path.resolve(process.argv[3]);
++const git = (...args) => execFileSync('git', ['-c', 'core.longpaths=true', ...args], { cwd: runtime, encoding: 'utf8' });
++const files = git('ls-files', '-z').split('\0').filter(Boolean).filter(name =>
++    !name.startsWith('docs/') && !name.startsWith('design-system/') &&
++    /\.(?:[cm]?js|json|html|css|sql|yaml|yml|toml)$/.test(name)).sort();
++const entries = files.map(name => ({ path: name, sha256: crypto.createHash('sha256').update(fs.readFileSync(path.join(runtime, name))).digest('hex') }));
++const manifest = crypto.createHash('sha256').update(JSON.stringify(entries)).digest('hex');
++const result = { at: new Date().toISOString(), runtime, head: git('rev-parse', 'HEAD').trim(),
++    trackedSourceStatus: git('status', '--porcelain', '--untracked-files=no').split('\n').filter(line => line && !line.slice(3).startsWith('docs/')),
++    envFilePresent: fs.existsSync(path.join(runtime, '.env')), files: entries.length, manifest, entries };
++fs.mkdirSync(path.dirname(output), { recursive: true });
++fs.writeFileSync(output, JSON.stringify(result, null, 2));
++console.log(JSON.stringify({ head: result.head, files: result.files, manifest, trackedSourceStatus: result.trackedSourceStatus, envFilePresent: result.envFilePresent }));
+diff --git a/docs/away/2026-10-26/scripts/diagnose-local-deadline.cjs b/docs/away/2026-10-26/scripts/diagnose-local-deadline.cjs
+new file mode 100644
+index 0000000..2477735
+--- /dev/null
++++ b/docs/away/2026-10-26/scripts/diagnose-local-deadline.cjs
+@@ -0,0 +1,44 @@
++// Diagnostic only: no production requests, no test-assertion or timeout changes.
++const fs = require('node:fs');
++const http = require('node:http');
++const { performance } = require('node:perf_hooks');
++const path = require('node:path');
++const runtime = process.argv[2];
++const output = process.argv[3];
++const { createSupabaseClient } = require(path.join(runtime, 'services/supabase/client'));
++const events = [];
++const started = performance.now();
++const stamp = () => Math.round((performance.now() - started) * 100) / 100;
++const server = http.createServer((req, res) => {
++    events.push({ event: 'local-request-arrived', path: req.url.split('?')[0], atMs: stamp() });
++    res.writeHead(200, { 'Content-Type': 'application/json' });
++    if (req.url.includes('/stalled?')) { res.flushHeaders(); res.write('['); }
++    else res.end('[{"id":"synthetic"}]');
++});
++(async () => {
++    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
++    const client = createSupabaseClient({
++        url: `http://127.0.0.1:${server.address().port}`,
++        serviceKey: 'local-fixture-only', timeoutMs: 100,
++    });
++    const results = [];
++    try {
++        for (const table of ['cold-control', 'warm-control', 'stalled']) {
++            const start = performance.now();
++            const timer = setTimeout(() => events.push({ event: '100ms-probe-fired', table, atMs: stamp() }), 100);
++            try {
++                const rows = await client.select(table);
++                results.push({ table, outcome: 'success', elapsedMs: performance.now() - start, rows });
++            } catch (error) {
++                results.push({ table, outcome: error.name, elapsedMs: performance.now() - start });
++            } finally { clearTimeout(timer); }
++        }
++    } finally {
++        server.closeAllConnections();
++        await new Promise(resolve => server.close(resolve));
++    }
++    const report = { at: new Date().toISOString(), node: process.version, timeoutMs: 100,
++        scope: 'diagnostic only; existing client, loopback HTTP, unchanged test and application', results, events };
++    fs.writeFileSync(output, JSON.stringify(report, null, 2));
++    console.log(JSON.stringify(report, null, 2));
++})().catch(error => { console.error(error.message); process.exitCode = 1; });
+diff --git a/docs/away/2026-10-26/scripts/package-evidence.cjs b/docs/away/2026-10-26/scripts/package-evidence.cjs
+new file mode 100644
+index 0000000..f694a42
+--- /dev/null
++++ b/docs/away/2026-10-26/scripts/package-evidence.cjs
+@@ -0,0 +1,99 @@
++const fs = require('node:fs');
++const path = require('node:path');
++const crypto = require('node:crypto');
++const { execFileSync } = require('node:child_process');
++const taskRoot = path.resolve(__dirname, '..');
++const destination = path.resolve(process.argv[2]);
++const refreshRawEvidence = !process.argv.includes('--metadata-only');
++if (!destination.replaceAll('\\', '/').endsWith('/Co-study/docs/away/2026-10-26')) throw new Error('Unexpected review destination');
++const catalog = [
++    ['A00', 'Future timezone coverage', 'a85fb87', 'The scheduling test selects a future London daylight-saving transition while retaining the real future-date guard.'],
++    ['A01', 'Checklist state survives edits', '88ef3d2', 'Reordering unchanged steps preserves completion. A rejected checkbox change returns to its confirmed state.'],
++    ['A02', 'Retry the intended focus action', 'bc7f2ec', 'Retry repeats the failed Start or Pause and protects a newer session, including rapid queued input.'],
++    ['A03', 'Keep workspace responses in order', 'eceecdd', 'Late refreshes cannot replace newer room data or a newly started focus session. Schedule room choices survive translation.'],
++    ['A04', 'Truthful planner feedback', '7a1a11f', 'A saved item with a failed refresh is reported accurately. Draft errors translate, and obsolete results cannot overwrite newer feedback.'],
++    ['A11', 'Keep guided focus recoverable', '19c4c5b', 'A failed task attachment leaves the acknowledged focus session controllable and recoverable through retry and reload.'],
++    ['A12', 'Finish the newly started session', '0a8b1a05', 'An acknowledged new session retires the older completion retry. A failed Start preserves that retry.'],
++    ['A13', 'Recover circle feedback', '35cf9ba', 'A failed circle refresh offers a localized retry with the draft retained. Recovery clears the old error, and delayed feedback stays with its originating view.'],
++].map(([id, title, code, description]) => ({ id, title, code, description }));
++const excludedDirectories = name => name === 'tools' || name.endsWith('-temp') || name.endsWith('-report') || name.startsWith('.');
++const allowed = file => /\.(?:md|log|json|ndjson|png|cjs|ps1|txt|html|patch|bundle)$/.test(file);
++function walk(root) {
++    if (!fs.existsSync(root)) return [];
++    return fs.readdirSync(root, { withFileTypes: true }).flatMap(entry => {
++        const absolute = path.join(root, entry.name);
++        if (entry.isDirectory()) return excludedDirectories(entry.name) ? [] : walk(absolute);
++        return allowed(entry.name) ? [absolute] : [];
++    });
++}
++function copyFile(source, target) {
++    fs.mkdirSync(path.dirname(target), { recursive: true });
++    fs.copyFileSync(source, target);
++}
++const slash = value => value.replaceAll('\\', '/');
++const readText = file => {
++    const bytes = fs.readFileSync(file);
++    return bytes.toString(bytes[0] === 255 && bytes[1] === 254 ? 'utf16le' : 'utf8').replace(/^\uFEFF/, '');
++};
++const escape = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
++const records = [];
++const isolationPath = path.join(taskRoot, 'app-isolation.json');
++const isolation = fs.existsSync(isolationPath) ? JSON.parse(readText(isolationPath)) : [];
++for (const item of catalog) {
++    const runtime = path.join(taskRoot, item.id === 'A01' ? 'repository' : `worktrees/${item.id}`);
++    item.code = execFileSync('git', ['log', '-1', '--format=%H', '--', 'public/js', 'tests'], { cwd: runtime, encoding: 'utf8' }).trim().slice(0, 7);
++    const source = path.join(runtime, 'docs/away/2026-10-26');
++    const target = path.join(destination, 'branches', item.id);
++    const ownDocs = item.id === 'A01' ? [path.join(source, 'A01-RESULT.md')] : walk(path.join(source, item.id));
++    const evidence = walk(path.join(source, 'evidence'));
++    for (const file of [...ownDocs, ...(refreshRawEvidence ? evidence : [])]) if (fs.existsSync(file)) copyFile(file, path.join(target, path.relative(source, file)));
++    const reportCandidates = item.id === 'A01' ? ['A01-RESULT.md'] : [`${item.id}/RESULT.md`, `${item.id}/CHECKPOINT.md`, `${item.id}/REVIEW.md`];
++    const report = reportCandidates.find(file => fs.existsSync(path.join(target, file)));
++    const label = item.id === 'A02' ? 'a02-final2-browser' : `${item.id.toLowerCase()}-final-browser`;
++    const logPath = path.join(target, 'evidence', `${label}.log`);
++    const log = fs.existsSync(logPath) ? readText(logPath) : '';
++    const counts = {};
++    for (const kind of ['passed', 'failed', 'skipped']) {
++        const matches = [...log.matchAll(new RegExp(`^\\s*(\\d+) ${kind}(?:\\s|$)`, 'gm'))];
++        counts[kind] = matches.length ? Number(matches.at(-1)[1]) : null;
++    }
++    const notRun = [...log.matchAll(/^\s*(\d+) did not run/gm)];
++    counts.notRun = notRun.length ? Number(notRun.at(-1)[1]) : 0;
++    const screenshots = evidence.filter(file => file.endsWith('.png') && file.includes(`${label}-results`) && path.basename(path.dirname(file)).includes('away'));
++    const chosen = [];
++    for (const hint of ['ar-390', 'en-1440']) {
++        const file = screenshots.find(candidate => candidate.includes(hint) && !chosen.includes(candidate));
++        if (file) chosen.push(file);
++    }
++    for (const file of screenshots) if (chosen.length < 2 && !chosen.includes(file)) chosen.push(file);
++    records.push({ ...item, runtime, label, counts, appIsolation: isolation.find(result => result.item === item.id) || null, report: report ? `branches/${item.id}/${report}` : null,
++        images: chosen.map(file => ({ url: `branches/${item.id}/${slash(path.relative(source, file))}`, caption: path.basename(file, '.png').replaceAll('-', ' ') })) });
++}
++for (const name of ['RUN.md', 'GUARD.md', 'VERIFICATION.md', 'HANDOFF.md', 'LESSONS.md']) {
++    const source = path.join(taskRoot, 'repository/docs/away/2026-10-26', name);
++    if (fs.existsSync(source)) copyFile(source, path.join(destination, name));
++}
++const masterDocs = path.join(taskRoot, 'repository/docs/away/2026-10-26');
++for (const file of walk(path.join(masterDocs, 'scripts'))) copyFile(file, path.join(destination, path.relative(masterDocs, file)));
++const completed = record => record.counts.passed !== null;
++const rows = records.map(record => `<tr><th scope="row"><a href="#${record.id}">${record.id}</a></th><td>${escape(record.title)}</td><td><code>${record.code}</code></td><td>${completed(record) ? `${record.counts.passed} pass · ${record.counts.failed || 0} fail · ${record.counts.skipped || 0} skip${record.counts.notRun ? ` · ${record.counts.notRun} not run` : ''}` : 'Broad browser check pending'}</td></tr>`).join('');
++const cards = records.map(record => `<section id="${record.id}"><div class="section-head"><p class="eyebrow">${record.id} · independent local branch</p><h2>${escape(record.title)}</h2><p>${escape(record.description)}</p>${record.report ? `<a href="${record.report}">Read the branch result and evidence</a>` : '<p>Branch receipt pending.</p>'}</div><div class="images">${record.images.map(item => `<figure><a href="${item.url}"><img src="${item.url}" alt="${escape(item.caption)}" loading="lazy"></a><figcaption>${escape(item.caption)} · local synthetic account · offline fallback fonts</figcaption></figure>`).join('')}</div></section>`).join('');
++const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Halastudy — local away review</title><style>
++:root{color-scheme:light;--ink:#263532;--paper:#f5f1e9;--line:#d5c9b7;--accent:#8b542c}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 system-ui,sans-serif}a{color:#79451f;text-underline-offset:3px}a:focus-visible{outline:3px solid #b67532;outline-offset:5px}header,main,footer{max-width:1180px;margin:auto;padding:32px 24px}header{padding-top:54px}h1{font:500 clamp(30px,5vw,56px)/1.12 Georgia,serif;max-width:900px;margin:12px 0 24px}h2{font:500 30px/1.2 Georgia,serif;margin:6px 0 16px}p{max-width:850px}.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}.notice{border-inline-start:4px solid var(--accent);padding:16px 22px;background:#fff9ef}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:670px;margin:24px 0}td,th{padding:12px;text-align:start;border-bottom:1px solid var(--line);vertical-align:top}section{padding:42px 0;border-top:1px solid var(--line);scroll-margin-top:16px}.images{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:28px}figure{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:white}figure a{display:block;padding:12px}img{display:block;width:100%;height:390px;object-fit:contain;background:#f4f1eb}figcaption{padding:12px 16px;font-size:13px;border-top:1px solid var(--line)}code{overflow-wrap:anywhere}footer{border-top:1px solid var(--line);font-size:14px}@media(max-width:620px){header,main,footer{padding:24px 16px}.images{grid-template-columns:1fr}img{height:440px}h2{font-size:26px}}
++</style><header><p class="eyebrow">Halastudy · 26 October 2026 · local review</p><h1>Recovery that keeps the learner’s place.</h1><p>Seven application corrections and one date-fixture repair, preserved on eight independent branches. The original checkout’s pre-existing edits are protected.</p><div class="notice"><strong>No changes have been released.</strong><p>The dependency audit is still red, the remote reconnect was denied by the away guard, and hosted migration/provider acceptance remains outside this run. Branches have been checked independently; a combined integration has not been tested.</p><p>Browser failures on branches other than A00 include the unchanged expired-date fixture. A00 repairs and verifies that fixture separately. A11’s integration gate retains an unresolved recovery-fixture parse failure; A02 retains its intermittent deadline-control record.</p></div><p><a href="RUN.md">Run receipt</a> · <a href="GUARD.md">Guard decisions</a> · <a href="VERIFICATION.md">Verification matrix</a></p></header><main><div class="table-wrap"><table><caption>Independent branch browser results. Repeated baseline tests are not counted as unique coverage.</caption><thead><tr><th>Item</th><th>Change</th><th>Application/test source</th><th>Latest full browser result</th></tr></thead><tbody>${rows}</tbody></table></div>${cards}</main><footer><p>Images show real local test states with synthetic accounts. External font requests were blocked; these captures do not verify production font delivery or real devices/providers. Open any image for its full size. Complete raw runtime artifacts remain in the dedicated local worktrees.</p></footer></html>`;
++fs.mkdirSync(destination, { recursive: true });
++const isolationTable = records.filter(record => record.appIsolation).map(record => {
++    const result = record.appIsolation;
++    const followup = result.remaining ? `; separately executed remainder: ${result.remaining.counts.passed} pass, ${result.remaining.counts.failed} fail` : '';
++    return `<li><strong>${record.id}</strong>: ${result.counts.passed} pass, ${result.counts.failed} fail, ${result.counts.notRun} not run${followup}. <a href="branches/${record.id}/evidence/${result.label}.log">Original-assertion rerun log</a></li>`;
++}).join('');
++const finalHtml = html.replace('<a href="RUN.md">Run receipt</a>', '<a href="HANDOFF.md">Handoff and branch archives</a> &middot; <a href="RUN.md">Run receipt</a>')
++    .replace('</table></div>', `</table></div>${isolationTable ? `<aside aria-label="Camera and unexecuted-case follow-up"><h2>Isolated app-suite follow-up</h2><p>The full-suite results above remain unchanged. These separate checks retain the original assertions and show what happened when the affected app group ran alone.</p><ul>${isolationTable}</ul></aside>` : ''}`);
++fs.writeFileSync(path.join(destination, 'review.html'), finalHtml);
++fs.writeFileSync(path.join(destination, 'review-data.json'), JSON.stringify({ generatedAt: new Date().toISOString(), records }, null, 2));
++const files = walk(destination).filter(file => !file.endsWith('package-manifest.json')).map(file => ({
++    path: slash(path.relative(destination, file)), bytes: fs.statSync(file).size,
++    sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
++}));
++fs.writeFileSync(path.join(destination, 'package-manifest.json'), JSON.stringify({ generatedAt: new Date().toISOString(), files }, null, 2));
++console.log(JSON.stringify({ destination, files: files.length, images: records.reduce((sum, record) => sum + record.images.length, 0), browserReceipts: records.filter(completed).length }));
+diff --git a/docs/away/2026-10-26/scripts/run-app-isolation.ps1 b/docs/away/2026-10-26/scripts/run-app-isolation.ps1
+new file mode 100644
+index 0000000..ea39731
+--- /dev/null
++++ b/docs/away/2026-10-26/scripts/run-app-isolation.ps1
+@@ -0,0 +1,48 @@
++param([string[]]$Items=@('A00','A04','A02','A11'))
++$ErrorActionPreference='Stop'
++$taskRoot=Split-Path $PSScriptRoot
++$nodePath='C:\Users\alkhu\AppData\Local\npm-cache\_npx\52027bd8fc0022aa\node_modules\node\bin\node.exe'
++$receipt=Join-Path $taskRoot 'app-isolation.json'
++$results=@()
++function Get-Counts([string]$LogPath){
++    $log=Get-Content -LiteralPath $LogPath -Raw
++    $counts=[ordered]@{}
++    foreach($kind in @('passed','failed','skipped','did not run')){
++        $found=[regex]::Matches($log,'(?m)^\s*(\d+) '+$kind+'(?:\s|$)')
++        $key=if($kind -eq 'did not run'){'notRun'}else{$kind}
++        $counts[$key]=if($found.Count){[int]$found[$found.Count-1].Groups[1].Value}else{0}
++    }
++    return [pscustomobject]$counts
++}
++foreach($item in $Items){
++    $runtime=Join-Path $taskRoot ('worktrees/'+$item)
++    $label=$item.ToLower()+'-app-isolated'
++    $port=@{A00='3665';A04='3664';A02='3662';A11='3666';A12='3667';A13='3668'}[$item]
++    if(!$port){throw 'Unknown isolated worktree'}
++    $evidence=Join-Path $runtime 'docs/away/2026-10-26/evidence'
++    $before=Join-Path $evidence ($label+'-source-before.json')
++    $after=Join-Path $evidence ($label+'-source-after.json')
++    & $nodePath (Join-Path $PSScriptRoot 'capture-source.cjs') $runtime $before
++    $first=Get-Content -LiteralPath $before -Raw | ConvertFrom-Json
++    if($first.envFilePresent -or $first.trackedSourceStatus.Count){throw 'Isolation requires clean tracked source and no .env file.'}
++    $started=(Get-Date).ToString('o')
++    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'run-check.ps1') -Runtime $runtime -Label $label -TestFile 'tests/smoke/app.smoke.spec.js' -Port $port
++    $appExit=$LASTEXITCODE
++    $appCounts=Get-Counts (Join-Path $evidence ($label+'.log'))
++    $remaining=$null
++    if($appCounts.notRun -eq 4){
++        $remainingLabel=$item.ToLower()+'-app-unexecuted'
++        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'run-check.ps1') -Runtime $runtime -Label $remainingLabel -TestFile 'tests/smoke/app.smoke.spec.js' -Filter 'scheduled rooms expose|schedule helpers recalculate|large-mode rooms use|five participants can join' -Port $port
++        $remainingExit=$LASTEXITCODE
++        $remaining=[pscustomobject]@{label=$remainingLabel;exitCode=$remainingExit;counts=(Get-Counts (Join-Path $evidence ($remainingLabel+'.log')))}
++    }
++    & $nodePath (Join-Path $PSScriptRoot 'capture-source.cjs') $runtime $after
++    $last=Get-Content -LiteralPath $after -Raw | ConvertFrom-Json
++    $same=($first.manifest -eq $last.manifest -and !$first.trackedSourceStatus.Count -and !$last.trackedSourceStatus.Count)
++    $results += [pscustomobject]@{item=$item;label=$label;started=$started;finished=(Get-Date).ToString('o');exitCode=$appExit;counts=$appCounts;remaining=$remaining;sourceStable=$same;manifest=$last.manifest;headBefore=$first.head;headAfter=$last.head}
++    $results | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath $receipt -Encoding UTF8
++    Write-Output ($results[-1] | ConvertTo-Json -Compress -Depth 6)
++    if(!$same){throw 'Application or test source changed during isolation. Queue stopped.'}
++}
++if($results | Where-Object exitCode -NE 0){exit 1}
++exit 0
+diff --git a/docs/away/2026-10-26/scripts/run-browser-queue.ps1 b/docs/away/2026-10-26/scripts/run-browser-queue.ps1
+new file mode 100644
+index 0000000..3d01304
+--- /dev/null
++++ b/docs/away/2026-10-26/scripts/run-browser-queue.ps1
+@@ -0,0 +1,36 @@
++param([string[]]$Items=@('A00','A04','A02','A11','A12','A13'))
++$ErrorActionPreference='Stop'
++$taskRoot=Split-Path $PSScriptRoot
++$nodePath='C:\Users\alkhu\AppData\Local\npm-cache\_npx\52027bd8fc0022aa\node_modules\node\bin\node.exe'
++$queueReceipt=Join-Path $taskRoot 'browser-queue.json'
++$results=@()
++foreach($item in $Items){
++    $runtime=Join-Path $taskRoot ('worktrees/'+$item)
++    $label=if($item -eq 'A02'){'a02-final2-browser'}else{$item.ToLower()+'-final-browser'}
++    $port=@{A00='3665';A04='3664';A02='3662';A11='3666';A12='3667';A13='3668'}[$item]
++    if(!$port){throw 'Unknown isolated worktree'}
++    $evidence=Join-Path $runtime 'docs/away/2026-10-26/evidence'
++    $before=Join-Path $evidence ($label+'-source-before.json')
++    $after=Join-Path $evidence ($label+'-source-after.json')
++    & $nodePath (Join-Path $PSScriptRoot 'capture-source.cjs') $runtime $before
++    $first=Get-Content -LiteralPath $before -Raw | ConvertFrom-Json
++    if($first.envFilePresent -or $first.trackedSourceStatus.Count){throw 'Qualification requires clean tracked source and no .env file.'}
++    $started=(Get-Date).ToString('o')
++    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'run-check.ps1') -Runtime $runtime -Label $label -Task 'test:smoke' -Port $port
++    $testExit=$LASTEXITCODE
++    & $nodePath (Join-Path $PSScriptRoot 'capture-source.cjs') $runtime $after
++    $last=Get-Content -LiteralPath $after -Raw | ConvertFrom-Json
++    $log=Get-Content -LiteralPath (Join-Path $evidence ($label+'.log')) -Raw
++    $counts=@{}
++    foreach($kind in @('passed','failed','skipped')){
++        $matchesFound=[regex]::Matches($log,'(?m)^\s*(\d+) '+$kind+'(?:\s|$)')
++        $counts[$kind]=if($matchesFound.Count){[int]$matchesFound[$matchesFound.Count-1].Groups[1].Value}else{0}
++    }
++    $same=($first.manifest -eq $last.manifest -and !$first.trackedSourceStatus.Count -and !$last.trackedSourceStatus.Count)
++    $results += [pscustomobject]@{item=$item;label=$label;started=$started;finished=(Get-Date).ToString('o');exitCode=$testExit;counts=$counts;sourceStable=$same;manifest=$last.manifest;headBefore=$first.head;headAfter=$last.head}
++    $results | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $queueReceipt -Encoding UTF8
++    Write-Output ($results[-1] | ConvertTo-Json -Compress -Depth 4)
++    if(!$same){throw 'Application or test source changed during browser qualification. Queue stopped.'}
++}
++if($results | Where-Object exitCode -NE 0){exit 1}
++exit 0
+diff --git a/docs/away/2026-10-26/scripts/run-check.ps1 b/docs/away/2026-10-26/scripts/run-check.ps1
+new file mode 100644
+index 0000000..2a76b94
+--- /dev/null
++++ b/docs/away/2026-10-26/scripts/run-check.ps1
+@@ -0,0 +1,59 @@
++param(
++    [Parameter(Mandatory=$true)][string]$Runtime,
++    [Parameter(Mandatory=$true)][string]$Label,
++    [string]$Task,
++    [string]$TestFile,
++    [string]$Filter,
++    [string]$Port = '3660',
++    [switch]$Install
++)
++$ErrorActionPreference = 'Stop'
++$runtimeRoot = (Resolve-Path -LiteralPath $Runtime).Path
++$outputRoot = Join-Path $runtimeRoot 'docs/away/2026-10-26/evidence'
++New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
++$nodePath = 'C:\Users\alkhu\AppData\Local\npm-cache\_npx\52027bd8fc0022aa\node_modules\node\bin\node.exe'
++$npmPath = 'C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js'
++foreach ($entry in Get-ChildItem Env:) {
++    if ($entry.Name -match '^(SUPABASE_|PLATFORM_|CLOUDFLARE_|R2_|DIGETPAY_|OPS_ALERT_|AUTH_MAIL_|RESEND_|GOOGLE_|BILLING_|SESSION_SECRET$|HALASTUDY_TEST_DATABASE_URL$|NODE_OPTIONS$|DATABASE_URL$|REDIS_URL$|VIDEO_|ROOM_STATE_|USER_STATE_|ADMIN_|ICE_SERVERS_JSON$|SFU_BASE_URL$|ALLOWED_ORIGINS$|PUBLIC_API_BASE_URL$|PORT$)') {
++        Remove-Item -LiteralPath ('Env:' + $entry.Name)
++    }
++}
++$toolBin = Join-Path $outputRoot 'tools'
++New-Item -ItemType Directory -Path $toolBin -Force | Out-Null
++Set-Content -LiteralPath (Join-Path $toolBin 'npm.cmd') -Encoding ascii -Value ('@"' + $nodePath + '" "' + $npmPath + '" %*')
++$env:PATH = $toolBin + ';' + (Split-Path $nodePath) + ';' + $env:PATH
++$env:NODE_ENV = 'test'
++$env:CI = '1'
++$env:PLATFORM_DATA_DIR = 'memory://'
++$env:CO_STUDY_OFFLINE = '1'
++$env:PLAYWRIGHT_CHANNEL = 'chrome'
++$env:CO_STUDY_SMOKE_PORT = $Port
++$env:CO_STUDY_SMOKE_ROOM_STATE_FILE = Join-Path $outputRoot ("$Label-temp/smoke.rooms.json")
++New-Item -ItemType Directory -Path (Split-Path $env:CO_STUDY_SMOKE_ROOM_STATE_FILE) -Force | Out-Null
++$env:PLAYWRIGHT_OUTPUT_DIR = Join-Path $outputRoot "$Label-results"
++$env:PLAYWRIGHT_HTML_OUTPUT_DIR = Join-Path $outputRoot "$Label-report"
++$env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $outputRoot "$Label-browser.json"
++$env:VIBER_EVIDENCE = $outputRoot
++Set-Location -LiteralPath $runtimeRoot
++if (-not $Install) {
++    $preload = (Join-Path $runtimeRoot 'docs/viber/2026-10-23/scripts/offline-browser-preload.cjs').Replace('\','/')
++    $env:NODE_OPTIONS = '--require="' + $preload + '"'
++}
++$toolArgs = if ($Install) { @($npmPath, 'ci') } else { @($npmPath, 'run', $Task) }
++if ($TestFile) {
++    if ($TestFile -match 'integration[/\\]') { $toolArgs = @('--test', $TestFile) }
++    else {
++        $toolArgs = @('node_modules/playwright/cli.js', 'test', $TestFile, '--reporter=list,json')
++        if ($Filter) { $toolArgs += @('--grep', $Filter) }
++    }
++}
++$start = Get-Date
++$head = git rev-parse HEAD
++$log = Join-Path $outputRoot "$Label.log"
++$ErrorActionPreference = 'Continue'
++& $nodePath @toolArgs *> $log
++$result = $LASTEXITCODE
++[ordered]@{ label=$Label; command=($toolArgs -join ' '); exitCode=$result; seconds=[math]::Round(((Get-Date)-$start).TotalSeconds,2); runtime=$runtimeRoot; head=$head; node=(& $nodePath --version) } | ConvertTo-Json -Compress | Add-Content -LiteralPath (Join-Path $outputRoot 'commands.ndjson') -Encoding UTF8
++Get-Content -LiteralPath $log -Tail 18
++Write-Output "$Label exit=$result"
++exit $result
+diff --git a/docs/away/2026-10-26/scripts/run-gate.ps1 b/docs/away/2026-10-26/scripts/run-gate.ps1
+new file mode 100644
+index 0000000..85acd9e
+--- /dev/null
++++ b/docs/away/2026-10-26/scripts/run-gate.ps1
+@@ -0,0 +1,15 @@
++param([Parameter(Mandatory=$true)][string]$Runtime, [string]$Label='final', [string]$Port='3660', [switch]$SkipBrowser)
++$ErrorActionPreference='Stop'
++$runner=Join-Path $PSScriptRoot 'run-check.ps1'
++$tasks=@('check','typecheck','lint','deadcode','audit:prod','test:integration')
++if (!$SkipBrowser) { $tasks += 'test:smoke' }
++$results=@()
++foreach ($task in $tasks) {
++    $taskLabel=$Label+'-'+$task.Replace(':','-')
++    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $runner -Runtime $Runtime -Label $taskLabel -Task $task -Port $Port
++    $taskExit=$LASTEXITCODE
++    $results += [pscustomobject]@{task=$task;exitCode=$taskExit}
++}
++$results | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Runtime "docs/away/2026-10-26/evidence/$Label-gate.json") -Encoding UTF8
++if ($results | Where-Object exitCode -NE 0) { exit 1 }
++exit 0
+diff --git a/docs/away/2026-10-26/scripts/verify-review.cjs b/docs/away/2026-10-26/scripts/verify-review.cjs
+new file mode 100644
+index 0000000..93a3a4c
+--- /dev/null
++++ b/docs/away/2026-10-26/scripts/verify-review.cjs
+@@ -0,0 +1,66 @@
++const fs = require('node:fs');
++const path = require('node:path');
++const { pathToFileURL } = require('node:url');
++const { createRequire } = require('node:module');
++const crypto = require('node:crypto');
++const root = path.resolve(process.argv[2]);
++const runtime = path.resolve(__dirname, '../repository');
++const requireProject = createRequire(path.join(runtime, 'package.json'));
++const { chromium } = requireProject('playwright');
++const AxeBuilder = requireProject('@axe-core/playwright').default;
++const source = path.join(root, 'review.html');
++const html = fs.readFileSync(source, 'utf8');
++const refs = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map(match => match[1]);
++const missing = refs.filter(ref => {
++    if (ref.startsWith('#')) return !html.includes(`id="${ref.slice(1)}"`);
++    if (/^[a-z]+:/i.test(ref)) return false;
++    return !fs.existsSync(path.resolve(root, decodeURIComponent(ref.split('#')[0])));
++});
++if (missing.length) throw new Error('Missing local review links: '+missing.join(', '));
++const markdownLinks = ['HANDOFF.md', 'VERIFICATION.md', 'RUN.md'].flatMap(name => {
++    const body = fs.readFileSync(path.join(root, name), 'utf8');
++    return [...body.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)].map(match => ({ from: name, target: match[1] }));
++});
++const missingMarkdown = markdownLinks.filter(({ target }) => !/^[a-z]+:/i.test(target) && !target.startsWith('#') && !fs.existsSync(path.resolve(root, decodeURIComponent(target.split('#')[0]))));
++if (missingMarkdown.length) throw new Error('Missing handoff links: '+JSON.stringify(missingMarkdown));
++const out = path.join(root, 'review-check');
++fs.mkdirSync(out, { recursive: true });
++(async () => {
++    const browser = await chromium.launch({ channel: 'chrome' });
++    const records = [];
++    try {
++        for (const width of [1440, 390]) {
++            const context = await browser.newContext({ viewport: { width, height: 960 } });
++            const external = [];
++            await context.route('**/*', route => {
++                const url = new URL(route.request().url());
++                if (['file:', 'data:'].includes(url.protocol)) return route.continue();
++                external.push(url.hostname);
++                return route.abort();
++            });
++            const page = await context.newPage();
++            const errors = [];
++            page.on('pageerror', error => errors.push(error.message));
++            await page.goto(pathToFileURL(source).href);
++            await page.locator('img').evaluateAll(images => images.forEach(image => { image.loading = 'eager'; }));
++            await page.waitForFunction(() => [...document.images].every(image => image.complete && image.naturalWidth > 0));
++            const geometry = await page.evaluate(() => ({
++                overflow: document.documentElement.scrollWidth > innerWidth + 1,
++                sections: document.querySelectorAll('main section').length,
++                images: document.images.length,
++                missingAlt: [...document.images].filter(image => !image.alt.trim()).length,
++            }));
++            const audit = await new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
++            const violations = audit.violations.map(item => ({ id: item.id, impact: item.impact, nodes: item.nodes.length }));
++            await page.screenshot({ path: path.join(out, `review-${width}.png`), fullPage: false });
++            const record = { width, ...geometry, external, errors, violations };
++            records.push(record);
++            await context.close();
++            if (geometry.overflow || geometry.sections !== 8 || geometry.missingAlt || external.length || errors.length || violations.length) throw new Error('Review failed at '+width+': '+JSON.stringify(record));
++        }
++    } finally {
++        await browser.close();
++        fs.writeFileSync(path.join(out, 'verification.json'), JSON.stringify({ at: new Date().toISOString(), htmlSha256: crypto.createHash('sha256').update(html).digest('hex'), checkedLinks: refs.length, checkedMarkdownLinks: markdownLinks.length, missing, missingMarkdown, records }, null, 2));
++    }
++    console.log(JSON.stringify({ checkedLinks: refs.length, checkedMarkdownLinks: markdownLinks.length, records }, null, 2));
++})().catch(error => { console.error(error.message); process.exitCode = 1; });
+diff --git a/public/js/study-workspace.js b/public/js/study-workspace.js
+index af84c7c..b8576bd 100644
+--- a/public/js/study-workspace.js
++++ b/public/js/study-workspace.js
+@@ -206,12 +206,22 @@
+             .split(/\r?\n/)
+             .map((s) => s.trim())
+             .filter(Boolean);
+-        const steps = lines.map((text, i) => {
+-            const previous = editing?.steps[i];
++        const remaining = [...(editing?.steps || [])];
++        const usedIds = new Set(remaining.map((step) => step.id));
++        let sequence = 0;
++        const steps = lines.map((text) => {
++            const index = remaining.findIndex((step) => step.text === text);
++            const previous = index < 0 ? null : remaining.splice(index, 1)[0];
++            let id = previous?.id;
++            if (!id) {
++                // The form key keeps newly inserted steps stable after a lost response.
++                do { id = `${requestId(f)}-${sequence++}`; } while (usedIds.has(id));
++                usedIds.add(id);
++            }
+             return {
+-                id: String(i + 1),
++                id,
+                 text,
+-                done: previous?.text === text ? previous.done : false,
++                done: previous?.done || false,
+             };
+         });
+         const payload = { ...values, steps, project_id: values.project_id || null };
+@@ -392,14 +402,19 @@
+                         check.addEventListener(
+                             'change',
+                             () =>
+-                                void work(check, () =>
+-                                    patch('tasks', task, {
+-                                        steps: task.steps.map((s) => ({
+-                                            ...s,
+-                                            done: s.id === step.id ? check.checked : s.done,
+-                                        })),
+-                                    }),
+-                                ),
++                                void work(check, async () => {
++                                    try {
++                                        await patch('tasks', task, {
++                                            steps: task.steps.map((s) => ({
++                                                ...s,
++                                                done: s.id === step.id ? check.checked : s.done,
++                                            })),
++                                        });
++                                    } catch (error) {
++                                        check.checked = step.done;
++                                        throw error;
++                                    }
++                                }),
+                         );
+                     }
+                     e.querySelector('.row-main').append(ul);
+diff --git a/tests/smoke/planner-away.smoke.spec.js b/tests/smoke/planner-away.smoke.spec.js
+new file mode 100644
+index 0000000..3c8051b
+--- /dev/null
++++ b/tests/smoke/planner-away.smoke.spec.js
+@@ -0,0 +1,82 @@
++const { test, expect } = require('@playwright/test');
++const { startServer } = require('../helpers/server-control');
++const { signupUser } = require('../helpers/auth-helpers');
++
++async function planner(browser, language, width, steps) {
++    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh' } });
++    const account = await signupUser(server, { displayName: 'Synthetic planner' });
++    const request = (path, method = 'GET', body = undefined) => server.request(`/api/platform/study${path}`, {
++        method, headers: { Cookie: account.cookie }, body,
++    });
++    const created = await request('/tasks', 'POST', {
++        title: 'مراجعة الفصل / Chapter review', note: '', priority: 'normal', recurrence: 'none',
++        due_date: null, estimate_minutes: 25, steps, requestId: require('node:crypto').randomUUID(),
++    });
++    expect(created.status).toBe(200);
++    const context = await browser.newContext({ viewport: { width, height: 960 } });
++    await context.addCookies(account.cookie.split(';').map((part) => {
++        const [name, ...value] = part.trim().split('=');
++        return { name, value: value.join('='), url: server.baseUrl };
++    }));
++    await context.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language);
++    const page = await context.newPage();
++    await page.goto(`${server.baseUrl}/app#planner`);
++    await expect(page.locator('#study-task-list .row')).toHaveCount(1);
++    await expect(page.locator('#study-status')).toBeEmpty();
++    const task = async () => (await request('/overview')).body.tasks[0];
++    return { server, request, task, context, page, close: async () => { await context.close(); await server.stop(); } };
++}
++
++for (const { language, width } of [{ language: 'en', width: 1440 }, { language: 'ar', width: 390 }]) {
++    test(`checklist edits preserve completed steps and repeated labels (${language}, ${width})`, async ({ browser }, info) => {
++        const f = await planner(browser, language, width, [
++            { id: 'read', text: 'Read / اقرأ', done: true },
++            { id: 'repeat-a', text: 'Review / راجع', done: false },
++            { id: 'repeat-b', text: 'Review / راجع', done: true },
++            { id: 'notes', text: 'Notes / ملاحظات', done: true },
++        ]);
++        try {
++            await f.page.locator('#study-task-list [data-lang=editItem]').click();
++            await f.page.locator('#study-task-steps').fill('New / جديد\nReview / راجع\nRead / اقرأ\nReview / راجع\nChanged / معدّل');
++            await f.page.locator('#study-task button[type=submit]').click();
++            await expect(f.page.locator('#study-task button[type=submit]')).toBeEnabled();
++            const saved = await f.task();
++            expect(saved.steps.map((step) => step.done)).toEqual([false, false, true, true, false]);
++            expect(saved.steps.filter((step) => ['read', 'repeat-a', 'repeat-b'].includes(step.id))).toHaveLength(3);
++            expect(new Set(saved.steps.map((step) => step.id)).size).toBe(5);
++            expect(saved.steps.some((step) => step.id === 'notes')).toBe(false);
++            await f.page.reload();
++            await expect(f.page.locator('#study-task-list input[type=checkbox]')).toHaveCount(5);
++            await expect(f.page.locator('#study-task-list input[type=checkbox]').nth(2)).toBeChecked();
++            await expect(f.page.locator('#study-task-list input[type=checkbox]').nth(3)).toBeChecked();
++            expect(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
++            await f.page.screenshot({ path: info.outputPath(`checklist-${language}-${width}.png`), fullPage: true });
++        } finally { await f.close(); }
++    });
++
++    test(`rejected checklist toggle restores confirmed state and retries (${language}, ${width})`, async ({ browser }, info) => {
++        const f = await planner(browser, language, width, [{ id: 'read', text: 'Read / اقرأ', done: false }]);
++        try {
++            const task = await f.task();
++            let rejectNext = true;
++            await f.page.route(`**/api/platform/study/tasks/${task.id}`, (route) => {
++                if (route.request().method() === 'PATCH' && rejectNext) {
++                    rejectNext = false;
++                    return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'PERSISTENCE_UNAVAILABLE' }) });
++                }
++                return route.continue();
++            });
++            const check = f.page.locator('#study-task-list input[type=checkbox]');
++            await check.click();
++            await expect(f.page.locator('#study-status')).toBeVisible();
++            await expect(check).toBeEnabled();
++            await expect(check).not.toBeChecked();
++            expect((await f.task()).steps[0].done).toBe(false);
++            await f.page.screenshot({ path: info.outputPath(`checklist-error-${language}-${width}.png`), fullPage: true });
++            await check.check();
++            await expect.poll(async () => (await f.task()).steps[0].done).toBe(true);
++            await expect(check).toBeChecked();
++            await expect(f.page.locator('#study-status')).toBeEmpty();
++        } finally { await f.close(); }
++    });
++}

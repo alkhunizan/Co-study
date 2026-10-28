@@ -26,6 +26,22 @@ data/rooms.json
 data/rooms.json.tmp
 data/users.json
 data/users.json.tmp
+<<<<<<< HEAD
+=======
+**/*.json.mail/
+**/*.video-grants.json
+**/*.video-grants.json.tmp
+**/*.alerts.json
+**/*.alerts.json.tmp
+data/*.platform/
+data/platform-preview/
+docs/implementation/2026-10-20-platform/evidence/tmp/
+# Generated local QA data, browser traces, archives and screenshots.
+docs/**/evidence/
+# Transient legal-content source drafts (transcribed into privacy.html/terms.html)
+halastudy-privacy-policy.md
+halastudy-terms-of-service.md
+>>>>>>> viber/2026-10-27
 data/backups/
 data/evidence/
 

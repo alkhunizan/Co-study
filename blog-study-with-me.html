@@ -11,6 +11,17 @@
   <meta property="og:description" content="ادخل غرفة مذاكرة صامتة أونلاين مع طلاب مثلك، حدد هدفك، شغل جلستك، وابدأ مذاكرة بدون سوالف ولا تشتيت.">
   <meta property="og:url" content="https://halastudy.com/blog/study-with-me-online-arabic">
   <meta property="og:locale" content="ar_SA">
+  <meta property="og:site_name" content="Halastudy · هلاستدي">
+  <meta property="og:image" content="https://halastudy.com/images/og/blog-study-with-me.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="ذاكر معي أونلاين — ادخل غرفة مذاكرة صامتة وابدأ الآن · هلاستدي">
+  <meta property="article:published_time" content="2026-07-04">
+  <meta property="article:modified_time" content="2026-07-08">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ الآن">
+  <meta name="twitter:description" content="ادخل غرفة مذاكرة صامتة أونلاين مع طلاب مثلك، حدد هدفك، شغل جلستك، وابدأ مذاكرة بدون سوالف ولا تشتيت.">
+  <meta name="twitter:image" content="https://halastudy.com/images/og/blog-study-with-me.png">
   <link rel="icon" type="image/svg+xml" href="/images/icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/icons/favicon-16.png">
@@ -45,11 +56,79 @@
     .faq details[open] summary::after { content: "−"; }
     .faq details p { margin: 10px 0 0; }
     .article-end { margin-block-start: 44px; padding-block-start: 20px; border-block-start: 1px solid var(--line); }
+
+    /* Masthead — the single lamp-glow surface (DESIGN.md §2.6, §11 "one image") */
+    .article-hero { position: relative; margin-block-end: 8px; padding-block-end: 6px; overflow: clip; }
+    .article-hero .lamp-glow { z-index: 0; }
+    .article-hero-inner { position: relative; z-index: 1; }
+    .article-hero .eyebrow { margin-block: 12px 6px; }
+    .article-meta {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+      margin-block-start: 16px; color: var(--ink-2); font-size: var(--t-caption);
+    }
+    .meta-cat {
+      font-weight: var(--w-semibold); color: var(--accent-3);
+      background: var(--accent-soft); border-radius: var(--r-pill); padding: 3px 12px;
+    }
+    .dot-sep { inline-size: 3px; block-size: 3px; border-radius: 999px; background: var(--ink-3); }
+
+    /* باختصار — quiet editorial callout, not a heavy card */
+    .tldr {
+      margin-block: 24px; padding: 18px 22px;
+      background: var(--accent-soft); border: 1px solid var(--line);
+      border-inline-start: 3px solid var(--accent); border-radius: var(--r-lg);
+    }
+    .tldr-label { font-weight: var(--w-bold); color: var(--accent-3); font-size: var(--t-caption); }
+    .article .tldr ul { margin: 10px 0 0; }
+    .article .tldr li { color: var(--ink); }
+
+    /* Session-length options — genuinely measured content (DESIGN.md §8) */
+    .session-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-block: 22px; }
+    .session-card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--r-lg); padding: 18px; box-shadow: var(--sh-1);
+    }
+    .session-head { display: flex; align-items: baseline; gap: 4px; }
+    .session-num {
+      font-family: var(--font-display); font-weight: var(--w-bold); font-size: 34px;
+      line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: 0;
+    }
+    .session-unit { font-size: var(--t-body-sm); color: var(--ink-2); }
+    .article .session-card p { margin: 10px 0 0; font-size: var(--t-body-sm); color: var(--ink-2); line-height: 1.7; }
+    @media (max-width: 560px) { .session-grid { grid-template-columns: 1fr; } }
+
+    /* One restrained pull-quote */
+    .pullquote {
+      margin-block: 34px; padding-inline-start: 18px;
+      border-inline-start: 3px solid var(--accent);
+      font-family: var(--font-display-ar); font-size: clamp(21px, 3.4vw, 28px);
+      line-height: 1.55; color: var(--ink);
+    }
+
+    /* Read-next cross-link */
+    .readnext {
+      display: block; margin-block-start: 40px; padding: 20px 22px;
+      background: var(--card); border: 1px solid var(--line); border-radius: var(--r-xl);
+      box-shadow: var(--sh-1); text-decoration: none; color: inherit;
+      transition: border-color 180ms var(--ease-soft), transform 180ms var(--ease-soft), box-shadow 180ms var(--ease-soft);
+    }
+    .readnext:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--sh-3); }
+    .readnext:focus-visible { outline: none; box-shadow: var(--sh-focus); }
+    .readnext-label { font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--accent-3); }
+    .readnext-title {
+      font-family: var(--font-display-ar); font-size: clamp(18px, 2.6vw, 22px);
+      line-height: 1.4; color: var(--ink); margin-block-start: 6px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .readnext { transition: none; }
+      .readnext:hover { transform: none; }
+    }
   </style>
 </head>
 <body class="is-landing-page">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="Halastudy home">
+    <a class="brand" href="/">
       <span>Hala<em>study</em><span class="dot">.</span></span>
       <span class="divider" aria-hidden="true"></span>
       <span class="ar" aria-hidden="true">هلا</span>
@@ -60,16 +139,37 @@
   </header>
 
   <main class="article-shell">
-    <a class="back-link" href="/blog"><span aria-hidden="true">→</span> كل التدوينات</a>
     <article class="article">
-      <div class="eyebrow">المدونة · دليل البداية</div>
-      <h1>ذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ الآن</h1>
+      <header class="article-hero">
+        <div class="lamp-glow" aria-hidden="true"></div>
+        <div class="article-hero-inner">
+          <a class="back-link" href="/blog"><span aria-hidden="true">→</span> كل التدوينات</a>
+          <div class="eyebrow">المدونة</div>
+          <h1>ذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ الآن</h1>
+          <p class="lead">أحيانًا المشكلة مو إنك ما تعرف تذاكر. المشكلة إنك ما تبدأ.</p>
+          <div class="article-meta">
+            <span class="meta-cat">دليل البداية</span>
+            <span class="dot-sep" aria-hidden="true"></span>
+            <span>9 دقائق قراءة</span>
+            <span class="dot-sep" aria-hidden="true"></span>
+            <span>يوليو 2026</span>
+          </div>
+        </div>
+      </header>
 
-      <p class="lead">أحيانًا المشكلة مو إنك ما تعرف تذاكر. المشكلة إنك ما تبدأ.</p>
+      <aside class="tldr" aria-label="ابدأ في ثلاث خطوات">
+        <div class="tldr-label">ابدأ في ثلاث خطوات</div>
+        <ul>
+          <li><strong>ادخل</strong> غرفة مذاكرة صامتة فيها طلاب يذاكرون مثلك.</li>
+          <li><strong>حدّد هدفك</strong> للجلسة وشغّل المؤقت — 25 أو 50 دقيقة.</li>
+          <li><strong>ابدأ الآن</strong>، لا تنتظر المزاج. خل الجلسة تسحبك.</li>
+        </ul>
+      </aside>
+
       <p>تفتح اللابتوب، تقول «بس خمس دقايق تيك توك»، بعدها تلقى ساعة راحت. تجهز الكتاب، تطلع القهوة، ترتب الطاولة، ثم فجأة يصير عندك اهتمام عجيب بترتيب الملفات، تنظيف المكتب، أو البحث عن أفضل خطة مذاكرة في التاريخ.</p>
       <p>وهنا تجي فكرة <strong>ذاكر معي أونلاين</strong>. مو لازم تنتظر الحماس. مو لازم تلقى صديق فاضي. مو لازم تروح كوفي وتدفع عشان تجبر نفسك تركز.</p>
       <p>ادخل غرفة مذاكرة صامتة، شوف طلاب غيرك جالسين يذاكرون، حدد هدفك للجلسة، وابدأ.</p>
-      <div class="cta-block"><a class="btn btn-primary" href="/open">ادخل غرفة مذاكرة الآن</a></div>
+      <div class="cta-block"><a class="btn btn-primary" href="/open">ادخل غرفة مذاكرة الآن <span class="arrow" aria-hidden="true">→</span></a></div>
 
       <h2>وش يعني «ذاكر معي أونلاين»؟</h2>
       <p>«ذاكر معي أونلاين» يعني تدخل جلسة دراسة مباشرة مع طلاب آخرين، غالبًا بصمت، وكل شخص يذاكر هدفه الخاص.</p>
@@ -139,14 +239,24 @@
       <p>لكن فيه فرق مهم: <strong>يوتيوب يعطيك أجواء. غرفة المذاكرة الحية تعطيك حضور والتزام.</strong> في يوتيوب، تقدر تقفل الفيديو بأي لحظة وما أحد يدري. في غرفة مباشرة، أنت دخلت جلسة، حددت هدف، وفيه إحساس إنك حاضر فعلًا.</p>
       <p>إذا أنت تحتاج خلفية هادئة فقط، يوتيوب يكفي. إذا أنت تحتاج التزام وبداية جدية، جرّب غرفة مباشرة.</p>
 
+      <blockquote class="pullquote">الحماس يجي بعد البداية، مو قبلها — فابدأ، وخل الجلسة تسحبك.</blockquote>
+
       <h2>أفضل طريقة تبدأ فيها أول جلسة</h2>
       <p>لا تدخل أول جلسة وأنت حاط هدف خرافي مثل «بذاكر 8 ساعات». ابدأ صغير. جرب هذا:</p>
-      <h3>جلسة 25 دقيقة</h3>
-      <p>مناسبة إذا كنت متردد أو مالك خلق تبدأ. هدف الجلسة يكون بسيط: أفتح الكتاب وأقرأ أول 5 صفحات، أحل 10 أسئلة، أرتب خطة اليوم، أو أراجع ملخص واحد.</p>
-      <h3>جلسة 50 دقيقة</h3>
-      <p>مناسبة إذا دخلت جو وتبي إنجاز واضح. هدف الجلسة: حل نموذج، مراجعة فصل، كتابة واجب، تلخيص محاضرة، أو مذاكرة وحدة كاملة.</p>
-      <h3>جلسة 90 دقيقة</h3>
-      <p>مناسبة للطلاب اللي يعرفون يركزون فترة طويلة. لكن لا تبدأ فيها إذا أنت أصلًا جاي تهرب من التسويف. خلك ذكي: ابدأ بـ 25 أو 50، ثم ارفعها.</p>
+      <div class="session-grid">
+        <div class="session-card">
+          <div class="session-head"><span class="session-num">25</span><span class="session-unit">دقيقة</span></div>
+          <p>إذا كنت متردد أو مالك خلق تبدأ. هدف بسيط: افتح الكتاب واقرأ أول 5 صفحات، حل 10 أسئلة، أو راجع ملخصًا واحدًا.</p>
+        </div>
+        <div class="session-card">
+          <div class="session-head"><span class="session-num">50</span><span class="session-unit">دقيقة</span></div>
+          <p>إذا دخلت جو وتبي إنجاز واضح. هدف: حل نموذج، مراجعة فصل، كتابة واجب، أو مذاكرة وحدة كاملة.</p>
+        </div>
+        <div class="session-card">
+          <div class="session-head"><span class="session-num">90</span><span class="session-unit">دقيقة</span></div>
+          <p>للطلاب اللي يركزون فترة طويلة. لا تبدأ فيها إذا أنت جاي تهرب من التسويف — ابدأ بـ 25 أو 50 ثم ارفعها.</p>
+        </div>
+      </div>
 
       <h2>قاعدة مهمة: لا تدخل الغرفة بدون هدف</h2>
       <p>الغرفة تساعدك، بس ما تذاكر بدالك. قبل ما تضغط دخول، اكتب هدف واضح.</p>
@@ -220,6 +330,11 @@
         <details><summary>أقدر أستخدمها آخر الليل؟</summary><p>نعم، وهذا من أفضل استخداماتها. كثير طلاب يذاكرون آخر الليل ويحسون إنهم لحالهم. وجود غرفة مباشرة يعطيك إحساس إن فيه ناس تذاكر معك بنفس الوقت.</p></details>
       </section>
 
+      <a class="readnext" href="/blog/best-online-group-study-rooms-saudi">
+        <div class="readnext-label">اقرأ بعده</div>
+        <div class="readnext-title">أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية</div>
+      </a>
+
       <div class="article-end">
         <a class="btn btn-primary" href="/open">افتح غرفتك وابدأ الآن</a>
       </div>
@@ -246,8 +361,42 @@
     "inLanguage": "ar",
     "description": "ادخل غرفة مذاكرة صامتة أونلاين مع طلاب مثلك، حدد هدفك، شغل جلستك، وابدأ مذاكرة بدون سوالف ولا تشتيت.",
     "mainEntityOfPage": "https://halastudy.com/blog/study-with-me-online-arabic",
-    "author": { "@type": "Organization", "name": "Halastudy" },
-    "publisher": { "@type": "Organization", "name": "Halastudy" }
+    "image": "https://halastudy.com/images/og/blog-study-with-me.png",
+    "datePublished": "2026-07-04",
+    "dateModified": "2026-07-08",
+    "author": { "@type": "Organization", "name": "Halastudy", "url": "https://halastudy.com" },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Halastudy",
+      "logo": { "@type": "ImageObject", "url": "https://halastudy.com/images/icons/favicon-512.png" }
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://halastudy.com/" },
+      { "@type": "ListItem", "position": 2, "name": "المدونة", "item": "https://halastudy.com/blog" },
+      { "@type": "ListItem", "position": 3, "name": "ذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ الآن" }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "وش معنى ذاكر معي أونلاين؟", "acceptedAnswer": { "@type": "Answer", "text": "يعني تدخل جلسة مذاكرة مباشرة مع طلاب آخرين، غالبًا بصمت، وكل شخص يذاكر هدفه الخاص. الهدف هو التركيز والالتزام، مو الشرح أو السوالف." } },
+      { "@type": "Question", "name": "هل غرفة المذاكرة فيها صوت؟", "acceptedAnswer": { "@type": "Answer", "text": "الأفضل تكون صامتة. المايكات تكون مغلقة، والتركيز يكون على الإنجاز. إذا فيه مؤقت أو تنبيه بسيط بين الجلسات، يكون بدون إزعاج." } },
+      { "@type": "Question", "name": "هل لازم أظهر وجهي بالكاميرا؟", "acceptedAnswer": { "@type": "Answer", "text": "لا يفضل إجبار أحد على إظهار وجهه. تقدر تستخدم زاوية على المكتب أو الدفتر، أو إعدادات خصوصية مثل الخلفية الافتراضية أو التمويه، حسب ما توفره المنصة." } },
+      { "@type": "Question", "name": "هل تناسب البنات؟", "acceptedAnswer": { "@type": "Answer", "text": "نعم، بشرط وجود قواعد خصوصية وأمان واضحة: عدم مشاركة معلومات شخصية، منع التسجيل أو التصوير، وجود تبليغ سريع، وخيارات غرف أكثر خصوصية عند الحاجة." } },
+      { "@type": "Question", "name": "هل تنفع للقدرات والتحصيلي؟", "acceptedAnswer": { "@type": "Answer", "text": "نعم، خصوصًا إذا استخدمتها كروتين يومي. ادخل جلسة وحدد هدف واضح مثل حل 25 سؤال، مراجعة أخطاء، أو إنهاء درس محدد." } },
+      { "@type": "Question", "name": "وش أفضل مدة للجلسة؟", "acceptedAnswer": { "@type": "Answer", "text": "إذا كنت تبدأ من الصفر، جرب 25 دقيقة. إذا دخلت جو، استخدم 50 دقيقة. لا تبدأ بجلسات طويلة جدًا إذا مشكلتك الأساسية هي التسويف." } },
+      { "@type": "Question", "name": "هل هي بديل عن المدرس؟", "acceptedAnswer": { "@type": "Answer", "text": "لا. غرفة المذاكرة تساعدك تلتزم وتنجز، لكنها ما تشرح لك. إذا ما فهمت درس، تحتاج شرح أو مدرس أو مصدر تعليمي. بعدها استخدم الغرفة للتطبيق والمراجعة." } },
+      { "@type": "Question", "name": "أقدر أستخدمها آخر الليل؟", "acceptedAnswer": { "@type": "Answer", "text": "نعم، وهذا من أفضل استخداماتها. كثير طلاب يذاكرون آخر الليل ويحسون إنهم لحالهم. وجود غرفة مباشرة يعطيك إحساس إن فيه ناس تذاكر معك بنفس الوقت." } }
+    ]
   }
   </script>
 </body>

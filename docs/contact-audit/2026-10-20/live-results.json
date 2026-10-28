@@ -1,0 +1,47 @@
+﻿[
+    {
+        "route":  "/",
+        "status":  200,
+        "bytes":  43434,
+        "title":  "Halastudy | هلا — A quiet room. Open all night.",
+        "contacts":  [
+                         "mailto:info@halastudy.com",
+                         "https://wa.me/?text=\u0027"
+                     ]
+    },
+    {
+        "route":  "/blog",
+        "status":  200,
+        "bytes":  8097,
+        "title":  "Halastudy | المدونة · The Blog",
+        "contacts":  "mailto:info@halastudy.com"
+    },
+    {
+        "route":  "/blog/best-online-group-study-rooms-saudi",
+        "status":  200,
+        "bytes":  26919,
+        "title":  "أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية | هلاستدي",
+        "contacts":  "mailto:info@halastudy.com"
+    },
+    {
+        "route":  "/blog/study-with-me-online-arabic",
+        "status":  200,
+        "bytes":  22337,
+        "title":  "ذاكر معي أونلاين | غرفة مذاكرة صامتة للتركيز · هلاستدي",
+        "contacts":  "mailto:info@halastudy.com"
+    },
+    {
+        "route":  "/privacy",
+        "status":  200,
+        "bytes":  18372,
+        "title":  "Halastudy | سياسة الخصوصية · Privacy Policy",
+        "contacts":  "mailto:info@halastudy.com"
+    },
+    {
+        "route":  "/terms",
+        "status":  200,
+        "bytes":  15968,
+        "title":  "Halastudy | شروط الاستخدام · Terms of Service",
+        "contacts":  "mailto:info@halastudy.com"
+    }
+]

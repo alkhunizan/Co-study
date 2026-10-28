@@ -1,0 +1,95 @@
+param([string]$Label, [string[]]$Command, [string]$Task, [string]$Script, [string]$Runtime, [string]$SmokePort='3541', [string]$TestFile, [string]$Filter, [switch]$LocalArtifacts, [switch]$JsonReport, [switch]$Install, [switch]$Preview, [switch]$Postgres, [switch]$Online)
+$ErrorActionPreference = 'Stop'
+$outputRoot = Split-Path $PSScriptRoot
+$runtimeRoot = if ($Runtime) { $Runtime } else { Join-Path $env:LOCALAPPDATA 'Temp/halastudy-release-fixes-2026-10-23/candidate' }
+$nodePath = Join-Path $env:LOCALAPPDATA 'npm-cache/_npx/52027bd8fc0022aa/node_modules/node/bin/node.exe'
+if (!(Test-Path -LiteralPath $nodePath)) { throw 'Verified Node 22 executable not found' }
+$appEnvNames = Get-Content -Raw -Encoding utf8 (Join-Path $outputRoot 'evidence/env-names.json') | ConvertFrom-Json
+foreach ($appEnvName in $appEnvNames) {
+    if ($appEnvName -notmatch '^(PATH|LOCALAPPDATA|APPDATA|USERPROFILE|SYSTEMROOT|COMSPEC|TEMP|TMP|HOME|HOMEDRIVE|HOMEPATH)$') {
+        Remove-Item -LiteralPath ('Env:' + $appEnvName) -ErrorAction SilentlyContinue
+    }
+}
+foreach ($entry in Get-ChildItem Env:) {
+    if ($entry.Name -match '^(SUPABASE_|PLATFORM_|CLOUDFLARE_|R2_|DIGETPAY_|OPS_ALERT_|AUTH_MAIL_|RESEND_|GOOGLE_|BILLING_|SESSION_SECRET|HALASTUDY_TEST_DATABASE_URL|NODE_OPTIONS|DATABASE_URL|REDIS_URL)') {
+        Remove-Item -LiteralPath ('Env:' + $entry.Name)
+    }
+}
+$env:PATH=(Split-Path $nodePath)+';'+$env:PATH
+$toolBin=Join-Path (Split-Path $runtimeRoot) "node22-tools/$PID"
+New-Item -ItemType Directory -Force $toolBin | Out-Null
+Set-Content -LiteralPath (Join-Path $toolBin 'npm.cmd') -Value ('@"'+$nodePath+'" "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" %*') -Encoding ascii
+$env:PATH=$toolBin+';'+$env:PATH
+$env:NODE_ENV='test'
+$env:CI='1'
+$env:PLATFORM_DATA_DIR='memory://'
+$env:CO_STUDY_OFFLINE=if ($Online) {'0'} else {'1'}
+$env:PLAYWRIGHT_CHANNEL='chrome'
+$env:CO_STUDY_SMOKE_PORT=$SmokePort
+$env:PLAYWRIGHT_OUTPUT_DIR=Join-Path $outputRoot "evidence/$Label-results"
+$env:PLAYWRIGHT_HTML_OUTPUT_DIR=Join-Path $outputRoot "evidence/$Label-report"
+$env:REFINEMENT_OUTPUT=$outputRoot
+if ($JsonReport) { $env:PLAYWRIGHT_JSON_OUTPUT_FILE=Join-Path $outputRoot "evidence/$Label.json" }
+if ($LocalArtifacts) {
+    $artifactRoot=Join-Path (Split-Path $runtimeRoot) "artifacts/$Label"
+    New-Item -ItemType Directory -Force $artifactRoot | Out-Null
+    $env:PLAYWRIGHT_OUTPUT_DIR=Join-Path $artifactRoot 'results'
+    $env:PLAYWRIGHT_HTML_OUTPUT_DIR=Join-Path $artifactRoot 'report'
+}
+if (!$Install -and !$Online -and !$Preview) {
+    $preload=(Join-Path $PSScriptRoot 'offline-browser-preload.cjs').Replace('\','/')
+    $env:NODE_OPTIONS='--require="'+$preload+'"'
+    $env:VIBER_EVIDENCE=if ($LocalArtifacts) { $artifactRoot } else { Join-Path $outputRoot 'evidence' }
+}
+Set-Location $runtimeRoot
+if ($Task) { $Command=@('C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js','run',$Task) }
+if ($Script) { $Command=@((Join-Path $PSScriptRoot $Script)) }
+if ($TestFile) {
+    if ($TestFile -match 'integration/') { $Command=@('--test',$TestFile) }
+    else {
+        $Command=@('node_modules/playwright/cli.js','test',$TestFile)
+        if ($Filter) { $Command+=@('--grep',$Filter) }
+        if ($JsonReport) { $Command+=@('--reporter=list,json') }
+    }
+}
+$start=Get-Date
+$startManifestHash=(Get-FileHash -LiteralPath (Join-Path $outputRoot 'evidence/candidate-source.json') -Algorithm SHA256).Hash.ToLower()
+if($Online){$env:NODE_OPTIONS='--require="'+(Join-Path $PSScriptRoot 'real-fonts-preload.cjs').Replace('\','/')+'"'}
+if ($Preview) {
+    $env:PLATFORM_PREVIEW_PORT='3542'
+    & $nodePath scripts/preview-platform.js
+    exit $LASTEXITCODE
+}
+$log = Join-Path $outputRoot "evidence/$Label.log"
+$ErrorActionPreference='Continue'
+if ($Install) {
+    & $nodePath 'C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js' ci *> $log
+} elseif ($Postgres) {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-postgres.ps1 *> $log
+} else {
+    & $nodePath @Command *> $log
+}
+$result=$LASTEXITCODE
+if ($LocalArtifacts) {
+    foreach ($name in @('results','report')) {
+        $from=Join-Path $artifactRoot $name
+        if (Test-Path -LiteralPath $from) {
+            # Windows PowerShell 5 Copy-Item can drop valid long browser paths.
+            $destination=Join-Path $outputRoot "evidence/$Label-$name"
+            & robocopy.exe $from $destination /E /R:1 /W:1 /NFL /NDL /NJH /NJS | Out-Null
+            if ($LASTEXITCODE -ge 8) { $result=1; Write-Error "Artifact copy failed: $name" }
+        }
+    }
+    $blocked=Join-Path $artifactRoot 'blocked-browser-hosts.ndjson'
+    if (Test-Path -LiteralPath $blocked) { Copy-Item -LiteralPath $blocked -Destination (Join-Path $outputRoot "evidence/$Label-blocked-hosts.ndjson") }
+    foreach ($observed in @('local-http.ndjson','local-socket.ndjson')) {
+        $observedPath=Join-Path $artifactRoot $observed
+        if(Test-Path -LiteralPath $observedPath){Copy-Item -LiteralPath $observedPath -Destination (Join-Path $outputRoot "evidence/$Label-$observed")}
+    }
+}
+[ordered]@{label=$Label;command=if($Install){'npm ci'}elseif($Postgres){'scripts/test-postgres.ps1'}else{$Command -join ' '};exitCode=$result;seconds=[math]::Round(((Get-Date)-$start).TotalSeconds,2);runtime=$runtimeRoot;node=(& $nodePath --version);sourceManifestSha256=$startManifestHash;endManifestSha256=(Get-FileHash -LiteralPath (Join-Path $outputRoot 'evidence/candidate-source.json') -Algorithm SHA256).Hash.ToLower()} | ConvertTo-Json -Compress | Add-Content (Join-Path $outputRoot 'evidence/commands.ndjson') -Encoding utf8
+Get-Content -LiteralPath $log -Tail 16
+Write-Output "$Label exit=$result"
+exit $result
+
+

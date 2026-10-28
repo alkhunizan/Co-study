@@ -1,0 +1,151 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halastudy | المدونة · The Blog</title>
+  <meta name="description" content="مدونة هلاستدي — عن التركيز والمرافقة بالوجود والمذاكرة في ليل الخليج. The Halastudy blog — on focus, body-doubling, and studying through the Gulf night.">
+  <link rel="canonical" href="https://halastudy.com/blog">
+  <link rel="icon" type="image/svg+xml" href="/images/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/icons/favicon-16.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/images/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#F5F2EB">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <style>
+    .blog-shell { max-inline-size: 760px; margin-inline: auto; padding-block: 112px 72px; padding-inline: 20px; }
+    .blog-head { margin-block-end: 34px; }
+    .blog-head h1 {
+      font-family: var(--font-display);
+      font-size: clamp(30px, 5.5vw, 46px);
+      line-height: 1.12;
+      letter-spacing: -0.02em;
+      margin: 8px 0 12px;
+      text-wrap: balance;
+    }
+    html[lang="ar"] .blog-head h1 { font-family: var(--font-display-ar); letter-spacing: 0; line-height: 1.25; }
+    .blog-head p { color: var(--ink-2); line-height: 1.7; margin: 0; max-inline-size: 56ch; }
+    .post-list { display: flex; flex-direction: column; gap: 16px; }
+    .post-card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 24px;
+      transition: border-color .15s ease, transform .15s ease;
+    }
+    .post-card:hover { border-color: var(--accent, var(--ink)); transform: translateY(-2px); }
+    .post-card:focus-visible { outline: none; box-shadow: var(--sh-focus); }
+    .post-card .post-eyebrow {
+      font-size: var(--t-caption);
+      color: var(--accent-ink, var(--ink-2));
+      font-weight: var(--w-semibold);
+      letter-spacing: .04em;
+    }
+    .post-card h2 {
+      font-family: var(--font-display-ar);
+      font-size: clamp(20px, 3.2vw, 26px);
+      line-height: 1.35;
+      letter-spacing: 0;
+      margin: 8px 0 8px;
+      color: var(--ink);
+    }
+    .post-card p { color: var(--ink-2); line-height: 1.75; margin: 0 0 14px; }
+    .post-more { font-weight: var(--w-semibold); color: var(--ink); font-size: var(--t-body-sm); }
+  </style>
+</head>
+<body class="is-landing-page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Halastudy home">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <div class="topbar-right">
+      <div class="lang-switch" role="tablist" aria-label="Language">
+        <button type="button" data-lang-value="en">EN</button>
+        <button type="button" data-lang-value="ar" class="is-on">ع</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="blog-shell">
+    <div class="blog-head">
+      <div class="eyebrow" data-lang="blogEyebrow">المدونة</div>
+      <h1 data-lang="blogTitle">من مكتب هلاستدي</h1>
+      <p data-lang="blogIntro">نكتب عن التركيز، والمرافقة بالوجود، والمذاكرة في ليل الخليج — بأسلوب عربي واضح للطلاب.</p>
+    </div>
+
+    <div class="post-list">
+      <a class="post-card" href="/blog/best-online-group-study-rooms-saudi">
+        <div class="post-eyebrow" data-lang="post1Tag">دليل مقارنة</div>
+        <h2 data-lang="post1Title">أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية</h2>
+        <p data-lang="post1Excerpt">قارن بين Halastudy وStudyStream وFocusmate ويوتيوب وغرف الديسكورد، واعرف أنسب خيار للمذاكرة الصامتة والقدرات والتحصيلي.</p>
+        <span class="post-more" data-lang="readMore">اقرأ التدوينة ←</span>
+      </a>
+
+      <a class="post-card" href="/blog/study-with-me-online-arabic">
+        <div class="post-eyebrow" data-lang="post2Tag">دليل البداية</div>
+        <h2 data-lang="post2Title">ذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ الآن</h2>
+        <p data-lang="post2Excerpt">تبي تذاكر بس التسويف ماسكك؟ ادخل غرفة صامتة مع طلاب مثلك، حدد هدفك، شغّل جلستك، وابدأ بدون سوالف.</p>
+        <span class="post-more" data-lang="readMore">اقرأ التدوينة ←</span>
+      </a>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="links">
+      <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
+      <a href="/terms" data-lang="footerTerms">الشروط</a>
+    </div>
+    <div class="footer-contact">
+      <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
+      <a href="tel:+966599161315" dir="ltr">+966&nbsp;59&nbsp;916&nbsp;1315</a>
+    </div>
+  </footer>
+
+  <script>
+    window.HalaCore.initLang({
+      en: {
+        pageTitle: 'Halastudy | The Blog',
+        blogEyebrow: 'The Blog',
+        blogTitle: 'From the Halastudy desk',
+        blogIntro: 'On focus, body-doubling, and studying through the Gulf night — written plainly, in Arabic, for students.',
+        post1Tag: 'Comparison guide',
+        post1Title: 'Best online group study rooms for students in Saudi Arabia',
+        post1Excerpt: 'Halastudy vs StudyStream, Focusmate, YouTube and Discord — which fits silent study, Qudurat and Tahsili best. (Article in Arabic.)',
+        post2Tag: 'Getting started',
+        post2Title: 'Study with me online: enter a silent room and start now',
+        post2Excerpt: 'Procrastination got you stuck? Join a silent room with students like you, set your goal, start your session. (Article in Arabic.)',
+        readMore: 'Read the post →',
+        footerPrivacy: 'Privacy',
+        footerTerms: 'Terms'
+      },
+      ar: {
+        pageTitle: 'هلاستدي | المدونة',
+        blogEyebrow: 'المدونة',
+        blogTitle: 'من مكتب هلاستدي',
+        blogIntro: 'نكتب عن التركيز، والمرافقة بالوجود، والمذاكرة في ليل الخليج — بأسلوب عربي واضح للطلاب.',
+        post1Tag: 'دليل مقارنة',
+        post1Title: 'أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية',
+        post1Excerpt: 'قارن بين Halastudy وStudyStream وFocusmate ويوتيوب وغرف الديسكورد، واعرف أنسب خيار للمذاكرة الصامتة والقدرات والتحصيلي.',
+        post2Tag: 'دليل البداية',
+        post2Title: 'ذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ الآن',
+        post2Excerpt: 'تبي تذاكر بس التسويف ماسكك؟ ادخل غرفة صامتة مع طلاب مثلك، حدد هدفك، شغّل جلستك، وابدأ بدون سوالف.',
+        readMore: 'اقرأ التدوينة ←',
+        footerPrivacy: 'الخصوصية',
+        footerTerms: 'الشروط'
+      }
+    });
+  </script>
+</body>
+</html>
+

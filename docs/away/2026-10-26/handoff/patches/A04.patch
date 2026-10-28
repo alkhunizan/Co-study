@@ -1,0 +1,456 @@
+diff --git a/docs/away/2026-10-26/A04/RESULT.md b/docs/away/2026-10-26/A04/RESULT.md
+new file mode 100644
+index 0000000..8d1acf2
+--- /dev/null
++++ b/docs/away/2026-10-26/A04/RESULT.md
+@@ -0,0 +1,20 @@
++﻿# A04: truthful planner feedback (includes A05 translation)
++
++Source: existing F01-F20 failure-path and bilingual acceptance contract.
++Acceptance before implementation: successful mutations followed by failed refresh explicitly say saved but not refreshed; retry fetches one saved record; failed mutation retains the draft and translates with AR/EN switching; successful read-only journal search does not announce a save. Cover 1440px English and 390px Arabic, including empty results and local 503.
++
++No payment, authentication, schema, or HTML changes. Existing draft/retry semantics and server scope remain intact.
++
++## Local result
++
++Application/test commits:2981761 (truthful bilingual feedback),7a1a11f (superseded-result propagation). Baselinec4d6c50.
++
++- Six initial browser cases failed before the change for the expected feedback/translation defects. All six passed after the snapshot-aware language correction.
++- Cross-review found that a discarded old load could still overwrite newer feedback through its form callback. The recorded exact-source VM demonstration is `../evidence/a04-stale-before.json`.
++- Two real-server race cases now cover an older failure after newer success and older success after newer failure. Both assert that the task and project were stored once. The full focused suite passed8/8 in `../evidence/a04-stale-after.log`.
++- The form wrapper distinguishes successful refresh, failed refresh, and an obsolete response. The same obsolete result propagates through journal and resource refreshes.
++- Representative Arabic390 partial-save and1440 retained-draft/error screenshots were visually inspected. These use blocked external fonts and prove fallback layout only.
++- Initial2981761 static checks and169 integrations passed. Final7a1a11f also passed all4 static gates and169 integrations. The full browser run finished85 pass,2 failures (privacy blur and past-date fixture),1 offline font skip,4 app cases not run after the serial camera failure. All8 new planner cases passed again; source manifests matched. Existing body-parser production audit remains FAIL. No production release or remote PR.
++- Independent read-only review confirmed the sentinel is respected by the form callback and both primary/journal/resource refresh stages, including reflection propagation. No further issue found in this scoped correction.
++
++After the broad queue ended, the original app suite passed8/8 alone in a04-app-isolated.log. Privacy blur and all four previously unexecuted cases passed; manifest1725dea00f96338555109c2c40d67dff77b73d528ad7ad3f17e64c7efb56c461 remained unchanged. Both the original failure and passing isolated receipt are retained. The camera result is intermittent, with its cause unproven; no camera implementation, assertion or timeout was changed.
+diff --git a/public/js/study-copy.js b/public/js/study-copy.js
+index 9a912ed..c834798 100644
+--- a/public/js/study-copy.js
++++ b/public/js/study-copy.js
+@@ -162,6 +162,7 @@
+             studyLoading: 'Loading your study tools…',
+             studyRetry: 'Retry study tools',
+             studySaved: 'Saved.',
++            studySavedRefreshFailed: 'Saved, but the latest list could not be loaded. Retry to refresh it.',
+             studyUnavailable: 'Study tools are unavailable. Your draft is still here; try again.',
+             STUDY_VALUE_INVALID: 'Check the values and limits, then try again.',
+             STUDY_DUE_REQUIRED: 'Choose a due date for a repeating task.',
+@@ -331,6 +332,7 @@
+             studyLoading: 'جارٍ تحميل أدوات المذاكرة…',
+             studyRetry: 'أعد تحميل الأدوات',
+             studySaved: 'تم الحفظ.',
++            studySavedRefreshFailed: 'تم الحفظ، لكن تعذّر تحميل القائمة المحدّثة. أعد المحاولة لتحديثها.',
+             studyUnavailable: 'أدوات المذاكرة غير متاحة. مسودتك باقية هنا؛ حاول مجددًا.',
+             STUDY_VALUE_INVALID: 'تحقق من القيم والحدود، ثم حاول مجددًا.',
+             STUDY_DUE_REQUIRED: 'اختر تاريخًا للمهمة المتكررة.',
+diff --git a/public/js/study-workspace.js b/public/js/study-workspace.js
+index af84c7c..4c3bec9 100644
+--- a/public/js/study-workspace.js
++++ b/public/js/study-workspace.js
+@@ -20,6 +20,7 @@
+     };
+     const number = (value) => Number(value).toLocaleString(core.getLang() === 'ar' ? 'ar-SA' : 'en-US');
+     const date = (value) => g.HalaSchedule.format(value, core.getLang());
++    const obsolete = Symbol('obsolete-study-response');
+     let owner = null,
+         data = null,
+         agenda = [],
+@@ -54,6 +55,8 @@
+     retry.hidden = true;
+     status.after(retry);
+     function message(key, error = false) {
++        if (key) status.setAttribute('data-lang', key);
++        else status.removeAttribute('data-lang');
+         status.textContent = key ? t(key) : '';
+         status.hidden = !key;
+         status.classList.toggle('error', error);
+@@ -110,7 +113,7 @@
+         form.querySelector('.study-fields').append(wrap);
+         return input;
+     }
+-    function form(parent, id, key, action) {
++    function form(parent, id, key, action, successKey = 'studySaved') {
+         const f = n('form', '', 'form-grid');
+         f.id = id;
+         f.append(n('div', '', 'study-fields'));
+@@ -120,8 +123,9 @@
+         f.addEventListener('submit', (e) => {
+             e.preventDefault();
+             void work(b, async () => {
+-                await action(Object.fromEntries(new FormData(f)), f);
+-                message('studySaved');
++                const refreshed = await action(Object.fromEntries(new FormData(f)), f);
++                if (refreshed !== obsolete)
++                    message(refreshed === false ? 'studySavedRefreshFailed' : successKey, refreshed === false);
+             });
+         });
+         parent.append(f);
+@@ -171,6 +175,7 @@
+     }
+     const nav = n('div', '', 'study-tabs');
+     nav.setAttribute('aria-label', t('planStudy'));
++    nav.setAttribute('data-lang-aria', 'planStudy');
+     root.append(nav);
+     for (const [key, label] of Object.entries({
+         tasks: 'tasksTab',
+@@ -226,7 +231,7 @@
+         taskForm.querySelector('button[type=submit]').setAttribute('data-lang', 'addTask');
+         taskForm.querySelector('button[type=submit]').textContent = t('addTask');
+         cancelEdit.hidden = true;
+-        await load();
++        return load();
+     });
+     const taskTitle = field(taskForm, 'taskTitle', 'title');
+     taskTitle.required = true;
+@@ -293,7 +298,7 @@
+     const projectForm = form(projects, 'study-project', 'addProject', async (values, f) => {
+         await api('POST', '/projects', { ...values, requestId: requestId(f) });
+         resetForm(f);
+-        await load();
++        return load();
+     });
+     const projectName = field(projectForm, 'projectName', 'name');
+     projectName.maxLength = 60;
+@@ -309,7 +314,7 @@
+             requestId: requestId(f),
+         });
+         resetForm(f);
+-        await load();
++        return load();
+     });
+     const thought = field(thoughtForm, 'thought', 'text', 'textarea');
+     thought.maxLength = 500;
+@@ -439,7 +444,7 @@
+     const routineForm = form(routinesSection, 'study-routine', 'addRoutine', async (values, f) => {
+         await api('POST', '/routines', { ...values, requestId: requestId(f) });
+         resetForm(f);
+-        await load();
++        return load();
+     });
+     const routineName = field(routineForm, 'routineName', 'name');
+     routineName.maxLength = 60;
+@@ -690,7 +695,13 @@
+             version: reflectionVersion,
+         });
+         reflectionRoot.hidden = true;
+-        await loadJournal();
++        try {
++            return await loadJournal();
++        } catch (error) {
++            failure(error);
++            retry.hidden = false;
++            return false;
++        }
+     });
+     field(reflectionForm, 'outcome', 'outcome', 'text', 'partial', [
+         ['done', 'done'],
+@@ -713,7 +724,7 @@
+     const bookmarkForm = form(favorites, 'study-bookmark', 'saveRoom', async (values, f) => {
+         await api('POST', '/bookmarks', { roomId: String(values.roomId).trim() });
+         resetForm(f);
+-        await load();
++        return load();
+     });
+     const roomId = field(bookmarkForm, 'roomCode', 'roomId');
+     roomId.required = true;
+@@ -735,11 +746,12 @@
+     const reminders = section(sections.agenda, 'remindersTitle');
+     reminders.append(tr('p', 'reminderHint', 'note'));
+     const reminderForm = form(reminders, 'study-reminders', 'savePreferences', async (values, f) => {
+-        await savePreferences({
++        const refreshed = await savePreferences({
+             reminders: values.reminders === 'on',
+             reminder_minutes: Number(values.reminder_minutes),
+         });
+         delete f.dataset.dirty;
++        return refreshed;
+     });
+     const reminderOn = field(reminderForm, 'remindersOn', 'reminders', 'checkbox');
+     reminderOn.parentElement.className = 'study-check';
+@@ -775,11 +787,12 @@
+     const targetSection = section(insightsSection, 'goalsTitle');
+     targetSection.append(tr('p', 'goalsHint', 'note'));
+     const targetForm = form(targetSection, 'study-targets', 'savePreferences', async (values, f) => {
+-        await savePreferences({
++        const refreshed = await savePreferences({
+             daily_target: Number(values.daily_target),
+             weekly_target: Number(values.weekly_target),
+         });
+         delete f.dataset.dirty;
++        return refreshed;
+     });
+     for (const [key, name, max] of [
+         ['dailyTarget', 'daily_target', 240],
+@@ -799,7 +812,7 @@
+             ...data.preferences,
+             ...changes,
+         });
+-        await load();
++        return load();
+     }
+     const insightNumbers = n('div', '', 'metrics'),
+         targetBars = n('div'),
+@@ -811,7 +824,7 @@
+     const journalSection = section(sections.insights, 'journalTitle');
+     const historyLimit = n('p', '', 'note');
+     journalSection.append(historyLimit);
+-    const journalForm = form(journalSection, 'study-journal', 'journalSearch', async () => loadJournal());
++    const journalForm = form(journalSection, 'study-journal', 'journalSearch', async () => loadJournal(), '');
+     const search = field(journalForm, 'searchJournal', 'q', 'search');
+     search.maxLength = 80;
+     field(journalForm, 'fromDate', 'from', 'date');
+@@ -841,12 +854,19 @@
+             params = new URLSearchParams();
+         for (const [k, v] of new FormData(journalForm)) if (String(v)) params.set(k, String(v));
+         if (append && next) for (const [k, v] of Object.entries(next)) params.set(k, String(v));
+-        const result = await api('GET', `/journal?${params}`);
+-        if (request !== journalRequest || owner !== account) return;
++        let result;
++        try {
++            result = await api('GET', `/journal?${params}`);
++        } catch (error) {
++            if (request !== journalRequest || owner !== account) return obsolete;
++            throw error;
++        }
++        if (request !== journalRequest || owner !== account) return obsolete;
+         journal = append ? [...journal, ...result.sessions] : result.sessions;
+         next = result.next;
+         historyLimit.textContent = `${t('historyLimit')}: ${number(result.historyDays)}`;
+         renderJournal();
++        return true;
+     }
+     function renderJournal() {
+         rows(
+@@ -1005,7 +1025,7 @@
+         if (!user) {
+             owner = null;
+             data = null;
+-            return;
++            return obsolete;
+         }
+         const request = ++loadRequest;
+         busy = true;
+@@ -1018,7 +1038,7 @@
+                 api('GET', '/bookmarks'),
+                 api('GET', '/insights'),
+             ]);
+-            if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id) return;
++            if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id) return obsolete;
+             const changed = owner !== user.id;
+             owner = user.id;
+             [data, { sessions: agenda }, { bookmarks: saved }, insights] = results;
+@@ -1028,13 +1048,16 @@
+                 restoreRoutine();
+             }
+             render();
+-            await loadJournal();
++            const journalResult = await loadJournal();
++            if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id || journalResult === obsolete)
++                return obsolete;
+             message('');
++            return true;
+         } catch (error) {
+-            if (request === loadRequest) {
+-                failure(error);
+-                retry.hidden = false;
+-            }
++            if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id) return obsolete;
++            failure(error);
++            retry.hidden = false;
++            return false;
+         } finally {
+             if (request === loadRequest) busy = false;
+         }
+@@ -1051,12 +1074,12 @@
+         const request = ++resourceRequest;
+         circle = selected;
+         resourcesRoot.replaceChildren();
+-        if (!circle) return;
++        if (!circle) return obsolete;
+         const circleId = circle.id;
+         resourcesRoot.append(tr('h3', 'resourcesTitle'), tr('p', 'resourcesHint', 'note'));
+         try {
+             const result = await api('GET', `/circles/${circleId}/resources`);
+-            if (request !== resourceRequest || circle?.id !== circleId) return;
++            if (request !== resourceRequest || circle?.id !== circleId) return obsolete;
+             const list = n('div');
+             list.id = 'study-resource-list';
+             resourcesRoot.append(list);
+@@ -1088,7 +1111,7 @@
+                     });
+                     resetForm(f);
+                     resourceDraft = null;
+-                    await loadResources(circle);
++                    return loadResources(circle);
+                 });
+                 const title = field(f, 'resourceTitle', 'title');
+                 title.required = true;
+@@ -1105,14 +1128,15 @@
+                     if (resourceDraft.requestId) f.dataset.request = resourceDraft.requestId;
+                 }
+             }
++            return true;
+         } catch (error) {
+-            if (request === resourceRequest) {
+-                resourcesRoot.append(
+-                    empty('studyUnavailable'),
+-                    btn('studyRetry', () => loadResources(circle)),
+-                );
+-                failure(error);
+-            }
++            if (request !== resourceRequest || circle?.id !== circleId) return obsolete;
++            resourcesRoot.append(
++                empty('studyUnavailable'),
++                btn('studyRetry', () => loadResources(circle)),
++            );
++            failure(error);
++            return false;
+         }
+     }
+     const notified = new Set();
+@@ -1217,8 +1241,13 @@
+         }
+         if (event.key === reminderBanner.dataset.key) reminderBanner.hidden = true;
+     });
++    let platformSnapshot = null;
+     window.addEventListener('halaplatformcontext', () => {
+-        if (!busy) void load();
++        const context = g.HalaPlatform.context();
++        const changed = context.state !== platformSnapshot || context.user?.id !== owner;
++        platformSnapshot = context.state;
++        // A language-only render must not clear feedback from a failed save.
++        if (!busy && (changed || !data)) void load();
+     });
+     window.addEventListener('halastudyrefresh', () => {
+         if (!busy) void load();
+diff --git a/tests/smoke/planner-feedback-away.smoke.spec.js b/tests/smoke/planner-feedback-away.smoke.spec.js
+new file mode 100644
+index 0000000..dc70519
+--- /dev/null
++++ b/tests/smoke/planner-feedback-away.smoke.spec.js
+@@ -0,0 +1,124 @@
++const { test, expect } = require('@playwright/test');
++const { startServer } = require('../helpers/server-control');
++const { signupUser } = require('../helpers/auth-helpers');
++
++async function fixture(browser, language, width) {
++    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh' } });
++    const account = await signupUser(server, { displayName: 'Synthetic feedback review' });
++    const context = await browser.newContext({ viewport: { width, height: 960 } });
++    await context.addCookies(account.cookie.split(';').map((part) => {
++        const [name, ...value] = part.trim().split('=');
++        return { name, value: value.join('='), url: server.baseUrl };
++    }));
++    await context.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language);
++    const page = await context.newPage();
++    await page.goto(`${server.baseUrl}/app#planner`);
++    await expect(page.locator('#study-task')).toBeVisible();
++    await expect(page.locator('#study-status')).toBeEmpty();
++    const overview = async () => (await server.request('/api/platform/study/overview', { headers: { Cookie: account.cookie } })).body;
++    return { server, account, context, page, overview, close: async () => { await context.close(); await server.stop(); } };
++}
++
++for (const olderFails of [true, false]) {
++    test(`superseded planner refresh cannot replace newer ${olderFails ? 'success' : 'failure'} feedback`, async ({ browser }) => {
++        const f = await fixture(browser, 'en', 1440);
++        let release = () => {};
++        const held = new Promise((resolve) => { release = () => resolve(undefined); });
++        let reads = 0;
++        try {
++            await f.page.route('**/api/platform/study/overview', async (route) => {
++                const index = ++reads;
++                if (index === 1) {
++                    const response = olderFails ? null : await route.fetch();
++                    await held;
++                    return response ? route.fulfill({ response }) : route.fulfill({
++                        status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}',
++                    });
++                }
++                return olderFails ? route.continue() : route.fulfill({
++                    status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}',
++                });
++            });
++            await f.page.locator('#study-task-title').fill('First saved task');
++            await f.page.locator('#study-task button[type=submit]').click();
++            await expect.poll(() => reads).toBe(1);
++            await f.page.locator('#study-project-name').fill('Newer saved project');
++            await f.page.locator('#study-project button[type=submit]').click();
++            await expect.poll(() => reads).toBe(2);
++            await expect(f.page.locator('#study-project button[type=submit]')).toBeEnabled();
++            const expected = olderFails ? 'Saved.' : 'Saved, but the latest list could not be loaded. Retry to refresh it.';
++            await expect(f.page.locator('#study-status')).toHaveText(expected);
++            release();
++            await expect(f.page.locator('#study-task button[type=submit]')).toBeEnabled();
++            await expect(f.page.locator('#study-status')).toHaveText(expected);
++            const persisted = await f.overview();
++            expect(persisted.tasks).toHaveLength(1);
++            expect(persisted.projects).toHaveLength(1);
++        } finally { release(); await f.close(); }
++    });
++}
++
++for (const { language, width } of [{ language: 'en', width: 1440 }, { language: 'ar', width: 390 }]) {
++    test(`confirmed save with failed refresh stays truthful and retries (${language}, ${width})`, async ({ browser }, info) => {
++        const f = await fixture(browser, language, width);
++        let failRefresh = false;
++        try {
++            await f.page.route('**/api/platform/study/overview', (route) => failRefresh
++                ? route.fulfill({ status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}' })
++                : route.continue());
++            await f.page.route('**/api/platform/study/tasks', async (route) => {
++                const response = await route.fetch();
++                failRefresh = true;
++                await route.fulfill({ response });
++            });
++            await f.page.locator('#study-task-title').fill('مهمة محفوظة / Saved task');
++            await f.page.locator('#study-task button[type=submit]').click();
++            await expect(f.page.locator('#study-task button[type=submit]')).toBeEnabled();
++            expect((await f.overview()).tasks).toHaveLength(1);
++            const status = f.page.locator('#study-status');
++            await expect(status).toContainText(language === 'ar' ? 'تم الحفظ، لكن' : 'Saved, but');
++            await expect(status).toHaveClass(/error/);
++            await expect(f.page.locator('#study-task-title')).toHaveValue('');
++            await f.page.screenshot({ path: info.outputPath(`saved-refresh-error-${language}-${width}.png`), fullPage: true });
++            failRefresh = false;
++            await f.page.locator('main > [data-lang=studyRetry]').click();
++            await expect(f.page.locator('#study-task-list .row')).toHaveCount(1);
++            await expect(status).toBeEmpty();
++            expect((await f.overview()).tasks).toHaveLength(1);
++            await expect(f.page.locator('main > [data-lang=studyRetry]')).toBeHidden();
++        } finally { await f.close(); }
++    });
++
++    test(`planner failure and draft follow the language switch (${language}, ${width})`, async ({ browser }, info) => {
++        const f = await fixture(browser, language, width);
++        try {
++            await f.page.route('**/api/platform/study/tasks', (route) => route.fulfill({
++                status: 503, contentType: 'application/json', body: '{"errorCode":"SERVICE_UNAVAILABLE"}',
++            }));
++            await f.page.locator('#study-task-title').fill('مسودتي / My draft');
++            await f.page.locator('#study-task button[type=submit]').click();
++            const status = f.page.locator('#study-status');
++            await expect(status).toHaveText(language === 'ar' ? 'الخدمة غير متاحة مؤقتًا.' : 'The service is temporarily unavailable.');
++            const next = language === 'ar' ? 'en' : 'ar';
++            await f.page.locator(`[data-lang-value=${next}]`).click();
++            await expect(status).toHaveText(next === 'ar' ? 'الخدمة غير متاحة مؤقتًا.' : 'The service is temporarily unavailable.');
++            await expect(f.page.locator('#study-task-title')).toHaveValue('مسودتي / My draft');
++            await expect(f.page.locator('html')).toHaveAttribute('dir', next === 'ar' ? 'rtl' : 'ltr');
++            expect(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
++            await f.page.screenshot({ path: info.outputPath(`translated-error-${next}-${width}.png`), fullPage: true });
++        } finally { await f.close(); }
++    });
++
++    test(`journal search reports results without claiming a save (${language}, ${width})`, async ({ browser }) => {
++        const f = await fixture(browser, language, width);
++        try {
++            await f.page.locator('.study-tabs [data-lang=insightsTab]').click();
++            await expect(f.page.locator('.study-tabs [data-lang=insightsTab]')).toBeEnabled();
++            await f.page.locator('#study-journal-q').fill('no matching session');
++            await f.page.locator('#study-journal button[type=submit]').click();
++            await expect(f.page.locator('#study-journal button[type=submit]')).toBeEnabled();
++            await expect(f.page.locator('#study-journal-list .empty')).toBeVisible();
++            await expect(f.page.locator('#study-status')).toBeEmpty();
++        } finally { await f.close(); }
++    });
++}

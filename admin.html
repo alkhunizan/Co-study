@@ -132,6 +132,8 @@
       <button type="button" class="btn" id="btn-refresh">Refresh</button>
       <button type="button" class="btn" id="btn-admin-signout">Sign out</button>
     </div>
+    <p id="signout-feedback" class="feedback" role="alert"></p>
+    <p id="request-feedback" class="feedback" role="alert"></p>
 
     <div class="tabs" id="tabs">
       <button data-panel="overview" class="is-on">Overview</button>
@@ -274,21 +276,40 @@
           options.headers['Content-Type'] = 'application/json';
           options.body = JSON.stringify(body);
         }
-        const response = await fetch(`${BASE}/api${apiPath}`, options);
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const error = new Error(payload.errorCode || `HTTP ${response.status}`);
-          error.code = payload.errorCode;
-          error.status = response.status;
-          throw error;
+        const controller = new AbortController();
+        options.signal = controller.signal;
+        const deadline = setTimeout(() => controller.abort(), 15000);
+        try {
+          const response = await fetch(`${BASE}/api${apiPath}`, options);
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            const error = new Error(payload.errorCode || `HTTP ${response.status}`);
+            error.code = payload.errorCode;
+            error.status = response.status;
+            throw error;
+          }
+          return payload;
+        } finally {
+          clearTimeout(deadline);
         }
-        return payload;
       }
 
       function toastNote(el, message, ok) {
         el.textContent = message;
         el.className = ok ? 'feedback ok' : 'feedback';
         setTimeout(() => { el.textContent = ''; }, 4000);
+      }
+
+      function showRequestError(error) {
+        if (error.status === 401) { window.location.reload(); return; }
+        $('request-feedback').textContent = 'Could not complete this request. Refresh to check its status, then retry.';
+      }
+
+      function onAction(element, eventName, action) {
+        element.addEventListener(eventName, async (event) => {
+          try { if (await action(event) !== false) $('request-feedback').textContent = ''; }
+          catch (error) { showRequestError(error); }
+        });
       }
 
       /* Typed confirmation for irreversible actions. */
@@ -330,8 +351,16 @@
       });
 
       $('btn-admin-signout').addEventListener('click', async () => {
-        try { await api('POST', '/logout'); } catch (_e) {}
-        window.location.reload();
+        $('btn-admin-signout').disabled = true;
+        $('signout-feedback').textContent = '';
+        try {
+          await api('POST', '/logout');
+          window.location.reload();
+        } catch (_error) {
+          $('signout-feedback').textContent = 'Could not sign out. You are still signed in. Please retry.';
+        } finally {
+          $('btn-admin-signout').disabled = false;
+        }
       });
 
       /* ---------- tabs ---------- */
@@ -406,7 +435,7 @@
           const inspectBtn = document.createElement('button');
           inspectBtn.className = 'btn';
           inspectBtn.textContent = 'Inspect';
-          inspectBtn.addEventListener('click', () => inspectRoom(room.roomId));
+          onAction(inspectBtn, 'click', () => inspectRoom(room.roomId));
           tr.lastElementChild.appendChild(inspectBtn);
           tbody.appendChild(tr);
         });
@@ -431,13 +460,13 @@
           const kickBtn = document.createElement('button');
           kickBtn.className = 'btn danger';
           kickBtn.textContent = 'Kick';
-          kickBtn.addEventListener('click', async () => {
+          onAction(kickBtn, 'click', async () => {
             const yes = await confirmTyped({
               title: `Kick ${participant.name}?`,
               body: 'They are disconnected immediately but can rejoin with the room code.',
               expected: ''
             });
-            if (!yes) return;
+            if (!yes) return false;
             await api('POST', `/rooms/${encodeURIComponent(roomId)}/kick`, { socketId: participant.socketId });
             await inspectRoom(roomId);
             await loadRooms();
@@ -453,14 +482,14 @@
         inspectedRoomId = null;
       });
 
-      $('inspect-force-close').addEventListener('click', async () => {
+      onAction($('inspect-force-close'), 'click', async () => {
         if (!inspectedRoomId) return;
         const yes = await confirmTyped({
           title: 'Force close this room?',
           body: 'Everyone inside is disconnected and the room is deleted, including its board and chat history. This cannot be undone.',
           expected: inspectedRoomId
         });
-        if (!yes) return;
+        if (!yes) return false;
         await api('POST', `/rooms/${encodeURIComponent(inspectedRoomId)}/close`);
         $('room-inspect').classList.add('hidden');
         inspectedRoomId = null;
@@ -489,14 +518,14 @@
           const actionBtn = document.createElement('button');
           actionBtn.className = user.banned ? 'btn' : 'btn danger';
           actionBtn.textContent = user.banned ? 'Unban' : 'Ban';
-          actionBtn.addEventListener('click', async () => {
+          onAction(actionBtn, 'click', async () => {
             if (!user.banned) {
               const yes = await confirmTyped({
                 title: `Ban ${user.displayName}?`,
                 body: 'They are signed out everywhere immediately and cannot sign back in until unbanned.',
                 expected: user.displayName
               });
-              if (!yes) return;
+              if (!yes) return false;
               await api('POST', `/users/${encodeURIComponent(user.id)}/ban`);
             } else {
               await api('POST', `/users/${encodeURIComponent(user.id)}/unban`);
@@ -507,9 +536,10 @@
           tbody.appendChild(tr);
         });
       }
-      $('user-search-btn').addEventListener('click', () => { void loadUsers(); });
-      $('user-search').addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') { event.preventDefault(); void loadUsers(); }
+      onAction($('user-search-btn'), 'click', loadUsers);
+      onAction($('user-search'), 'keydown', (event) => {
+        if (event.key === 'Enter') { event.preventDefault(); return loadUsers(); }
+        return false;
       });
 
       /* ---------- user reports ---------- */
@@ -540,7 +570,7 @@
             const resolveBtn = document.createElement('button');
             resolveBtn.className = 'btn';
             resolveBtn.textContent = 'Resolve';
-            resolveBtn.addEventListener('click', async () => {
+            onAction(resolveBtn, 'click', async () => {
               await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/reports/${encodeURIComponent(report.id)}/resolve`);
               await loadReports();
             });
@@ -551,7 +581,7 @@
             kickBtn.className = 'btn danger';
             kickBtn.textContent = 'Kick';
             kickBtn.style.marginInlineStart = '6px';
-            kickBtn.addEventListener('click', async () => {
+            onAction(kickBtn, 'click', async () => {
               await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/kick`, { socketId: report.targetSocketId });
               await loadReports();
             });
@@ -571,7 +601,7 @@
         toggle.className = disabled ? 'btn' : 'btn danger';
       }
 
-      $('kill-switch-toggle').addEventListener('click', async () => {
+      onAction($('kill-switch-toggle'), 'click', async () => {
         const currentlyDisabled = lastOverview ? lastOverview.videoJoinDisabled : false;
         const yes = await confirmTyped({
           title: currentlyDisabled ? 'Re-enable video joins?' : 'Disable ALL video joins?',
@@ -580,7 +610,7 @@
             : 'Every new video join is rejected until re-enabled (existing calls continue). Restart resets to the env default.',
           expected: ''
         });
-        if (!yes) return;
+        if (!yes) return false;
         const result = await api('POST', '/video-kill-switch', { disabled: !currentlyDisabled });
         renderKillSwitch(result.disabled);
         await loadOverview();
@@ -603,7 +633,7 @@
         }
       });
 
-      $('announce-clear').addEventListener('click', async () => {
+      onAction($('announce-clear'), 'click', async () => {
         await api('DELETE', '/broadcast');
         toastNote($('announce-feedback'), 'Cleared.', true);
         await loadOverview();
@@ -649,9 +679,11 @@
           if (panel === 'reports') await loadReports();
           if (panel === 'system') { await loadOverview(); await loadErrors(); }
         } catch (error) {
-          if (error.status === 401) window.location.reload();
+          showRequestError(error);
+          return false;
         }
       }
+      onAction($('btn-refresh'), 'click', refreshActive);
 
       $('btn-refresh').addEventListener('click', async () => {
         const button = $('btn-refresh');
