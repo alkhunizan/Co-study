@@ -423,3 +423,46 @@ test('changing the audit filter blocks Load more until the filtered first page a
         await operator.context.close();
     }
 });
+
+test('design pass: Arabic reasons, isolated room code, readable headers and touch-sized buttons', async ({ browser, isMobile, baseURL }) => {
+    const reporter = await connectSocket(baseURL, { clientId: 'smoke-design-reporter' });
+    const target = await connectSocket(baseURL, { clientId: 'smoke-design-target' });
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        const created = await emitAck(reporter, 'create-room', { roomName: 'غرفة التصميم' });
+        const roomId = created.room.roomId;
+        await emitAck(reporter, 'join-room', { roomId, username: 'Reporter', clientId: 'smoke-design-reporter' });
+        await emitAck(target, 'join-room', { roomId, username: 'Target', clientId: 'smoke-design-target' });
+        await emitAck(reporter, 'report-user', { targetId: target.id, reason: 'spam', detail: '' });
+
+        await page.addInitScript(() => { try { localStorage.setItem('halastudyOpsLang', 'ar'); } catch (_e) {} });
+        await gotoTestPage(page, `${ADMIN_PATH}#reports`);
+        await signInOperator(page);
+        await expect(page).toHaveTitle('البلاغات والدعم — لوحة تشغيل Halastudy');
+        const reportRow = page.locator('#reports-tbody tr', { hasText: roomId });
+        await expect(reportRow).toContainText('رسائل مزعجة');
+
+        if (isMobile) {
+            // Every visible button meets the 44px touch minimum (DESIGN.md §11).
+            const heights = await page.locator('#ops-shell button:visible').evaluateAll(
+                (buttons) => buttons.map((button) => button.getBoundingClientRect().height)
+            );
+            expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
+            return;
+        }
+        const header = page.locator('#panel-reports th').first();
+        await expect(header).toHaveCSS('text-transform', 'none');
+        await expect(header).toHaveCSS('letter-spacing', 'normal');
+
+        await page.click('#ops-nav a[data-section="rooms"]');
+        await page.locator('#rooms-tbody tr', { hasText: roomId }).locator('button').click();
+        const code = page.locator('#inspect-title bdi');
+        await expect(code).toHaveText(roomId);
+        await expect(code).toHaveAttribute('dir', 'ltr');
+    } finally {
+        await closeSocket(reporter);
+        await closeSocket(target);
+        await operator.context.close();
+    }
+});
