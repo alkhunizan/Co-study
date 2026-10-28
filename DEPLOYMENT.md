@@ -72,10 +72,13 @@ export ADMIN_PATH='/ops-<random-slug>'               # 8-64 chars, keep it ungue
 export ADMIN_PASSWORD_HASH='<salt:hex from above>'
 ```
 
-Then open `https://your-domain.com$ADMIN_PATH`. The console covers: live
-overview, room inspect/force-close/kick, the runtime video kill-switch, user
-search + ban/unban, the site-wide broadcast banner, backup-now, and the
-recent-errors view. The admin session cookie is Path-scoped to `ADMIN_PATH`
+Then open `https://your-domain.com$ADMIN_PATH`. The console uses the Ops
+workspace layout (sidebar sections with `#overview`, `#rooms`, `#users`,
+`#reports`, `#system` deep links; Arabic/English and light/dark toggles
+remembered per browser) and covers: live overview, room
+inspect/force-close/kick, user search + ban/unban, reports, and under System
+the runtime video kill-switch, the site-wide broadcast banner, backup-now and
+the recent-errors view. The admin session cookie is Path-scoped to `ADMIN_PATH`
 and expires after 12 hours. If the path ever leaks (proxy logs, browser
 history), rotate `ADMIN_PATH` — the password remains the real gate.
 

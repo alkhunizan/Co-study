@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Halastudy Ops console. Operator tool for the founder — deliberately
-     English-only (DESIGN.md governs product surfaces; this is not one).
-     Everything is inlined: this page must not leak its existence through
-     public asset paths. Served only when ADMIN_PATH + ADMIN_PASSWORD_HASH
-     are configured. -->
+<!-- Halastudy Ops console. Operator tool for the founder, laid out like the
+     Ops workspace: section sidebar, AR/EN shell copy and the shared design
+     tokens. Everything else is inlined: this page must not leak its
+     existence through public asset paths. Served only when ADMIN_PATH +
+     ADMIN_PASSWORD_HASH are configured. -->
 <html lang="en" dir="ltr" data-theme="dark">
 <head>
   <meta charset="UTF-8">
@@ -20,10 +20,48 @@
       font: 400 var(--t-body-sm)/1.5 var(--font-body);
       min-height: 100vh;
     }
-    .shell { max-width: 1080px; margin-inline: auto; padding: 24px 20px 80px; }
-    .ops-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
-    .ops-header h1 { font: 600 var(--t-h3)/1.2 var(--font-body); margin: 0; }
-    .ops-header .spacer { flex: 1; }
+    html[lang="ar"] body { font-family: var(--font-body-ar); }
+    .skip-link { position: absolute; inset-inline-start: 12px; inset-block-start: -60px; padding: 10px 16px; border-radius: 999px; background: var(--card); color: var(--ink); z-index: 10; }
+    .skip-link:focus { inset-block-start: 12px; outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+    .ops-topbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 24px; border-block-end: 1px solid var(--line); background: var(--paper); }
+    .brand { font: 600 var(--t-h4)/1 var(--font-display); color: var(--ink); text-decoration: none; display: inline-flex; gap: 8px; align-items: baseline; }
+    .brand [lang="ar"] { font-family: var(--font-display-ar); color: var(--accent-3); }
+    .ops-topbar .spacer { flex: 1; }
+    .lang-switch { display: inline-flex; gap: 4px; }
+    .lang-switch .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--line-strong); }
+    .ops-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-inline-size: 1440px; margin-inline: auto; min-block-size: calc(100vh - 70px); }
+    .ops-sidebar { padding: 32px 18px; border-inline-end: 1px solid var(--line); min-inline-size: 0; }
+    .eyebrow { margin: 0 0 18px; color: var(--ink-3); font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+    html[lang="ar"] .eyebrow { letter-spacing: 0; text-transform: none; font-size: var(--t-caption); }
+    #ops-nav { display: grid; gap: 4px; }
+    #ops-nav a { display: flex; align-items: center; min-block-size: 44px; padding: 10px 16px; border-radius: 16px; color: var(--ink-2); text-decoration: none; font-weight: 600; }
+    #ops-nav a:hover { color: var(--ink); background: var(--inset); }
+    #ops-nav a:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+    #ops-nav a[aria-current="page"] { color: var(--ink); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--line); }
+    .ops-mobile-nav { display: none; }
+    .ops-main { padding: 32px 28px 80px; min-inline-size: 0; }
+    .ops-main:focus { outline: none; }
+    .ops-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-block-end: 20px; }
+    .ops-heading h1 { font: 500 clamp(28px, 3.4vw, 40px)/1.15 var(--font-display); margin: 0 0 6px; }
+    html[lang="ar"] .ops-heading h1 { font-family: var(--font-display-ar); }
+    .ops-heading p { margin: 0; color: var(--ink-2); font-size: var(--t-body); }
+    .ops-heading .btn { flex-shrink: 0; }
+    .ops-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-block-end: 18px; }
+    @media (max-width: 850px) {
+      .ops-layout { grid-template-columns: minmax(0, 1fr); align-content: start; }
+      .ops-sidebar { padding: 16px 20px; border-inline-end: none; border-block-end: 1px solid var(--line); }
+      .ops-sidebar .eyebrow, #ops-nav { display: none; }
+      .ops-mobile-nav { display: grid; gap: 6px; margin: 0; }
+      .ops-main { padding: 24px 20px 64px; }
+      .ops-topbar { padding: 12px 20px; }
+      .btn { min-height: 44px; }
+    }
+    @media (max-width: 540px) {
+      .ops-heading { flex-wrap: wrap; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    }
     .chip {
       font-family: var(--font-mono);
       font-size: var(--t-caption);
@@ -33,19 +71,6 @@
       padding: 6px 14px;
       font-variant-numeric: tabular-nums;
     }
-    .tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
-    .tabs button {
-      border: 1px solid var(--line);
-      background: var(--card);
-      color: var(--ink-2);
-      font: 600 var(--t-caption)/1 var(--font-body);
-      padding: 10px 18px;
-      border-radius: 999px;
-      cursor: pointer;
-      min-height: 36px;
-    }
-    .tabs button.is-on { background: var(--inset); color: var(--ink); border-color: var(--line-strong); }
-    .tabs button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
     .panel { display: none; }
     .panel.is-on { display: block; }
     .card {
@@ -53,14 +78,15 @@
       border: 1px solid var(--line);
       border-radius: 16px;
       padding: 20px;
-      margin-bottom: 16px;
+      margin-block-end: 16px;
+      overflow-x: auto;
     }
     .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
     .tile { background: var(--inset); border: 1px solid var(--line-2); border-radius: 12px; padding: 14px; }
     .tile strong { display: block; font-size: var(--t-h3); font-variant-numeric: tabular-nums; }
     .tile span { color: var(--ink-2); font-size: var(--t-micro); text-transform: uppercase; letter-spacing: 0.08em; }
     table { width: 100%; border-collapse: collapse; font-size: var(--t-caption); }
-    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+    th, td { text-align: start; padding: 8px 10px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
     th { color: var(--ink-3); font-weight: 600; text-transform: uppercase; font-size: var(--t-micro); letter-spacing: 0.06em; }
     td.mono, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
     .btn {
@@ -71,7 +97,7 @@
       padding: 8px 16px;
       border-radius: 999px;
       cursor: pointer;
-      min-height: 32px;
+      min-height: 36px;
     }
     .btn:hover { border-color: var(--line-strong); }
     .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
@@ -81,8 +107,8 @@
     .btn[disabled] { opacity: 0.45; cursor: default; }
     input[type="password"], input[type="text"], input[type="search"], textarea, select {
       width: 100%;
-      padding: 10px 14px;
-      border-radius: 12px;
+      padding: 12px 16px;
+      border-radius: 16px;
       border: 1px solid var(--line);
       background: var(--inset);
       color: var(--ink);
@@ -91,7 +117,7 @@
     input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); border-color: var(--accent); }
     label { display: block; font-weight: 600; font-size: var(--t-caption); margin: 14px 0 6px; }
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .feedback { color: var(--danger); font-size: var(--t-caption); min-height: 18px; margin-top: 8px; }
+    .feedback { color: var(--danger); font-size: var(--t-caption); min-height: 18px; margin-block-start: 8px; }
     .feedback.ok { color: var(--success); }
     .muted { color: var(--ink-3); font-size: var(--t-caption); }
     .login-shell { max-width: 380px; margin: 15vh auto 0; padding-inline: 20px; }
@@ -111,12 +137,15 @@
   <!-- Login -->
   <div class="login-shell" id="login-view">
     <div class="card">
-      <h1 style="font-size:18px;margin:0 0 14px;">Halastudy Ops</h1>
+      <div class="row">
+        <h1 style="font-size:18px;margin:0;flex:1;" data-i18n="loginTitle">Halastudy Ops</h1>
+        <div class="lang-switch" data-lang-switch></div>
+      </div>
       <form id="login-form">
-        <label for="admin-password">Password</label>
-        <input type="password" id="admin-password" autocomplete="current-password" required>
-        <div class="row" style="margin-top:16px;">
-          <button type="submit" class="btn primary">Sign in</button>
+        <label for="admin-password" data-i18n="password">Password</label>
+        <input type="password" id="admin-password" autocomplete="current-password" required dir="ltr">
+        <div class="row" style="margin-block-start:16px;">
+          <button type="submit" class="btn primary" data-i18n="signIn">Sign in</button>
         </div>
         <p class="feedback" id="login-feedback"></p>
       </form>
@@ -124,27 +153,43 @@
   </div>
 
   <!-- Shell -->
-  <div class="shell hidden" id="ops-shell">
-    <div class="ops-header">
-      <h1>Halastudy Ops</h1>
-      <span class="chip" id="uptime-chip">up —</span>
-      <span class="chip" id="memory-chip">rss —</span>
+  <div class="hidden" id="ops-shell">
+    <a class="skip-link" href="#main" data-i18n="skip">Skip to content</a>
+    <header class="ops-topbar">
+      <span class="brand"><span lang="en" dir="ltr">Halastudy</span><span lang="ar">هلا</span></span>
       <div class="spacer"></div>
-      <button type="button" class="btn" id="btn-refresh">Refresh</button>
-      <button type="button" class="btn" id="btn-admin-signout">Sign out</button>
-    </div>
+      <div class="lang-switch" data-lang-switch></div>
+      <button type="button" class="btn" id="btn-theme" data-i18n="theme">Theme</button>
+      <button type="button" class="btn" id="btn-admin-signout" data-i18n="signOut">Sign out</button>
+    </header>
+    <div class="ops-layout">
+      <aside class="ops-sidebar">
+        <p class="eyebrow" data-i18n="workspace">Platform administration</p>
+        <nav id="ops-nav" aria-label="Platform administration" data-i18n-aria="workspace">
+          <a href="#overview" data-section="overview" data-i18n="overview">Overview</a>
+          <a href="#rooms" data-section="rooms" data-i18n="rooms">Rooms</a>
+          <a href="#users" data-section="users" data-i18n="users">Users</a>
+          <a href="#reports" data-section="reports" data-i18n="reports">Reports &amp; Support</a>
+          <a href="#system" data-section="system" data-i18n="system">System</a>
+        </nav>
+        <label class="ops-mobile-nav"><span data-i18n="navigate">Go to section</span>
+          <select id="ops-section-select"></select>
+        </label>
+      </aside>
+      <main class="ops-main" id="main" tabindex="-1">
+        <div class="ops-heading">
+          <div>
+            <h1 id="ops-title" tabindex="-1">Overview</h1>
+            <p id="ops-description"></p>
+          </div>
+          <button type="button" class="btn" id="btn-refresh" data-i18n="refresh">Refresh</button>
+        </div>
 
-    <div class="tabs" id="tabs">
-      <button data-panel="overview" class="is-on">Overview</button>
-      <button data-panel="rooms">Rooms</button>
-      <button data-panel="users">Users</button>
-      <button data-panel="reports">Reports</button>
-      <button data-panel="video">Video</button>
-      <button data-panel="announce">Announce</button>
-      <button data-panel="system">System</button>
-    </div>
-
-    <section class="panel is-on" id="panel-overview">
+    <section class="panel" id="panel-overview">
+      <div class="ops-chips" dir="ltr">
+        <span class="chip" id="uptime-chip">up —</span>
+        <span class="chip" id="memory-chip">rss —</span>
+      </div>
       <div class="card">
         <div class="tiles" id="overview-tiles"></div>
         <p class="muted" id="overview-updated" style="margin:12px 0 0;"></p>
@@ -201,7 +246,7 @@
       </div>
     </section>
 
-    <section class="panel" id="panel-video">
+    <section class="panel" id="panel-system">
       <div class="card">
         <h3 style="margin:0 0 10px;">Video join kill-switch</h3>
         <p class="muted">Runtime override only — a server restart falls back to the env default. Flipping this to ON blocks all new video tokens immediately.</p>
@@ -211,9 +256,7 @@
         </div>
         <p class="muted" id="video-counts" style="margin-top:12px;"></p>
       </div>
-    </section>
 
-    <section class="panel" id="panel-announce">
       <div class="card">
         <h3 style="margin:0 0 10px;">Broadcast banner</h3>
         <p class="muted">Shown on every page and pushed to every open room. Leave a field empty to skip that language.</p>
@@ -236,9 +279,7 @@
         </div>
         <p class="feedback" id="announce-feedback"></p>
       </div>
-    </section>
 
-    <section class="panel" id="panel-system">
       <div class="card">
         <h3 style="margin:0 0 10px;">Backups</h3>
         <div class="row">
@@ -251,6 +292,8 @@
         <div id="errors-list" class="muted">Loading…</div>
       </div>
     </section>
+      </main>
+    </div>
   </div>
 
   <dialog id="confirm-dialog">
@@ -348,21 +391,129 @@
         window.location.reload();
       });
 
-      /* ---------- tabs ---------- */
-      document.querySelectorAll('#tabs button').forEach((button) => {
-        button.addEventListener('click', () => {
-          document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('is-on', b === button));
-          document.querySelectorAll('.panel').forEach((panel) => {
-            panel.classList.toggle('is-on', panel.id === `panel-${button.dataset.panel}`);
+      /* ---------- shell copy (AR/EN) ---------- */
+      const COPY = {
+        en: {
+          loginTitle: 'Halastudy Ops', password: 'Password', signIn: 'Sign in', skip: 'Skip to content',
+          theme: 'Theme', signOut: 'Sign out', workspace: 'Platform administration', navigate: 'Go to section',
+          refresh: 'Refresh', overview: 'Overview', rooms: 'Rooms', users: 'Users',
+          reports: 'Reports & Support', system: 'System',
+          overviewBody: 'See how the platform is doing. Start with what needs attention.',
+          roomsBody: 'Current rooms, participants and session controls.',
+          usersBody: 'Find an account and review its status before taking action.',
+          reportsBody: 'Review reports from rooms and act on them.',
+          systemBody: 'Monitor operations. Manage video entry, announcements and backups.'
+        },
+        ar: {
+          loginTitle: 'إدارة هلا', password: 'كلمة المرور', signIn: 'تسجيل الدخول', skip: 'انتقل إلى المحتوى',
+          theme: 'المظهر', signOut: 'تسجيل الخروج', workspace: 'إدارة المنصة', navigate: 'انتقل إلى قسم',
+          refresh: 'تحديث', overview: 'نظرة عامة', rooms: 'الغرف', users: 'المستخدمون',
+          reports: 'البلاغات والدعم', system: 'النظام',
+          overviewBody: 'تابع حالة المنصة، وابدأ بما يحتاج إلى انتباهك.',
+          roomsBody: 'الغرف الحالية والمشاركون وأدوات إدارة الجلسات.',
+          usersBody: 'اعثر على حساب وراجع حالته قبل اتخاذ إجراء.',
+          reportsBody: 'راجع بلاغات الغرف واتخذ الإجراء المناسب.',
+          systemBody: 'راقب التشغيل، وأدر دخول الفيديو والإعلانات والنسخ الاحتياطية.'
+        }
+      };
+      const SECTIONS = ['overview', 'rooms', 'users', 'reports', 'system'];
+      const LANG_KEY = 'halastudyOpsLang';
+      const THEME_KEY = 'halastudyOpsTheme';
+      const readPref = (key) => { try { return localStorage.getItem(key); } catch (_e) { return null; } };
+      const writePref = (key, value) => { try { localStorage.setItem(key, value); } catch (_e) { /* private mode */ } };
+      let lang = readPref(LANG_KEY) === 'ar' ? 'ar' : 'en';
+      const t = (key) => COPY[lang][key] || COPY.en[key] || key;
+
+      function applyLanguage() {
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+        document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+        document.querySelectorAll('[data-lang-switch] .btn').forEach((button) => {
+          button.setAttribute('aria-pressed', String(button.dataset.lang === lang));
+        });
+        const select = $('ops-section-select');
+        select.innerHTML = '';
+        SECTIONS.forEach((section) => select.add(new Option(t(section), section)));
+        renderHeading();
+      }
+
+      document.querySelectorAll('[data-lang-switch]').forEach((holder) => {
+        [['ar', 'عربي'], ['en', 'EN']].forEach(([code, label]) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'btn';
+          button.lang = code;
+          button.dataset.lang = code;
+          button.textContent = label;
+          button.addEventListener('click', () => {
+            lang = code;
+            writePref(LANG_KEY, code);
+            applyLanguage();
           });
-          refreshActive();
+          holder.appendChild(button);
         });
       });
 
-      function activePanel() {
-        const active = document.querySelector('#tabs button.is-on');
-        return active ? active.dataset.panel : 'overview';
+      function applyTheme(theme) {
+        document.documentElement.dataset.theme = theme;
       }
+      applyTheme(readPref(THEME_KEY) === 'light' ? 'light' : 'dark');
+      $('btn-theme').addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        writePref(THEME_KEY, next);
+        applyTheme(next);
+      });
+
+      /* ---------- section navigation (#hash deep links) ---------- */
+      // Section hashes pick the panel and an empty fragment means Overview
+      // (so browser Back to the bare URL restores it); any other fragment,
+      // such as the skip link's #main, keeps the section the operator is on.
+      let currentSection = 'overview';
+      function routedSection() {
+        const requested = window.location.hash.replace('#', '');
+        if (requested === '') return 'overview';
+        return SECTIONS.includes(requested) ? requested : null;
+      }
+      function activePanel() {
+        const routed = routedSection();
+        if (routed) currentSection = routed;
+        return currentSection;
+      }
+
+      function renderHeading() {
+        const section = activePanel();
+        $('ops-title').textContent = t(section);
+        $('ops-description').textContent = t(`${section}Body`);
+        document.title = `${t(section)} — Halastudy Ops`;
+        document.querySelectorAll('#ops-nav a').forEach((link) => {
+          if (link.dataset.section === section) link.setAttribute('aria-current', 'page');
+          else link.removeAttribute('aria-current');
+        });
+        $('ops-section-select').value = section;
+      }
+
+      function showSection({ focus = false } = {}) {
+        const section = activePanel();
+        document.querySelectorAll('.panel').forEach((panel) => {
+          panel.classList.toggle('is-on', panel.id === `panel-${section}`);
+        });
+        renderHeading();
+        if (focus) $('ops-title').focus();
+        void refreshActive();
+      }
+
+      window.addEventListener('hashchange', () => {
+        if (routedSection()) showSection({ focus: true });
+      });
+      // The skip link moves focus without touching the hash or the section.
+      document.querySelector('.skip-link').addEventListener('click', (event) => {
+        event.preventDefault();
+        $('main').focus();
+      });
+      $('ops-section-select').addEventListener('change', (event) => {
+        window.location.hash = event.target.value;
+      });
 
       /* ---------- overview ---------- */
       function tile(label, value) {
@@ -670,7 +821,7 @@
       async function refreshActive() {
         try {
           const panel = activePanel();
-          if (panel === 'overview' || panel === 'video' || panel === 'announce') await loadOverview();
+          if (panel === 'overview') await loadOverview();
           if (panel === 'rooms') { await loadRooms(); if (inspectedRoomId) await inspectRoom(inspectedRoomId); }
           if (panel === 'users') await loadUsers();
           if (panel === 'reports') await loadReports();
@@ -693,7 +844,7 @@
       function enterShell() {
         $('login-view').classList.add('hidden');
         $('ops-shell').classList.remove('hidden');
-        void refreshActive();
+        showSection();
         pollTimer = setInterval(() => {
           // Pause while hidden or while a confirm dialog is open (avoid
           // yanking focus mid-decision).
@@ -702,6 +853,8 @@
         }, 5000);
         void pollTimer;
       }
+
+      applyLanguage();
 
       /* Boot: if the cookie is still valid, skip the login form. */
       api('GET', '/overview')
