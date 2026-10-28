@@ -12,6 +12,7 @@ test('Supabase migrations satisfy the additive schema and deny-public-access con
     const report = verifySupabaseMigrations({ repoRoot });
 
     assert.deepEqual(report.files, [
+        '20260714000000_legacy_created_at_compat.sql',
         '20260715000000_secure_baseline.sql',
         '20260715010000_account_resurrection_focus_idempotency.sql',
         '20260715020000_room_event_idempotency.sql'
