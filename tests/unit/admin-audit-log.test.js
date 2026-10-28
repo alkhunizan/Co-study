@@ -108,3 +108,38 @@ test('a failed write is logged, keeps the entry in memory, and does not block la
     await audit.flush();
     assert.deepEqual(readLines(filePath).map((entry) => entry.action), ['logout']);
 });
+
+test('an entry recorded after a torn last line starts on a new line and survives the next reload', async (t) => {
+    const { filePath, logger } = setup(t);
+    const first = createAdminAuditLog({ filePath, logger });
+    first.record({ action: 'login' });
+    await first.flush();
+    fs.appendFileSync(filePath, '{"action":"room_cl');
+
+    const afterCrash = createAdminAuditLog({ filePath, logger });
+    afterCrash.record({ action: 'user_ban' });
+    afterCrash.record({ action: 'user_unban' });
+    await afterCrash.flush();
+
+    const reloaded = createAdminAuditLog({ filePath, logger });
+    assert.deepEqual(reloaded.list().entries.map((entry) => entry.action), ['user_unban', 'user_ban', 'login']);
+});
+
+test('a reload right after rotation still shows the recent entries from the rotated file', async (t) => {
+    const { filePath, logger } = setup(t);
+    const audit = createAdminAuditLog({ filePath, logger, maxFileBytes: 400 });
+    for (let index = 0; index < 4; index += 1) audit.record({ action: 'login', details: { index } });
+    await audit.flush();
+    assert.ok(fs.existsSync(`${filePath}.1`));
+
+    const onDisk = [...readLines(`${filePath}.1`), ...readLines(filePath)].map((entry) => entry.details.index);
+    const reloaded = createAdminAuditLog({ filePath, logger, maxFileBytes: 400 });
+    assert.deepEqual(
+        reloaded.list().entries.map((entry) => entry.details.index),
+        onDisk.slice().reverse()
+    );
+    assert.ok(onDisk.length > readLines(filePath).length);
+
+    const capped = createAdminAuditLog({ filePath, logger, memoryLimit: 1 });
+    assert.deepEqual(capped.list().entries.map((entry) => entry.details.index), [3]);
+});
