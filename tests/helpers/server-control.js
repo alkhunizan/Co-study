@@ -128,6 +128,23 @@ function getFreePort() {
     });
 }
 
+// getFreePort() releases the port before the child process binds it, and
+// node --test runs test files in parallel processes, so another process can
+// take the port in between. Only that collision is retried, with a fresh
+// port; a caller-chosen port and every other startup failure fail at once.
+const PORT_ATTEMPTS = 3;
+async function launchOnFreePort(fixedPort, launch, pickPort = getFreePort) {
+    for (let attempt = 1; ; attempt += 1) {
+        const port = fixedPort || await pickPort();
+        try {
+            return await launch(port);
+        } catch (error) {
+            const collided = /EADDRINUSE/.test(String(/** @type {Error} */ (error)?.message));
+            if (fixedPort || !collided || attempt >= PORT_ATTEMPTS) throw error;
+        }
+    }
+}
+
 function request(baseUrl, pathname, options = {}) {
     const { method = 'GET', headers = {}, body } = options;
     const url = new URL(pathname, baseUrl);
@@ -251,8 +268,11 @@ async function crashChild(childProcess) {
     await exited;
 }
 
-async function startFakeSfu(options = {}) {
-    const port = options.port || await getFreePort();
+function startFakeSfu(options = {}) {
+    return launchOnFreePort(options.port, (port) => startFakeSfuOnPort(port));
+}
+
+async function startFakeSfuOnPort(port) {
     const stdout = [];
     const stderr = [];
     const child = spawn(process.execPath, ['tests/helpers/fake-sfu-fixture.js'], {
@@ -302,8 +322,11 @@ async function startFakeSfu(options = {}) {
     };
 }
 
-async function startFakeRealtimeKit(options = {}) {
-    const port = options.port || await getFreePort();
+function startFakeRealtimeKit(options = {}) {
+    return launchOnFreePort(options.port, (port) => startFakeRealtimeKitOnPort(port, options));
+}
+
+async function startFakeRealtimeKitOnPort(port, options) {
     const stdout = [];
     const stderr = [];
     const child = spawn(process.execPath, ['tests/helpers/fake-realtimekit-fixture.js'], {
@@ -373,25 +396,7 @@ async function startFakeRealtimeKit(options = {}) {
     };
 }
 
-async function startServer(options = {}) {
-    const port = options.port || await getFreePort();
-    const requestedEnv = buildTestEnvironment({ overrides: options.env || {} });
-    const roomStateFile = options.roomStateFile || requestedEnv.ROOM_STATE_FILE || makeTempStateFile('co-study-integration');
-    const userStateFile = options.userStateFile || requestedEnv.USER_STATE_FILE || makeTempStateFile('co-study-users');
-    const shouldResetStateFile = options.resetStateFileOnStart !== false;
-    if (shouldResetStateFile) {
-        resetStateFile(roomStateFile);
-        resetStateFile(userStateFile);
-    }
-
-    const externalSfuBaseUrl = requestedEnv.SFU_BASE_URL;
-    const fakeSfu = options.withFakeSfu && !externalSfuBaseUrl
-        ? await startFakeSfu(options.fakeSfuOptions || {})
-        : null;
-    const fakeRealtimeKit = options.withFakeRealtimeKit
-        ? await startFakeRealtimeKit(options.fakeRealtimeKitOptions || {})
-        : null;
-
+async function launchAppServer(port, { requestedEnv, roomStateFile, userStateFile, fakeSfu, fakeRealtimeKit }) {
     const stdout = [];
     const stderr = [];
     const child = spawn(process.execPath, ['server.js'], {
@@ -433,16 +438,43 @@ async function startServer(options = {}) {
     try {
         await Promise.race([waitForServer(baseUrl), exitedEarly]);
     } catch (error) {
-        if (fakeSfu) {
-            await fakeSfu.stop();
-        }
-        if (fakeRealtimeKit) {
-            await fakeRealtimeKit.stop();
-        }
         await stopChild(child);
         const combinedLogs = `${stdout.join('')}\n${stderr.join('')}`.trim();
         throw new Error(`Failed to start test server: ${error.message}\n${combinedLogs}`);
     }
+
+    return { child, port, baseUrl, stdout, stderr };
+}
+
+async function startServer(options = {}) {
+    const requestedEnv = buildTestEnvironment({ overrides: options.env || {} });
+    const roomStateFile = options.roomStateFile || requestedEnv.ROOM_STATE_FILE || makeTempStateFile('co-study-integration');
+    const userStateFile = options.userStateFile || requestedEnv.USER_STATE_FILE || makeTempStateFile('co-study-users');
+    const shouldResetStateFile = options.resetStateFileOnStart !== false;
+    if (shouldResetStateFile) {
+        resetStateFile(roomStateFile);
+        resetStateFile(userStateFile);
+    }
+
+    const externalSfuBaseUrl = requestedEnv.SFU_BASE_URL;
+    const fakeSfu = options.withFakeSfu && !externalSfuBaseUrl
+        ? await startFakeSfu(options.fakeSfuOptions || {})
+        : null;
+    const fakeRealtimeKit = options.withFakeRealtimeKit
+        ? await startFakeRealtimeKit(options.fakeRealtimeKitOptions || {})
+        : null;
+
+    let app;
+    try {
+        app = await launchOnFreePort(options.port, (port) => launchAppServer(port, {
+            requestedEnv, roomStateFile, userStateFile, fakeSfu, fakeRealtimeKit
+        }));
+    } catch (error) {
+        if (fakeSfu) await fakeSfu.stop();
+        if (fakeRealtimeKit) await fakeRealtimeKit.stop();
+        throw error;
+    }
+    const { child, port, baseUrl, stdout, stderr } = app;
 
     return {
         pid: child.pid,
@@ -503,6 +535,7 @@ async function startServer(options = {}) {
 }
 
 module.exports = {
+    launchOnFreePort,
     buildTestEnvironment,
     delay,
     startServer,
