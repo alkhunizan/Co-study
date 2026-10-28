@@ -5,6 +5,25 @@ const { createTestContext, gotoTestPage, test, expect } = require('../helpers/pl
 // into failures.
 const IGNORED_CONSOLE_PATTERNS = [/fonts\.googleapis\.com/, /fonts\.gstatic\.com/];
 
+test('English landing fits a phone viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => localStorage.setItem('halastudyLang', 'en'));
+    await gotoTestPage(page, '/');
+    // The guarded fixture supplies no external font faces. Windows WebKit can
+    // leave ready pending for an empty, already-loaded set; still await every
+    // actual face when present, and require loaded status on every engine.
+    await expect.poll(() => page.evaluate(() => document.fonts.status)).toBe('loaded');
+    await page.evaluate(async () => {
+        if (document.fonts.size) await document.fonts.ready;
+    });
+    const dimensions = await page.evaluate(() => ({
+        content: document.documentElement.scrollWidth,
+        viewport: innerWidth
+    }));
+    expect(dimensions.viewport).toBeLessThanOrEqual(391);
+    expect(dimensions.content).toBeLessThanOrEqual(391);
+});
+
 function collectPageErrors(page) {
     const errors = [];
     page.on('pageerror', (error) => {
@@ -28,12 +47,33 @@ function collectPageErrors(page) {
     return errors;
 }
 
+test('tile names remain separate from timers at narrow widths', async ({ page }) => {
+    await gotoTestPage(page, '/');
+    for (const lang of ['en', 'ar']) {
+        await page.evaluate(value => { localStorage.setItem('halastudyLang', value); }, lang);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        for (const width of [360, 390, 768, 1024]) {
+            await page.setViewportSize({ width, height: 844 });
+            const collisions = await page.locator('.tile-name').evaluateAll(names => names.flatMap(name => {
+                const timer = name.parentElement.querySelector('.tile-timer');
+                if (!timer) return [];
+                const b = timer.getBoundingClientRect();
+                return [...name.children].filter(child => {
+                    const a = child.getBoundingClientRect();
+                    return a.width && b.width && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+                }).map(() => name.textContent);
+            }));
+            expect(collisions, `${lang} at ${width}px`).toEqual([]);
+        }
+    }
+});
+
 test('landing page renders the hero and routes to the create form', async ({ page }) => {
     const errors = collectPageErrors(page);
 
     await gotoTestPage(page, '/');
     await expect(page.locator('.hero-title')).toBeVisible();
-    await expect(page.locator('.live-pill')).toBeVisible();
+    await expect(page.locator('.quiet-pill')).toBeVisible();
 
     await page.locator('.hero-actions a.btn-primary').click();
     await expect(page).toHaveURL(/\/open\.html$/);
@@ -41,6 +81,81 @@ test('landing page renders the hero and routes to the create form', async ({ pag
 
     expect(errors).toEqual([]);
 });
+
+test('landing distinguishes previews from activity and explains entry in both languages', async ({ page }) => {
+    await gotoTestPage(page, '/');
+    for (const lang of ['en', 'ar']) {
+        await page.evaluate(value => localStorage.setItem('halastudyLang', value), lang);
+        await gotoTestPage(page, '/');
+        const phrase = lang === 'en' ? 'A quiet room, ready when you are' : 'غرفة هادئة، جاهزة وقت ما تحتاجها';
+        await expect(page.locator('.quiet-pill')).toHaveText(phrase);
+        await expect(page.locator('#live-count, #stat-live, .community-stats, .live-dot')).toHaveCount(0);
+        await expect(page.getByText('LIVE', { exact: true })).toHaveCount(0);
+        const labels = page.locator('.tile-chip');
+        expect(await labels.count()).toBeGreaterThan(0);
+        for (const label of await labels.all()) {
+            await expect(label).toHaveText(lang === 'en' ? 'Room preview' : 'معاينة الغرفة');
+        }
+        await expect(page.locator('.hero-foot')).toContainText(lang === 'en' ? 'guest' : 'ضيف');
+        await expect(page.locator('.hero-foot')).toContainText(lang === 'en' ? 'account' : 'حساب');
+        await expect(page.locator('.hero-foot')).toContainText(lang === 'en' ? 'mic off by default' : 'المايك مقفول افتراضيًا');
+        await expect(page.locator('.hero-actions .btn-primary')).toHaveCount(1);
+        await page.locator('.hero-actions .btn-secondary').click();
+        await expect(page).toHaveURL(/\/lobby(?:\.html)?$/);
+    }
+});
+
+for (const slug of ['best-online-group-study-rooms-saudi', 'study-with-me-online-arabic']) {
+    test(`article ${slug} has accurate sharing metadata and usable study links`, async ({ page }) => {
+        const errors = collectPageErrors(page);
+        await gotoTestPage(page, '/blog');
+        await page.locator(`a.post-card[href="/blog/${slug}"]`).click();
+        await expect(page.locator('h1')).toHaveCount(1);
+        await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `https://halastudy.com/blog/${slug}`);
+        await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', `https://halastudy.com/blog/${slug}`);
+        const og = await page.locator('meta[property="og:image"]').getAttribute('content');
+        const dimensions = await page.evaluate(async url => {
+            const img = new Image();
+            img.src = new URL(url).pathname;
+            await img.decode();
+            return [img.naturalWidth, img.naturalHeight];
+        }, og);
+        expect(dimensions).toEqual([1200, 630]);
+        const faq = await page.locator('.faq details').evaluateAll(items => items.map(item => ({
+            question: item.querySelector('summary').textContent,
+            answer: item.querySelector('p').textContent
+        })));
+        const structured = await page.locator('script[type="application/ld+json"]').evaluateAll(items => items.map(item => JSON.parse(item.textContent)));
+        expect(structured.find(item => item['@type'] === 'FAQPage').mainEntity.map(item => ({
+            question: item.name, answer: item.acceptedAnswer.text
+        }))).toEqual(faq);
+        await expect(page.locator('article')).not.toContainText(/خلفية افتراضية|الخلفية الافتراضية|تمويه/);
+        await expect(page.locator('.entry-note')).toContainText('كضيف');
+        await expect(page.locator('.entry-note')).toContainText('حساب');
+        for (const width of [1440, 360]) {
+            await page.setViewportSize({ width, height: 900 });
+            const dimensions = await page.evaluate(() => [innerWidth, document.documentElement.scrollWidth]);
+            expect(dimensions.every(value => value <= width + 1), `${slug} at ${width}px`).toBe(true);
+            const smallTargets = await page.locator('.brand, .back-link, .footer a, .faq summary').evaluateAll(items => items.filter(item => {
+                const box = item.getBoundingClientRect();
+                return box.width < 44 || box.height < 44;
+            }).map(item => item.textContent));
+            expect(smallTargets).toEqual([]);
+        }
+        const firstQuestion = page.locator('.faq summary').first();
+        await firstQuestion.focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('.faq details').first()).toHaveAttribute('open', '');
+        await expect(page.locator('.faq details p').first()).toBeVisible();
+        await page.locator('.readnext').click();
+        await expect(page).toHaveURL(new RegExp(`/blog/${slug === 'best-online-group-study-rooms-saudi' ? 'study-with-me-online-arabic' : 'best-online-group-study-rooms-saudi'}$`));
+        await page.goBack();
+        await page.locator('.article-end .btn-primary').click();
+        await expect(page).toHaveURL(/\/open(?:\.html)?$/);
+        await expect(page.locator('#create-form')).toBeVisible();
+        expect(errors).toEqual([]);
+    });
+}
 
 test('coStudy storage keys migrate once and never clobber new values', async ({ browser }) => {
     const context = await createTestContext(browser);

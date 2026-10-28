@@ -31,6 +31,9 @@ test('create form surfaces a retryable error when the server dies mid-create', a
         const feedback = page.locator('#create-feedback');
         await expect(feedback).toHaveClass(/error/, { timeout: 12000 });
         await expect(feedback).not.toHaveText('');
+        await expect(page.locator('#create-form button[type=submit]')).toBeEnabled();
+        await expect(page.locator('#create-form')).toHaveAttribute('aria-busy', 'false');
+        await expect(page.locator('#room-name')).toHaveValue('Timeout Smoke Room');
     } finally {
         await context.close();
         await server.stop();

@@ -13,9 +13,24 @@ Each `.hsbackup` file is a JSON envelope containing:
 
 The encrypted payload contains exactly one manifest and the readable datasets collected during that run. The manifest records schema version `2`, UTC creation time, row count and SHA-256 checksum for each dataset, and the names of configured sources that could not be read. Supported datasets are `profiles`, `deletion_tombstones`, `focus_completion_claims`, `focus_sessions`, `room_events`, and `rooms`.
 
+"Complete" means those six datasets, with no failed source. The artifact does
+not include the secret environment, TLS keys, provider configuration, or the
+`${ROOM_STATE_FILE}.video-sessions.json` and
+`${ROOM_STATE_FILE}.realtimekit-webhooks.json` runtime sidecars. Keep the state
+directory across code deployment and code rollback. A lost-host recovery needs
+a separately protected recovery plan for these resources and provider
+reconciliation before reopening video; this artifact alone does not prove it.
+
 An empty array is a readable source. If no source is readable, the command fails and creates no artifact. A partial artifact is marked in its encrypted manifest and the CLI emits a warning naming the unavailable sources. Deletion tombstones are a critical source: when Supabase is configured, failure to read them fails the whole backup so an unsafe database artifact cannot displace a complete daily snapshot.
 
 Artifacts are written by same-directory atomic rename with mode `0600`. Retention keeps one successful artifact for each of the latest seven UTC days. A second successful run on the same day replaces that day's older artifact only after the new file exists. Explicit pre-cutover artifacts are stored under `backups/pinned/` with a mode-`0600` SHA-256 sidecar and are never candidates for daily retention.
+
+Partial local artifacts are diagnostic evidence and can replace that day's
+previous daily artifact. Do not count CLI exit zero alone as backup success:
+pinning, R2 upload, and deploy verification require the complete schema-v2
+contract. Alert on failed sources and preserve a separately verified pin before
+cutover. Dataset reads are sequential, not one database-wide transaction; stop
+the writer for the pre-cutover pin and restore rehearsal.
 
 ## Configure the key
 
@@ -107,6 +122,10 @@ sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh --upload-pinned-pre
 
 The CLI accepts no caller-selected key or prefix. Automated retention lists only `encrypted/`, so it cannot prune `pinned/pre-cutover/`. Removing a pinned rollback artifact is a separate, explicitly approved operator action.
 
+Retention exemption does not extend restorability. A pin containing database
+data or owned rooms still becomes unsafe at 30 days and fails restore. Recheck
+its age and dry-run at rollback time; never bypass the age/tombstone safeguards.
+
 ## Dry-run restore
 
 Restore always validates the envelope authentication tag, supported schema version, dataset shapes, row counts, and every manifest checksum before planning any write. Every artifact tombstone remains authoritative for that artifact even after its 30-day live-database expiry. Restore unions that evidence with current, unexpired Supabase tombstones and removes affected profiles, focus rows, room events, and owned rooms from the plan. If both sources contain the same user, the current Supabase row wins and is the row preserved during apply.
@@ -152,11 +171,16 @@ Expired artifact tombstones still filter the artifact, but are not written back 
 
 A failed phase exits nonzero and prevents later phases from running. Restart and verify only after the apply command succeeds:
 
+Earlier successful phases are not rolled back automatically. Keep the writer
+stopped on failure, inspect the partial result, and resolve it before retrying.
+
 ```bash
 sudo -u halastudy -H env HOME=/var/lib/halastudy \
   PM2_HOME=/var/lib/halastudy/.pm2 \
   bash /opt/halastudy/scripts/deploy/start.sh
-npm --prefix /opt/halastudy run verify:deploy -- https://your-domain.example
+sudo -u halastudy -H /opt/halastudy/scripts/deploy/backup.sh
+sudo -u halastudy -H npm --prefix /opt/halastudy run verify:deploy -- \
+  https://your-domain.example --env-file /var/lib/halastudy/.env
 ```
 
 ## Optional R2 copy

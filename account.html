@@ -47,7 +47,7 @@
       padding-inline: 20px;
       border-radius: 999px;
       cursor: pointer;
-      min-block-size: 36px;
+      min-block-size: 44px;
     }
     .auth-tabs button:focus-visible { outline: none; box-shadow: var(--sh-focus); }
     .auth-tabs button.is-on { background: var(--card); color: var(--ink); box-shadow: 0 1px 4px rgba(28,24,20,0.08); }
@@ -143,8 +143,10 @@
     }
     .hidden { display: none !important; }
   </style>
+  <link rel="stylesheet" href="/design-system/public-shell.css">
+  <script src="/js/public-shell.js" defer></script>
 </head>
-<body class="is-open-page">
+<body class="is-open-page" data-public-page="account">
   <header class="topbar">
     <a class="brand" href="/" aria-label="Halastudy home">
       <span>Hala<em>study</em><span class="dot">.</span></span>
