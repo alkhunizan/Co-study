@@ -52,6 +52,12 @@ function adminRequest(server, apiPath, cookie, options = {}) {
     });
 }
 
+async function latestAuditEntry(server, cookie) {
+    const audit = await adminRequest(server, '/audit', cookie);
+    assert.equal(audit.status, 200);
+    return audit.body.entries[0];
+}
+
 test('admin surface is completely absent when admin env vars are not set', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
@@ -197,6 +203,9 @@ test('force-close disconnects members, deletes the room, and 404s afterwards', a
 
     const close = await adminRequest(server, `/rooms/${roomId}/close`, cookie, { method: 'POST' });
     assert.equal(close.status, 200);
+    const closeAudit = await latestAuditEntry(server, cookie);
+    assert.equal(closeAudit.action, 'room_close');
+    assert.equal(closeAudit.target.id, roomId);
     assert.equal(close.body.kicked, 1);
 
     const closedPayload = await closedEvent;
@@ -237,6 +246,10 @@ test('kick removes a single participant and presence shrinks', async (t) => {
         body: { socketId: targetRecord.socketId }
     });
     assert.equal(kick.status, 200);
+    const kickAudit = await latestAuditEntry(server, cookie);
+    assert.equal(kickAudit.action, 'participant_kick');
+    assert.equal(kickAudit.target.id, targetRecord.socketId);
+    assert.equal(kickAudit.details.roomId, roomId);
     const kickedPayload = await kickedEvent;
     assert.equal(kickedPayload.reason, 'admin');
 
@@ -294,6 +307,7 @@ test('broadcast reaches connected sockets and fresh joiners; clear stops it', as
         body: { messageAr: 'صيانة الليلة', messageEn: 'Maintenance tonight', durationMinutes: 30 }
     });
     assert.equal(publish.status, 200);
+    assert.equal((await latestAuditEntry(server, cookie)).action, 'announcement_set');
     const payload = await received;
     assert.equal(payload.messageEn, 'Maintenance tonight');
 
@@ -318,6 +332,7 @@ test('broadcast reaches connected sockets and fresh joiners; clear stops it', as
 
     const clear = await adminRequest(server, '/broadcast', cookie, { method: 'DELETE' });
     assert.equal(clear.status, 200);
+    assert.equal((await latestAuditEntry(server, cookie)).action, 'announcement_clear');
     const cleared = await server.request('/api/announcement');
     assert.equal(cleared.body.announcement, null);
 });
@@ -346,6 +361,9 @@ test('manual backup writes rooms and users snapshots with retention-friendly nam
 
     const backup = await adminRequest(server, '/backup', cookie, { method: 'POST' });
     assert.equal(backup.status, 200);
+    const backupAudit = await latestAuditEntry(server, cookie);
+    assert.equal(backupAudit.action, 'backup_run');
+    assert.equal(backupAudit.details.files, backup.body.files.length);
     assert.ok(backup.body.files.some((name) => name.startsWith('rooms.')));
     assert.ok(backup.body.files.some((name) => name.startsWith('users.')));
     for (const name of backup.body.files) {
@@ -405,6 +423,9 @@ test('reports surface in the admin console, resolve, and survive a restart', asy
     assert.equal(missing.status, 404);
     const resolve = await adminRequest(server, `/rooms/${roomId}/reports/${report.reportId}/resolve`, cookie, { method: 'POST' });
     assert.equal(resolve.status, 200);
+    const resolveAudit = await latestAuditEntry(server, cookie);
+    assert.equal(resolveAudit.action, 'report_resolve');
+    assert.equal(resolveAudit.target.id, report.reportId);
 
     // Restart against the same state file: the resolved report rehydrates.
     await new Promise((waitDone) => setTimeout(waitDone, 400));
@@ -448,4 +469,70 @@ test('errors endpoint returns recent redacted warnings; metrics and API 404 beha
     const missingPage = await server.request('/definitely-not-a-page');
     assert.equal(missingPage.status, 404);
     assert.match(missingPage.text, /404/);
+});
+
+test('admin actions land in the audit log with reason and target, newest first, and survive a restart', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-admin-audit');
+    const auditFile = `${roomStateFile}.admin-audit.jsonl`;
+    let server = await startAdminServer({ roomStateFile });
+    t.after(async () => {
+        if (server) {
+            await server.stop();
+            resetStateFile(server.userStateFile);
+        }
+        resetStateFile(roomStateFile);
+        fs.rmSync(auditFile, { force: true });
+    });
+
+    const unauthed = await server.request(`${ADMIN_PATH}/api/audit`);
+    assert.equal(unauthed.status, 401);
+
+    const cookie = await adminLogin(server);
+    const { user } = await signupUser(server, { email: 'audited@example.com', displayName: 'Audited Student' });
+
+    const ban = await adminRequest(server, `/users/${user.id}/ban`, cookie, {
+        method: 'POST',
+        body: { reason: '  Repeated spam in two rooms  ' }
+    });
+    assert.equal(ban.status, 200);
+    const disable = await adminRequest(server, '/video-kill-switch', cookie, {
+        method: 'POST',
+        body: { disabled: true, reason: 'Provider outage' }
+    });
+    assert.equal(disable.status, 200);
+    // Rejected input is not an action and must not be audited.
+    const invalid = await adminRequest(server, '/video-kill-switch', cookie, {
+        method: 'POST',
+        body: { disabled: 'yes', reason: 'should not appear' }
+    });
+    assert.equal(invalid.status, 400);
+
+    const audit = await adminRequest(server, '/audit', cookie);
+    assert.equal(audit.status, 200);
+    assert.deepEqual(audit.body.entries.map((entry) => entry.action), ['video_disable', 'user_ban', 'login']);
+    const [videoEntry, banEntry] = audit.body.entries;
+    assert.equal(videoEntry.reason, 'Provider outage');
+    assert.deepEqual(banEntry.target, { type: 'user', id: user.id, label: 'Audited Student' });
+    assert.equal(banEntry.reason, 'Repeated spam in two rooms');
+    assert.ok(banEntry.ip);
+    assert.equal(typeof banEntry.at, 'number');
+    assert.equal(audit.body.entries.some((entry) => entry.reason === 'should not appear'), false);
+
+    const filtered = await adminRequest(server, '/audit?action=user_ban', cookie);
+    assert.equal(filtered.body.total, 1);
+    assert.equal(filtered.body.entries[0].id, banEntry.id);
+
+    // The trail is on disk, one JSON object per line, and reloads after a restart.
+    await server.stop();
+    resetStateFile(server.userStateFile);
+    const lines = fs.readFileSync(auditFile, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    assert.deepEqual(lines.map((entry) => entry.action), ['login', 'user_ban', 'video_disable']);
+    server = await startAdminServer({ roomStateFile, resetStateFileOnStart: false });
+    const restartCookie = await adminLogin(server);
+    const afterRestart = await adminRequest(server, '/audit', restartCookie);
+    assert.deepEqual(
+        afterRestart.body.entries.map((entry) => entry.action),
+        ['login', 'video_disable', 'user_ban', 'login']
+    );
+    assert.equal(afterRestart.body.entries[2].id, banEntry.id);
 });
