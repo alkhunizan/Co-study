@@ -61,3 +61,17 @@ test('invalid JSON-LD fails the check', (t) => {
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /article\.html inline script #1 \(line 1\): invalid JSON-LD/);
 });
+
+test('classic inline scripts use browser script grammar, so a top-level return fails', (t) => {
+    const root = makeSite(t, {
+        'early-return.html': '<p>x</p>\n<script>\nif (!window.ok) return;\n</script>',
+        'module-ok.html': '<script type="module">await Promise.resolve();</script>'
+    });
+    const result = runChecker(root);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /early-return\.html inline script #1 \(line 2\)/);
+    assert.match(result.stderr, /early-return\.html:3/);
+    assert.match(result.stderr, /Illegal return statement/);
+    // Top-level await is valid in a module script and must not be flagged.
+    assert.doesNotMatch(result.stderr, /module-ok\.html/);
+});

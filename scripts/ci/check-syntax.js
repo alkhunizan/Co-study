@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const vm = require('node:vm');
 const { spawnSync } = require('node:child_process');
 
 const projectRoot = path.resolve(process.env.CHECK_SYNTAX_ROOT || path.join(__dirname, '..', '..'));
@@ -66,7 +67,20 @@ function checkHtmlFile(file) {
         if (!isModule && !classicScriptTypes.has(script.type)) continue;
         // Pad with blank lines so reported line numbers match the HTML file.
         const source = `${'\n'.repeat(script.line - 1)}${script.body}`;
-        const tempFile = path.join(os.tmpdir(), `halastudy-inline-${process.pid}-${index}${isModule ? '.mjs' : '.js'}`);
+        if (!isModule) {
+            // Browser classic-script grammar: compiled, never run. `node --check`
+            // on a .js file would apply CommonJS rules and accept e.g. a
+            // top-level `return`, which browsers reject.
+            try {
+                new vm.Script(source, { filename: relative });
+            } catch (error) {
+                const failure = /** @type {Error} */ (error);
+                // The stack starts with "file:line", the source line and a caret.
+                errors.push(`${label}: ${failure.name}: ${failure.message}\n${String(failure.stack).split('\n').slice(0, 3).join('\n')}`);
+            }
+            continue;
+        }
+        const tempFile = path.join(os.tmpdir(), `halastudy-inline-${process.pid}-${index}.mjs`);
         fs.writeFileSync(tempFile, source);
         try {
             const result = spawnSync(process.execPath, ['--check', tempFile], { encoding: 'utf8' });
