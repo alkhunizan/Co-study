@@ -239,3 +239,25 @@ test('the Ops shell switches to Arabic right-to-left and remembers it after a re
         await operator.context.close();
     }
 });
+
+test('the skip link focuses the content without leaving the current section', async ({ browser }) => {
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, `${ADMIN_PATH}#rooms`);
+        await signInOperator(page);
+        await expect(page.locator('#ops-title')).toHaveText('Rooms');
+        await page.locator('.skip-link').focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('#main')).toBeFocused();
+        await expect(page.locator('#ops-title')).toHaveText('Rooms');
+        await expect(page.locator('#panel-rooms')).toBeVisible();
+        await expect(page).toHaveURL(/#rooms$/);
+        // A stray non-section fragment does not reset the section either.
+        await page.evaluate(() => { window.location.hash = 'main'; });
+        await expect(page.locator('#panel-rooms')).toBeVisible();
+        await expect(page.locator('#ops-title')).toHaveText('Rooms');
+    } finally {
+        await operator.context.close();
+    }
+});

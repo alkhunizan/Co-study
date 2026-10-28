@@ -466,9 +466,13 @@
       });
 
       /* ---------- section navigation (#hash deep links) ---------- */
+      // Only section hashes change the panel; any other fragment (such as
+      // the skip link's #main) keeps the section the operator is on.
+      let currentSection = 'overview';
       function activePanel() {
         const requested = window.location.hash.replace('#', '');
-        return SECTIONS.includes(requested) ? requested : 'overview';
+        if (SECTIONS.includes(requested)) currentSection = requested;
+        return currentSection;
       }
 
       function renderHeading() {
@@ -493,7 +497,14 @@
         void refreshActive();
       }
 
-      window.addEventListener('hashchange', () => showSection({ focus: true }));
+      window.addEventListener('hashchange', () => {
+        if (SECTIONS.includes(window.location.hash.replace('#', ''))) showSection({ focus: true });
+      });
+      // The skip link moves focus without touching the hash or the section.
+      document.querySelector('.skip-link').addEventListener('click', (event) => {
+        event.preventDefault();
+        $('main').focus();
+      });
       $('ops-section-select').addEventListener('change', (event) => {
         window.location.hash = event.target.value;
       });
