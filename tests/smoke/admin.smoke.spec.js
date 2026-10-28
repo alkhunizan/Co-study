@@ -261,3 +261,55 @@ test('the skip link focuses the content without leaving the current section', as
         await operator.context.close();
     }
 });
+
+test('the Audit section lists admin actions with their reason and filters by action', async ({ browser, baseURL }) => {
+    const operator = await createAdminPage(browser);
+    const owner = await connectSocket(baseURL, { clientId: 'smoke-audit-owner' });
+    try {
+        const { page } = operator;
+        const created = await emitAck(owner, 'create-room', { roomName: 'Audit Smoke Room' });
+        const roomId = created.room.roomId;
+        await gotoTestPage(page, `${ADMIN_PATH}#audit`);
+        await signInOperator(page);
+        // Close the room through the API with a reason, then read it back in the console.
+        const close = await page.request.post(`${ADMIN_PATH}/api/rooms/${roomId}/close`, {
+            data: { reason: `Audit smoke ${roomId}` }
+        });
+        expect(close.status()).toBe(200);
+        await page.click('#btn-refresh');
+        const row = page.locator('#audit-tbody tr', { hasText: `Audit smoke ${roomId}` });
+        await expect(row).toContainText('Closed room');
+        await expect(row).toContainText(roomId);
+
+        await page.selectOption('#audit-action', 'room_close');
+        await expect(page.locator('#audit-tbody tr').first()).toContainText('Closed room');
+        await expect(page.locator('#audit-tbody tr', { hasText: 'Signed in' })).toHaveCount(0);
+    } finally {
+        await closeSocket(owner);
+        await operator.context.close();
+    }
+});
+
+test('panel contents switch to Arabic and rebuild their rows in place', async ({ browser, isMobile }) => {
+    test.skip(isMobile, 'The dense operations table is intentionally desktop-only.');
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, ADMIN_PATH);
+        await signInOperator(page);
+        await expect(page.locator('#overview-tiles .tile').first()).toContainText('Live rooms');
+
+        await page.locator('#ops-shell [data-lang-switch] button[data-lang="ar"]').click();
+        await expect(page.locator('#overview-tiles .tile').first()).toContainText('غرف نشطة');
+        await page.click('#ops-nav a[data-section="rooms"]');
+        await expect(page.locator('#panel-rooms th').first()).toHaveText('الرمز');
+        await page.click('#ops-nav a[data-section="system"]');
+        await expect(page.locator('#backup-now')).toHaveText('إنشاء نسخة احتياطية الآن');
+        await expect(page.locator('#kill-switch-toggle')).toHaveText(/دخول الفيديو/);
+        await page.click('#ops-nav a[data-section="audit"]');
+        await expect(page.locator('#audit-action option').first()).toHaveText('كل الإجراءات');
+        await expect(page.locator('#audit-tbody tr', { hasText: 'تسجيل دخول' }).first()).toBeVisible();
+    } finally {
+        await operator.context.close();
+    }
+});
