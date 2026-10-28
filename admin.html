@@ -31,7 +31,7 @@
     .lang-switch .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--line-strong); }
     .ops-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-inline-size: 1440px; margin-inline: auto; min-block-size: calc(100vh - 70px); }
     .ops-sidebar { padding: 32px 18px; border-inline-end: 1px solid var(--line); min-inline-size: 0; }
-    .eyebrow { margin: 0 0 18px; color: var(--ink-3); font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+    .eyebrow { margin: 0 0 18px; color: var(--ink-2); font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
     html[lang="ar"] .eyebrow { letter-spacing: 0; text-transform: none; font-size: var(--t-caption); }
     #ops-nav { display: grid; gap: 4px; }
     #ops-nav a { display: flex; align-items: center; min-block-size: 44px; padding: 10px 16px; border-radius: 16px; color: var(--ink-2); text-decoration: none; font-weight: 600; }
@@ -47,21 +47,6 @@
     .ops-heading p { margin: 0; color: var(--ink-2); font-size: var(--t-body); }
     .ops-heading .btn { flex-shrink: 0; }
     .ops-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-block-end: 18px; }
-    @media (max-width: 850px) {
-      .ops-layout { grid-template-columns: minmax(0, 1fr); align-content: start; }
-      .ops-sidebar { padding: 16px 20px; border-inline-end: none; border-block-end: 1px solid var(--line); }
-      .ops-sidebar .eyebrow, #ops-nav { display: none; }
-      .ops-mobile-nav { display: grid; gap: 6px; margin: 0; }
-      .ops-main { padding: 24px 20px 64px; }
-      .ops-topbar { padding: 12px 20px; }
-      .btn { min-height: 44px; }
-    }
-    @media (max-width: 540px) {
-      .ops-heading { flex-wrap: wrap; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
-    }
     .chip {
       font-family: var(--font-mono);
       font-size: var(--t-caption);
@@ -70,6 +55,7 @@
       border-radius: 999px;
       padding: 6px 14px;
       font-variant-numeric: tabular-nums;
+      letter-spacing: 0.06em;
     }
     .panel { display: none; }
     .panel.is-on { display: block; }
@@ -86,9 +72,11 @@
     .tile strong { display: block; font-size: var(--t-h3); font-variant-numeric: tabular-nums; }
     .tile span { color: var(--ink-2); font-size: var(--t-micro); text-transform: uppercase; letter-spacing: 0.08em; }
     table { width: 100%; border-collapse: collapse; font-size: var(--t-caption); }
-    th, td { text-align: start; padding: 8px 10px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
-    th { color: var(--ink-3); font-weight: 600; text-transform: uppercase; font-size: var(--t-micro); letter-spacing: 0.06em; }
-    td.mono, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    th, td { text-align: start; padding: 8px 10px; border-block-end: 1px solid var(--line-2); vertical-align: top; }
+    th { color: var(--ink-2); font-weight: 600; text-transform: uppercase; font-size: var(--t-micro); letter-spacing: 0.06em; }
+    /* Uppercase and tracking break joined Arabic letters. */
+    html[lang="ar"] th, html[lang="ar"] .tile span { letter-spacing: 0; text-transform: none; font-size: var(--t-caption); }
+    td.mono, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
     .btn {
       border: 1px solid var(--line);
       background: var(--card);
@@ -101,8 +89,10 @@
     }
     .btn:hover { border-color: var(--line-strong); }
     .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
-    .btn.danger { border-color: var(--danger); color: var(--danger); }
+    .btn.danger { border-color: var(--danger); color: color-mix(in srgb, var(--danger) 78%, var(--ink)); }
     .btn.danger:hover { background: var(--danger-soft); }
+    /* Deliberate fixed ink (DESIGN.md §12): --ink turns light in dark mode and
+       would fail contrast on the amber fill, which stays amber in both themes. */
     .btn.primary { background: var(--accent); border-color: var(--accent); color: #2D3436; }
     .btn[disabled] { opacity: 0.45; cursor: default; }
     input[type="password"], input[type="text"], input[type="search"], textarea, select {
@@ -119,18 +109,36 @@
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .feedback { color: var(--danger); font-size: var(--t-caption); min-height: 18px; margin-block-start: 8px; }
     .feedback.ok { color: var(--success); }
-    .muted { color: var(--ink-3); font-size: var(--t-caption); }
-    .login-shell { max-width: 380px; margin: 15vh auto 0; padding-inline: 20px; }
+    .muted { color: var(--ink-2); font-size: var(--t-caption); }
+    .login-shell { max-inline-size: 380px; margin: 15vh auto 0; padding-inline: 20px; }
     .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-inline-end: 6px; }
     .status-dot.on { background: var(--success); }
     .status-dot.off { background: var(--danger); }
     pre { background: var(--inset); border-radius: 10px; padding: 10px; overflow-x: auto; font-size: 11px; margin: 6px 0 0; }
-    dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--ink); padding: 24px; max-width: 420px; }
+    /* Scrollable blocks are keyboard-focusable in Chrome. */
+    pre:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+    dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--ink); padding: 24px; max-inline-size: 420px; }
     dialog::backdrop { background: var(--overlay); }
     dialog h3 { margin: 0 0 10px; }
     dialog input { margin: 14px 0; }
     dialog textarea { display: block; margin: 6px 0 14px; }
     .hidden { display: none !important; }
+    /* Layout overrides last so they win over the base rules above. */
+    @media (max-width: 850px) {
+      .ops-layout { grid-template-columns: minmax(0, 1fr); align-content: start; }
+      .ops-sidebar { padding: 16px 20px; border-inline-end: none; border-block-end: 1px solid var(--line); }
+      .ops-sidebar .eyebrow, #ops-nav { display: none; }
+      .ops-mobile-nav { display: grid; gap: 6px; margin: 0; }
+      .ops-main { padding: 24px 20px 64px; }
+      .ops-topbar { padding: 12px 20px; }
+      .btn, .skip-link { min-height: 44px; }
+    }
+    @media (max-width: 540px) {
+      .ops-heading { flex-wrap: wrap; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    }
   </style>
 </head>
 <body>
@@ -187,9 +195,9 @@
         </div>
 
     <section class="panel" id="panel-overview">
-      <div class="ops-chips" dir="ltr">
-        <span class="chip" id="uptime-chip">up —</span>
-        <span class="chip" id="memory-chip">rss —</span>
+      <div class="ops-chips">
+        <span class="chip" id="uptime-chip" dir="auto">up —</span>
+        <span class="chip" id="memory-chip" dir="auto">rss —</span>
       </div>
       <div class="card">
         <div class="tiles" id="overview-tiles"></div>
@@ -285,8 +293,8 @@
         <h3 style="margin:0 0 10px;" data-i18n="killSwitchTitle">Video join kill-switch</h3>
         <p class="muted" data-i18n="killSwitchBody">Runtime override only — a server restart falls back to the env default. Flipping this to ON blocks all new video tokens immediately.</p>
         <div class="row" style="margin-block-start:12px;">
-          <span id="kill-switch-state"><span class="status-dot on"></span><span id="kill-switch-label">video joins allowed</span></span>
-          <button type="button" class="btn danger" id="kill-switch-toggle">Disable video joins</button>
+          <span id="kill-switch-state"><span class="status-dot on"></span><span id="kill-switch-label" data-i18n="videoAllowed">video joins allowed</span></span>
+          <button type="button" class="btn danger" id="kill-switch-toggle" data-i18n="disableVideo">Disable video joins</button>
         </div>
         <p class="muted" id="video-counts" style="margin-block-start:12px;"></p>
       </div>
@@ -333,7 +341,7 @@
   <dialog id="confirm-dialog">
     <h3 id="confirm-title">Confirm</h3>
     <p class="muted" id="confirm-body"></p>
-    <input type="text" id="confirm-input" autocomplete="off" dir="ltr">
+    <input type="text" id="confirm-input" autocomplete="off" dir="auto">
     <label class="muted" for="confirm-reason" id="confirm-reason-label" data-i18n="reasonLabel">Reason (kept in the audit log)</label>
     <textarea id="confirm-reason" rows="2" maxlength="300"></textarea>
     <div class="row">
@@ -411,6 +419,8 @@
           act_video_enable: 'Re-enabled video joins', act_user_ban: 'Banned user', act_user_unban: 'Unbanned user',
           act_announcement_set: 'Published announcement', act_announcement_clear: 'Cleared announcement',
           act_backup_run: 'Ran backup',
+          reason_spam: 'spam', reason_harassment: 'harassment', reason_inappropriate: 'inappropriate', reason_other: 'other',
+          uptime: 'up {value}', memory: 'rss {value}', hours: 'h', minutes: 'm',
           killSwitchTitle: 'Video join kill-switch',
           killSwitchBody: 'Runtime override only — a server restart falls back to the env default. Flipping this to ON blocks all new video tokens immediately.',
           videoAllowed: 'video joins allowed', videoDisabled: 'video joins DISABLED',
@@ -434,7 +444,7 @@
           actionFailed: 'That action failed ({code}). Refresh and try again.'
         },
         ar: {
-          loginTitle: 'إدارة هلا', password: 'كلمة المرور', signIn: 'تسجيل الدخول', skip: 'انتقل إلى المحتوى',
+          loginTitle: 'لوحة تشغيل Halastudy', password: 'كلمة المرور', signIn: 'تسجيل الدخول', skip: 'انتقل إلى المحتوى',
           wrongPassword: 'كلمة المرور غير صحيحة.', lockedOut: 'تم إيقاف الدخول مؤقتًا. انتظر بضع دقائق.',
           theme: 'المظهر', signOut: 'تسجيل الخروج', workspace: 'إدارة المنصة', navigate: 'انتقل إلى قسم',
           refresh: 'تحديث', overview: 'نظرة عامة', rooms: 'الغرف', users: 'المستخدمون',
@@ -443,9 +453,9 @@
           roomsBody: 'الغرف الحالية والمشاركون وأدوات إدارة الجلسات.',
           usersBody: 'اعثر على حساب وراجع حالته قبل اتخاذ إجراء.',
           reportsBody: 'راجع بلاغات الغرف واتخذ الإجراء المناسب.',
-          auditBody: 'كل إجراء إداري: من أين نُفّذ، وعلى ماذا، والسبب المسجّل.',
+          auditBody: 'كل إجراء إداري: من نفّذه ومن أين، وعلى ماذا، والسبب المسجّل.',
           systemBody: 'راقب التشغيل، وأدر دخول الفيديو والإعلانات والنسخ الاحتياطية.',
-          loading: 'جارٍ التحميل…', confirm: 'تأكيد', cancel: 'إلغاء', typeToConfirm: 'اكتب "{value}"',
+          loading: 'جارٍ التحميل…', confirm: 'تأكيد', cancel: 'إلغاء', typeToConfirm: 'اكتب «{value}»',
           reasonLabel: 'السبب (يُحفظ في سجل الإجراءات)',
           tileRooms: 'غرف نشطة', tileParticipants: 'المشاركون', tileVideoNow: 'الفيديو الآن',
           tileAccounts: 'الحسابات', tileBanned: 'محظورون', tileVideoJoins: 'دخول الفيديو', on: 'متاح', off: 'متوقف',
@@ -456,26 +466,28 @@
           colTarget: 'المستهدف', colReporter: 'المُبلِّغ', colReason: 'السبب', colWhen: 'الوقت',
           colAction: 'الإجراء', colIp: 'عنوان IP',
           yes: 'نعم', cameraOn: 'تعمل', cameraOff: 'متوقفة', noRooms: 'لا توجد غرف نشطة.', inspect: 'عرض',
-          kick: 'إخراج', closeView: 'إغلاق العرض', forceClose: 'إغلاق الغرفة',
-          inspectMeta: 'أُنشئت {created} · {messages} رسالة · هدف اللوحة: {goal}',
+          kick: 'إخراج', closeView: 'إغلاق العرض', forceClose: 'إغلاق الغرفة نهائيًا',
+          inspectMeta: 'أُنشئت {created} · الرسائل: {messages} · هدف اللوحة: {goal}',
           kickTitle: 'إخراج {name}؟', kickBody: 'يُفصل فورًا، ويمكنه العودة برمز الغرفة.',
-          kickReportedBody: 'سبب البلاغ: "{reason}". يُفصل فورًا، ويمكنه العودة برمز الغرفة.',
+          kickReportedBody: 'سبب البلاغ: «{reason}». يُفصل فورًا، ويمكنه العودة برمز الغرفة.',
           closeTitle: 'إغلاق هذه الغرفة؟',
           closeBody: 'يُفصل كل من في الغرفة وتُحذف مع لوحتها وسجل محادثتها. لا يمكن التراجع.',
-          searchUsers: 'ابحث بالبريد أو الاسم', search: 'بحث', accountsTotal: '{count} حساب',
+          searchUsers: 'ابحث بالبريد أو الاسم', search: 'بحث', accountsTotal: 'الحسابات: {count}',
           statusBanned: 'محظور', statusActive: 'نشط', ban: 'حظر', unban: 'رفع الحظر',
           banTitle: 'حظر {name}؟', banBody: 'يُسجَّل خروجه من كل الأجهزة فورًا، ولا يستطيع الدخول حتى يُرفع الحظر.',
           unbanTitle: 'رفع الحظر عن {name}؟', unbanBody: 'يستطيع الدخول مجددًا فورًا.',
-          reportsHeading: 'بلاغات المستخدمين', reportsTotal: '{total} بلاغ · {open} مفتوح', noReports: 'لا توجد بلاغات.',
+          reportsHeading: 'بلاغات المستخدمين', reportsTotal: 'البلاغات: {total} · المفتوحة: {open}', noReports: 'لا توجد بلاغات.',
           reportOpen: 'مفتوح', reportResolved: 'محلول', resolve: 'حلّ البلاغ', targetLeft: 'غادر',
-          auditFilter: 'الإجراء', auditAll: 'كل الإجراءات', auditTotal: '{count} إجراء',
+          auditFilter: 'الإجراء', auditAll: 'كل الإجراءات', auditTotal: 'الإجراءات: {count}',
           noAudit: 'ستظهر الإجراءات الإدارية هنا.', loadMore: 'عرض المزيد',
           act_login: 'تسجيل دخول', act_login_failed: 'محاولة دخول فاشلة', act_logout: 'تسجيل خروج',
           act_room_close: 'إغلاق غرفة', act_participant_kick: 'إخراج مشارك',
           act_report_resolve: 'حلّ بلاغ', act_video_disable: 'إيقاف دخول الفيديو',
           act_video_enable: 'إعادة دخول الفيديو', act_user_ban: 'حظر مستخدم', act_user_unban: 'رفع حظر مستخدم',
           act_announcement_set: 'نشر إعلان', act_announcement_clear: 'إزالة إعلان',
-          act_backup_run: 'نسخة احتياطية',
+          act_backup_run: 'تشغيل نسخ احتياطي',
+          reason_spam: 'رسائل مزعجة', reason_harassment: 'مضايقة', reason_inappropriate: 'محتوى غير لائق', reason_other: 'سبب آخر',
+          uptime: 'مدة التشغيل {value}', memory: 'الذاكرة {value}', hours: 'س', minutes: 'د',
           killSwitchTitle: 'إيقاف دخول الفيديو',
           killSwitchBody: 'إعداد مؤقت فقط: إعادة تشغيل الخادم تعيده إلى الإعداد الافتراضي. الإيقاف يمنع أي دخول جديد للفيديو فورًا.',
           videoAllowed: 'دخول الفيديو متاح', videoDisabled: 'دخول الفيديو متوقف',
@@ -490,9 +502,9 @@
           dur30: '30 دقيقة', dur60: 'ساعة', dur240: '4 ساعات', dur1440: '24 ساعة', durUntilCleared: 'حتى الإزالة',
           publish: 'نشر', clearActive: 'إزالة الإعلان الحالي', published: 'تم النشر.', cleared: 'تمت الإزالة.',
           announceInvalid: 'أضف رسالة واحدة على الأقل (حتى 200 حرف).', publishFailed: 'تعذّر النشر.',
-          announceActive: 'الإعلان الحالي: "{message}"', announceNone: 'لا يوجد إعلان حالي.',
+          announceActive: 'الإعلان الحالي: «{message}»', announceNone: 'لا يوجد إعلان حالي.',
           backupsTitle: 'النسخ الاحتياطية', backupNow: 'إنشاء نسخة احتياطية الآن',
-          backupDone: 'نُسخ {entries} عنصرًا ← {files}', backupFailed: 'تعذّر النسخ الاحتياطي. راجع قائمة الأخطاء.',
+          backupDone: 'العناصر المنسوخة: {entries} ← {files}', backupFailed: 'تعذّر النسخ الاحتياطي. راجع قائمة الأخطاء.',
           lastBackup: 'آخر نسخة {time}', lastBackupError: ' — آخر خطأ: {error}',
           noBackupYet: 'لا توجد نسخة احتياطية في هذه الجلسة بعد.', backupsOff: 'النسخ التلقائي متوقف (BACKUP_INTERVAL_MINUTES=0).',
           errorsTitle: 'آخر التحذيرات والأخطاء', noErrors: 'لا تحذيرات أو أخطاء منذ التشغيل.',
@@ -519,6 +531,10 @@
       const formatDateTime = (ms) => new Date(ms).toLocaleString(locale());
       const formatDate = (ms) => new Date(ms).toLocaleDateString(locale());
       const formatTime = (ms) => new Date(ms).toLocaleTimeString(locale());
+
+      // First-strong isolates keep codes, ids and paths left-to-right inside
+      // Arabic text (textContent cannot carry <bdi>).
+      const isolate = (value) => `\u2068${value}\u2069`;
 
       function toastNote(el, message, ok) {
         el.textContent = message;
@@ -679,7 +695,7 @@
         const section = activePanel();
         $('ops-title').textContent = t(section);
         $('ops-description').textContent = t(`${section}Body`);
-        document.title = `${t(section)} — Halastudy Ops`;
+        document.title = `${t(section)} — ${t('loginTitle')}`;
         document.querySelectorAll('#ops-nav a').forEach((link) => {
           if (link.dataset.section === section) link.setAttribute('aria-current', 'page');
           else link.removeAttribute('aria-current');
@@ -724,15 +740,15 @@
       function formatUptime(seconds) {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
-        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+        return h > 0 ? `${h}${t('hours')} ${m}${t('minutes')}` : `${m}${t('minutes')}`;
       }
 
       let lastOverview = null;
       async function loadOverview() {
         const data = await api('GET', '/overview');
         lastOverview = data;
-        $('uptime-chip').textContent = `up ${formatUptime(data.uptimeSeconds)}`;
-        $('memory-chip').textContent = `rss ${data.memory.rssMb}MB`;
+        $('uptime-chip').textContent = t('uptime', { value: isolate(formatUptime(data.uptimeSeconds)) });
+        $('memory-chip').textContent = t('memory', { value: isolate(`${data.memory.rssMb}MB`) });
         $('overview-tiles').replaceChildren(
           tile(t('tileRooms'), data.roomCount),
           tile(t('tileParticipants'), data.participantCount),
@@ -784,7 +800,10 @@
       async function inspectRoom(roomId) {
         const data = await api('GET', `/rooms/${encodeURIComponent(roomId)}`);
         inspectedRoomId = roomId;
-        $('inspect-title').textContent = `${data.room.name} — ${roomId}`;
+        const code = document.createElement('bdi');
+        code.dir = 'ltr';
+        code.textContent = roomId;
+        $('inspect-title').replaceChildren(document.createTextNode(`${data.room.name} — `), code);
         $('inspect-meta').textContent = t('inspectMeta', {
           created: formatDateTime(data.room.createdAt),
           messages: data.room.messageCount,
@@ -889,9 +908,10 @@
           const tr = document.createElement('tr');
           tr.innerHTML = '<td class="mono" dir="ltr"></td><td></td><td></td><td></td><td class="mono"></td><td></td><td></td>';
           textCell(tr, 0, report.roomId);
-          textCell(tr, 1, `${report.targetName} (${report.targetSessionIdPrefix || '—'})${report.targetStillConnected ? '' : ` · ${t('targetLeft')}`}`);
+          textCell(tr, 1, `${report.targetName} (${isolate(report.targetSessionIdPrefix || '—')})${report.targetStillConnected ? '' : ` · ${t('targetLeft')}`}`);
           textCell(tr, 2, report.reporterName);
-          textCell(tr, 3, report.detail ? `${report.reason}: ${report.detail}` : report.reason);
+          const reasonLabel = t(`reason_${report.reason}`);
+          textCell(tr, 3, report.detail ? `${reasonLabel}: ${report.detail}` : reasonLabel);
           textCell(tr, 4, formatDateTime(report.createdAt));
           textCell(tr, 5, report.status === 'open' ? t('reportOpen') : t('reportResolved'));
           const actions = tr.lastElementChild;
@@ -905,7 +925,7 @@
             const kickBtn = actionButton(t('kick'), 'btn danger', async () => {
               const reason = await confirmTyped({
                 title: t('kickTitle', { name: report.targetName }),
-                body: t('kickReportedBody', { reason: report.reason }),
+                body: t('kickReportedBody', { reason: t(`reason_${report.reason}`) }),
                 expected: '',
                 requireReason: true
               });
@@ -935,7 +955,7 @@
           textCell(tr, 0, formatDateTime(entry.at));
           textCell(tr, 1, t(`act_${entry.action}`));
           const target = entry.target
-            ? [entry.target.label, entry.target.id].filter(Boolean).join(' · ')
+            ? [entry.target.label, entry.target.id && isolate(entry.target.id)].filter(Boolean).join(' · ')
             : '';
           textCell(tr, 2, target);
           textCell(tr, 3, entry.reason || '—');
@@ -1069,7 +1089,7 @@
         button.disabled = true;
         try {
           const result = await api('POST', '/backup');
-          $('backup-status').textContent = t('backupDone', { entries: result.entries, files: result.files.join(', ') });
+          $('backup-status').textContent = t('backupDone', { entries: result.entries, files: isolate(result.files.join(', ')) });
         } catch (_error) {
           $('backup-status').textContent = t('backupFailed');
         } finally {
