@@ -19,6 +19,7 @@ const ANNOUNCEMENT_MAX_MINUTES = 1440;
 const USERS_PAGE_SIZE = 50;
 const AUDIT_PAGE_SIZE = 50;
 const AUDIT_REASON_MAX_LENGTH = 300;
+const REASON_MIN_LENGTH = 3;
 
 function createAdminRouter(deps) {
     const {
@@ -101,6 +102,17 @@ function createAdminRouter(deps) {
             ip: getRequestIp(req),
             details
         });
+    }
+
+    // Destructive actions (close, kick, ban, unban) must say why. Checked
+    // after the target is found and before anything changes.
+    function requireReason(req, res) {
+        const reason = sanitizeUserText(req.body?.reason, AUDIT_REASON_MAX_LENGTH);
+        if (Array.from(reason).length < REASON_MIN_LENGTH) {
+            res.status(400).json({ errorCode: 'REASON_REQUIRED' });
+            return false;
+        }
+        return true;
     }
 
     function activeAnnouncement(now = Date.now()) {
@@ -272,6 +284,7 @@ function createAdminRouter(deps) {
             res.status(404).json({ errorCode: 'ROOM_NOT_FOUND' });
             return;
         }
+        if (!requireReason(req, res)) return;
         try {
             const result = await closeRoom(roomId, { reason: 'admin' });
             logger.warn({ event: 'admin_room_closed', roomId, kicked: result?.kicked || 0 });
@@ -301,6 +314,7 @@ function createAdminRouter(deps) {
             res.status(404).json({ errorCode: 'PARTICIPANT_NOT_FOUND' });
             return;
         }
+        if (!requireReason(req, res)) return;
         const participantName = room.users.get(socketId)?.name || '';
         const revocation = await revokeSocketVideoSessions(socketId, 'admin_kick');
         if (revocation.persistenceUnavailable) {
@@ -416,6 +430,7 @@ function createAdminRouter(deps) {
             res.status(404).json({ errorCode: 'USER_NOT_FOUND' });
             return;
         }
+        if (!requireReason(req, res)) return;
         try {
             await runUserMutation(user, async () => {
                 const previousBanned = user.banned;

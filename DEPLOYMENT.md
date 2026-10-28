@@ -83,7 +83,9 @@ Every admin sign-in, sign-out, failed sign-in and console action (close, kick,
 ban/unban, report resolve, video switch, broadcast set/clear, backup) is
 appended to an audit log at `<ROOM_STATE_FILE>.admin-audit.jsonl`, one JSON
 object per line with the action, target, optional reason, request IP and
-time. It sits next to the room state file, so it lives outside the repo
+time. Close, kick, ban and unban are refused (`REASON_REQUIRED`) unless the
+request carries a reason of at least 3 characters; the console asks for one
+in its confirmation dialog. The log sits next to the room state file, so it lives outside the repo
 whenever `ROOM_STATE_FILE` does. At 5 MB it rotates to `.admin-audit.jsonl.1`,
 replacing the previous older generation; copy that file off the host if you
 need a longer history. The console reads the newest 1,000 entries from

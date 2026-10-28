@@ -116,6 +116,9 @@ test('force-close from the console requires typing the room code and kills the l
         const confirmBtn = dialog.locator('#confirm-yes');
         await expect(confirmBtn).toBeDisabled();
         await dialog.locator('#confirm-input').fill(roomCode);
+        // The typed code alone is not enough: a reason is required too.
+        await expect(confirmBtn).toBeDisabled();
+        await dialog.locator('#confirm-reason').fill('Smoke test cleanup');
         await expect(confirmBtn).toBeEnabled();
         await confirmBtn.click();
 

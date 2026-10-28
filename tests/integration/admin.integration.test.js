@@ -201,7 +201,10 @@ test('force-close disconnects members, deletes the room, and 404s afterwards', a
         socket.once('disconnect', resolve);
     });
 
-    const close = await adminRequest(server, `/rooms/${roomId}/close`, cookie, { method: 'POST' });
+    const close = await adminRequest(server, `/rooms/${roomId}/close`, cookie, {
+        method: 'POST',
+        body: { reason: 'Integration close' }
+    });
     assert.equal(close.status, 200);
     const closeAudit = await latestAuditEntry(server, cookie);
     assert.equal(closeAudit.action, 'room_close');
@@ -243,7 +246,7 @@ test('kick removes a single participant and presence shrinks', async (t) => {
     });
     const kick = await adminRequest(server, `/rooms/${roomId}/kick`, cookie, {
         method: 'POST',
-        body: { socketId: targetRecord.socketId }
+        body: { socketId: targetRecord.socketId, reason: 'Integration kick' }
     });
     assert.equal(kick.status, 200);
     const kickAudit = await latestAuditEntry(server, cookie);
@@ -266,7 +269,10 @@ test('ban kills sessions via epoch bump; unban restores sign-in', async (t) => {
 
     const { user, cookie: userCookie, credentials } = await signupUser(server, { email: 'banned@example.com' });
 
-    const ban = await adminRequest(server, `/users/${user.id}/ban`, adminCookie, { method: 'POST' });
+    const ban = await adminRequest(server, `/users/${user.id}/ban`, adminCookie, {
+        method: 'POST',
+        body: { reason: 'Integration ban' }
+    });
     assert.equal(ban.status, 200);
 
     // Old cookie dies instantly (tokenEpoch bumped).
@@ -280,7 +286,10 @@ test('ban kills sessions via epoch bump; unban restores sign-in', async (t) => {
     assert.equal(login.status, 403);
     assert.equal(login.body.errorCode, 'ACCOUNT_BANNED');
 
-    const unban = await adminRequest(server, `/users/${user.id}/unban`, adminCookie, { method: 'POST' });
+    const unban = await adminRequest(server, `/users/${user.id}/unban`, adminCookie, {
+        method: 'POST',
+        body: { reason: 'Integration unban' }
+    });
     assert.equal(unban.status, 200);
     const loginAgain = await server.request('/api/auth/login', {
         method: 'POST',
@@ -535,4 +544,45 @@ test('admin actions land in the audit log with reason and target, newest first, 
         ['login', 'video_disable', 'user_ban', 'login']
     );
     assert.equal(afterRestart.body.entries[2].id, banEntry.id);
+});
+
+test('destructive actions without a reason are rejected before anything changes', async (t) => {
+    const server = await startAdminServer();
+    await cleanupServer(t, server);
+    const cookie = await adminLogin(server);
+    const { user } = await signupUser(server, { email: 'reasonless@example.com' });
+    const owner = await connectSocket(server.baseUrl, { clientId: 'reason-owner' });
+    t.after(async () => {
+        await closeSocket(owner);
+    });
+    const created = await emitAck(owner, 'create-room', { roomName: 'Reason Room' });
+    const roomId = created.room.roomId;
+    await emitAck(owner, 'join-room', { roomId, username: 'Owner', clientId: 'reason-owner' });
+
+    const roomDetail = await adminRequest(server, `/rooms/${roomId}`, cookie);
+    const socketId = roomDetail.body.room.participants[0].socketId;
+    const attempts = [
+        { apiPath: `/rooms/${roomId}/close`, body: {} },
+        { apiPath: `/rooms/${roomId}/kick`, body: { socketId, reason: '  ' } },
+        { apiPath: `/users/${user.id}/ban`, body: { reason: 'no' } },
+        { apiPath: `/users/${user.id}/unban`, body: { reason: '\u200b\u200b\u200b' } }
+    ];
+    for (const { apiPath, body } of attempts) {
+        const response = await adminRequest(server, apiPath, cookie, { method: 'POST', body });
+        assert.equal(response.status, 400, apiPath);
+        assert.equal(response.body.errorCode, 'REASON_REQUIRED', apiPath);
+    }
+
+    // Nothing happened: the room and participant are still there, the user is not banned.
+    const stillOpen = await adminRequest(server, `/rooms/${roomId}`, cookie);
+    assert.equal(stillOpen.status, 200);
+    assert.equal(stillOpen.body.room.participants.length, 1);
+    const users = await adminRequest(server, '/users?query=reasonless', cookie);
+    assert.equal(users.body.users[0].banned, false);
+    const audit = await adminRequest(server, '/audit', cookie);
+    assert.deepEqual(audit.body.entries.map((entry) => entry.action), ['login']);
+
+    // A missing target still answers 404 rather than asking for a reason.
+    const missingRoom = await adminRequest(server, '/rooms/NOPE00/close', cookie, { method: 'POST', body: {} });
+    assert.equal(missingRoom.status, 404);
 });
