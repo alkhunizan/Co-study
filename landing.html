@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Halastudy | هلا — A quiet room. Open all night.</title>
-  <meta name="description" content="A quiet room. Open all night. Body-doubling for GCC students — camera on, mic off, work alongside someone.">
+  <meta name="description" content="Open a quiet study room and invite a study partner. Instant rooms accept guests; microphones are off by default.">
   <link rel="canonical" href="https://halastudy.com/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Halastudy">
@@ -28,21 +28,16 @@
   <link rel="stylesheet" href="/design-system/landing.css">
   <script src="/js/halastudy-core.js"></script>
   <script src="/js/ui.js" defer></script>
+  <link rel="stylesheet" href="/design-system/public-shell.css">
+  <script src="/js/public-shell.js" defer></script>
 </head>
-<body class="is-landing-page">
+<body class="is-landing-page" data-public-page="landing">
   <header class="topbar">
     <a class="brand" href="/" aria-label="Halastudy home">
       <span>Hala<em>study</em><span class="dot">.</span></span>
       <span class="divider" aria-hidden="true"></span>
       <span class="ar" aria-hidden="true">هلا</span>
     </a>
-    <nav class="nav-links" aria-label="Primary">
-      <a href="#why" data-i18n="navWhy">ليش هلا؟</a>
-      <a href="#how" data-i18n="navHow">كيف تشتغل</a>
-      <a href="#rooms" data-i18n="navRooms">الغرف</a>
-      <a class="nav-extra" href="#community" data-i18n="navTonight">الطلاب</a>
-      <a class="nav-extra" href="/blog" data-i18n="navBlog">المدونة</a>
-    </nav>
     <div class="topbar-right">
       <a class="topbar-link" id="auth-entry" href="/account.html" data-i18n="navSignIn">تسجيل الدخول</a>
       <div class="lang-switch" role="tablist" aria-label="Language">
@@ -55,25 +50,9 @@
         </svg>
       </button>
       <a class="btn btn-primary btn--compact" href="/open.html" data-i18n="ctaOpenShort">افتح غرفة</a>
-      <button class="icon-btn nav-burger" id="nav-burger" type="button" aria-expanded="false" aria-controls="mobile-menu" data-i18n-aria="menuLabel" aria-label="القائمة">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <g class="i-menu"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></g>
-          <g class="i-close"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></g>
-        </svg>
-      </button>
     </div>
   </header>
 
-  <nav class="mobile-menu" id="mobile-menu" data-i18n-aria="mobileNavLabel" aria-label="التنقل الرئيسي" hidden>
-    <a class="menu-link" href="#why" data-i18n="navWhy">ليش هلا؟</a>
-    <a class="menu-link" href="#how" data-i18n="navHow">كيف تشتغل</a>
-    <a class="menu-link" href="#rooms" data-i18n="navRooms">الغرف</a>
-    <a class="menu-link" href="#community" data-i18n="navTonight">الطلاب</a>
-    <a class="menu-link" href="/blog" data-i18n="navBlog">المدونة</a>
-    <div class="mobile-menu-divider" aria-hidden="true"></div>
-    <div class="mobile-menu-controls" id="mobile-menu-controls"></div>
-    <a class="btn btn-primary mobile-menu-cta" href="/open.html"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
-  </nav>
 
   <section class="hero hero--mosaic">
     <div class="lamp-glow" aria-hidden="true"></div>
@@ -87,13 +66,13 @@
         <div class="tile-glow"></div>
         <div class="tile-grain"></div>
         <div class="tile-vignette"></div>
-        <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+        <div class="tile-chip"><span data-i18n="roomPreview">معاينة الغرفة</span></div>
         <div class="tile-name"><span data-tile-name="0">نوف عبدالعزيز</span><span class="city">Riyadh</span></div>
         <div class="tile-timer" data-tile-timer="0">32:14</div>
       </div>
 
       <div class="hero-copy">
-        <!-- DEVIATION §4: city line is one tight mono row above the live-pill,
+        <!-- DEVIATION §4: city line is one tight mono row above the quiet-room phrase,
              not a 6-clock strip under the CTAs. Atmospheric eyebrow. -->
         <div class="city-line" aria-hidden="true">
           <span><span class="city-name">Riyadh</span><span class="city-time" data-clock="Asia/Riyadh">01:24</span></span>
@@ -109,24 +88,20 @@
           <span><span class="city-name">Lahore</span><span class="city-time" data-clock="Asia/Karachi">03:24</span></span>
         </div>
 
-        <div class="live-pill">
-          <span class="dot" aria-hidden="true"></span>
-          <span class="count" id="live-count">17,264</span>
-          <span data-i18n="livePillLabel">مصباح شغّال الآن</span>
-        </div>
-        <span class="illustrative-note" data-i18n="illustrativeNote">عرض توضيحي</span>
+        <div class="quiet-pill" data-i18n="quietRoom">غرفة هادئة، جاهزة وقت ما تحتاجها</div>
+        <span class="illustrative-note" data-i18n="illustrativeNote">الصور والأسماء توضيحية، وليست لأعضاء متصلين الآن.</span>
 
         <h1 class="hero-title">
           <span data-i18n="heroTitle1">ادخل.</span>
           <em data-i18n="heroTitle2">الكاميرا شغّالة.</em>
           <span data-i18n="heroTitle3">اشتغل مع غيرك.</span>
         </h1>
-        <p class="hero-sub" data-i18n="heroSub">غرفة هادية، مفتوحة طول الليل. العالم كله يذاكر ويشتغل — قرّب كرسيك.</p>
+        <p class="hero-sub" data-i18n="heroSub">مكان هادي للمذاكرة. افتح غرفة وادعُ أحد يذاكر معك.</p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="/open.html"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
-          <a class="btn btn-secondary" href="/open.html#join"><span data-i18n="ctaJoin">ادخل غرفة</span></a>
+          <a class="btn btn-secondary" href="/lobby"><span data-i18n="ctaJoin">شوف اللوبي</span></a>
         </div>
-        <div class="hero-foot" data-i18n="heroFoot">بدون تنزيل. بدون تسجيل. المايك مقفول.</div>
+        <div class="hero-foot" data-i18n="heroFoot">مذاكرة بالكاميرا، والمايك مقفول افتراضيًا. افتح غرفة فورية أو ادخلها كضيف. تحتاج حساب لجدولة الغرف أو الظهور بالكاميرا في اللوبي.</div>
       </div>
 
       <!-- STRIP — 5 small looping cam tiles below the featured + copy row -->
@@ -139,7 +114,7 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-chip"><span data-i18n="roomPreview">معاينة الغرفة</span></div>
           <div class="tile-name"><span data-tile-name="1">ريم سلطان</span><span class="city">Jeddah</span></div>
           <div class="tile-timer" data-tile-timer="1">47:02</div>
         </div>
@@ -151,7 +126,7 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-chip"><span data-i18n="roomPreview">معاينة الغرفة</span></div>
           <div class="tile-name"><span data-tile-name="2">لمى فيصل</span><span class="city">Khobar</span></div>
           <div class="tile-timer" data-tile-timer="2">12:48</div>
         </div>
@@ -163,7 +138,7 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-chip"><span data-i18n="roomPreview">معاينة الغرفة</span></div>
           <div class="tile-name"><span data-tile-name="3">جواهر خالد</span><span class="city">Medina</span></div>
           <div class="tile-timer" data-tile-timer="3">23:41</div>
         </div>
@@ -175,7 +150,7 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-chip"><span data-i18n="roomPreview">معاينة الغرفة</span></div>
           <div class="tile-name"><span data-tile-name="4">دانة سعد</span><span class="city">Doha</span></div>
           <div class="tile-timer" data-tile-timer="4">08:22</div>
         </div>
@@ -187,7 +162,7 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-chip"><span data-i18n="roomPreview">معاينة الغرفة</span></div>
           <div class="tile-name"><span data-tile-name="5">سعود عبدالله</span><span class="city">Manama</span></div>
           <div class="tile-timer" data-tile-timer="5">19:07</div>
         </div>
@@ -204,19 +179,19 @@
     <div class="steps-grid">
       <div class="step">
         <h3 data-i18n="why1H">ما انت لحالك على المكتب</h3>
-        <p data-i18n="why1P">المرافقة بالوجود تحوّل المذاكرة الفردية إلى زخم مشترك. لما فيه أحد شغّال قدامك والكاميرا مفتوحة، تكمّل معه.</p>
+        <p data-i18n="why1P">وجود أحد يشتغل معك ممكن يسهّل البداية. جهّز مهمتك وادعُ رفيق مذاكرة.</p>
       </div>
       <div class="step">
         <h3 data-i18n="why2H">هادية بالتصميم</h3>
-        <p data-i18n="why2P">المايك مقفول افتراضياً. لا كلام ولا استعراض — وجودك هو الاتفاق كله.</p>
+        <p data-i18n="why2P">المايك مقفول افتراضيًا. جهّز مهمتك وحافظ على هدوء الجلسة.</p>
       </div>
       <div class="step">
         <h3 data-i18n="why3H">مبنية لنا</h3>
-        <p data-i18n="why3P">عربية أول، جداول بتوقيت الرياض، وإيقاع مذاكرة الخليج بالليل — مو تطبيق غربي مركّب عليه عربي.</p>
+        <p data-i18n="why3P">عربي وإنجليزي، مع جدولة الغرف بتوقيت الرياض.</p>
       </div>
       <div class="step">
-        <h3 data-i18n="why4H">بدون حاجز، بدون تكلفة</h3>
-        <p data-i18n="why4P">بدون تنزيل، وبدون تسجيل عشان تبدأ، ومجانية في التجربة. افتح غرفة بثوانٍ.</p>
+        <h3 data-i18n="why4H">ابدأ من المتصفح</h3>
+        <p data-i18n="why4P">الغرف الفورية ما تحتاج تنزيل أو حساب. اختر اسم الغرفة وشارك الكود.</p>
       </div>
     </div>
   </section>
@@ -232,19 +207,19 @@
       <div class="step">
         <div class="step-num" data-i18n="stepNum1">٠١</div>
         <h3 data-i18n="step1H">افتح غرفة</h3>
-        <p data-i18n="step1P">اختر مدة التركيز — ٢٥ دقيقة، ٥٠ دقيقة، أو مفتوحة. تطلع لك كود من ست خانات تشاركه.</p>
+        <p data-i18n="step1P">سمّ غرفتك، ثم شارك كودها المكوّن من ست خانات مع رفيق المذاكرة.</p>
         <span class="step-divider" aria-hidden="true"></span>
       </div>
       <div class="step">
         <div class="step-num" data-i18n="stepNum2">٠٢</div>
         <h3 data-i18n="step2H">الكاميرا شغّالة، المايك مقفول</h3>
-        <p data-i18n="step2P">هذا هو المربط. وجودك هو الاتفاق. ما فيه أحد يسمع؛ كل واحد قاعد يشتغل.</p>
+        <p data-i18n="step2P">اسمح بالوصول للكاميرا لما تكون جاهز. راجع زاوية التصوير قبل المشاركة وأبعد معلوماتك الشخصية.</p>
         <span class="step-divider" aria-hidden="true"></span>
       </div>
       <div class="step">
         <div class="step-num" data-i18n="stepNum3">٠٣</div>
-        <h3 data-i18n="step3H">اقعد لين يرنّ المنبه</h3>
-        <p data-i18n="step3P">لما تخلص البومودورو، كلكم تستريحون مع بعض. راحة هادية، ورجعة هادية.</p>
+        <h3 data-i18n="step3H">اضبط مؤقت التركيز</h3>
+        <p data-i18n="step3P">اختر مدة التركيز والاستراحة داخل الغرفة. اشتغل على مهمتك لين وقت الراحة.</p>
       </div>
     </div>
   </section>
@@ -253,7 +228,7 @@
     <div class="preview-shell">
       <div class="preview-bar">
         <div class="tl-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div class="room-meta" data-i18n="roomMeta">غرفة هادية · ٥٠ دقيقة تركيز</div>
+        <div class="room-meta" data-i18n="roomMeta">معاينة الغرفة · مثال لجلسة تركيز</div>
         <div class="room-code" dir="ltr">A7K-2QF</div>
       </div>
       <div class="preview-grid">
@@ -262,7 +237,7 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-chip"><span data-i18n="roomPreview">معاينة الغرفة</span></div>
           <div class="tile-name"><span data-preview-name="0">هيا تركي</span><span class="city">Riyadh</span></div>
           <div class="tile-timer" data-preview-timer="0">32:14</div>
         </div>
@@ -271,7 +246,7 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-chip"><span data-i18n="roomPreview">معاينة الغرفة</span></div>
           <div class="tile-name"><span data-preview-name="1">ماجد فيصل</span><span class="city">Jeddah</span></div>
           <div class="tile-timer" data-preview-timer="1">12:48</div>
         </div>
@@ -280,7 +255,7 @@
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
           <div class="tile-vignette"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-chip"><span data-i18n="roomPreview">معاينة الغرفة</span></div>
           <div class="tile-name"><span data-preview-name="2">رزان فهد</span><span class="city">Doha</span></div>
           <div class="tile-timer" data-preview-timer="2">47:02</div>
         </div>
@@ -288,7 +263,7 @@
           <div class="tile-room"></div>
           <div class="tile-glow"></div>
           <div class="tile-grain"></div>
-          <div class="tile-chip"><span class="live-dot"></span><span>LIVE</span></div>
+          <div class="tile-chip"><span data-i18n="roomPreview">معاينة الغرفة</span></div>
           <div class="tile-name"><span data-i18n="previewYou">انت</span><span class="city">—</span></div>
           <div class="tile-timer">00:12</div>
         </div>
@@ -299,7 +274,7 @@
           <span>POMODORO</span>
           <span class="big" id="preview-pomodoro">23:41</span>
         </span>
-        <span data-i18n="previewFootR">مشفّر · WebRTC</span>
+        <span data-i18n="previewFootR">جلسة توضيحية</span>
       </div>
     </div>
   </section>
@@ -307,20 +282,13 @@
   <section class="community" id="community">
     <div class="section-orn" aria-hidden="true"><span class="rule"></span><span class="orn-mark">✦</span><span class="rule"></span></div>
     <div class="community-head">
-      <div class="eyebrow" data-i18n="communityEyebrow">اللي معاك الليلة</div>
+      <div class="eyebrow" data-i18n="communityEyebrow">تخيّل جلسة مذاكرتك</div>
       <h2 class="community-title">
-        <span data-i18n="communityTitle1">مذاكرة </span>
-        <em data-i18n="communityTitle2">بصمت واحد.</em>
+        <span data-i18n="communityTitle1">تخصصات مختلفة.</span>
+        <em data-i18n="communityTitle2">ومكان واحد للمذاكرة.</em>
       </h2>
-      <p class="community-sub" data-i18n="communitySub">طلاّب حقيقيّين. اختبارات جاية. المصابيح شغّالة — اقعد على الطاولة.</p>
-      <div class="community-stats">
-        <span class="stat"><span class="stat-num" id="stat-pictured">5</span><span class="stat-label" data-i18n="statPictured">في الصورة</span></span>
-        <span class="stat-rule" aria-hidden="true"></span>
-        <span class="stat"><span class="stat-num" id="stat-live">17,264</span><span class="stat-label" data-i18n="statRightNow">الآن</span></span>
-        <span class="stat-rule" aria-hidden="true"></span>
-        <span class="stat"><span class="stat-num">42</span><span class="stat-label" data-i18n="statCities">مدينة</span></span>
-      </div>
-      <div class="illustrative-note" data-i18n="illustrativeNote">عرض توضيحي</div>
+      <p class="community-sub" data-i18n="communitySub">تصوّر للمذاكرة مع غيرك. ادعُ صديق أو شوف الموجودين في اللوبي.</p>
+      <div class="illustrative-note" data-i18n="illustrativeNote">الصور والأسماء توضيحية، وليست لأعضاء متصلين الآن.</div>
     </div>
     <div class="community-grid">
       <!-- DEVIATION §2: 5 portraits, single editorial row -->
@@ -367,9 +335,9 @@
     <div class="section-orn" aria-hidden="true"><span class="rule"></span><span class="orn-mark">✦</span><span class="rule"></span></div>
     <h2>
       <span data-i18n="closerTitle1">مصباح واحد شغّال الساعة ١.</span>
-      <em data-i18n="closerTitle2">انت مو لحالك.</em>
+      <em data-i18n="closerTitle2">جهّز مكان للتركيز.</em>
     </h2>
-    <p data-i18n="closerSub">هلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.</p>
+    <p data-i18n="closerSub">افتح غرفة هادية، شارك الكود، وابدأ بمهمتك.</p>
     <a class="btn btn-primary btn--push-top" href="/open.html"><span data-i18n="ctaOpen">افتح غرفة</span> <span class="arrow">→</span></a>
     <div class="city-marquee" aria-hidden="true">
       <div class="city-marquee-track" id="city-marquee-track"></div>
@@ -377,7 +345,7 @@
   </section>
 
   <footer class="footer">
-    <div data-i18n="footerTag">هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.</div>
+    <div data-i18n="footerTag">هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل مع غيرك.</div>
     <div class="links">
       <a href="/blog" data-i18n="footerBlog">المدونة</a>
       <a href="/privacy" data-i18n="footerPrivacy">الخصوصية</a>
@@ -410,43 +378,42 @@
         whyEyebrow: 'Why Halastudy',
         whyTitle1: 'Presence beats', whyTitle2: 'willpower.',
         why1H: 'You’re not alone at the desk',
-        why1P: 'Body-doubling turns solo study into shared momentum. When someone is working across from you — camera on — you keep going too.',
+        why1P: "Working alongside someone can make it easier to start. Bring your own task and invite a study partner.",
         why2H: 'Quiet by design',
-        why2P: 'Mic off by default. No talking, no performance — your presence is the whole contract.',
+        why2P: "Mic off by default. Bring a task and keep the session quiet.",
         why3H: 'Built for here',
-        why3P: 'Arabic-first, Riyadh-time schedules, and the Gulf’s late-night study rhythm — not a Western app with Arabic bolted on.',
-        why4H: 'No wall, no cost',
-        why4P: 'No download, no login to start, free during beta. Open a room in seconds.',
-        ctaOpen: 'Open a room', ctaOpenShort: 'Open a room', ctaJoin: 'See who’s live',
-        livePillLabel: 'lamps on right now',
-        illustrativeNote: 'Illustrative preview',
+        why3P: "Arabic and English, with room schedules in Riyadh time.",
+        why4H: "Start in your browser",
+        why4P: "No download or account needed for instant rooms. Choose a room name and share the code.",
+        ctaOpen: 'Open a room', ctaOpenShort: 'Open a room', ctaJoin: "Visit the lobby",
+        quietRoom: "A quiet room, ready when you are", roomPreview: "Room preview",
+        illustrativeNote: "Illustrative images and names — not live members.",
         heroTitle1: 'Drop in.', heroTitle2: 'Camera on.', heroTitle3: 'Work alongside someone.',
-        heroSub: 'A quiet room. Open all night. The world is already studying and working — pull up a desk.',
-        heroFoot: 'No download. No login wall. Mic stays off.',
+        heroSub: "A quiet place to study. Open a room and invite someone to work alongside you.",
+        heroFoot: "Camera study, mic off by default. Open or join an instant room as a guest. An account is needed to schedule rooms or go on camera in the lobby.",
         stepsEyebrow: 'How a room works',
         stepsTitle1: 'Three steps.', stepsTitle2: 'No login wall.',
         stepNum1: '01', step1H: 'Open a room',
-        step1P: 'Pick a focus length — 25 min, 50 min, or open. We hand you a six-character code to share.',
+        step1P: "Name your room, then share its six-character code with your study partner.",
         stepNum2: '02', step2H: 'Camera on, mic off',
-        step2P: 'The whole point. Your presence is the social contract. Nobody is listening; everyone is working.',
-        stepNum3: '03', step3H: 'Stay until the timer rings',
-        step3P: 'When the Pomodoro finishes, you stretch with everyone else. Quiet break, quiet return.',
-        roomMeta: 'Quiet room · 50 min focus',
+        step2P: "Allow camera access when you are ready. Check your frame before sharing; keep personal details out of view.",
+        stepNum3: '03', step3H: "Set a focus timer",
+        step3P: "Choose your focus and break lengths inside the room. Work on your task until the break.",
+        roomMeta: "Room preview · sample focus session",
         previewYou: 'You',
         previewFootL: 'Mic off · video on',
-        previewFootR: 'Encrypted · WebRTC',
-        communityEyebrow: 'The desks across from yours',
-        communityTitle1: 'Tonight’s ', communityTitle2: 'quiet company.',
-        communitySub: 'Real students. Real exams next week. The lamps are on — join the table.',
-        statPictured: 'pictured', statRightNow: 'right now', statCities: 'cities',
+        previewFootR: "Illustrative session",
+        communityEyebrow: "Picture your study session",
+        communityTitle1: "Different subjects.", communityTitle2: "A shared study space.",
+        communitySub: "An illustration of studying alongside others. Invite a friend or visit the lobby to see who is there.",
         member1Name: 'Munira Abdullah', member1Major: 'Computer Science',
         member2Name: 'Shahad Nasser',  member2Major: 'Business Administration',
         member3Name: 'Turki Nasser',   member3Major: 'Architecture',
         member4Name: 'Sarah Khalid',   member4Major: 'Media & Communication',
         member5Name: 'Fahad Sultan',   member5Major: 'Biotechnology',
-        closerTitle1: 'One lamp on at 1am.', closerTitle2: 'You are not the only one.',
-        closerSub: 'Halastudy is a quiet room, open all night, where the cameras stay on and the conversation stays off.',
-        footerTag: 'Halastudy · Online focus rooms for studying and working — study or work live, with serious people.',
+        closerTitle1: 'One lamp on at 1am.', closerTitle2: "Make room for focus.",
+        closerSub: "Open a quiet room, share the code, and get started on your own task.",
+        footerTag: "Halastudy · Online focus rooms for studying and working together.",
         footerBlog: 'Blog', footerPrivacy: 'Privacy', footerTerms: 'Terms', footerContact: 'Contact', footerWhatsapp: 'WhatsApp invite',
         whatsappShareText: 'Try Halastudy — quiet focus rooms for studying and working',
         tileNames: ['Nouf Abdulaziz', 'Reem Sultan', 'Lama Faisal', 'Jawaher Khalid', 'Danah Saad', 'Saud Abdullah'],
@@ -460,43 +427,42 @@
         whyEyebrow: 'ليش هلاستدي',
         whyTitle1: 'الوجود', whyTitle2: 'أقوى من العزيمة.',
         why1H: 'ما انت لحالك على المكتب',
-        why1P: 'المرافقة بالوجود تحوّل المذاكرة الفردية إلى زخم مشترك. لما فيه أحد شغّال قدامك والكاميرا مفتوحة، تكمّل معه.',
+        why1P: "وجود أحد يشتغل معك ممكن يسهّل البداية. جهّز مهمتك وادعُ رفيق مذاكرة.",
         why2H: 'هادية بالتصميم',
-        why2P: 'المايك مقفول افتراضياً. لا كلام ولا استعراض — وجودك هو الاتفاق كله.',
+        why2P: "المايك مقفول افتراضيًا. جهّز مهمتك وحافظ على هدوء الجلسة.",
         why3H: 'مبنية لنا',
-        why3P: 'عربية أول، جداول بتوقيت الرياض، وإيقاع مذاكرة الخليج بالليل — مو تطبيق غربي مركّب عليه عربي.',
-        why4H: 'بدون حاجز، بدون تكلفة',
-        why4P: 'بدون تنزيل، وبدون تسجيل عشان تبدأ، ومجانية في التجربة. افتح غرفة بثوانٍ.',
-        ctaOpen: 'افتح غرفة', ctaOpenShort: 'افتح غرفة', ctaJoin: 'شوف اللي شغّال',
-        livePillLabel: 'مصباح شغّال الآن',
-        illustrativeNote: 'عرض توضيحي',
+        why3P: "عربي وإنجليزي، مع جدولة الغرف بتوقيت الرياض.",
+        why4H: "ابدأ من المتصفح",
+        why4P: "الغرف الفورية ما تحتاج تنزيل أو حساب. اختر اسم الغرفة وشارك الكود.",
+        ctaOpen: 'افتح غرفة', ctaOpenShort: 'افتح غرفة', ctaJoin: "شوف اللوبي",
+        quietRoom: "غرفة هادئة، جاهزة وقت ما تحتاجها", roomPreview: "معاينة الغرفة",
+        illustrativeNote: "الصور والأسماء توضيحية، وليست لأعضاء متصلين الآن.",
         heroTitle1: 'ادخل.', heroTitle2: 'الكاميرا شغّالة.', heroTitle3: 'اشتغل مع غيرك.',
-        heroSub: 'غرفة هادية، مفتوحة طول الليل. العالم كله يذاكر ويشتغل — قرّب كرسيك.',
-        heroFoot: 'بدون تنزيل. بدون تسجيل. المايك مقفول.',
+        heroSub: "مكان هادي للمذاكرة. افتح غرفة وادعُ أحد يذاكر معك.",
+        heroFoot: "مذاكرة بالكاميرا، والمايك مقفول افتراضيًا. افتح غرفة فورية أو ادخلها كضيف. تحتاج حساب لجدولة الغرف أو الظهور بالكاميرا في اللوبي.",
         stepsEyebrow: 'كيف الغرفة',
         stepsTitle1: 'ثلاث خطوات.', stepsTitle2: 'بدون تسجيل.',
         stepNum1: '٠١', step1H: 'افتح غرفة',
-        step1P: 'اختر مدة التركيز — 25 دقيقة، 50 دقيقة، أو مفتوحة. تطلع لك كود من ست خانات تشاركه.',
+        step1P: "سمّ غرفتك، ثم شارك كودها المكوّن من ست خانات مع رفيق المذاكرة.",
         stepNum2: '٠٢', step2H: 'الكاميرا شغّالة، المايك مقفول',
-        step2P: 'هذا هو المربط. وجودك هو الاتفاق. ما فيه أحد يسمع؛ كل واحد قاعد يشتغل.',
-        stepNum3: '٠٣', step3H: 'اقعد لين يرنّ المنبه',
-        step3P: 'لما تخلص البومودورو، كلكم تستريحون مع بعض. راحة هادية، ورجعة هادية.',
-        roomMeta: 'غرفة هادية · 50 دقيقة تركيز',
+        step2P: "اسمح بالوصول للكاميرا لما تكون جاهز. راجع زاوية التصوير قبل المشاركة وأبعد معلوماتك الشخصية.",
+        stepNum3: '٠٣', step3H: "اضبط مؤقت التركيز",
+        step3P: "اختر مدة التركيز والاستراحة داخل الغرفة. اشتغل على مهمتك لين وقت الراحة.",
+        roomMeta: "معاينة الغرفة · مثال لجلسة تركيز",
         previewYou: 'انت',
         previewFootL: 'المايك مقفول · الكاميرا شغّالة',
-        previewFootR: 'مشفّر · WebRTC',
-        communityEyebrow: 'اللي معاك الليلة',
-        communityTitle1: 'مذاكرة ', communityTitle2: 'بصمت واحد.',
-        communitySub: 'طلاّب حقيقيّين. اختبارات جاية. المصابيح شغّالة — اقعد على الطاولة.',
-        statPictured: 'في الصورة', statRightNow: 'الآن', statCities: 'مدينة',
+        previewFootR: "جلسة توضيحية",
+        communityEyebrow: "تخيّل جلسة مذاكرتك",
+        communityTitle1: "تخصصات مختلفة.", communityTitle2: "ومكان واحد للمذاكرة.",
+        communitySub: "تصوّر للمذاكرة مع غيرك. ادعُ صديق أو شوف الموجودين في اللوبي.",
         member1Name: 'منيرة عبدالله', member1Major: 'علوم الحاسب',
         member2Name: 'شهد ناصر',   member2Major: 'إدارة أعمال',
         member3Name: 'تركي ناصر',  member3Major: 'عمارة',
         member4Name: 'ساره خالد',  member4Major: 'إعلام واتّصال',
         member5Name: 'فهد سلطان',  member5Major: 'تقنية حيوية',
-        closerTitle1: 'مصباح واحد شغّال الساعة ١.', closerTitle2: 'انت مو لحالك.',
-        closerSub: 'هلاستدي غرفة هادية، مفتوحة طول الليل، الكاميرات شغّالة والكلام مقفول.',
-        footerTag: 'هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.',
+        closerTitle1: 'مصباح واحد شغّال الساعة ١.', closerTitle2: "جهّز مكان للتركيز.",
+        closerSub: "افتح غرفة هادية، شارك الكود، وابدأ بمهمتك.",
+        footerTag: "هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل مع غيرك.",
         footerBlog: 'المدونة', footerPrivacy: 'الخصوصية', footerTerms: 'الشروط', footerContact: 'تواصل معنا', footerWhatsapp: 'دعوة واتساب',
         whatsappShareText: 'جرّب هلاستدي — غرف تركيز هادية للمذاكرة والعمل',
         tileNames: ['نوف عبدالعزيز', 'ريم سلطان', 'لمى فيصل', 'جواهر خالد', 'دانة سعد', 'سعود عبدالله'],
@@ -579,51 +545,6 @@
       });
     }
 
-    /* ---------- Live counter — random walk ---------- */
-    var liveN = 17264;
-    function tickLive() {
-      if (document.hidden) return;
-      var drift = Math.random() < 0.5 ? -1 : 1;
-      var mag = Math.floor(Math.random() * 5) + 1;
-      liveN = Math.max(15000, liveN + drift * mag);
-      // Western digits + grouping in both languages — counts are
-      // transactional numbers per DESIGN.md §5.
-      var formatted = liveN.toLocaleString('en-US');
-      var el = document.getElementById('live-count');
-      var stat = document.getElementById('stat-live');
-      if (el) el.textContent = formatted;
-      if (stat) stat.textContent = formatted;
-    }
-
-    /* ---------- Preview pomodoro countdown ---------- */
-    var pomSec = 23 * 60 + 41;
-    function tickPomodoro() {
-      if (document.hidden) return;
-      if (pomSec <= 0) pomSec = 50 * 60;
-      pomSec -= 1;
-      var m = Math.floor(pomSec / 60);
-      var s = pomSec % 60;
-      var el = document.getElementById('preview-pomodoro');
-      if (el) el.textContent = pad2(m) + ':' + pad2(s);
-    }
-
-    /* ---------- Tile timers (hero + preview) — count up ---------- */
-    var heroSeeds = [32 * 60 + 14, 47 * 60 + 2, 12 * 60 + 48, 23 * 60 + 41, 8 * 60 + 22, 19 * 60 + 7];
-    var previewSeeds = [32 * 60 + 14, 12 * 60 + 48, 47 * 60 + 2];
-    function tickTimers() {
-      if (document.hidden) return;
-      heroSeeds.forEach(function (sec, i) {
-        heroSeeds[i] = sec + 1;
-        var el = document.querySelector('[data-tile-timer="' + i + '"]');
-        if (el) el.textContent = pad2(Math.floor(heroSeeds[i] / 60)) + ':' + pad2(heroSeeds[i] % 60);
-      });
-      previewSeeds.forEach(function (sec, i) {
-        previewSeeds[i] = sec + 1;
-        var el = document.querySelector('[data-preview-timer="' + i + '"]');
-        if (el) el.textContent = pad2(Math.floor(previewSeeds[i] / 60)) + ':' + pad2(previewSeeds[i] % 60);
-      });
-    }
-
     var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     /* ---------- Boot ---------- */
@@ -667,66 +588,9 @@
         });
       }
 
-      // Mobile burger menu — toggles the dropdown sheet; on narrow viewports
-      // the real lang/theme controls move into the sheet (listeners survive
-      // the DOM move), and move back when the viewport widens.
-      var burger = document.getElementById('nav-burger');
-      var mobileMenu = document.getElementById('mobile-menu');
-      var menuControls = document.getElementById('mobile-menu-controls');
-      var topbarRight = document.querySelector('.topbar-right');
-      var langSwitch = document.querySelector('.topbar-right .lang-switch');
-      var ctaCompact = document.querySelector('.topbar-right .btn--compact');
-      function closeMenu() {
-        if (!mobileMenu || mobileMenu.hidden) return;
-        mobileMenu.hidden = true;
-        if (burger) burger.setAttribute('aria-expanded', 'false');
-      }
-      function openMenu() {
-        mobileMenu.hidden = false;
-        mobileMenu.setAttribute('data-entering', '');
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () { mobileMenu.removeAttribute('data-entering'); });
-        });
-        burger.setAttribute('aria-expanded', 'true');
-      }
-      if (burger && mobileMenu) {
-        burger.addEventListener('click', function () {
-          if (mobileMenu.hidden) openMenu(); else closeMenu();
-        });
-        mobileMenu.addEventListener('click', function (e) {
-          if (e.target.closest('a')) closeMenu();
-        });
-        document.addEventListener('keydown', function (e) {
-          if (e.key === 'Escape') closeMenu();
-        });
-        document.addEventListener('click', function (e) {
-          if (!mobileMenu.hidden && !mobileMenu.contains(e.target) && !burger.contains(e.target)) closeMenu();
-        });
-        var menuMq = window.matchMedia('(max-width: 879px)');
-        var placeControls = function () {
-          if (!langSwitch || !themeBtn) return;
-          if (menuMq.matches) {
-            menuControls.appendChild(langSwitch);
-            menuControls.appendChild(themeBtn);
-          } else {
-            topbarRight.insertBefore(langSwitch, ctaCompact);
-            topbarRight.insertBefore(themeBtn, ctaCompact);
-            closeMenu();
-          }
-        };
-        placeControls();
-        if (menuMq.addEventListener) menuMq.addEventListener('change', placeControls);
-        else if (menuMq.addListener) menuMq.addListener(placeControls);
-      }
-
       // Timers
       updateClocks();
       setInterval(updateClocks, 30 * 1000);
-      setInterval(tickLive, 1100);
-      if (!prefersReduced) {
-        setInterval(tickPomodoro, 1000);
-        setInterval(tickTimers, 1000);
-      }
     });
   })();
   </script>
