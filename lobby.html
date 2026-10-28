@@ -245,7 +245,7 @@
         camGuest: 'سجّل دخول عشان تفتح الكاميرا',
         camReady: 'افتح كاميرتي',
         camOff: 'اقفل كاميرتي',
-        camBlocked: 'الكاميرا محظورة. اسمح لها من إعدادات المتصفح وجرّب مرة ثانية.',
+        camBlocked: 'الكاميرا مقفولة. اسمح لها من إعدادات المتصفح وجرّب مرة ثانية.',
         camNoDevice: 'ما لقينا كاميرا في جهازك. تقدر تكمل تتفرج.',
         camBusy: 'الكاميرا مستخدمة في تطبيق ثاني. سكّره وجرّب مرة ثانية.',
         camUnavailable: 'الفيديو مو متاح الحين. أنت لسه في اللوبي.',
@@ -254,13 +254,13 @@
         watching: 'يتفرج',
         live: 'مباشر',
         full: 'اللوبي ممتلئ حالياً — جرّب بعد شوي، أو افتح غرفتك الخاصة.',
-        statusConnecting: 'جاري الاتصال باللوبي…',
+        statusConnecting: 'قاعدين نوصلك للوبي…',
         statusReconnecting: 'انقطع الاتصال. نحاول نرجعك…',
         statusUnreachable: 'ما قدرنا نوصل للوبي. تأكد من اتصالك وجرّب مرة ثانية.',
         statusFailed: 'ما قدرنا ندخلك اللوبي. جرّب مرة ثانية.',
         retry: 'جرّب مرة ثانية',
-        retryNow: 'أعد الاتصال الحين',
-        backHome: 'الرجوع للرئيسية',
+        retryNow: 'جرّب الاتصال الحين',
+        backHome: 'ارجع للرئيسية',
         openOwn: 'افتح غرفتك الخاصة'
       }
     };
@@ -277,6 +277,8 @@
     const LOBBY_CAP = 30;
     const JOIN_TIMEOUT_MS = 10000;
     const SIGN_IN_URL = '/account.html?next=%2Flobby';
+    // Seat-limit codes the video-token route returns (co-study-server.js).
+    const CAMERA_FULL_CODES = ['ROOM_FULL', 'GLOBAL_VIDEO_LIMIT_REACHED', 'IP_VIDEO_LIMIT_REACHED'];
 
     const el = (id) => document.getElementById(id);
     const state = { participants: [], perPage: 12, page: 0, isMobile: window.innerWidth < 640, myName: '' };
@@ -496,9 +498,16 @@
       };
       retryJoin = () => {
         if (socket !== activeSocket) return;
+        if (activeSocket.connected) {
+          setPhase('connecting');
+          requestJoin();
+          return;
+        }
+        // connect() is a no-op while Socket.IO waits between automatic
+        // retries; closing first makes "Try again" connect immediately.
+        activeSocket.disconnect();
+        activeSocket.connect();
         setPhase('connecting');
-        if (activeSocket.connected) requestJoin();
-        else activeSocket.connect();
       };
       activeSocket.on('connect', requestJoin);
       activeSocket.on('presence', (list) => setParticipants(list || []));
@@ -665,7 +674,7 @@
             location.href = SIGN_IN_URL;
             return;
           } else if (!res || res.errorCode !== 'VIDEO_JOIN_SUPERSEDED') {
-            setCameraNote(res && res.errorCode === 'VIDEO_LIMIT_REACHED' ? 'camFull' : 'camUnavailable');
+            setCameraNote(res && CAMERA_FULL_CODES.includes(res.errorCode) ? 'camFull' : 'camUnavailable');
             // Re-attach as a watcher so the grid keeps showing the room.
             await connectRealtimeKit('viewer');
           }

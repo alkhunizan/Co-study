@@ -402,7 +402,7 @@ test('a full Lobby offers retry and your own room, and retry joins', async ({ br
     }
 });
 
-test('a dropped Lobby connection releases media and rejoins on its own', async ({ browser }) => {
+test('a dropped Lobby connection releases media and reconnects on request', async ({ browser }) => {
     const server = await startServer({ withFakeRealtimeKit: true });
     const { context, page, browserErrors } = await openLobbyPage(browser, {
         setup: (target) => installLobbySocketHarness(target)
@@ -412,11 +412,24 @@ test('a dropped Lobby connection releases media and rejoins on its own', async (
         await expect.poll(() => fakeMedia(page, 'joins')).toBe(1);
         await expect(page.locator('#lobby-status')).toBeHidden();
 
-        // Close the transport the way a network drop does; Socket.IO stays active.
-        await page.evaluate(() => (/** @type {any} */ (window)).__lobbySocket.io.engine.close());
+        // Close the transport the way a network drop does; Socket.IO stays
+        // active. A long retry delay keeps the reconnecting state observable.
+        await page.evaluate(() => {
+            const manager = (/** @type {any} */ (window)).__lobbySocket.io;
+            manager.reconnectionDelay(60000);
+            manager.reconnectionDelayMax(60000);
+            manager.randomizationFactor(0);
+            manager.engine.close();
+        });
+        const status = page.locator('#lobby-status');
+        await expect(status).toContainText('Connection lost');
+        await expect(page.locator('#grid')).toHaveClass(/is-stale/);
         await expect.poll(() => fakeMedia(page, 'leaves')).toBeGreaterThanOrEqual(1);
+
+        // "Reconnect now" must not wait for the 60 s automatic retry.
+        await page.click('#lobby-retry');
         await expect.poll(() => page.evaluate(() => (/** @type {any} */ (window)).__lobbyJoinAttempts)).toBe(2);
-        await expect(page.locator('#lobby-status')).toBeHidden();
+        await expect(status).toBeHidden();
         await expect.poll(() => fakeMedia(page, 'joins')).toBe(2);
         expect(browserErrors).toEqual([]);
     } finally {
@@ -492,6 +505,41 @@ test('the Lobby camera button reflects the real camera state and releases the pr
         });
         await expect(cta).toHaveText('افتح كاميرتي');
         expect(browserErrors).toEqual([]);
+    } finally {
+        await context.close();
+        await server.stop();
+    }
+});
+
+test('full camera seats are reported and the Lobby keeps watching', async ({ browser }) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    const { context, page, browserErrors } = await openLobbyPage(browser, {
+        setup: async (target) => {
+            await installLobbySocketHarness(target);
+            await signInAs(target, 'Lobby States');
+            await stubCamera(target, 'ok');
+            await target.route(/\/api\/rooms\/[^/]+\/video-token$/, async (route) => {
+                if (route.request().postDataJSON()?.role !== 'publisher') return route.fallback();
+                return route.fulfill({
+                    status: 409,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ ok: false, errorCode: 'GLOBAL_VIDEO_LIMIT_REACHED' })
+                });
+            });
+        }
+    });
+    try {
+        await gotoTestPage(page, `${server.baseUrl}/lobby`);
+        await expect.poll(() => fakeMedia(page, 'joins')).toBe(1);
+        const cta = page.locator('#camera-cta');
+        await expect(cta).toBeEnabled();
+        await cta.click();
+        await expect(page.locator('#camera-note')).toContainText('All camera spots are taken');
+        await expect(cta).toHaveAttribute('aria-pressed', 'false');
+        await expect(cta).toBeEnabled();
+        // Re-attached as a watcher after the refused publisher seat.
+        await expect.poll(() => fakeMedia(page, 'joins')).toBe(2);
+        expect(browserErrors.filter((message) => !message.includes('409'))).toEqual([]);
     } finally {
         await context.close();
         await server.stop();
