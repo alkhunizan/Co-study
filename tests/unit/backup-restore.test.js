@@ -237,10 +237,10 @@ test('restore defaults to dry-run and performs no writes', async () => {
     const calls = [];
     const result = await applyRestorePlan({
         plan: buildRestorePlan({
-        bundle: sampleBundle(),
-        deletionTombstones: [],
-        now: Date.parse('2026-07-15T00:00:00.000Z')
-    }),
+            bundle: sampleBundle(),
+            deletionTombstones: [],
+            now: Date.parse('2026-07-15T00:00:00.000Z')
+        }),
         target: {
             async restoreProfiles() { calls.push('profiles'); },
             async restoreFocusCompletionClaims() { calls.push('focus_completion_claims'); },

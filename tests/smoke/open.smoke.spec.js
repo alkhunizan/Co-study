@@ -2,7 +2,7 @@ const { createTestContext, gotoTestPage, test, expect, waitForTestUrl } = requir
 
 let openIpCounter = 60;
 
-async function createOpenPage(browser) {
+async function createOpenPage(browser, lang = 'en') {
     const forwardedIp = `203.0.113.${openIpCounter}`;
     openIpCounter += 1;
     const context = await createTestContext(browser, {
@@ -13,12 +13,12 @@ async function createOpenPage(browser) {
     });
     const page = await context.newPage();
 
-    await page.addInitScript(() => {
+    await page.addInitScript(lang => {
         try {
             delete (/** @type {any} */ (window)).FaceDetector;
         } catch (_error) {}
 
-        try { localStorage.setItem('halastudyLang', 'en'); } catch (_error) {}
+        try { localStorage.setItem('halastudyLang', lang); } catch (_error) {}
 
         const baseMediaDevices = navigator.mediaDevices || {};
         const stubbedMediaDevices = Object.create(baseMediaDevices);
@@ -29,16 +29,27 @@ async function createOpenPage(browser) {
             configurable: true,
             value: stubbedMediaDevices
         });
-    });
+    }, lang);
 
     return { context, page };
 }
 
-test('created room password hands off to the workspace without a re-prompt', async ({ browser }) => {
-    const creator = await createOpenPage(browser);
+for (const lang of ['en', 'ar']) for (const signedIn of [false, true]) {
+test(`protected room create, invite, refresh and leave: ${lang}, ${signedIn ? 'account' : 'guest'}`, async ({ browser }) => {
+    const creator = await createOpenPage(browser, lang);
 
     try {
         const { page } = creator;
+        if (signedIn) {
+            const response = await page.request.post('/api/auth/signup', { data: {
+                email: `handoff-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`,
+                password: 'handoff-account-123', displayName: 'Creator'
+            } });
+            expect(response.ok()).toBeTruthy();
+        }
+        await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', {
+            configurable: true, value: { writeText: async value => { (/** @type {any} */ (window)).__copied = value; } }
+        }));
         await gotoTestPage(page, '/open.html');
         await expect(page.locator('#create-form')).toBeVisible();
 
@@ -50,6 +61,7 @@ test('created room password hands off to the workspace without a re-prompt', asy
 
         const roomCode = (await page.locator('#result-code').textContent()).trim();
         expect(roomCode).toMatch(/^[A-Z0-9]{6}$/);
+        expect(await page.evaluate(() => sessionStorage.getItem('halastudyOpenDraft'))).toBeNull();
 
         await page.click('#btn-enter-room');
         await waitForTestUrl(page, /\/index\.html\?room=/);
@@ -64,7 +76,8 @@ test('created room password hands off to the workspace without a re-prompt', asy
         expect(stored.password).toBe('handoff123');
 
         await expect(page.locator('#join-overlay')).toBeVisible();
-        await page.fill('#join-name', 'Creator');
+        if (signedIn) await expect(page.locator('#join-name')).toHaveValue('Creator');
+        else await page.fill('#join-name', 'Creator');
         await page.click('#join-form button[type="submit"]');
 
         await expect.poll(async () => {
@@ -75,8 +88,126 @@ test('created room password hands off to the workspace without a re-prompt', asy
             });
             return overlayHidden ? 'joined' : 'pending';
         }, { timeout: 20000 }).toBe('joined');
+        await expect(page.locator('#room-join-status')).toContainText(roomCode);
+        await expect(page.locator('#room-join-status')).toHaveAttribute('role', 'status');
+        await page.click('#share-room-btn');
+        const invite = await page.evaluate(() => (/** @type {any} */ (window)).__copied);
+        expect(new URL(invite).search).toBe(`?room=${roomCode}`);
+        expect(invite).not.toContain('handoff123');
+        expect(await page.locator('#join-room').evaluate(e => getComputedStyle(e).direction)).toBe('ltr');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(page.locator('#join-overlay')).toHaveClass(/hidden/);
+        await expect(page.locator('#join-overlay')).toBeHidden();
+        await expect(page.locator('#chat-input')).toBeEnabled();
+        await expect(page.locator('#join-name')).toHaveValue('Creator');
+        await page.locator('header a.logo').click();
+        await expect.poll(async () => {
+            const response = await page.request.get(`/api/rooms/${roomCode}`);
+            return (await response.json()).room.participantCount;
+        }).toBe(0);
     } finally {
         await creator.context.close();
+    }
+});
+
+}
+
+test('optional protection is collapsed and validation is associated with its field', async ({ browser }) => {
+    const visitor = await createOpenPage(browser);
+    try {
+        const { page } = visitor;
+        await gotoTestPage(page, '/open');
+        await expect(page.locator('#room-password')).toBeHidden();
+        await page.click('#create-form button[type="submit"]');
+        await expect(page.locator('#room-name')).toHaveAttribute('aria-invalid', 'true');
+        await expect(page.locator('#room-name-error')).toBeVisible();
+        await expect(page.locator('#create-feedback')).toHaveAttribute('role', 'status');
+        await page.fill('#room-name', 'Keep my input');
+        await page.check('#require-password');
+        await expect(page.locator('#room-password')).toBeVisible();
+        await page.click('#create-form button[type="submit"]');
+        await expect(page.locator('#room-password')).toHaveAttribute('aria-invalid', 'true');
+        await expect(page.locator('#room-name')).toHaveValue('Keep my input');
+    } finally { await visitor.context.close(); }
+});
+
+test('schedule signup returns to the same draft and refresh preserves it', async ({ browser }) => {
+    const visitor = await createOpenPage(browser);
+    try {
+        const { page } = visitor;
+        await gotoTestPage(page, '/open');
+        await page.fill('#room-name', 'My planned session');
+        await page.check('#require-password');
+        await page.fill('#room-password', 'draft-room-password');
+        await page.check('#enable-schedule');
+        await page.click('#schedule-gate-cta');
+        await expect(page).toHaveURL(/\/account\.html\?signup=1&next=/);
+        await page.fill('#signup-nickname', 'Planner');
+        await page.fill('#signup-email', `plan-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`);
+        await page.fill('#signup-password', 'planner-password-123');
+        await page.click('#signup-form button[type="submit"]');
+        await expect(page).toHaveURL(/\/open\.html\?schedule=1/);
+        await expect(page.locator('#room-name')).toHaveValue('My planned session');
+        await expect(page.locator('#require-password')).toBeChecked();
+        await expect(page.locator('#room-password')).toHaveValue('draft-room-password');
+        await expect(page.locator('#schedule-fields-inner')).toBeVisible();
+        await page.fill('#schedule-goal-template', 'Finish chapter two');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(page.locator('#room-name')).toHaveValue('My planned session');
+        await expect(page.locator('#schedule-goal-template')).toHaveValue('Finish chapter two');
+        await expect(page.locator('#enable-schedule')).toBeChecked();
+    } finally { await visitor.context.close(); }
+});
+
+test('a stalled join lookup releases the form and can retry without retyping', async ({ browser }) => {
+    const visitor = await createOpenPage(browser);
+    /** @type {(value?: any) => void} */
+    let release = () => {};
+    const gate = new Promise(resolve => { release = resolve; });
+    try {
+        const { page } = visitor;
+        await page.route('**/api/rooms/**', async route => {
+            await gate;
+            await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }).catch(() => {});
+        });
+        await gotoTestPage(page, '/open#join');
+        await page.fill('#join-code', 'WAIT12');
+        await page.click('#join-form button[type="submit"]');
+        await expect(page.locator('#join-feedback')).toHaveClass(/error/, { timeout: 12000 });
+        await expect(page.locator('#join-form button[type="submit"]')).toBeEnabled();
+        await expect(page.locator('#join-code')).toHaveValue('WAIT12');
+        release();
+        await page.click('#join-form button[type="submit"]');
+        await expect(page.locator('#join-feedback')).toContainText(/does not exist/i);
+    } finally { release(); await visitor.context.close(); }
+});
+
+test('created codes have a manual copy fallback in both languages', async ({ browser }) => {
+    for (const lang of ['en', 'ar']) {
+        const visitor = await createOpenPage(browser, lang);
+        try {
+            const { page } = visitor;
+            await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', {
+                configurable: true, value: { writeText: async () => { throw new Error('Clipboard denied'); } }
+            }));
+            await gotoTestPage(page, '/open');
+            await page.fill('#room-name', 'Copy room');
+            await page.click('#create-form button[type="submit"]');
+            await expect(page.locator('#create-result')).toBeVisible();
+            const code = await page.locator('#result-code').textContent();
+            const dialogPromise = new Promise(resolve => page.once('dialog', async dialog => {
+                const details = { type: dialog.type(), value: dialog.defaultValue(), message: dialog.message() };
+                await dialog.dismiss();
+                resolve(details);
+            }));
+            await page.locator('#result-code').focus();
+            await page.keyboard.press('Enter');
+            const dialog = await dialogPromise;
+            expect(dialog.type).toBe('prompt');
+            expect(dialog.value).toBe(code);
+            expect(dialog.message).toMatch(lang === 'en' ? /copy/i : /انسخ/);
+            expect(await page.locator('#result-code').evaluate(e => getComputedStyle(e).direction)).toBe('ltr');
+        } finally { await visitor.context.close(); }
     }
 });
 
@@ -153,3 +284,110 @@ test('a stale room lookup cannot replace the latest join preview', async ({ brow
         await visitor.context.close();
     }
 });
+
+test('create rejects duplicate submits and retries the preserved draft after a failed ack', async ({ browser }) => {
+    const visitor = await createOpenPage(browser);
+    try {
+        const { page } = visitor;
+        await page.route('**/socket.io/socket.io.js', async route => {
+            const response = await route.fetch();
+            await route.fulfill({ response, body: `${await response.text()}\n;(() => {
+                const originalIo = window.io;
+                window.__createCalls = 0;
+                window.io = (...args) => {
+                    const socket = originalIo(...args), emit = socket.emit.bind(socket);
+                    socket.emit = (event, ...values) => {
+                        if (event === 'create-room' && ++window.__createCalls === 1) {
+                            window.__rejectCreate = () => values[values.length - 1](null, { ok: false, errorCode: 'RATE_LIMITED' });
+                            return socket;
+                        }
+                        return emit(event, ...values);
+                    };
+                    return socket;
+                };
+            })();` });
+        });
+        await gotoTestPage(page, '/open');
+        await page.fill('#room-name', 'Retry this draft');
+        await page.click('#create-form button[type="submit"]');
+        await page.locator('#create-form').evaluate(form => { form.requestSubmit(); form.requestSubmit(); });
+        expect(await page.evaluate(() => (/** @type {any} */ (window)).__createCalls)).toBe(1);
+        await page.evaluate(() => (/** @type {any} */ (window)).__rejectCreate());
+        await expect(page.locator('#create-feedback')).toHaveClass(/error/);
+        await expect(page.locator('#room-name')).toHaveValue('Retry this draft');
+        await expect(page.locator('#create-form button[type="submit"]')).toBeEnabled();
+        await page.click('#create-form button[type="submit"]');
+        await expect(page.locator('#create-result')).toBeVisible();
+        expect(await page.evaluate(() => (/** @type {any} */ (window)).__createCalls)).toBe(2);
+    } finally { await visitor.context.close(); }
+});
+
+test('lookup failures and mesh capacity preserve the code until a successful retry', async ({ browser }) => {
+    const visitor = await createOpenPage(browser);
+    try {
+        const { page } = visitor;
+        let status = 500;
+        let full = false;
+        await page.route('**/api/rooms/RETRY1', route => route.fulfill({ status,
+            contentType: 'application/json', body: JSON.stringify({ roomId: 'RETRY1', name: 'Retry room',
+                videoProvider: 'mesh', mediaMode: 'mesh', participantCount: full ? 4 : 0, participantLimit: 4 }) }));
+        await gotoTestPage(page, '/open#join');
+        await page.fill('#join-code', 'RETRY1');
+        for (const failure of [500, 429, 404, 200]) {
+            status = failure;
+            full = failure === 200;
+            await page.click('#join-form button[type="submit"]');
+            await expect(page.locator('#join-feedback')).toHaveClass(/error/);
+            await expect(page.locator('#join-form button[type="submit"]')).toBeEnabled();
+            await expect(page.locator('#join-code')).toHaveValue('RETRY1');
+        }
+        full = false;
+        await page.click('#join-form button[type="submit"]');
+        await expect(page).toHaveURL(/index\.html\?room=RETRY1/);
+    } finally { await visitor.context.close(); }
+});
+
+test('expired form drafts are discarded', async ({ browser }) => {
+    const visitor = await createOpenPage(browser);
+    try {
+        const { page } = visitor;
+        await page.addInitScript(() => sessionStorage.setItem('halastudyOpenDraft', JSON.stringify({
+            expires: Date.now() - 1, values: { 'room-name': 'Expired draft', 'room-password': 'old-password' }
+        })));
+        await gotoTestPage(page, '/open');
+        await expect(page.locator('#room-name')).toHaveValue('');
+        await expect(page.locator('#room-password')).toHaveValue('');
+        expect(await page.evaluate(() => sessionStorage.getItem('halastudyOpenDraft'))).toBeNull();
+    } finally { await visitor.context.close(); }
+});
+
+for (const lang of ['en', 'ar']) {
+    test(`protected lookup uses the private preview contract in ${lang}`, async ({ browser }) => {
+        const visitor = await createOpenPage(browser, lang);
+        try {
+            const { page } = visitor;
+            await gotoTestPage(page, '/open');
+            await page.fill('#room-name', 'Private preview');
+            await page.check('#require-password');
+            await page.fill('#room-password', 'preview-secret');
+            await page.click('#create-form button[type=submit]');
+            await expect(page.locator('#create-result')).toBeVisible();
+            const code = (await page.locator('#result-code').textContent()).trim();
+            await gotoTestPage(page, `/open?room=${code}`);
+            await expect(page.locator('#join-room-preview-name')).toHaveText('Private preview');
+            await expect(page.locator('#join-room-preview-mode')).toBeHidden();
+            await expect(page.locator('#join-room-preview-count')).toBeHidden();
+            await expect(page.locator('#join-room-preview-access')).toContainText(lang === 'en' ? /password/i : /كلمة مرور/);
+            await page.click('#join-form button[type=submit]');
+            await expect(page.locator('#join-password')).toHaveAttribute('aria-invalid', 'true');
+            await expect(page.locator('#join-code')).toHaveValue(code);
+            await page.fill('#join-password', 'preview-secret');
+            await page.click('#join-form button[type=submit]');
+            await expect(page).toHaveURL(/index\.html\?room=/);
+            await page.fill('#join-name', 'Private visitor');
+            await page.click('#join-form button[type=submit]');
+            await expect(page.locator('#join-overlay')).toHaveClass(/hidden/);
+            await expect(page.locator('#chat-input')).toBeEnabled();
+        } finally { await visitor.context.close(); }
+    });
+}

@@ -70,6 +70,12 @@
             shareSuccess: 'Room link copied.',
             shareFallback: 'Copy this link and share it',
             codeCopied: 'Room code copied.',
+            codeCopyFallback: 'Copy this room code:',
+            joiningRoom: 'Joining room...',
+            joinedRoom: 'Joined room',
+            joinTimeout: 'Joining took too long. Check your connection and try again.',
+            roomExpired: 'This room has expired. Ask the host for a new room code.',
+            roomScheduleNotOpen: 'This scheduled room is not open yet. Check its start time and try again.',
             roomPillCopyTitle: 'Copy room code',
             disconnectMsg: 'Connection lost. Trying to reconnect...',
             joinNameError: 'Please enter a nickname.',
@@ -153,7 +159,7 @@
             roomPasswordVerificationFailed: 'The room password could not be verified.',
             usernameTaken: 'That nickname is already in use.',
             roomNotJoined: 'Join a room first before sending messages.',
-            roomFull: 'This mesh room is full. Ask the host to create a large room.',
+            roomFull: 'This room is full. Try again later or ask the host for another room.',
             roomMediaUnavailable: 'Large-room media is unavailable on this deployment right now.',
             roomMediaModeInvalid: 'That room media mode is not supported.',
             videoJoinDisabled: 'Video joining is paused right now.',
@@ -242,6 +248,12 @@
             shareSuccess: 'تم نسخ رابط الغرفة.',
             shareFallback: 'انسخ هذا الرابط وشاركه',
             codeCopied: 'تم نسخ رمز الغرفة.',
+            codeCopyFallback: 'انسخ رمز الغرفة:',
+            joiningRoom: 'جارٍ دخول الغرفة...',
+            joinedRoom: 'تم الدخول إلى الغرفة',
+            joinTimeout: 'استغرق الدخول وقتًا طويلًا. تحقق من الاتصال وحاول مرة أخرى.',
+            roomExpired: 'انتهت صلاحية الغرفة. اطلب رمز غرفة جديد من المضيف.',
+            roomScheduleNotOpen: 'الغرفة المجدولة غير مفتوحة بعد. راجع وقت البداية وحاول مرة أخرى.',
             roomPillCopyTitle: 'انسخ رمز الغرفة',
             disconnectMsg: 'انقطع الاتصال. تتم محاولة إعادة الربط...',
             joinNameError: 'فضلاً أدخل الاسم.',
@@ -325,7 +337,7 @@
             roomPasswordVerificationFailed: 'تعذر التحقق من كلمة مرور الغرفة.',
             usernameTaken: 'هذا الاسم مستخدم بالفعل.',
             roomNotJoined: 'ادخل إلى غرفة أولاً قبل إرسال الرسائل.',
-            roomFull: 'غرفة الـ Mesh هذه ممتلئة. اطلب من المضيف إنشاء غرفة كبيرة.',
+            roomFull: 'الغرفة ممتلئة. حاول لاحقًا أو اطلب من المضيف غرفة أخرى.',
             roomMediaUnavailable: 'وسائط الغرف الكبيرة غير متاحة في هذا النشر حالياً.',
             roomMediaModeInvalid: 'وضع وسائط الغرفة هذا غير مدعوم.',
             videoJoinDisabled: 'الدخول بالفيديو متوقف مؤقتاً الآن.',
@@ -361,6 +373,8 @@
         NICKNAME_REQUIRED: 'joinNameError',
         ROOM_CODE_REQUIRED: 'roomCodeError',
         ROOM_NOT_FOUND: 'roomNotFound',
+        ROOM_EXPIRED: 'roomExpired',
+        ROOM_SCHEDULE_NOT_OPEN: 'roomScheduleNotOpen',
         ROOM_PASSWORD_REQUIRED: 'roomPasswordRequired',
         ROOM_PASSWORD_MISCONFIGURED: 'roomPasswordMisconfigured',
         ROOM_PASSWORD_INVALID: 'roomPasswordInvalid',
@@ -413,6 +427,10 @@
     const joinRoomInput = document.getElementById('join-room');
     const joinPasswordInput = document.getElementById('join-password');
     const joinError = document.getElementById('join-error');
+    const joinStatus = document.getElementById('join-status');
+    const roomJoinStatus = document.getElementById('room-join-status');
+    const joinSubmitButton = joinForm.querySelector('button[type="submit"]');
+    let joinPending = false;
     const localVideo = document.getElementById('local-video');
     const remoteGrid = document.getElementById('remote-grid');
     const cameraToggleBtn = document.getElementById('camera-toggle');
@@ -605,7 +623,8 @@
             return joinPasswordInput.value.trim();
         }
         try {
-            return sessionStorage.getItem('halastudyRoomPassword') || '';
+            const passwordRoom = sessionStorage.getItem('halastudyRoomPasswordCode') || getStoredRoomCode();
+            return passwordRoom === roomId ? sessionStorage.getItem('halastudyRoomPassword') || '' : '';
         } catch (_err) {
             return '';
         }
@@ -615,6 +634,10 @@
         try {
             if (value) {
                 sessionStorage.setItem('halastudyRoomPassword', value);
+                sessionStorage.setItem('halastudyRoomPasswordCode', roomId);
+            } else {
+                sessionStorage.removeItem('halastudyRoomPassword');
+                sessionStorage.removeItem('halastudyRoomPasswordCode');
             }
         } catch (_err) {}
     }
@@ -2915,16 +2938,33 @@
         joinError.textContent = msg;
     }
 
+    function setJoinPending(pending) {
+        joinPending = pending;
+        joinSubmitButton.disabled = pending;
+        joinForm.setAttribute('aria-busy', String(pending));
+        joinStatus.textContent = pending ? currentCopy().joiningRoom : '';
+        if (pending) roomJoinStatus.textContent = '';
+    }
+
+    function joinFieldError(input, message) {
+        window.HalaUI?.setFieldError(input, message);
+        if (message) input.focus();
+    }
+
     function handleJoinSubmit(e) {
         e.preventDefault();
+        if (joinPending) return;
+        [joinNameInput, joinRoomInput, joinPasswordInput].forEach(input => { joinFieldError(input, ''); });
         const name = joinNameInput.value.trim();
         const targetRoom = joinRoomInput.value.trim().toUpperCase();
         if (!name) {
             showJoinError(currentCopy().joinNameError);
+            joinFieldError(joinNameInput, currentCopy().joinNameError);
             return;
         }
         if (!targetRoom) {
             showJoinError(currentCopy().roomCodeError);
+            joinFieldError(joinRoomInput, currentCopy().roomCodeError);
             return;
         }
         showJoinError('');
@@ -2937,7 +2977,7 @@
         if (window.history?.replaceState) {
             history.replaceState(null, '', `${baseUrl}?room=${roomId}`);
         }
-        joinOverlay.classList.add('hidden');
+        joinOverlay.classList.remove('hidden');
         setChatEnabled(false);
         setBoardEnabled(false);
         connectSocket();
@@ -2958,8 +2998,34 @@
         socket = io({ auth: { clientId: ensureClientId() } });
         const activeSocket = socket;
         let joinGeneration = 0;
+        let joinDeadline = null;
+        const finishJoin = () => {
+            clearTimeout(joinDeadline);
+            setJoinPending(false);
+        };
+        const failJoin = message => {
+            ++joinGeneration;
+            finishJoin();
+            roomMembershipToken = '';
+            showJoinError(message);
+            joinOverlay.classList.remove('hidden');
+            // Cancel the pending membership attempt so a late ack cannot join
+            // behind the visible retry form or leave a ghost participant.
+            activeSocket.disconnect();
+        };
+        const startJoinDeadline = () => {
+            clearTimeout(joinDeadline);
+            setJoinPending(true);
+            showJoinError('');
+            joinOverlay.classList.remove('hidden');
+            joinDeadline = setTimeout(() => {
+                if (socket === activeSocket) failJoin(currentCopy().joinTimeout);
+            }, 8000);
+        };
+        startJoinDeadline();
         const joinActiveRoom = () => {
             const currentJoinGeneration = ++joinGeneration;
+            startJoinDeadline();
             roomMembershipToken = '';
             if (isRealtimeKitRoom()) {
                 void videoClient?.leave({ keepalive: true });
@@ -2970,10 +3036,17 @@
                     roomMembershipToken = '';
                     setChatEnabled(false);
                     setBoardEnabled(false);
-                    showJoinError(getErrorMessage(res.errorCode, 'joinFailed'));
-                    joinOverlay.classList.remove('hidden');
+                    const message = getErrorMessage(res.errorCode, 'joinFailed');
+                    failJoin(message);
+                    const field = res.errorCode?.startsWith('ROOM_PASSWORD') ? joinPasswordInput
+                        : res.errorCode === 'NICKNAME_REQUIRED' || res.errorCode === 'USERNAME_TAKEN' ? joinNameInput
+                        : joinRoomInput;
+                    joinFieldError(field, message);
                     return;
                 }
+                finishJoin();
+                joinOverlay.classList.add('hidden');
+                roomJoinStatus.textContent = `${currentCopy().joinedRoom} ${roomId}`;
                 roomMembershipToken = typeof res.membershipToken === 'string'
                     ? res.membershipToken.trim()
                     : '';
@@ -3023,6 +3096,14 @@
             }
             setChatEnabled(false);
             setBoardEnabled(false);
+            if (joinPending) {
+                // A first join that cannot connect is cancelled, so a late ack
+                // cannot land behind the visible retry form.
+                failJoin(currentCopy().connectError);
+                return;
+            }
+            // An established session keeps Socket.IO's automatic reconnection;
+            // the 'connect' handler rejoins the room once the network returns.
             showJoinError(currentCopy().connectError);
             joinOverlay.classList.remove('hidden');
         });
@@ -3057,6 +3138,13 @@
         activeSocket.on('rtc-ice', handleIncomingIce);
         activeSocket.on('disconnect', () => {
             if (socket !== activeSocket) return;
+            clearTimeout(joinDeadline);
+            ++joinGeneration;
+            if (joinPending) {
+                setJoinPending(false);
+                showJoinError(currentCopy().connectError);
+                joinOverlay.classList.remove('hidden');
+            }
             roomMembershipToken = '';
             setChatEnabled(false);
             setBoardEnabled(false);
@@ -3101,10 +3189,8 @@
         const pill = document.getElementById('room-pill');
         if (!pill) return;
         function copyRoomCode() {
-            if (!roomId || !navigator.clipboard?.writeText) return;
-            navigator.clipboard.writeText(roomId).then(() => {
-                if (window.HalaUI) window.HalaUI.toast(langDict[curLang].codeCopied, { kind: 'success' });
-            }).catch(() => {});
+            if (!roomId) return;
+            void window.HalaUI.copyText(roomId, currentCopy().codeCopied, currentCopy().codeCopyFallback);
         }
         pill.addEventListener('click', copyRoomCode);
         pill.addEventListener('keydown', (event) => {
@@ -3115,8 +3201,12 @@
         });
     })();
     joinForm.addEventListener('submit', handleJoinSubmit);
+    [joinNameInput, joinRoomInput, joinPasswordInput].forEach(input => {
+        joinFieldError(input, '');
+        input.addEventListener('input', () => joinFieldError(input, ''));
+    });
     // index.html ships the button disabled so it cannot submit natively before this point.
-    joinForm.querySelector('button[type="submit"]').disabled = false;
+    joinSubmitButton.disabled = false;
     joinRoomInput.addEventListener('input', () => {
         joinRoomInput.value = joinRoomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     });
@@ -3271,6 +3361,10 @@
             roomMembershipToken = '';
             void videoClient?.leave({ keepalive: true });
         }
+        socket?.disconnect();
+    });
+    window.addEventListener('pageshow', event => {
+        if (event.persisted && username && roomId) connectSocket();
     });
 
     function updateCameraToggleLabel(state) {
@@ -4077,7 +4171,6 @@
             username = savedName;
             roomId = incomingRoom;
             updateRoomBadge();
-            joinOverlay.classList.add('hidden');
             connectSocket();
         }
     })();
