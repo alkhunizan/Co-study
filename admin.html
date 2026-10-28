@@ -466,12 +466,18 @@
       });
 
       /* ---------- section navigation (#hash deep links) ---------- */
-      // Only section hashes change the panel; any other fragment (such as
-      // the skip link's #main) keeps the section the operator is on.
+      // Section hashes pick the panel and an empty fragment means Overview
+      // (so browser Back to the bare URL restores it); any other fragment,
+      // such as the skip link's #main, keeps the section the operator is on.
       let currentSection = 'overview';
-      function activePanel() {
+      function routedSection() {
         const requested = window.location.hash.replace('#', '');
-        if (SECTIONS.includes(requested)) currentSection = requested;
+        if (requested === '') return 'overview';
+        return SECTIONS.includes(requested) ? requested : null;
+      }
+      function activePanel() {
+        const routed = routedSection();
+        if (routed) currentSection = routed;
         return currentSection;
       }
 
@@ -498,7 +504,7 @@
       }
 
       window.addEventListener('hashchange', () => {
-        if (SECTIONS.includes(window.location.hash.replace('#', ''))) showSection({ focus: true });
+        if (routedSection()) showSection({ focus: true });
       });
       // The skip link moves focus without touching the hash or the section.
       document.querySelector('.skip-link').addEventListener('click', (event) => {

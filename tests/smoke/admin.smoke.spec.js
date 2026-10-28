@@ -261,3 +261,23 @@ test('the skip link focuses the content without leaving the current section', as
         await operator.context.close();
     }
 });
+
+test('browser Back to the bare console URL returns to Overview', async ({ browser, isMobile }) => {
+    test.skip(isMobile, 'Covered by the sidebar links, which are desktop-only.');
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, ADMIN_PATH);
+        await signInOperator(page);
+        await expect(page.locator('#ops-title')).toHaveText('Overview');
+        await page.click('#ops-nav a[data-section="rooms"]');
+        await expect(page.locator('#ops-title')).toHaveText('Rooms');
+        await page.goBack();
+        await expect(page).not.toHaveURL(/#/);
+        await expect(page.locator('#ops-title')).toHaveText('Overview');
+        await expect(page.locator('#panel-overview')).toBeVisible();
+        await expect(page.locator('#panel-rooms')).toBeHidden();
+    } finally {
+        await operator.context.close();
+    }
+});
