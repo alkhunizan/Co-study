@@ -255,3 +255,293 @@ test('the join button stays disabled until the room script can handle the submit
         await context.close();
     }
 });
+
+// ---- Lobby states (readiness Task 6) ----
+
+// Wraps window.io so a test can fail the first join acknowledgements, attach a
+// membership token, and reach the live socket to drop its transport.
+async function installLobbySocketHarness(page, { membershipToken = 'membership-lobby-states', failJoinsWith = [], holdFirstJoin = false } = {}) {
+    await page.route('**/socket.io/socket.io.js', async (route) => {
+        const response = await route.fetch();
+        const source = await response.text();
+        await route.fulfill({
+            response,
+            body: `${source}\n;(() => {
+                const originalIo = window.io;
+                const failures = ${JSON.stringify(failJoinsWith)};
+                let holdNext = ${JSON.stringify(holdFirstJoin)};
+                window.__lobbyJoinAttempts = 0;
+                window.io = function wrappedIo(...args) {
+                    const socket = originalIo(...args);
+                    window.__lobbySocket = socket;
+                    const originalEmit = socket.emit.bind(socket);
+                    socket.emit = function wrappedEmit(eventName, ...eventArgs) {
+                        if (eventName === 'join-room') {
+                            const attempt = window.__lobbyJoinAttempts++;
+                            const callbackIndex = eventArgs.length - 1;
+                            const callback = eventArgs[callbackIndex];
+                            if (attempt < failures.length && typeof callback === 'function') {
+                                setTimeout(() => callback({ ok: false, errorCode: failures[attempt] }), 0);
+                                return socket;
+                            }
+                            if (typeof callback === 'function') {
+                                const deliver = (ack = {}) => callback(
+                                    ack && ack.ok ? { ...ack, membershipToken: ${JSON.stringify(membershipToken)} } : ack
+                                );
+                                if (holdNext) {
+                                    holdNext = false;
+                                    eventArgs[callbackIndex] = (ack) => { window.__releaseJoin = () => deliver(ack); };
+                                } else {
+                                    eventArgs[callbackIndex] = deliver;
+                                }
+                            }
+                        }
+                        return originalEmit(eventName, ...eventArgs);
+                    };
+                    return socket;
+                };
+                Object.assign(window.io, originalIo);
+            })();`
+        });
+    });
+}
+
+async function signInAs(page, displayName) {
+    await page.route('**/api/auth/me', (route) => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ user: { id: 'user-lobby-states', displayName, email: 'lobby@example.test' } })
+    }));
+}
+
+// Deterministic camera probe across engines: 'ok' resolves a stoppable track,
+// any other value rejects with that DOMException name.
+async function stubCamera(page, outcome) {
+    await page.addInitScript((initialOutcome) => {
+        const w = /** @type {any} */ (window);
+        w.__cameraOutcome = initialOutcome;
+        w.__probeStops = 0;
+        if (!navigator.mediaDevices) Object.defineProperty(navigator, 'mediaDevices', { value: {}, configurable: true });
+        navigator.mediaDevices.getUserMedia = async () => {
+            if (w.__cameraOutcome !== 'ok') throw new DOMException('stubbed camera outcome', w.__cameraOutcome);
+            return /** @type {any} */ ({ getTracks: () => [{ stop() { w.__probeStops += 1; } }] });
+        };
+    }, outcome);
+}
+
+/**
+ * @param {import('@playwright/test').Browser} browser
+ * @param {{ setup?: (page: import('@playwright/test').Page) => Promise<void> }} [options]
+ */
+async function openLobbyPage(browser, options = {}) {
+    const { setup } = options;
+    const context = await createTestContext(browser, { permissions: [], serviceWorkers: 'block' });
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+        try {
+            localStorage.setItem('halastudyLang', 'en');
+            localStorage.setItem('halastudyDisplayName', 'Lobby States');
+        } catch (_error) {}
+    });
+    await installFakeMediaClient(page);
+    const videoRequests = await installVideoContract(page, 'video-session-lobby-states');
+    if (setup) await setup(page);
+    const browserErrors = captureBrowserErrors(page);
+    return { context, page, videoRequests, browserErrors };
+}
+
+const fakeMedia = (page, key) => page.evaluate((name) => (/** @type {any} */ (window)).__fakeMedia[name], key);
+
+test('Lobby shows connecting instead of an empty room until the join is acknowledged', async ({ browser }) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    const { context, page, browserErrors } = await openLobbyPage(browser, {
+        setup: (target) => installLobbySocketHarness(target, { holdFirstJoin: true })
+    });
+    try {
+        await gotoTestPage(page, `${server.baseUrl}/lobby`);
+        await expect.poll(() => page.evaluate(() => typeof (/** @type {any} */ (window)).__releaseJoin)).toBe('function');
+        await expect(page.locator('#lobby-status')).toContainText('Connecting to the Lobby');
+        await expect(page.locator('#empty')).toBeHidden();
+        await expect(page.locator('#present-n')).toHaveText('—');
+
+        await page.evaluate(() => (/** @type {any} */ (window)).__releaseJoin());
+        await expect(page.locator('#lobby-status')).toBeHidden();
+        await expect(page.locator('#present-n')).not.toHaveText('—');
+        // A guest is sent to sign in, and back to the Lobby afterwards.
+        await expect(page.locator('#camera-cta')).toHaveText('Sign in to turn on your camera');
+        await page.click('#camera-cta');
+        await expect(page).toHaveURL(/\/account\.html\?next=%2Flobby$/);
+        expect(browserErrors).toEqual([]);
+    } finally {
+        await context.close();
+        await server.stop();
+    }
+});
+
+test('a full Lobby offers retry and your own room, and retry joins', async ({ browser }) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    const { context, page, browserErrors } = await openLobbyPage(browser, {
+        setup: (target) => installLobbySocketHarness(target, { failJoinsWith: ['ROOM_FULL'] })
+    });
+    try {
+        await gotoTestPage(page, `${server.baseUrl}/lobby`);
+        const status = page.locator('#lobby-status');
+        await expect(status).toContainText('The Lobby is full right now');
+        await expect(page.locator('#lobby-return')).toHaveAttribute('href', '/open');
+        await expect(page.locator('#lobby-return')).toHaveText('Open your own room');
+        await expect(page.locator('#empty')).toBeHidden();
+        expect(await fakeMedia(page, 'joins')).toBe(0);
+
+        await page.click('#lobby-retry');
+        await expect(status).toBeHidden();
+        await expect.poll(() => fakeMedia(page, 'joins')).toBe(1);
+        expect(browserErrors).toEqual([]);
+    } finally {
+        await context.close();
+        await server.stop();
+    }
+});
+
+test('a dropped Lobby connection releases media and reconnects on request', async ({ browser }) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    const { context, page, browserErrors } = await openLobbyPage(browser, {
+        setup: (target) => installLobbySocketHarness(target)
+    });
+    try {
+        await gotoTestPage(page, `${server.baseUrl}/lobby`);
+        await expect.poll(() => fakeMedia(page, 'joins')).toBe(1);
+        await expect(page.locator('#lobby-status')).toBeHidden();
+
+        // Close the transport the way a network drop does; Socket.IO stays
+        // active. A long retry delay keeps the reconnecting state observable.
+        await page.evaluate(() => {
+            const manager = (/** @type {any} */ (window)).__lobbySocket.io;
+            manager.reconnectionDelay(60000);
+            manager.reconnectionDelayMax(60000);
+            manager.randomizationFactor(0);
+            manager.engine.close();
+        });
+        const status = page.locator('#lobby-status');
+        await expect(status).toContainText('Connection lost');
+        await expect(page.locator('#grid')).toHaveClass(/is-stale/);
+        await expect.poll(() => fakeMedia(page, 'leaves')).toBeGreaterThanOrEqual(1);
+
+        // "Reconnect now" must not wait for the 60 s automatic retry.
+        await page.click('#lobby-retry');
+        await expect.poll(() => page.evaluate(() => (/** @type {any} */ (window)).__lobbyJoinAttempts)).toBe(2);
+        await expect(status).toBeHidden();
+        await expect.poll(() => fakeMedia(page, 'joins')).toBe(2);
+        expect(browserErrors).toEqual([]);
+    } finally {
+        await context.close();
+        await server.stop();
+    }
+});
+
+test('a blocked or missing camera is reported without requesting a publisher seat', async ({ browser }) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    const { context, page, videoRequests, browserErrors } = await openLobbyPage(browser, {
+        setup: async (target) => {
+            await installLobbySocketHarness(target);
+            await signInAs(target, 'Lobby States');
+            await stubCamera(target, 'NotAllowedError');
+        }
+    });
+    const publisherRequests = () => videoRequests.filter(
+        (request) => request.pathname.endsWith('/video-token') && request.body?.role === 'publisher'
+    );
+    try {
+        await gotoTestPage(page, `${server.baseUrl}/lobby`);
+        const cta = page.locator('#camera-cta');
+        await expect(cta).toHaveText('Turn on my camera');
+        await expect(cta).toBeEnabled();
+        await expect(cta).toHaveAttribute('aria-pressed', 'false');
+
+        await cta.click();
+        await expect(page.locator('#camera-note')).toContainText('Camera access is blocked');
+        await expect(cta).toHaveAttribute('aria-pressed', 'false');
+
+        await page.evaluate(() => { (/** @type {any} */ (window)).__cameraOutcome = 'NotFoundError'; });
+        await cta.click();
+        await expect(page.locator('#camera-note')).toContainText('No camera found');
+        expect(publisherRequests()).toHaveLength(0);
+        expect(browserErrors).toEqual([]);
+    } finally {
+        await context.close();
+        await server.stop();
+    }
+});
+
+test('the Lobby camera button reflects the real camera state and releases the probe', async ({ browser }) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    const { context, page, videoRequests, browserErrors } = await openLobbyPage(browser, {
+        setup: async (target) => {
+            await installLobbySocketHarness(target);
+            await signInAs(target, 'Lobby States');
+            await stubCamera(target, 'ok');
+        }
+    });
+    try {
+        await gotoTestPage(page, `${server.baseUrl}/lobby`);
+        const cta = page.locator('#camera-cta');
+        await expect(cta).toBeEnabled();
+        await cta.click();
+        await expect(cta).toHaveText('Turn off my camera');
+        await expect(cta).toHaveAttribute('aria-pressed', 'true');
+        expect(await page.evaluate(() => (/** @type {any} */ (window)).__probeStops)).toBe(1);
+        expect(videoRequests.some(
+            (request) => request.pathname.endsWith('/video-token') && request.body?.role === 'publisher'
+        )).toBe(true);
+        await expect(page.locator('#camera-note')).toBeHidden();
+
+        await cta.click();
+        await expect(cta).toHaveText('Turn on my camera');
+        await expect(cta).toHaveAttribute('aria-pressed', 'false');
+
+        // The language switch rewrites script-set strings too.
+        await page.evaluate(() => {
+            const button = /** @type {HTMLElement} */ (document.querySelector('[data-lang-value="ar"]'));
+            button.click();
+        });
+        await expect(cta).toHaveText('افتح كاميرتي');
+        expect(browserErrors).toEqual([]);
+    } finally {
+        await context.close();
+        await server.stop();
+    }
+});
+
+test('full camera seats are reported and the Lobby keeps watching', async ({ browser }) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    const { context, page, browserErrors } = await openLobbyPage(browser, {
+        setup: async (target) => {
+            await installLobbySocketHarness(target);
+            await signInAs(target, 'Lobby States');
+            await stubCamera(target, 'ok');
+            await target.route(/\/api\/rooms\/[^/]+\/video-token$/, async (route) => {
+                if (route.request().postDataJSON()?.role !== 'publisher') return route.fallback();
+                return route.fulfill({
+                    status: 409,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ ok: false, errorCode: 'GLOBAL_VIDEO_LIMIT_REACHED' })
+                });
+            });
+        }
+    });
+    try {
+        await gotoTestPage(page, `${server.baseUrl}/lobby`);
+        await expect.poll(() => fakeMedia(page, 'joins')).toBe(1);
+        const cta = page.locator('#camera-cta');
+        await expect(cta).toBeEnabled();
+        await cta.click();
+        await expect(page.locator('#camera-note')).toContainText('All camera spots are taken');
+        await expect(cta).toHaveAttribute('aria-pressed', 'false');
+        await expect(cta).toBeEnabled();
+        // Re-attached as a watcher after the refused publisher seat.
+        await expect.poll(() => fakeMedia(page, 'joins')).toBe(2);
+        expect(browserErrors.filter((message) => !message.includes('409'))).toEqual([]);
+    } finally {
+        await context.close();
+        await server.stop();
+    }
+});
