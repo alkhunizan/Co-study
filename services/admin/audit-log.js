@@ -10,16 +10,18 @@ const path = require('node:path');
 const AUDIT_MEMORY_LIMIT = 1000;
 const AUDIT_FILE_MAX_BYTES = 5 * 1024 * 1024;
 
-function readRecentEntries(filePath, limit, logger) {
-    let text;
+function readFileText(filePath, logger) {
     try {
-        text = fs.readFileSync(filePath, 'utf8');
+        return fs.readFileSync(filePath, 'utf8');
     } catch (error) {
         if (error?.code !== 'ENOENT') {
             logger.warn({ event: 'admin_audit_load_failed', error: error?.message });
         }
-        return [];
+        return '';
     }
+}
+
+function parseEntries(text) {
     const entries = [];
     for (const line of text.split('\n')) {
         if (!line.trim()) continue;
@@ -30,7 +32,20 @@ function readRecentEntries(filePath, limit, logger) {
             // A torn final line from a crash is skipped rather than failing startup.
         }
     }
-    return entries.slice(-limit);
+    return entries;
+}
+
+// The rotated generation is read first so a restart right after rotation
+// still shows the recent history it holds.
+function readRecentEntries(filePath, limit, logger) {
+    const current = readFileText(filePath, logger);
+    const entries = [...parseEntries(readFileText(`${filePath}.1`, logger)), ...parseEntries(current)];
+    return {
+        entries: entries.slice(-limit),
+        // A crash can leave a partial last line; the next append must start
+        // on a fresh line or it would be glued onto the fragment and lost.
+        tailIsTorn: current.length > 0 && !current.endsWith('\n')
+    };
 }
 
 /**
@@ -49,7 +64,9 @@ function createAdminAuditLog({
     memoryLimit = AUDIT_MEMORY_LIMIT,
     maxFileBytes = AUDIT_FILE_MAX_BYTES
 }) {
-    const entries = readRecentEntries(filePath, memoryLimit, logger);
+    const loaded = readRecentEntries(filePath, memoryLimit, logger);
+    const entries = loaded.entries;
+    let tailIsTorn = loaded.tailIsTorn;
     let writeChain = Promise.resolve();
 
     async function append(line) {
@@ -62,8 +79,10 @@ function createAdminAuditLog({
         }
         if (size > 0 && size + Buffer.byteLength(line) > maxFileBytes) {
             await fs.promises.rename(filePath, `${filePath}.1`);
+            tailIsTorn = false;
         }
-        await fs.promises.appendFile(filePath, line, { encoding: 'utf8', mode: 0o600 });
+        await fs.promises.appendFile(filePath, tailIsTorn ? `\n${line}` : line, { encoding: 'utf8', mode: 0o600 });
+        tailIsTorn = false;
     }
 
     /**
