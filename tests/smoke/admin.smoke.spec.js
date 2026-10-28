@@ -105,7 +105,7 @@ test('force-close from the console requires typing the room code and kills the l
         await operator.page.click('#login-form button[type="submit"]');
         await expect(operator.page.locator('#ops-shell')).toBeVisible();
 
-        await operator.page.click('#tabs button[data-panel="rooms"]');
+        await operator.page.click('#ops-nav a[data-section="rooms"]');
         const row = operator.page.locator('#rooms-tbody tr', { hasText: roomCode });
         await expect(row).toBeVisible();
         await row.locator('button', { hasText: 'Inspect' }).click();
@@ -151,7 +151,7 @@ test('kicking from the reports tab asks for a reason and disconnects the reporte
         await operator.page.fill('#admin-password', ADMIN_PASSWORD);
         await operator.page.click('#login-form button[type="submit"]');
         await expect(operator.page.locator('#ops-shell')).toBeVisible();
-        await operator.page.click('#tabs button[data-panel="reports"]');
+        await operator.page.click('#ops-nav a[data-section="reports"]');
         const row = operator.page.locator('#reports-tbody tr', { hasText: 'Reported Person' });
         await row.locator('button', { hasText: 'Kick' }).click();
 
@@ -168,6 +168,74 @@ test('kicking from the reports tab asks for a reason and disconnects the reporte
     } finally {
         await closeSocket(reporter);
         await closeSocket(target);
+        await operator.context.close();
+    }
+});
+
+async function signInOperator(page) {
+    await page.fill('#admin-password', ADMIN_PASSWORD);
+    await page.click('#login-form button[type="submit"]');
+    await expect(page.locator('#ops-shell')).toBeVisible();
+}
+
+test('the Ops shell deep-links sections and keeps the heading, nav and title in step', async ({ browser, isMobile }) => {
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, `${ADMIN_PATH}#users`);
+        await signInOperator(page);
+        await expect(page.locator('#ops-title')).toHaveText('Users');
+        await expect(page.locator('#panel-users')).toBeVisible();
+        await expect(page.locator('#panel-overview')).toBeHidden();
+        await expect(page).toHaveTitle('Users — Halastudy Ops');
+
+        if (isMobile) {
+            await expect(page.locator('#ops-nav')).toBeHidden();
+            await page.selectOption('#ops-section-select', 'system');
+        } else {
+            await expect(page.locator('#ops-nav a[aria-current="page"]')).toHaveText('Users');
+            await page.click('#ops-nav a[data-section="system"]');
+        }
+        await expect(page).toHaveURL(/#system$/);
+        await expect(page.locator('#ops-title')).toHaveText('System');
+        // Video and announcements now live inside System.
+        await expect(page.locator('#kill-switch-toggle')).toBeVisible();
+        await expect(page.locator('#announce-publish')).toBeVisible();
+        await expect(page.locator('#ops-title')).toBeFocused();
+    } finally {
+        await operator.context.close();
+    }
+});
+
+test('the Ops shell switches to Arabic right-to-left and remembers it after a reload', async ({ browser }) => {
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, ADMIN_PATH);
+        await page.locator('#login-view [data-lang-switch] button[data-lang="ar"]').click();
+        await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+        await expect(page.locator('#login-view [data-i18n="signIn"]')).toHaveText('تسجيل الدخول');
+        await signInOperator(page);
+        await expect(page.locator('#ops-title')).toHaveText('نظرة عامة');
+        await expect(page.locator('#ops-section-select option[value="reports"]')).toHaveText('البلاغات والدعم');
+
+        await page.reload();
+        await expect(page.locator('#ops-shell')).toBeVisible();
+        await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
+        await expect(page.locator('#ops-title')).toHaveText('نظرة عامة');
+        // The brand stays Latin and the sidebar sits on the inline-start (right) side.
+        await expect(page.locator('.brand [lang="en"]')).toHaveText('Halastudy');
+        const sidebar = await page.locator('.ops-sidebar').boundingBox();
+        const main = await page.locator('#main').boundingBox();
+        const viewport = page.viewportSize();
+        if (sidebar && main && viewport && viewport.width > 850) {
+            expect(sidebar.x).toBeGreaterThan(main.x);
+        }
+
+        await page.locator('#ops-shell [data-lang-switch] button[data-lang="en"]').click();
+        await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+        await expect(page.locator('#ops-title')).toHaveText('Overview');
+    } finally {
         await operator.context.close();
     }
 });
