@@ -333,3 +333,53 @@ test('browser Back to the bare console URL returns to Overview', async ({ browse
         await operator.context.close();
     }
 });
+
+async function seedAuditEntries(page, count) {
+    for (let index = 0; index < count; index += 1) {
+        const response = await page.request.post(`${ADMIN_PATH}/api/video-kill-switch`, {
+            data: { disabled: index % 2 === 0 }
+        });
+        expect(response.status()).toBe(200);
+    }
+    // Leave the shared smoke server with video enabled.
+    await page.request.post(`${ADMIN_PATH}/api/video-kill-switch`, { data: { disabled: false } });
+}
+
+test('Load more fetches each older audit page once and re-renders loaded history in a new language', async ({ browser, isMobile }) => {
+    test.skip(isMobile, 'The dense operations table is intentionally desktop-only.');
+    const operator = await createAdminPage(browser);
+    try {
+        const { page } = operator;
+        await gotoTestPage(page, `${ADMIN_PATH}#audit`);
+        await signInOperator(page);
+        await seedAuditEntries(page, 60);
+        await page.click('#btn-refresh');
+        const more = page.locator('#audit-more');
+        await expect(more).toBeVisible();
+
+        // Hold the second page open so both clicks land while it is pending.
+        const olderPageRequests = [];
+        let releasePage = () => {};
+        const pageGate = new Promise((resolve) => { releasePage = () => resolve(undefined); });
+        await page.route(/\/api\/audit\?offset=50/, async (route) => {
+            olderPageRequests.push(route.request().url());
+            await pageGate;
+            await route.continue();
+        });
+        await more.click();
+        await expect(more).toBeDisabled();
+        await more.click({ force: true });
+        releasePage();
+        await expect(page.locator('#audit-tbody tr')).not.toHaveCount(50);
+        expect(olderPageRequests).toHaveLength(1);
+        const rowCount = await page.locator('#audit-tbody tr').count();
+        expect(rowCount).toBeGreaterThan(50);
+
+        await page.locator('#ops-shell [data-lang-switch] button[data-lang="ar"]').click();
+        await expect(page.locator('#audit-tbody tr').first()).toContainText(/دخول الفيديو/);
+        await expect(page.locator('#audit-tbody tr')).toHaveCount(rowCount);
+        await expect(page.locator('#audit-total')).toContainText('إجراء');
+    } finally {
+        await operator.context.close();
+    }
+});

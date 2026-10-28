@@ -949,11 +949,23 @@
         return api('GET', `/audit?offset=${offset}${action ? `&action=${encodeURIComponent(action)}` : ''}`);
       }
 
+      // Every reload of the first page bumps the generation, so a "Load more"
+      // response that started before it (or before a filter change) is
+      // dropped instead of being appended to the wrong list.
+      let auditGeneration = 0;
+      let auditMorePending = false;
+
       // Polling refreshes the first page only while no older pages are
       // loaded, so "Load more" results are not yanked away every 5 seconds.
+      // Loaded history is still re-rendered, e.g. after a language switch.
       async function loadAudit({ force = false } = {}) {
-        if (!force && auditEntries.length > 50) return;
+        if (!force && auditEntries.length > 50) {
+          renderAudit();
+          return;
+        }
+        const generation = ++auditGeneration;
         const page = await fetchAudit(0);
+        if (generation !== auditGeneration) return;
         auditEntries = page.entries;
         auditTotal = page.total;
         renderAudit();
@@ -961,13 +973,23 @@
 
       $('audit-action').addEventListener('change', () => { void loadAudit({ force: true }).catch(reportActionError); });
       $('audit-more').addEventListener('click', async () => {
+        // One page request at a time: two in flight would share an offset.
+        if (auditMorePending) return;
+        auditMorePending = true;
+        const button = $('audit-more');
+        button.disabled = true;
+        const generation = auditGeneration;
         try {
           const page = await fetchAudit(auditEntries.length);
+          if (generation !== auditGeneration) return;
           auditEntries = auditEntries.concat(page.entries);
           auditTotal = page.total;
           renderAudit();
         } catch (error) {
           reportActionError(error);
+        } finally {
+          auditMorePending = false;
+          button.disabled = false;
         }
       });
 
