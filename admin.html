@@ -103,6 +103,7 @@
     dialog::backdrop { background: var(--overlay); }
     dialog h3 { margin: 0 0 10px; }
     dialog input { margin: 14px 0; }
+    dialog textarea { display: block; margin: 6px 0 14px; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -256,6 +257,8 @@
     <h3 id="confirm-title">Confirm</h3>
     <p class="muted" id="confirm-body"></p>
     <input type="text" id="confirm-input" autocomplete="off">
+    <label class="muted" for="confirm-reason" id="confirm-reason-label">Reason (kept in the audit log)</label>
+    <textarea id="confirm-reason" rows="2" maxlength="300"></textarea>
     <div class="row">
       <button type="button" class="btn danger" id="confirm-yes" disabled>Confirm</button>
       <button type="button" class="btn" id="confirm-no">Cancel</button>
@@ -291,28 +294,39 @@
         setTimeout(() => { el.textContent = ''; }, 4000);
       }
 
-      /* Typed confirmation for irreversible actions. */
-      function confirmTyped({ title, body, expected }) {
+      /* Typed confirmation for irreversible actions. With requireReason it
+         resolves to the trimmed reason (or null when cancelled), because the
+         server rejects destructive actions without one. */
+      const REASON_MIN_LENGTH = 3;
+      function confirmTyped({ title, body, expected, requireReason = false }) {
         return new Promise((resolve) => {
           const dialog = $('confirm-dialog');
           $('confirm-title').textContent = title;
           $('confirm-body').textContent = body;
           const input = $('confirm-input');
+          const reason = $('confirm-reason');
           const yes = $('confirm-yes');
           input.value = '';
+          reason.value = '';
           input.placeholder = expected ? `Type "${expected}"` : '';
           input.hidden = !expected;
-          yes.disabled = !!expected;
-          input.oninput = () => { yes.disabled = input.value.trim() !== expected; };
-          function close(result) {
+          reason.hidden = !requireReason;
+          $('confirm-reason-label').hidden = !requireReason;
+          const ready = () => (!expected || input.value.trim() === expected)
+            && (!requireReason || reason.value.trim().length >= REASON_MIN_LENGTH);
+          yes.disabled = !ready();
+          input.oninput = () => { yes.disabled = !ready(); };
+          reason.oninput = () => { yes.disabled = !ready(); };
+          function close(confirmed) {
             dialog.close();
-            resolve(result);
+            if (!requireReason) resolve(confirmed);
+            else resolve(confirmed ? reason.value.trim() : null);
           }
           yes.onclick = () => close(true);
           $('confirm-no').onclick = () => close(false);
-          dialog.oncancel = () => resolve(false);
+          dialog.oncancel = () => resolve(requireReason ? null : false);
           dialog.showModal();
-          if (expected) input.focus();
+          (expected ? input : reason).focus();
         });
       }
 
@@ -432,13 +446,14 @@
           kickBtn.className = 'btn danger';
           kickBtn.textContent = 'Kick';
           kickBtn.addEventListener('click', async () => {
-            const yes = await confirmTyped({
+            const reason = await confirmTyped({
               title: `Kick ${participant.name}?`,
               body: 'They are disconnected immediately but can rejoin with the room code.',
-              expected: ''
+              expected: '',
+              requireReason: true
             });
-            if (!yes) return;
-            await api('POST', `/rooms/${encodeURIComponent(roomId)}/kick`, { socketId: participant.socketId });
+            if (reason === null) return;
+            await api('POST', `/rooms/${encodeURIComponent(roomId)}/kick`, { socketId: participant.socketId, reason });
             await inspectRoom(roomId);
             await loadRooms();
           });
@@ -455,13 +470,14 @@
 
       $('inspect-force-close').addEventListener('click', async () => {
         if (!inspectedRoomId) return;
-        const yes = await confirmTyped({
+        const reason = await confirmTyped({
           title: 'Force close this room?',
           body: 'Everyone inside is disconnected and the room is deleted, including its board and chat history. This cannot be undone.',
-          expected: inspectedRoomId
+          expected: inspectedRoomId,
+          requireReason: true
         });
-        if (!yes) return;
-        await api('POST', `/rooms/${encodeURIComponent(inspectedRoomId)}/close`);
+        if (reason === null) return;
+        await api('POST', `/rooms/${encodeURIComponent(inspectedRoomId)}/close`, { reason });
         $('room-inspect').classList.add('hidden');
         inspectedRoomId = null;
         await loadRooms();
@@ -490,17 +506,21 @@
           actionBtn.className = user.banned ? 'btn' : 'btn danger';
           actionBtn.textContent = user.banned ? 'Unban' : 'Ban';
           actionBtn.addEventListener('click', async () => {
-            if (!user.banned) {
-              const yes = await confirmTyped({
+            const reason = await confirmTyped(user.banned
+              ? {
+                title: `Unban ${user.displayName}?`,
+                body: 'They can sign in again immediately.',
+                expected: '',
+                requireReason: true
+              }
+              : {
                 title: `Ban ${user.displayName}?`,
                 body: 'They are signed out everywhere immediately and cannot sign back in until unbanned.',
-                expected: user.displayName
+                expected: user.displayName,
+                requireReason: true
               });
-              if (!yes) return;
-              await api('POST', `/users/${encodeURIComponent(user.id)}/ban`);
-            } else {
-              await api('POST', `/users/${encodeURIComponent(user.id)}/unban`);
-            }
+            if (reason === null) return;
+            await api('POST', `/users/${encodeURIComponent(user.id)}/${user.banned ? 'unban' : 'ban'}`, { reason });
             await loadUsers();
           });
           tr.lastElementChild.appendChild(actionBtn);
@@ -552,7 +572,14 @@
             kickBtn.textContent = 'Kick';
             kickBtn.style.marginInlineStart = '6px';
             kickBtn.addEventListener('click', async () => {
-              await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/kick`, { socketId: report.targetSocketId });
+              const reason = await confirmTyped({
+                title: `Kick ${report.targetName}?`,
+                body: `Reported for "${report.reason}". They are disconnected immediately but can rejoin with the room code.`,
+                expected: '',
+                requireReason: true
+              });
+              if (reason === null) return;
+              await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/kick`, { socketId: report.targetSocketId, reason });
               await loadReports();
             });
             actions.appendChild(kickBtn);
