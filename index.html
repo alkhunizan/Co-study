@@ -340,6 +340,7 @@
             box-shadow: var(--sh-lamp);
             margin-top: 6px;
         }
+        .join-submit:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
         .join-error { min-height: 18px; font-size: 0.85rem; color: var(--prio-high); }
 
         /* --- Header --- */
@@ -621,7 +622,10 @@
         <label class="join-label" for="join-password" data-lang="joinPassword">Room password (if required)</label>
         <input type="password" id="join-password" class="join-input" maxlength="64" autocomplete="current-password" data-lang-placeholder="joinPasswordPlaceholder" placeholder="Leave empty if no password">
         <div class="join-error" id="join-error"></div>
-        <button class="join-submit" type="submit" data-lang="joinButton">Enter room</button>
+        <!-- Disabled until index-app.js attaches the submit handler: an early
+             click would otherwise do a native submit that reloads the page and
+             drops what was typed. A disabled default button also blocks Enter. -->
+        <button class="join-submit" type="submit" data-lang="joinButton" disabled>Enter room</button>
     </form>
 </div>
 

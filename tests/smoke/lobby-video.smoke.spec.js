@@ -225,3 +225,33 @@ test('study room binds its shared video lifecycle to the socket membership and s
         await server.stop();
     }
 });
+
+test('the join button stays disabled until the room script can handle the submit', async ({ browser }) => {
+    const context = await createTestContext(browser, { permissions: [], serviceWorkers: 'block' });
+    const page = await context.newPage();
+    /** @type {() => void} */
+    let releaseScript = () => {};
+    const scriptGate = new Promise((resolve) => { releaseScript = () => resolve(undefined); });
+    // Hold the room script back to recreate a slow connection.
+    await page.route('**/js/index-app.js*', async (route) => {
+        await scriptGate;
+        await route.continue();
+    });
+    try {
+        await gotoTestPage(page, '/index.html?room=ABC123', { waitUntil: 'commit' });
+        const submit = page.locator('#join-form button[type="submit"]');
+        await expect(page.locator('#join-overlay')).toBeVisible();
+        await expect(submit).toBeDisabled();
+        await page.fill('#join-name', 'Early Typist');
+        await page.locator('#join-name').press('Enter');
+        // No native submit happened: the typed name is still there.
+        await expect(page.locator('#join-name')).toHaveValue('Early Typist');
+
+        releaseScript();
+        await expect(submit).toBeEnabled();
+        await expect(page.locator('#join-name')).toHaveValue('Early Typist');
+    } finally {
+        releaseScript();
+        await context.close();
+    }
+});
