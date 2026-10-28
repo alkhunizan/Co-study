@@ -133,7 +133,7 @@ For these, work in normal mode and report when ready for review.
 
 Used by `/health` (gstack skill) and `npm run test:ci`. All five gates run in `test:ci`.
 
-- typecheck (syntax): `npm run check` — `node --check` across 15 author files
+- typecheck (syntax): `npm run check` — `scripts/ci/check-syntax.js` runs `node --check` on every `.js`/`.mjs` source and on every inline `<script>` in `.html` pages (classic and module; JSON-LD is parsed as JSON; `text/babel` mock-ups are skipped), reporting HTML line numbers
 - typecheck (types):  `npm run typecheck` — `tsc -p .` with `allowJs`/`checkJs`. Permissive (`strict: false`, `noImplicitAny: false`); JSDoc opt-in per function for the JSON-trust-boundary sanitizers (`sanitizeStatus`, `sanitizeMessage`, `sanitizeBoardTask`, `sanitizeRoom`, `normalizeSchedule`)
 - lint:               `npm run lint` — `biome check .`. Scoped to JS author code only via `biome.json` includes (HTML/CSS/JSX/design-system mocks/`day*-*.mjs` spike scripts excluded). Auto-fix with `npm run lint:fix`
 - deadcode:           `npm run deadcode` — `knip --no-progress` per `knip.json`
