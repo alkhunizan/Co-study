@@ -79,6 +79,16 @@ recent-errors view. The admin session cookie is Path-scoped to `ADMIN_PATH`
 and expires after 12 hours. If the path ever leaks (proxy logs, browser
 history), rotate `ADMIN_PATH` — the password remains the real gate.
 
+Every admin sign-in, sign-out, failed sign-in and console action (close, kick,
+ban/unban, report resolve, video switch, broadcast set/clear, backup) is
+appended to an audit log at `<ROOM_STATE_FILE>.admin-audit.jsonl`, one JSON
+object per line with the action, target, optional reason, request IP and
+time. It sits next to the room state file, so it lives outside the repo
+whenever `ROOM_STATE_FILE` does. At 5 MB it rotates to `.admin-audit.jsonl.1`,
+replacing the previous older generation; copy that file off the host if you
+need a longer history. The console reads the newest 1,000 entries from
+`$ADMIN_PATH/api/audit`.
+
 `ecosystem.config.js` already targets:
 - `PORT=3000`
 - `HOST=127.0.0.1`

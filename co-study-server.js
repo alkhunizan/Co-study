@@ -15,6 +15,7 @@ const { createLogger } = require('./services/logging/logger');
 const { createCompatibilityTelemetry } = require('./services/compatibility/telemetry');
 const { createErrorBuffer } = require('./services/ops/error-buffer');
 const { createBackupScheduler } = require('./services/ops/backup-scheduler');
+const { createAdminAuditLog } = require('./services/admin/audit-log');
 const { createAdminRouter } = require('./services/admin/admin-routes');
 const { resolveListenHost } = require('./services/config/network');
 const { resolveSessionSecrets } = require('./services/config/secrets');
@@ -411,6 +412,7 @@ function resolveServerConfig({ env = process.env, mode = 'http' } = {}) {
         roomStateFile,
         realtimeKitWebhookStateFile: `${roomStateFile}.realtimekit-webhooks.json`,
         videoSessionStateFile: `${roomStateFile}.video-sessions.json`,
+        adminAuditFile: `${roomStateFile}.admin-audit.jsonl`,
         userStateFile,
         roomStateBackupDir,
         sessionSecret,
@@ -780,6 +782,8 @@ function createCoStudyServer(options = {}) {
     const config = resolveServerConfig({ env, mode });
     const oauthSecurity = createOAuthSecurity({ secret: config.sessionSecret });
     const errorBuffer = createErrorBuffer({ capacity: 200 });
+    /** @type {ReturnType<typeof createAdminAuditLog> | null} */
+    let adminAuditLog = null;
     const logger = createLogger({ service: 'halastudy' }, { onEntry: errorBuffer.push });
     const compatibilityTelemetry = options.compatibilityTelemetry || createCompatibilityTelemetry({ logger });
     if (typeof compatibilityTelemetry.record !== 'function'
@@ -3519,6 +3523,7 @@ function createCoStudyServer(options = {}) {
             pendingJoinCompensations: getJoinCompensationOutbox().length
         });
         const flushResults = await Promise.allSettled([
+            adminAuditLog ? adminAuditLog.flush() : Promise.resolve(),
             flushRoomsImmediate(),
             userStore.flush(users),
             videoSessionStore.flush(videoSessionRegistry.exportPersistentState())
@@ -4085,6 +4090,7 @@ function createCoStudyServer(options = {}) {
     });
 
     if (config.admin.enabled) {
+        adminAuditLog = createAdminAuditLog({ filePath: config.adminAuditFile, logger });
         app.use(config.admin.path, createAdminRouter({
             config,
             rooms,
@@ -4112,6 +4118,7 @@ function createCoStudyServer(options = {}) {
                     dailyActive: () => userStore.readDailyActive()
                 }
                 : null,
+            auditLog: adminAuditLog,
             logger
         }));
     }
