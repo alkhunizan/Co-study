@@ -1,4 +1,5 @@
 const { createTestContext, gotoTestPage, test, expect, waitForTestUrl } = require('../helpers/playwright-test');
+const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
 
 const ADMIN_PATH = '/ops-smoke-test-1234';
 const ADMIN_PASSWORD = 'smoke-admin-password';
@@ -128,6 +129,45 @@ test('force-close from the console requires typing the room code and kills the l
         expect(lookup.status()).toBe(404);
     } finally {
         await student.context.close();
+        await operator.context.close();
+    }
+});
+
+test('kicking from the reports tab asks for a reason and disconnects the reported participant', async ({ browser, isMobile, baseURL }) => {
+    test.skip(isMobile, 'The dense operations table is intentionally desktop-only.');
+    const reporter = await connectSocket(baseURL, { clientId: 'smoke-reporter' });
+    const target = await connectSocket(baseURL, { clientId: 'smoke-reported' });
+    const operator = await createAdminPage(browser);
+    try {
+        const created = await emitAck(reporter, 'create-room', { roomName: 'Report Kick Room' });
+        const roomId = created.room.roomId;
+        await emitAck(reporter, 'join-room', { roomId, username: 'Reporter', clientId: 'smoke-reporter' });
+        await emitAck(target, 'join-room', { roomId, username: 'Reported Person', clientId: 'smoke-reported' });
+        const report = await emitAck(reporter, 'report-user', { targetId: target.id, reason: 'harassment', detail: 'smoke' });
+        expect(report.ok).toBe(true);
+        const kicked = new Promise((resolve) => { target.once('kicked', resolve); });
+
+        await gotoTestPage(operator.page, ADMIN_PATH);
+        await operator.page.fill('#admin-password', ADMIN_PASSWORD);
+        await operator.page.click('#login-form button[type="submit"]');
+        await expect(operator.page.locator('#ops-shell')).toBeVisible();
+        await operator.page.click('#tabs button[data-panel="reports"]');
+        const row = operator.page.locator('#reports-tbody tr', { hasText: 'Reported Person' });
+        await row.locator('button', { hasText: 'Kick' }).click();
+
+        const dialog = operator.page.locator('#confirm-dialog');
+        await expect(dialog).toBeVisible();
+        await expect(dialog.locator('#confirm-body')).toContainText('harassment');
+        const confirmBtn = dialog.locator('#confirm-yes');
+        await expect(confirmBtn).toBeDisabled();
+        await dialog.locator('#confirm-reason').fill('Confirmed harassment report');
+        await expect(confirmBtn).toBeEnabled();
+        await confirmBtn.click();
+
+        await expect(kicked).resolves.toBeTruthy();
+    } finally {
+        await closeSocket(reporter);
+        await closeSocket(target);
         await operator.context.close();
     }
 });

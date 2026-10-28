@@ -572,7 +572,14 @@
             kickBtn.textContent = 'Kick';
             kickBtn.style.marginInlineStart = '6px';
             kickBtn.addEventListener('click', async () => {
-              await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/kick`, { socketId: report.targetSocketId });
+              const reason = await confirmTyped({
+                title: `Kick ${report.targetName}?`,
+                body: `Reported for "${report.reason}". They are disconnected immediately but can rejoin with the room code.`,
+                expected: '',
+                requireReason: true
+              });
+              if (reason === null) return;
+              await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/kick`, { socketId: report.targetSocketId, reason });
               await loadReports();
             });
             actions.appendChild(kickBtn);
