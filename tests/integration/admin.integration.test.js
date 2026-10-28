@@ -298,13 +298,19 @@ test('broadcast reaches connected sockets and fresh joiners; clear stops it', as
     assert.equal(payload.messageEn, 'Maintenance tonight');
 
     // Fresh connections get the active announcement on connect.
-    const late = await connectSocket(server.baseUrl, { clientId: 'ann-late' });
+    // Listen before connecting: the announcement can arrive before connect resolves.
+    let resolveLate;
+    const lateAnnouncement = new Promise((resolve) => {
+        resolveLate = resolve;
+    });
+    const late = await connectSocket(server.baseUrl, {
+        clientId: 'ann-late',
+        onCreate: (socket) => socket.once('announcement', resolveLate)
+    });
     t.after(async () => {
         await closeSocket(late);
     });
-    const lateReceived = await new Promise((resolve) => {
-        late.once('announcement', resolve);
-    });
+    const lateReceived = await lateAnnouncement;
     assert.equal(lateReceived.messageAr, 'صيانة الليلة');
 
     const publicEndpoint = await server.request('/api/announcement');

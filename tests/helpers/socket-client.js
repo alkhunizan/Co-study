@@ -30,6 +30,8 @@ async function connectSocket(baseUrl, options = {}) {
         rejectUnauthorized: false,
         transports: ['websocket']
     });
+    // Lets callers attach listeners for events the server emits on connect.
+    options.onCreate?.(socket);
 
     return new Promise((resolve, reject) => {
         const cleanup = () => {
