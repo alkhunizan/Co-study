@@ -16,9 +16,9 @@ test('rollout runbook locks the additive order, durable evidence window, and saf
     assert.match(runbook, /in-memory and reset on every process restart/i);
     assert.match(runbook, /compatibility_path_used/);
     assert.match(runbook, /Fourteen consecutive 24-hour periods/i);
-    assert.match(runbook, /Apply the additive Supabase migrations[\s\S]*Deploy the dual-read build/i);
+    assert.match(runbook, /Apply the additive Supabase migrations[\s\S]*Disable new video joins[\s\S]*stop the existing writer[\s\S]*Install the reviewed dual-read build/i);
     assert.match(runbook, /VIDEO_JOIN_DISABLED=true/);
-    assert.match(runbook, /migration:rooms -- --apply --writer-stopped/);
+    assert.match(runbook, /scripts\/migrate-rooms\.js\s+\\\s+--apply --writer-stopped/);
     assert.match(runbook, /First 24 hours/);
     assert.match(runbook, /Rollback sequence/);
     assert.match(runbook, /previous known-good \*\*dual-read\*\*\s+build/);

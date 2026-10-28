@@ -232,6 +232,132 @@ async function selfBadgeLayout(page) {
 
 test.describe.configure({ mode: 'serial' });
 
+test('workspace join timeout rejects duplicate attempts and retries with the same input', async ({ browser }) => {
+    const visitor = await createSmokePage(browser);
+    try {
+        const { page } = visitor;
+        const code = await createRoomFromLanding(page, { roomName: 'Join deadline room' });
+        await page.route('**/socket.io/socket.io.js', async route => {
+            const response = await route.fetch();
+            await route.fulfill({ response, body: `${await response.text()}\n;(() => {
+                const originalIo = window.io;
+                window.__dropJoin = true;
+                window.__joinCalls = 0;
+                window.io = (...args) => {
+                    const socket = originalIo(...args);
+                    const originalEmit = socket.emit.bind(socket);
+                    socket.emit = (event, ...values) => {
+                        if (event === 'join-room') {
+                            window.__joinCalls++;
+                            if (window.__dropJoin) {
+                                window.__lateJoin = values[values.length - 1];
+                                return socket;
+                            }
+                        }
+                        return originalEmit(event, ...values);
+                    };
+                    return socket;
+                };
+            })();` });
+        });
+        await gotoTestPage(page, `/index.html?room=${code}`);
+        await page.fill('#join-name', 'Patient student');
+        await page.fill('#join-password', 'retained-value');
+        await page.click('#join-form button[type="submit"]');
+        await expect(page.locator('#join-status')).toContainText(/joining/i);
+        await page.locator('#join-form').evaluate(form => { form.requestSubmit(); form.requestSubmit(); });
+        await expect(page.locator('#join-error')).toContainText(/try again/i, { timeout: 12000 });
+        await expect(page.locator('#join-overlay')).not.toHaveClass(/hidden/);
+        await expect(page.locator('#join-form button[type="submit"]')).toBeEnabled();
+        await expect(page.locator('#join-name')).toHaveValue('Patient student');
+        await expect(page.locator('#join-password')).toHaveValue('retained-value');
+        expect(await page.evaluate(() => (/** @type {any} */ (window)).__joinCalls)).toBe(1);
+        await page.evaluate(() => {
+            (/** @type {any} */ (window)).__lateJoin({ ok: true, room: {} });
+            (/** @type {any} */ (window)).__dropJoin = false;
+        });
+        await expect(page.locator('#join-overlay')).not.toHaveClass(/hidden/);
+        await page.click('#join-form button[type="submit"]');
+        await expectJoined(page);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        // The interception deliberately drops joins after each document load;
+        // refresh must still present a retryable state with the remembered name.
+        await expect(page.locator('#join-error')).toContainText(/try again/i, { timeout: 12000 });
+        await expect(page.locator('#join-name')).toHaveValue('Patient student');
+    } finally { await visitor.context.close(); }
+});
+
+for (const lang of ['en', 'ar']) {
+    test(`room availability errors retain inputs and recover in ${lang}`, async ({ browser }) => {
+        const visitor = await createSmokePage(browser);
+        try {
+            const { page } = visitor;
+            const code = await createRoomFromLanding(page);
+            await page.route('**/socket.io/socket.io.js', async route => {
+                const response = await route.fetch();
+                await route.fulfill({ response, body: `${await response.text()}\n;(() => {
+                    const originalIo = window.io;
+                    window.io = (...args) => {
+                        const socket = originalIo(...args), emit = socket.emit.bind(socket);
+                        socket.emit = (event, ...values) => {
+                            if (event === 'join-room' && window.__joinErrorCode) {
+                                setTimeout(() => values[values.length - 1]({ ok: false, errorCode: window.__joinErrorCode }), 50);
+                                return socket;
+                            }
+                            return emit(event, ...values);
+                        };
+                        return socket;
+                    };
+                })();` });
+            });
+            await gotoTestPage(page, `/index.html?room=${code}`);
+            await page.locator(`#join-form [data-lang-value="${lang}"]`).click();
+            await page.fill('#join-name', 'Retry student');
+            await page.fill('#join-password', 'retained-password');
+            const errors = [
+                ['ROOM_NOT_FOUND', lang === 'en' ? /does not exist/i : /غير موجود/],
+                ['ROOM_FULL', lang === 'en' ? /full/i : /ممتلئة/],
+                ['ROOM_EXPIRED', lang === 'en' ? /expired/i : /صلاحية/],
+                ['ROOM_SCHEDULE_NOT_OPEN', lang === 'en' ? /not open yet/i : /غير مفتوحة/]
+            ];
+            for (const [code, message] of errors) {
+                await page.evaluate(code => { (/** @type {any} */ (window)).__joinErrorCode = code; }, code);
+                await page.click('#join-form button[type="submit"]');
+                await expect(page.locator('#join-error')).toContainText(message);
+                await expect(page.locator('#join-room-error')).toContainText(message);
+                await expect(page.locator('#join-form button[type="submit"]')).toBeEnabled();
+                await expect(page.locator('#join-name')).toHaveValue('Retry student');
+                await expect(page.locator('#join-password')).toHaveValue('retained-password');
+            }
+            await page.evaluate(() => { (/** @type {any} */ (window)).__joinErrorCode = ''; });
+            await page.click('#join-form button[type="submit"]');
+            await expectJoined(page);
+        } finally { await visitor.context.close(); }
+    });
+}
+
+test('entry controls remain reachable at phone keyboard height', async ({ browser }) => {
+    const visitor = await createSmokePage(browser);
+    try {
+        const { page } = visitor;
+        await page.setViewportSize({ width: 360, height: 330 });
+        for (const lang of ['en', 'ar']) {
+            await gotoTestPage(page, '/index.html?room=PHONE1');
+            await page.locator(`#join-form [data-lang-value="${lang}"]`).click();
+            for (const selector of ['#join-name', '#join-room', '#join-password', '.join-submit']) {
+                const control = page.locator(selector);
+                await control.scrollIntoViewIfNeeded();
+                const rect = await control.boundingBox();
+                expect(rect.x).toBeGreaterThanOrEqual(0);
+                expect(rect.y).toBeGreaterThanOrEqual(0);
+                expect(rect.x + rect.width).toBeLessThanOrEqual(360);
+                expect(rect.y + rect.height).toBeLessThanOrEqual(330);
+                expect(rect.height).toBeGreaterThanOrEqual(44);
+            }
+        }
+    } finally { await visitor.context.close(); }
+});
+
 test('landing creates a protected room and join flow enforces passwords', async ({ browser }) => {
     const creator = await createSmokePage(browser);
     const guest = await createSmokePage(browser);
@@ -756,4 +882,35 @@ test('five participants can join a default RealtimeKit room shell', async ({ bro
     } finally {
         await Promise.all(users.map(({ context }) => context.close()));
     }
+});
+
+test('a saved room password is never handed to a different room', async ({ browser }) => {
+    const visitor = await createSmokePage(browser);
+    try {
+        const { page } = visitor;
+        await page.addInitScript(() => {
+            localStorage.setItem('halastudyName', 'Returning student');
+            sessionStorage.setItem('halastudyRoomPassword', 'previous-secret');
+            sessionStorage.setItem('halastudyRoomPasswordCode', 'PRIOR1');
+        });
+        await page.route('**/socket.io/socket.io.js', async route => {
+            const response = await route.fetch();
+            await route.fulfill({ response, body: `${await response.text()}\n;(() => {
+                const originalIo = window.io;
+                window.io = (...args) => {
+                    const socket = originalIo(...args), emit = socket.emit.bind(socket);
+                    socket.emit = (event, ...values) => {
+                        if (event === 'join-room') window.__joinAttempt = values[0];
+                        return emit(event, ...values);
+                    };
+                    return socket;
+                };
+            })();` });
+        });
+        await gotoTestPage(page, '/index.html?room=NEXT12');
+        await expect(page.locator('#join-error')).toContainText(/does not exist/i);
+        const attempt = await page.evaluate(() => (/** @type {any} */ (window)).__joinAttempt);
+        expect(attempt.roomId).toBe('NEXT12');
+        expect(attempt.password).toBe('');
+    } finally { await visitor.context.close(); }
 });
