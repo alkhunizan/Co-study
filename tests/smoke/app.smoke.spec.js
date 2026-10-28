@@ -303,8 +303,12 @@ test('chat and shared board stay in sync across two participants', async ({ brow
         await addTask(owner.page, 'Second shared task');
         await expect.poll(() => taskTexts(peer.page)).toEqual(['First shared task', 'Second shared task']);
 
+        // Drop on the target's top edge: at its exact midpoint the board treats the
+        // drop as "after" it, and sub-pixel rounding made the reorder flaky.
         await owner.page.locator('#todo-list .todo-item', { hasText: 'Second shared task' })
-            .dragTo(owner.page.locator('#todo-list .todo-item', { hasText: 'First shared task' }));
+            .dragTo(owner.page.locator('#todo-list .todo-item', { hasText: 'First shared task' }), {
+                targetPosition: { x: 10, y: 2 }
+            });
         await expect.poll(() => taskTexts(peer.page)).toEqual(['Second shared task', 'First shared task']);
 
         await peer.page.locator('#todo-list .todo-item', { hasText: 'Second shared task' })
