@@ -37,7 +37,6 @@
 
             --shadow-card:    var(--sh-2);
             --shadow-btn:     var(--sh-2);       /* was neumorphic; now soft elevation */
-            --shadow-btn-inset: var(--sh-inner); /* press state */
 
             --radius-card:    var(--r-xl);
         }
@@ -509,7 +508,7 @@
         .timer-preset-chip.active { background: rgba(224,176,139,0.14); border-color: var(--accent); color: var(--accent-3); }
         .timer-controls { display: flex; gap: 30px; align-items: center; margin-top: 10px; }
         .btn-ctrl { width: 64px; height: 64px; border-radius: 50%; border: none; background: var(--bg-card); color: var(--text-main); font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-btn); transition: all 0.2s ease; }
-        .btn-ctrl:active { box-shadow: var(--shadow-btn-inset); transform: scale(0.95); }
+        .btn-ctrl:active { box-shadow: var(--sh-1); transform: scale(0.98); } /* DESIGN.md §4 press: scale(0.98) + shadow one step down */
         .btn-ctrl.main { color: var(--accent-3); font-size: 1.8rem; }
 
         .focus-summary { width: 100%; margin-top: 15px; background: var(--bg-input); border-radius: 18px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-main); }
@@ -532,8 +531,8 @@
         .chat-container { flex: 1; display: flex; flex-direction: column; margin-bottom: 20px; overflow: hidden; }
         .chat-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 5px; }
         .msg { padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; max-width: 85%; line-height: 1.4; }
-        .msg.l { background: var(--bg-input); align-self: flex-start; border-bottom-left-radius: 2px; }
-        .msg.r { background: var(--accent); color: var(--ink); align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg.l { background: var(--bg-input); align-self: flex-start; border-end-start-radius: 2px; }
+        .msg.r { background: var(--accent); color: var(--ink); align-self: flex-end; border-end-end-radius: 2px; }
         .msg-author { font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px; display: block; }
         .msg-author-dot { display: inline-block; inline-size: 8px; block-size: 8px; border-radius: 50%; margin-inline-end: 5px; vertical-align: middle; }
         .join-name-reserved { display: block; margin-block-start: 4px; font-size: 0.75rem; color: var(--accent-3); }
@@ -550,7 +549,7 @@
         .ambient-control { margin-top: 12px; display: flex; justify-content: flex-end; position: relative; }
         .ambient-btn { border: 1px solid var(--border); border-radius: 999px; padding: 8px 18px; background: var(--bg-card); font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: var(--shadow-card); color: var(--text-main); font-weight: 500; }
         .ambient-btn:hover { background: var(--bg-input); }
-        .ambient-popover { position: absolute; bottom: 110%; right: 0; width: 240px; background: var(--bg-card); border-radius: 18px; padding: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border); z-index: 10; }
+        .ambient-popover { position: absolute; bottom: 110%; inset-inline-end: 0; width: 240px; background: var(--bg-card); border-radius: 18px; padding: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border); z-index: 10; }
         .ambient-popover[hidden] { display: none; }
         .ambient-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
         .ambient-status-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-sec); }
@@ -1497,12 +1496,13 @@
     const STATUS_PRESET_MAP = { meal: 'statusMeal', away: 'statusAway', studying: 'statusStudying', working: 'statusWorking' };
     const statusState = { manualText: '', manualPreset: null, goal: '', autoSync: false, isShared: true, lastUpdated: null };
     const ambientSoundState = { type: null, enabled: false, volume: 0.5, showInStatus: true, audio: null, cache: {} };
+    /* Icons live in the #ambient-list markup as Lucide SVGs (DESIGN.md §10: no emoji in chrome). */
     const AMBIENT_SOUNDS = {
-        rain: { src: '/audio/rain.mp3', labelKey: 'soundRain', icon: '🌧️' },
-        forest: { src: '/audio/forest.mp3', labelKey: 'soundForest', icon: '🌲' },
-        fire: { src: '/audio/chimney-fire.wav', labelKey: 'soundFire', icon: '🔥' },
-        cafe: { src: '/audio/cafe.wav', labelKey: 'soundCafe', icon: '☕' },
-        ocean: { src: '/audio/waves.wav', labelKey: 'soundOcean', icon: '🌊' }
+        rain: { src: '/audio/rain.mp3', labelKey: 'soundRain' },
+        forest: { src: '/audio/forest.mp3', labelKey: 'soundForest' },
+        fire: { src: '/audio/chimney-fire.wav', labelKey: 'soundFire' },
+        cafe: { src: '/audio/cafe.wav', labelKey: 'soundCafe' },
+        ocean: { src: '/audio/waves.wav', labelKey: 'soundOcean' }
     };
     const TIMER_NOTIFICATION_SOUNDS = {
         focusEnd: new Audio('/audio/work-end.mp3'),
