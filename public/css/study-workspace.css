@@ -8,7 +8,7 @@
 .study-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
 .study-fields .wide { grid-column: 1 / -1; }
 .study-tools label, .study-focus-pickers label { display: grid; gap: 8px; font-size: 14px; font-weight: 600; min-inline-size: 0; }
-.study-tools textarea { inline-size: 100%; min-block-size: 96px; resize: vertical; padding: 12px; background: var(--card); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 12px; font: inherit; }
+.study-tools textarea { inline-size: 100%; min-block-size: 96px; resize: vertical; padding: 12px; background: var(--card); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 16px; font: inherit; }
 .study-tools input, .study-tools select, .study-focus-pickers select { inline-size: 100%; min-inline-size: 0; }
 .study-tools .row { align-items: flex-start; flex-wrap: wrap; }
 .study-tools .row-main { flex: 1 1 240px; }

@@ -7,7 +7,7 @@ button, input, select { font: inherit; color: inherit; }
 button, .button { display: inline-flex; align-items: center; justify-content: center; min-block-size: 44px; padding: 9px 20px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--card); cursor: pointer; text-decoration: none; gap: 8px; }
 button:disabled { opacity: .45; cursor: wait; }
 button:hover:not(:disabled), .button:hover { border-color: var(--accent-3); }
-button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: #2D3436; font-weight: 700; }
+button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: var(--ink); font-weight: 700; }
 input, select { inline-size: 100%; min-block-size: 46px; padding: 10px 14px; background: var(--inset); border: 1px solid var(--line-strong); border-radius: 16px; }
 :focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
 .skip-link { position: absolute; inset-block-start: -80px; inset-inline-start: 20px; z-index: 20; padding: 12px; background: var(--card); }
@@ -58,7 +58,7 @@ h3 { font-size: 18px; }
 .plan-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; align-items: stretch; }
 .plan { padding: 28px; background: var(--card); border: 1px solid var(--line); border-radius: 24px; }
 .plan.featured { border: 2px solid var(--accent); }
-.price { font-family: var(--font-display); font-size: 38px; line-height: 1.4; }
+.price { font-family: var(--font-display); font-size: 38px; line-height: 1.4; font-variant-numeric: tabular-nums; }
 .price small { font-family: var(--font-body); font-size: 15px; }
 .plan ul { padding-inline-start: 22px; margin-block-end: 28px; }
 .plan li { padding-block: 7px; }

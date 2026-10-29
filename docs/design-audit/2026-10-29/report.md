@@ -4,7 +4,7 @@ Scope: every author UI file in the branch diff (16 HTML pages, 6 CSS files, copy
 
 ## Verdict
 
-**FIX BEFORE MERGE** (was NEEDS REWORK at first pass, 2026-10-29). The three ship-blockers below were fixed the same day in `index.html` (commit on `viber/2026-10-27`): hard-no greps clean, `npm run check` passes, in-room smoke suite 8/8. What remains is the should-fix list (about 20 items) plus two items a grep cannot settle (multi-`<h1>` visibility, photo provenance).
+**SHIP-READY pending two human items** (first pass NEEDS REWORK → FIX BEFORE MERGE → this, all 2026-10-29). The should-fix list below was closed in a second commit the same day: hard-no and should-fix greps clean, `npm run check` passes, biome unchanged (1 pre-existing warning), smoke suites room+landing+admin 17/17. Left open: multi-`<h1>` visibility (needs a live render) and photo provenance (Aziz). The three ship-blockers below were fixed the same day in `index.html` (commit on `viber/2026-10-27`): hard-no greps clean, `npm run check` passes, in-room smoke suite 8/8. What remains is the should-fix list (about 20 items) plus two items a grep cannot settle (multi-`<h1>` visibility, photo provenance).
 
 ## Ship-blockers (§10 hard-no's + critical §11 fails) — ALL FIXED 2026-10-29
 
@@ -23,7 +23,9 @@ Scope: every author UI file in the branch diff (16 HTML pages, 6 CSS files, copy
   Why blocked: in `dir="rtl"` the ambient popover anchors to the wrong side and overflows the panel; chat-bubble tails point the wrong way.
   Fix direction: `inset-inline-end: 0`; `border-end-start-radius` / `border-end-end-radius`.
 
-## Should-fix
+## Should-fix — ALL FIXED 2026-10-29 (second commit)
+
+Kept as-is with a §12 comment: `landing.css .result-code[role="button"]` 12px radius (it is a clickable code card, not a CTA). `.cam-feed`, `.cam-btn` and `lobby.html:69` keep `#fff` because the video surface is dark in both themes; a comment says so. `index.html` icon buttons without `min-height` were not individually sized — out of grep reach, needs the live pass.
 
 **§11.3 logical properties (non-breaking but physical)**
 - [index.html:100](../../../index.html:100)–125 — five `html[lang="ar"] … { text-align: right|left }` overrides. They work because they are direction-gated, but `text-align: start|end` would delete the gates.

@@ -30,7 +30,7 @@
       font-family: var(--font-mono); font-size: 13px; letter-spacing: .04em;
       color: var(--ink-2); white-space: nowrap;
     }
-    .lobby-count .live-dot { display: inline-block; inline-size: 7px; block-size: 7px; border-radius: 50%; background: #35c26b; margin-inline-end: 6px; vertical-align: middle; }
+    .lobby-count .live-dot { display: inline-block; inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--success); margin-inline-end: 6px; vertical-align: middle; }
 
     .density {
       display: inline-flex; align-items: center; gap: 2px;
@@ -43,7 +43,7 @@
       min-inline-size: 34px; block-size: 30px; border-radius: 999px; cursor: pointer;
       transition: background .15s ease, color .15s ease;
     }
-    .density button[aria-pressed="true"] { background: var(--accent, var(--ink)); color: var(--card, #fff); font-weight: 600; }
+    .density button[aria-pressed="true"] { background: var(--accent); color: var(--ink); font-weight: 600; }
 
     .pager { display: inline-flex; align-items: center; gap: 6px; }
     .pager button {
@@ -51,7 +51,7 @@
       inline-size: 34px; block-size: 34px; border-radius: 10px; cursor: pointer; font-size: 16px;
       display: inline-flex; align-items: center; justify-content: center;
     }
-    .pager button:disabled { opacity: .4; cursor: default; }
+    .pager button:disabled { opacity: .45; cursor: default; }
     .pager-status { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); min-inline-size: 66px; text-align: center; }
 
     /* The grid */

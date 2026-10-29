@@ -96,22 +96,22 @@
         html[lang="ar"] .schedule-meta,
         html[lang="ar"] .schedule-stat {
             direction: rtl;
-            text-align: right;
+            text-align: end;
         }
 
         html[lang="ar"] input:not([data-force-ltr]) {
             direction: rtl;
-            text-align: right;
+            text-align: end;
         }
 
         html[lang="ar"] [data-force-ltr] {
             direction: ltr;
-            text-align: left;
+            text-align: start;
         }
 
         html[lang="ar"] #shared-board-card {
             direction: ltr;
-            text-align: left;
+            text-align: start;
         }
 
         html[lang="ar"] #shared-board-card .board-goal-label,
@@ -121,7 +121,7 @@
         html[lang="ar"] #shared-board-card .card-title,
         html[lang="ar"] #shared-board-card .card-sub {
             direction: rtl;
-            text-align: right;
+            text-align: end;
         }
 
         .room-meta {
@@ -219,7 +219,7 @@
             margin-top: 0.4rem;
         }
         .user-dot.online {
-            background: #53d47a;
+            background: var(--success);
         }
         .user-body {
             min-width: 0;
@@ -392,14 +392,14 @@
         .board-goal-input:focus,
         .todo-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); background: var(--bg-card); }
         .board-goal-input:disabled,
-        .todo-input:disabled { opacity: 0.65; cursor: not-allowed; }
+        .todo-input:disabled { opacity: 0.45; cursor: not-allowed; }
         .schedule-card { margin-bottom: 16px; padding: 16px; border-radius: 20px; background: var(--bg-input); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
         .schedule-card[hidden] { display: none; }
         .schedule-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .schedule-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
         .schedule-title { font-size: 0.82rem; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.06em; }
         .schedule-subtitle { font-size: 0.95rem; font-weight: 600; color: var(--text-main); line-height: 1.4; }
-        .schedule-countdown { font-size: 0.9rem; font-weight: 700; color: var(--accent-3); white-space: nowrap; }
+        .schedule-countdown { font-size: 0.9rem; font-weight: 700; color: var(--accent-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
         .schedule-meta { font-size: 0.82rem; color: var(--text-sec); line-height: 1.5; }
         .schedule-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
         .schedule-stat { padding: 10px 12px; border-radius: 16px; background: var(--bg-card); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
@@ -409,8 +409,8 @@
         .schedule-btn, .schedule-link { border: none; border-radius: 999px; padding: 9px 16px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: rgba(224,176,139,0.14); color: var(--accent-3); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         .schedule-btn:hover, .schedule-link:hover { background: rgba(224,176,139,0.22); }
         .todo-input-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-        .btn-add { width: 42px; height: 42px; border: none; border-radius: 14px; background: var(--accent); color: var(--ink); font-size: 1.35rem; cursor: pointer; flex-shrink: 0; box-shadow: var(--sh-lamp); }
-        .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-add { width: 44px; height: 44px; border: none; border-radius: 999px; background: var(--accent); color: var(--ink); font-size: 1.35rem; cursor: pointer; flex-shrink: 0; box-shadow: var(--sh-lamp); }
+        .btn-add:disabled { opacity: 0.45; cursor: not-allowed; }
         .todo-priority-picker { display: flex; gap: 10px; margin-block-end: 12px; margin-inline-start: 5px; }
         .todo-priority-btn { border: none; background: transparent; padding: 0; cursor: pointer; }
         .todo-priority-btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -432,14 +432,14 @@
 
         .prio-line { width: 4px; height: 20px; border-radius: 2px; background: #ddd; }
         .check-circle { width: 20px; height: 20px; border: 2px solid var(--text-sec); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: 0.2s; }
-        .check-circle:disabled { opacity: 0.5; cursor: not-allowed; }
+        .check-circle:disabled { opacity: 0.45; cursor: not-allowed; }
         .todo-text { flex: 1; min-width: 0; font-size: 0.95rem; color: var(--text-main); transition: 0.3s; word-break: break-word; }
         .todo-delete { border: none; background: transparent; color: var(--text-sec); font-size: 1.1rem; line-height: 1; padding: 6px; border-radius: 10px; cursor: pointer; flex-shrink: 0; }
         .todo-delete:hover { color: var(--prio-high); background: rgba(0,0,0,0.05); }
-        .todo-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+        .todo-delete:disabled { opacity: 0.45; cursor: not-allowed; }
 
         .todo-item.done .check-circle { background: var(--accent); border-color: var(--accent); }
-        .todo-item.done .check-circle::after { content: '✓'; color: white; font-size: 12px; }
+        .todo-item.done .check-circle::after { content: '✓'; color: var(--ink); font-size: 12px; }
         .todo-item.done .todo-text { text-decoration: line-through; color: var(--text-sec); opacity: 0.6; }
 
         /* --- Timer & Video --- */
@@ -461,7 +461,7 @@
         .media-state-detail[hidden] { display: none; }
         .media-state-btn { align-self: flex-start; border: none; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: var(--accent); color: var(--ink); }
         .media-state-btn[hidden] { display: none; }
-        .cam-feed { flex: 1; background: #1a1a1a; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; position: relative; overflow: hidden; }
+        .cam-feed { flex: 1; background: #1a1a1a; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; /* video surface is always dark in both themes — not a light-mode leak */ position: relative; overflow: hidden; }
         .cam-feed video { width: 100%; height: 100%; object-fit: cover; border-radius: 20px; display: none; }
         .remote-grid { flex: 1; width: 100%; align-self: stretch; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); grid-auto-rows: minmax(180px, 1fr); gap: 12px; padding: 15px; box-sizing: border-box; align-content: stretch; justify-items: center; }
         .remote-tile { width: 100%; height: 100%; border-radius: 18px; overflow: hidden; position: relative; background: #0a0a0a; box-shadow: 0 12px 25px rgba(0,0,0,0.4); transition: transform 0.2s ease, box-shadow 0.2s ease; }
@@ -469,11 +469,11 @@
         .remote-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
         .remote-tile-name { position: absolute; top: 12px; inset-inline-start: 12px; background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
         .cam-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 1rem; opacity: 0.85; }
-        .cam-controls { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 5; }
+        .cam-controls { position: absolute; bottom: 15px; inset-inline-start: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 5; }
         .cam-btn { border: none; border-radius: 999px; padding: 10px 20px; font-size: 0.9rem; cursor: pointer; background: rgba(0,0,0,0.6); color: #fff; backdrop-filter: blur(6px); }
-        .cam-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .cam-btn:disabled { opacity: 0.45; cursor: not-allowed; }
         .status-badge { position: absolute; top: 15px; inset-inline-start: 15px; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; }
-        .status-dot { width: 6px; height: 6px; background: #4cd137; border-radius: 50%; animation: pulse 2s infinite; }
+        .status-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite; }
         .status-dot.warn { background: #FDCB6E; }
         .status-dot.neutral { background: #636E72; }
         .ai-status { position: absolute; top: 45px; inset-inline-start: 15px; font-size: 0.75rem; opacity: 0.8; }
@@ -500,7 +500,7 @@
 
         .timer-config-bar { display: flex; align-items: center; gap: 15px; background: var(--bg-input); padding: 8px 20px; border-radius: 20px; margin-bottom: 10px; font-size: 0.85rem; color: var(--text-sec); }
         .config-item { display: flex; align-items: center; gap: 8px; }
-        .config-input { width: 40px; text-align: center; border: none; background: var(--bg-card); border-radius: 8px; padding: 4px 0; color: var(--text-main); font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .config-input { width: 52px; min-height: 36px; text-align: center; border: none; background: var(--bg-card); border-radius: 16px; padding: 4px 0; color: var(--text-main); font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
         .timer-presets { display: flex; gap: 8px; margin-block-end: 10px; }
         .timer-preset-chip { border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; background: var(--bg-input); color: var(--text-sec); transition: 0.2s; }
@@ -541,9 +541,9 @@
 
         .chat-input-area { position: relative; margin-top: 10px; background: var(--bg-input); border-radius: 24px; display: flex; align-items: center; padding: 6px; }
         .chat-input { flex: 1; border: none; background: transparent; padding: 8px 12px; font-size: 0.9rem; color: var(--text-main); min-width: 0; }
-        .chat-input:disabled { opacity: 0.5; cursor: not-allowed; }
+        .chat-input:disabled { opacity: 0.45; cursor: not-allowed; }
         .btn-send { width: 36px; height: 36px; background: var(--accent); border: none; border-radius: 50%; color: var(--ink); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; }
-        .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-send:disabled { opacity: 0.45; cursor: not-allowed; }
         .btn-send:hover { transform: rotate(-10deg) scale(1.1); }
 
         .ambient-control { margin-top: 12px; display: flex; justify-content: flex-end; position: relative; }

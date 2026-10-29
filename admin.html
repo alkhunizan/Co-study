@@ -56,11 +56,11 @@
       margin-bottom: 16px;
     }
     .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-    .tile { background: var(--inset); border: 1px solid var(--line-2); border-radius: 12px; padding: 14px; }
+    .tile { background: var(--inset); border: 1px solid var(--line-2); border-radius: var(--r-xl); padding: 14px; }
     .tile strong { display: block; font-size: var(--t-h3); font-variant-numeric: tabular-nums; }
     .tile span { color: var(--ink-2); font-size: var(--t-micro); text-transform: uppercase; letter-spacing: 0.08em; }
     table { width: 100%; border-collapse: collapse; font-size: var(--t-caption); }
-    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+    th, td { text-align: start; padding: 8px 10px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
     th { color: var(--ink-3); font-weight: 600; text-transform: uppercase; font-size: var(--t-micro); letter-spacing: 0.06em; }
     td.mono, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
     .btn {
@@ -77,7 +77,7 @@
     .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
     .btn.danger { border-color: var(--danger); color: var(--danger); }
     .btn.danger:hover { background: var(--danger-soft); }
-    .btn.primary { background: var(--accent); border-color: var(--accent); color: #2D3436; }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--ink); }
     .btn[disabled] { opacity: 0.45; cursor: default; }
     input[type="password"], input[type="text"], input[type="search"], textarea, select {
       width: 100%;
