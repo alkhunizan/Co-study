@@ -6,7 +6,7 @@ on:
 
 jobs:
   postgres-resilience:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # ubuntu-latest moved to 26.04, which Playwright 1.59 has no Chromium build for (2026-10-29)
     timeout-minutes: 10
     permissions:
       contents: read
@@ -35,7 +35,7 @@ jobs:
         run: node --test tests/postgres/outages.test.js
 
   quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # ubuntu-latest moved to 26.04, which Playwright 1.59 has no Chromium build for (2026-10-29)
     timeout-minutes: 20
 
     permissions:
