@@ -7,7 +7,7 @@ button, input, select { font: inherit; color: inherit; }
 button, .button { display: inline-flex; align-items: center; justify-content: center; min-block-size: 44px; padding: 9px 20px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--card); cursor: pointer; text-decoration: none; gap: 8px; }
 button:disabled { opacity: .45; cursor: wait; }
 button:hover:not(:disabled), .button:hover { border-color: var(--accent-3); }
-button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: var(--ink); font-weight: 700; }
+button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
 input, select { inline-size: 100%; min-block-size: 46px; padding: 10px 14px; background: var(--inset); border: 1px solid var(--line-strong); border-radius: 16px; }
 :focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
 .skip-link { position: absolute; inset-block-start: -80px; inset-inline-start: 20px; z-index: 20; padding: 12px; background: var(--card); }
