@@ -202,3 +202,80 @@ test('DigetPay sandbox payment lifecycle and trust boundaries', { timeout: 12000
         } finally { await restored.close(); await legacy.close(); }
     });
 });
+
+test('DigetPay stuck orders recover and late approvals are reconciled (A-04, A-06)', { timeout: 120000 }, async (t) => {
+    const db = await createDatabase();
+    let timestamp = Date.parse('2026-10-20T10:00:00Z');
+    const now = () => timestamp;
+    const fixture = paymentFixture();
+    const client = createDigetPayClient(sandboxEnv, fixture.fetchImpl);
+    const billing = createDigetPayBilling(db, client, now);
+    const entitlements = createEntitlements(db, 'test', now);
+    t.after(async () => { await billing.close(); await db.close(); });
+    async function user() {
+        const id = crypto.randomUUID();
+        await db.query('INSERT INTO halastudy.users(id,display_name,created_at) VALUES($1,$2,$3)', [id, 'Recovery test', now()]);
+        return id;
+    }
+    const customer = { name: 'Recovery test', phone: '0501234567' };
+    const row = async (orderId) => (await db.query('SELECT * FROM halastudy.digetpay_orders WHERE id=$1', [orderId])).rows[0];
+    const rowsFor = async (userId) => (await db.query(
+        'SELECT * FROM halastudy.digetpay_orders WHERE user_id=$1 ORDER BY created_at', [userId])).rows;
+
+    await t.test('a failed create blocks retries briefly, then expires so the user can pay again', async () => {
+        const id = await user();
+        fixture.controls.failCreate = true;
+        await assert.rejects(billing.checkout(id, customer), /PAYMENT_REVIEW_REQUIRED/);
+        fixture.controls.failCreate = false;
+        await assert.rejects(billing.checkout(id, customer), /PAYMENT_REVIEW_REQUIRED/);
+        timestamp += 10 * 60000 + 1000;
+        const retry = await billing.checkout(id, customer);
+        assert.equal(retry.status, 'pending');
+        assert.ok(retry.redirectUrl);
+        const orders = await rowsFor(id);
+        assert.deepEqual(orders.map((order) => order.status), ['expired', 'pending']);
+    });
+    await t.test('an untrusted redirect keeps the provider session so staff recheck and the drain can verify it', async () => {
+        const id = await user();
+        const staffId = await user();
+        fixture.controls.badRedirect = true;
+        await assert.rejects(billing.checkout(id, customer), /PAYMENT_REVIEW_REQUIRED/);
+        fixture.controls.badRedirect = false;
+        const [stuck] = await rowsFor(id);
+        assert.equal(stuck.status, 'unknown');
+        assert.ok(fixture.sessions.has(stuck.session_id), 'provider session id must be persisted');
+        const checked = await billing.review(staffId, stuck.id, { reason: 'operator recheck', activateReview: false });
+        assert.notEqual(checked.status, 'completed');
+        Object.assign(fixture.sessions.get(stuck.session_id), { transactionStatus: 'SUCCESS', paymentStatus: 'APPROVED' });
+        timestamp += 300001;
+        await billing.drain();
+        assert.equal((await row(stuck.id)).status, 'completed');
+        assert.equal((await entitlements.resolve(id)).plan.id, 'vip');
+    });
+    await t.test('a crash between commit and provider create does not leave a permanent creating row', async () => {
+        const id = await user();
+        await db.query(`INSERT INTO halastudy.digetpay_orders
+            (id,user_id,mode,status,amount_minor,currency,created_at,expires_at,next_check_at)
+            VALUES($1,$2,'test','creating',499,'USD',$3,$4,$3)`, [crypto.randomUUID(), id, now(), now() + 48 * 3600000]);
+        await assert.rejects(billing.checkout(id, customer), /PAYMENT_REVIEW_REQUIRED/);
+        timestamp += 10 * 60000 + 1000;
+        const retry = await billing.checkout(id, customer);
+        assert.equal(retry.status, 'pending');
+        assert.deepEqual((await rowsFor(id)).map((order) => order.status), ['expired', 'pending']);
+    });
+    await t.test('a payment approved just before expiry with a lost webhook is still reconciled', async () => {
+        const id = await user();
+        const order = await billing.checkout(id, customer);
+        const session = fixture.sessions.get((await row(order.id)).session_id);
+        timestamp += 48 * 3600000 - 60000;
+        Object.assign(session, { transactionStatus: 'SUCCESS', paymentStatus: 'APPROVED' });
+        // Webhook lost; the user returns after expiry and starts a new checkout.
+        timestamp += 120000;
+        await billing.checkout(id, customer);
+        assert.equal((await row(order.id)).status, 'expired');
+        await billing.drain();
+        await billing.drain();
+        assert.equal((await row(order.id)).status, 'completed');
+        assert.equal((await entitlements.resolve(id)).plan.id, 'vip');
+    });
+});

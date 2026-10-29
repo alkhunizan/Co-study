@@ -2,6 +2,12 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 
+// A grant the provider keeps rejecting is retried on every tick but, after
+// this many failures, is parked as "stalled": it stays in the journal and is
+// still retried, yet no longer counts as pending work that blocks new video
+// tokens in every room (A-02).
+const STALL_ATTEMPTS = 5;
+
 // Store identifiers, never bearer tokens. Every grant is recorded before delivery.
 // After restart no old socket owns a grant, so all persisted grants are revoked.
 function createVideoRevocations({ file, provider, logger, start = Promise.resolve() }) {
@@ -32,7 +38,13 @@ function createVideoRevocations({ file, provider, logger, start = Promise.resolv
         try { rows = JSON.parse(await fs.readFile(file, 'utf8')); }
         catch (error) { if (error.code === 'ENOENT') return; throw error; }
         if (!Array.isArray(rows) || rows.some((row) => !row.id || !row.meetingId || !row.participantId)) {
-            throw new Error('VIDEO_REVOCATION_JOURNAL_INVALID');
+            // A corrupt journal must not keep video down until someone edits
+            // the file by hand. Keep the bytes beside it for inspection and
+            // start empty; the loss is logged as an incident (A-02).
+            const quarantine = `${file}.corrupt-${Date.now()}`;
+            await fs.rename(file, quarantine);
+            logger.error({ event: 'video_revocation_journal_quarantined', quarantine });
+            return;
         }
         for (const row of rows) grants.set(row.id, { ...row, pending: true });
         await persist();
@@ -57,8 +69,10 @@ function createVideoRevocations({ file, provider, logger, start = Promise.resolv
                         // Move failed work behind other grants so a prolonged
                         // provider failure cannot starve later revocations.
                         grants.delete(row.id);
+                        row.attempts = (row.attempts || 0) + 1;
                         grants.set(row.id, row);
-                        logger.error({ event: 'video_revocation_failed', roomId: row.roomId });
+                        logger.error({ event: row.attempts === STALL_ATTEMPTS ? 'video_revocation_stalled' : 'video_revocation_failed',
+                            roomId: row.roomId, attempts: row.attempts });
                     }
                 }));
             }
@@ -83,7 +97,15 @@ function createVideoRevocations({ file, provider, logger, start = Promise.resolv
     return {
         ready, track, drain, revokeWhere,
         async forget(id) { grants.delete(id); await persist(); },
-        status: () => ({ healthy, pending: [...grants.values()].filter((row) => row.pending).length, tracked: grants.size }),
+        status: () => {
+            const rows = [...grants.values()];
+            return {
+                healthy,
+                pending: rows.filter((row) => row.pending && (row.attempts || 0) < STALL_ATTEMPTS).length,
+                stalled: rows.filter((row) => row.pending && (row.attempts || 0) >= STALL_ATTEMPTS).length,
+                tracked: grants.size
+            };
+        },
         async close() { clearInterval(timer); await revokeWhere(() => true); }
     };
 }

@@ -14,6 +14,7 @@
 			"scripts/**/*.js",
 			"tests/**/*.js",
 			"!design-system",
+			"!.claude",
 			"!**/*.html",
 			"!**/*.css",
 			"!**/*.jsx",

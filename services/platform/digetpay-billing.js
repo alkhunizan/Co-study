@@ -3,6 +3,8 @@ const { audit, hash, requireCondition, lockUser } = require('./common');
 const { nextMonth } = require('./billing');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const AMBIGUOUS_CREATE_TTL = 10 * 60000;
+const EXPIRED_RECHECK_WINDOW = 24 * 3600000;
 
 function createDigetPayBilling(db, client, now = Date.now, logger = console) {
     let timer;
@@ -30,10 +32,15 @@ function createDigetPayBilling(db, client, now = Date.now, logger = console) {
                 WHERE user_id=$1 AND mode='test' AND period_end<=$2 AND status IN ('active','past_due','pending')`, [userId, now()]);
             requireCondition(!(await tx.query(`SELECT id FROM halastudy.subscriptions WHERE user_id=$1
                 AND mode='test' AND status IN ('active','past_due','pending')`, [userId])).rows.length, 'ALREADY_SUBSCRIBED', 409);
-            // Only a known session can expire automatically. An ambiguous create
-            // must be reconciled with the provider before trying another charge.
-            await tx.query(`UPDATE halastudy.digetpay_orders SET status='expired' WHERE user_id=$1
-                AND status='pending' AND expires_at<=$2`, [userId, now()]);
+            // A known session expires at its deadline. An ambiguous create
+            // ('creating' after a crash, 'unknown' after a failed/invalid
+            // response) never handed the customer a payment URL, so after a
+            // short window it cannot be paid and must not block the account.
+            // The drain keeps re-checking any stored session after expiry.
+            await tx.query(`UPDATE halastudy.digetpay_orders SET status='expired',
+                last_error=CASE WHEN status='pending' THEN last_error ELSE COALESCE(last_error,'PAYMENT_CREATE_ABANDONED') END
+                WHERE user_id=$1 AND ((status='pending' AND expires_at<=$2)
+                    OR (status IN ('creating','unknown') AND created_at<=$3))`, [userId, now(), now() - AMBIGUOUS_CREATE_TTL]);
             const existing = (await tx.query(`SELECT * FROM halastudy.digetpay_orders
                 WHERE user_id=$1 AND status IN ('creating','pending','unknown','review')
                 ORDER BY CASE WHEN status IN ('unknown','review') THEN 0 ELSE 1 END,created_at`, [userId])).rows[0];
@@ -56,13 +63,17 @@ function createDigetPayBilling(db, client, now = Date.now, logger = console) {
         try {
             const result = await client.create(intent.order, customer);
             const saved = await db.query(`UPDATE halastudy.digetpay_orders
-                SET session_id=$2,redirect_url=$3,status='pending',next_check_at=$4 WHERE id=$1 RETURNING *`,
+                SET session_id=$2,redirect_url=$3,status='pending',next_check_at=$4 WHERE id=$1 AND status='creating' RETURNING *`,
             [intent.order.id, result.sessionId, result.redirectUrl, now() + 30000]);
             requireCondition(saved.rows.length === 1, 'PAYMENT_REVIEW_REQUIRED', 409);
             return present(saved.rows[0]);
         } catch (error) {
-            await db.query(`UPDATE halastudy.digetpay_orders SET status='unknown',last_error=$2 WHERE id=$1`,
-                [intent.order.id, error.errorCode || 'PAYMENT_PROVIDER_UNAVAILABLE']);
+            // Keep a provider-issued session id (e.g. untrusted redirect) so the
+            // drain and staff recheck can verify it instead of failing forever.
+            const sessionId = UUID.test(error.providerSessionId || '') ? error.providerSessionId : null;
+            await db.query(`UPDATE halastudy.digetpay_orders SET status='unknown',last_error=$2,
+                session_id=COALESCE(session_id,$3),next_check_at=$4 WHERE id=$1 AND status='creating'`,
+            [intent.order.id, error.errorCode || 'PAYMENT_PROVIDER_UNAVAILABLE', sessionId, now() + 30000]);
             // No automatic POST retry: the provider may already have created it.
             requireCondition(false, 'PAYMENT_REVIEW_REQUIRED', 409);
         }
@@ -225,11 +236,13 @@ function createDigetPayBilling(db, client, now = Date.now, logger = console) {
             }
             // Session queries recover missed notifications without trusting a
             // transaction ID supplied by a browser. Transaction mode needs a hint.
+            // Recently expired orders stay eligible: a payment approved just
+            // before the deadline whose webhook was lost must still activate.
             const orders = await db.query(`SELECT id FROM halastudy.digetpay_orders WHERE next_check_at<=$1
-                AND status IN ('pending','completed','review','expired') AND session_id IS NOT NULL
-                AND (expires_at>$1 OR status='completed')
+                AND status IN ('pending','completed','review','expired','unknown') AND session_id IS NOT NULL
+                AND (status='completed' OR expires_at>$3)
                 AND ($2::boolean OR transaction_id IS NOT NULL) ORDER BY next_check_at LIMIT 10`,
-            [now(), client.lookup === 'session']);
+            [now(), client.lookup === 'session', now() - EXPIRED_RECHECK_WINDOW]);
             for (const order of orders.rows) {
                 if (stopped) break;
                 await db.query('UPDATE halastudy.digetpay_orders SET next_check_at=$2 WHERE id=$1', [order.id, now() + 300000]);

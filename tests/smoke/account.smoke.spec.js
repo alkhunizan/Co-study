@@ -58,7 +58,7 @@ test('wrong sign-in password shows inline bilingual feedback, not a redirect', a
         // Sign out, then fail a sign-in.
         await visitor.page.goto('/account.html');
         await visitor.page.click('#btn-signout');
-        await visitor.page.waitForURL('**/');
+        await visitor.page.waitForURL(/\/en$/);
         await visitor.page.goto('/account.html');
         await visitor.page.fill('#signin-email', email);
         await visitor.page.fill('#signin-password', 'not-the-password');
@@ -135,7 +135,7 @@ test('delete-my-data flow: typed confirmation, then the account is really gone',
         await dialog.locator('input').fill('Deleter');
         await expect(confirmBtn).toBeEnabled();
         await confirmBtn.click();
-        await visitor.page.waitForURL('**/');
+        await visitor.page.waitForURL(/\/en$/);
 
         // Signing in with the deleted credentials fails.
         await visitor.page.goto('/account.html');

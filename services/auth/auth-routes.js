@@ -4,6 +4,7 @@
 // CSRF note: no token needed. originGuard rejects cross-origin non-GET
 // requests and the auth cookie is SameSite=Lax, so cross-site POSTs never
 // carry a session.
+const crypto = require('node:crypto');
 const express = require('express');
 const { hashPassword, verifyPassword } = require('./password');
 const { registerRecoveryRoutes } = require('./recovery');
@@ -14,6 +15,14 @@ const {
     sanitizeUserText
 } = require('./index');
 const { createUser, applyFocusSession, sanitizeFocusStats } = require('../../user-store');
+
+// A real PBKDF2 hash of a random secret, computed once per process, so a login
+// against an unknown email performs the same work as a wrong password.
+let decoyHashPromise = null;
+function decoyPasswordHash() {
+    if (!decoyHashPromise) decoyHashPromise = hashPassword(crypto.randomBytes(32).toString('hex'));
+    return decoyHashPromise;
+}
 
 const DISPLAY_NAME_MAX_LENGTH = 20;
 const BIO_MAX_LENGTH = 160;
@@ -155,7 +164,14 @@ function createAuthRouter(deps) {
         const user = userId ? users.get(userId) : null;
         const loginEpoch = user?.tokenEpoch;
         const loginHash = user?.passwordHash;
-        const passwordOk = user ? await verifyPassword(password, user.passwordHash) : false;
+        // Unknown emails pay the same hash cost as wrong passwords, so response
+        // time cannot reveal which emails have accounts (A-01).
+        let passwordOk = false;
+        if (user) {
+            passwordOk = await verifyPassword(password, user.passwordHash);
+        } else {
+            await verifyPassword(password, await decoyPasswordHash());
+        }
         if (!user || !passwordOk || users.get(user.id) !== user
             || user.tokenEpoch !== loginEpoch || user.passwordHash !== loginHash) {
             logger.warn?.({ event: 'authentication_rejected' });

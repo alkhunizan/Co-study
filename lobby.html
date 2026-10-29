@@ -406,8 +406,8 @@
         });
       });
       socket.on('presence', (list) => setParticipants(list || []));
-      socket.on('kicked', () => { location.href = '/'; });
-      socket.on('room-closed', () => { location.href = '/'; });
+      socket.on('kicked', () => { location.href = window.HalaCore.localizedPath('/'); });
+      socket.on('room-closed', () => { location.href = window.HalaCore.localizedPath('/'); });
     }
 
     async function connectRealtimeKit(role) {

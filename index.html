@@ -459,7 +459,7 @@
         .media-state-text { font-size: 0.92rem; font-weight: 700; line-height: 1.4; }
         .media-state-detail { font-size: 0.8rem; line-height: 1.5; opacity: 0.85; }
         .media-state-detail[hidden] { display: none; }
-        .media-state-btn { align-self: flex-start; border: none; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: var(--accent); color: var(--ink); }
+        .media-state-btn { align-self: flex-start; border: none; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: var(--accent); color: var(--on-accent); }
         .media-state-btn[hidden] { display: none; }
         .cam-feed { flex: 1; background: #1a1a1a; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; /* video surface is always dark in both themes — not a light-mode leak */ position: relative; overflow: hidden; }
         .cam-feed video { width: 100%; height: 100%; object-fit: cover; border-radius: 20px; display: none; }
@@ -532,7 +532,7 @@
         .chat-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 5px; }
         .msg { padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; max-width: 85%; line-height: 1.4; }
         .msg.l { background: var(--bg-input); align-self: flex-start; border-end-start-radius: 2px; }
-        .msg.r { background: var(--accent); color: var(--ink); align-self: flex-end; border-end-end-radius: 2px; }
+        .msg.r { background: var(--accent); color: var(--on-accent); align-self: flex-end; border-end-end-radius: 2px; }
         .msg-author { font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px; display: block; }
         .msg-author-dot { display: inline-block; inline-size: 8px; block-size: 8px; border-radius: 50%; margin-inline-end: 5px; vertical-align: middle; }
         .join-name-reserved { display: block; margin-block-start: 4px; font-size: 0.75rem; color: var(--accent-3); }
@@ -542,7 +542,7 @@
         .chat-input-area { position: relative; margin-top: 10px; background: var(--bg-input); border-radius: 24px; display: flex; align-items: center; padding: 6px; }
         .chat-input { flex: 1; border: none; background: transparent; padding: 8px 12px; font-size: 0.9rem; color: var(--text-main); min-width: 0; }
         .chat-input:disabled { opacity: 0.45; cursor: not-allowed; }
-        .btn-send { width: 36px; height: 36px; background: var(--accent); border: none; border-radius: 50%; color: var(--ink); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; }
+        .btn-send { width: 36px; height: 36px; background: var(--accent); border: none; border-radius: 50%; color: var(--on-accent); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; }
         .btn-send:disabled { opacity: 0.45; cursor: not-allowed; }
         .btn-send:hover { transform: rotate(-10deg) scale(1.1); }
 
@@ -565,7 +565,7 @@
             display: inline-flex; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
-        .ambient-list li.active .ambient-icon { background: var(--accent); color: var(--ink); }
+        .ambient-list li.active .ambient-icon { background: var(--accent); color: var(--on-accent); }
         .ambient-off { color: var(--prio-high); }
         .ambient-volume { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 0.78rem; }
         .ambient-volume input { width: 100%; }
@@ -648,7 +648,7 @@
                 <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
             </svg>
         </button>
-        <button class="icon-btn" id="share-room-btn" data-lang-title="shareRoomTitle" title="Share room link" onclick="shareRoom()" style="background:var(--accent); color:var(--ink); border-color:transparent; box-shadow:var(--sh-lamp);" aria-label="Share">
+        <button class="icon-btn" id="share-room-btn" data-lang-title="shareRoomTitle" title="Share room link" onclick="shareRoom()" style="background:var(--accent); color:var(--on-accent); border-color:transparent; box-shadow:var(--sh-lamp);" aria-label="Share">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
             </svg>
@@ -3962,11 +3962,11 @@
         });
         socket.on('kicked', () => {
             if (window.HalaUI) window.HalaUI.toast(currentCopy().kickedMsg, { kind: 'error', duration: 6000 });
-            setTimeout(() => window.location.assign('/'), 2500);
+            setTimeout(() => window.location.assign(window.HalaCore.localizedPath('/')), 2500);
         });
         socket.on('room-closed', () => {
             if (window.HalaUI) window.HalaUI.toast(currentCopy().roomClosedMsg, { kind: 'error', duration: 6000 });
-            setTimeout(() => window.location.assign('/'), 2500);
+            setTimeout(() => window.location.assign(window.HalaCore.localizedPath('/')), 2500);
         });
         socket.on('rtc-offer', handleIncomingOffer);
         socket.on('rtc-answer', handleIncomingAnswer);

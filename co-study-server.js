@@ -88,6 +88,10 @@ const BOARD_RATE = { limit: 40, windowMs: 30 * 1000 };
 const VIDEO_TOKEN_RATE = { limit: 12, windowMs: 60 * 1000 };
 const VIDEO_HEARTBEAT_RATE = { limit: 90, windowMs: 60 * 1000 };
 const VIDEO_SESSION_SWEEP_MS = 60 * 1000;
+// Circle-room membership is re-checked on socket traffic at most this often.
+// Membership changes also disconnect affected sockets directly, so this is a
+// backstop, not the primary revocation path (A-16).
+const ROOM_ACCESS_RECHECK_MS = 10 * 1000;
 const AUTH_SIGNUP_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
 const AUTH_LOGIN_RATE = { limit: 10, windowMs: 15 * 60 * 1000 };
 const AUTH_FAILURE_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
@@ -2333,12 +2337,19 @@ function createCoStudyServer(options = {}) {
                 socket.disconnect(true);
                 return next(new Error('AUTH_REQUIRED'));
             }
-            if (socket.data.roomId && packet[0] !== 'join-room') {
+            // Only circle-scoped rooms carry membership, and the in-memory room
+            // knows its scope, so ordinary rooms never touch the database here
+            // and circle rooms re-check at most once per interval instead of on
+            // every ICE candidate.
+            const currentRoom = socket.data.roomId ? rooms.get(socket.data.roomId) : null;
+            if (currentRoom?.cohortId && packet[0] !== 'join-room'
+                && !(socket.data.roomAccessCheckedAt > Date.now() - ROOM_ACCESS_RECHECK_MS)) {
                 try {
                     if (!(await platform.canJoin(socket.data.roomId, resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME])))) {
                         socket.disconnect(true);
                         return next(new Error('ROOM_ACCESS_REVOKED'));
                     }
+                    socket.data.roomAccessCheckedAt = Date.now();
                 } catch {
                     return next(new Error('SERVICE_UNAVAILABLE'));
                 }
@@ -2613,6 +2624,7 @@ function createCoStudyServer(options = {}) {
 
             socket.data.username = cleanName;
             socket.data.roomId = normalizedRoom;
+            socket.data.roomAccessCheckedAt = Date.now();
             socket.join(normalizedRoom);
 
             if (joiningUser) {

@@ -74,6 +74,47 @@
     function setStoredLang(lang) {
         try { localStorage.setItem(LANG_KEY, lang); } catch (_e) {}
     }
+    /* A bilingual public route (/ vs /en) is an explicit language choice:
+     * save it so app pages (/open, /account, ...) continue in that language.
+     * Single-language pages (Arabic articles) carry no persist flag. */
+    (function persistRouteLang() {
+        const root = document.documentElement;
+        const routeLang = root.getAttribute('data-route-lang');
+        if (root.hasAttribute('data-route-lang-persist') && (routeLang === 'ar' || routeLang === 'en')) setStoredLang(routeLang);
+    })();
+
+    /* App pages are not server-localized, so their home/legal links are
+     * resolved from the saved language. Public pages already carry the
+     * route's links and are left alone, as are language-switch anchors. */
+    var LOCALIZED_PATHS = { '/': '/en', '/privacy': '/en/privacy', '/terms': '/en/terms', '/blog': '/en/blog', '/contact': '/en/contact' };
+    function localizedPath(path, lang) {
+        const arabicPath = Object.keys(LOCALIZED_PATHS).find((key) => key === path || LOCALIZED_PATHS[key] === path);
+        if (arabicPath === undefined) return path;
+        return (lang || getLang()) === 'en' ? LOCALIZED_PATHS[arabicPath] : arabicPath;
+    }
+    function localizeLink(anchor) {
+        if (anchor.hasAttribute('data-lang-value')) return;
+        const href = anchor.getAttribute('href');
+        const next = href === null ? href : localizedPath(href);
+        if (next !== href) anchor.setAttribute('href', next);
+    }
+    function localizeLinks() {
+        if (document.documentElement.hasAttribute('data-route-lang')) return;
+        document.querySelectorAll('a[href]').forEach(localizeLink);
+    }
+    if (!document.documentElement.hasAttribute('data-route-lang')) {
+        // Pages with their own lang engines save the switch on click; re-resolve
+        // after it, and again on activation so a link is never stale.
+        document.addEventListener('click', (event) => {
+            if (event.target instanceof Element && event.target.closest('[data-lang-value]')) setTimeout(localizeLinks, 0);
+        }, true);
+        for (const type of ['click', 'auxclick', 'contextmenu']) {
+            document.addEventListener(type, (event) => {
+                const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
+                if (anchor) localizeLink(anchor);
+            }, true);
+        }
+    }
 
     /* Lang engine for pages without their own (account.html, 404.html).
      * Supports both attribute conventions used across the app:
@@ -126,6 +167,7 @@
             try { cb(langState.lang, copy); } catch (_e) {}
         });
         translateUnavailable();
+        localizeLinks();
     }
 
     function initLang(dict) {
@@ -270,7 +312,7 @@
                         { label: ar ? 'عضوية VIP' : 'VIP membership', href: '/plans' },
                         { label: ar ? 'حسابي' : 'My account', href: '/account.html' },
                         { label: ar ? 'تسجيل الخروج' : 'Sign out', danger: true, onSelect: () => {
-                            signout().then(() => { global.location.assign('/'); }).catch(() => {
+                            signout().then(() => { global.location.assign(localizedPath('/')); }).catch(() => {
                                 ui.toast(ar ? 'تعذّر تسجيل الخروج. حاول مرة أخرى.' : 'Sign-out failed. Please try again.', { kind: 'error' });
                             });
                         } }
@@ -350,6 +392,7 @@
     }
 
     function boot() {
+        localizeLinks();
         initAuthEntry();
         initAnnouncement();
     }
@@ -364,6 +407,7 @@
         showAnnouncement: showAnnouncement,
         clearAnnouncement: clearAnnouncement,
         getLang: getLang,
+        localizedPath: localizedPath,
         initLang: initLang,
         t: (key) => activeCopy()[key],
         onLangChange: (cb) => { langState.listeners.push(cb); },

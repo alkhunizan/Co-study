@@ -10,6 +10,11 @@ const PERMISSIONS = Object.freeze({
     support: ['operations.read'],
     billing_operator: ['billing.read']
 });
+// Authority order for actions one staff member takes against another account.
+// An actor may only act on accounts whose highest rank is strictly lower.
+// billing_operator shares the moderator tier so case handlers cannot lock out
+// the people who reconcile payments. Accounts without a role rank 0.
+const ROLE_RANK = Object.freeze({ super_admin: 4, admin: 3, moderator: 2, billing_operator: 2, support: 1 });
 const STAFF_TTL = 15 * 60 * 1000;
 
 function createAccess(db, secret, now = Date.now) {
@@ -33,6 +38,9 @@ function createAccess(db, secret, now = Date.now) {
         const result = await tx.query(`SELECT role FROM halastudy.role_assignments
             WHERE user_id=$1 AND (expires_at IS NULL OR expires_at>$2)`, [userId, now()]);
         return result.rows.map((entry) => entry.role);
+    }
+    async function rank(userId, tx = db) {
+        return Math.max(0, ...(await roles(userId, tx)).map((role) => ROLE_RANK[role] || 0));
     }
     async function permissions(userId, tx = db) {
         return [...new Set((await roles(userId, tx)).flatMap((role) => PERMISSIONS[role] || []))];
@@ -120,7 +128,7 @@ function createAccess(db, secret, now = Date.now) {
             await audit(tx, actorId, remove ? 'staff.revoked' : 'staff.granted', userId, { role });
         });
     }
-    return { roles, permissions, requirePermission, hasStaff, enroll, verify, verifyStaff, bootstrap, assign };
+    return { roles, rank, permissions, requirePermission, hasStaff, enroll, verify, verifyStaff, bootstrap, assign };
 }
 
 module.exports = { createAccess };

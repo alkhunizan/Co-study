@@ -91,8 +91,12 @@ test('locale pages render translated content and reciprocal alternatives before 
             assert.ok(html.includes(`hreflang="en" href="https://halastudy.com${english}"`));
             assert.ok(html.includes(`href="${arabic}" lang="ar"`));
             assert.ok(html.includes(`href="${english}" lang="en"`));
+            // Bilingual routes are an explicit choice that app pages must inherit.
+            assert.match(html, /<html [^>]*data-route-lang="(ar|en)" data-route-lang-persist>/);
         }
     }
+    // Arabic-only articles must not overwrite an English preference.
+    assert.doesNotMatch((await server.request('/blog/study-with-me-online-arabic')).body, /data-route-lang-persist/);
     const englishHome = (await server.request('/en')).body;
     assert.match(englishHome, /data-i18n="heroTitle1">A quiet session\.</);
     assert.match((await server.request('/en/blog')).body, /<h1 data-lang="blogTitle">From the Halastudy desk<\/h1>/);

@@ -357,6 +357,27 @@
         taskDetails: 'تفاصيل الخطة (اختيارية)',
         brandHome: 'Halastudy هلا — الرئيسية',
     });
+    // Destructive-action confirmations, auth states and community errors (audit A-09, A-10, A-11).
+    Object.assign(copy.en, {
+        studySignedOut: 'You are signed out. Your draft is still here; sign in again, then retry.',
+        studyAccountChanged: 'Another account is signed in on this browser. Your draft is still here; reload when ready.',
+        archiveItemConfirm: 'Archive this item? It will leave your lists.',
+        archiveProjectConfirm: 'Archive this project? Its tasks stay, but lose their project link.',
+        archiveResourceConfirm: 'Archive this shared resource for everyone in the circle?',
+        removeSavedConfirm: 'Remove this saved room?',
+        ROOM_NOT_FOUND: 'No room you can join has that code. Check the code and try again.',
+        SESSION_NOT_FOUND: 'This session is no longer available. It may have ended or been canceled.',
+    });
+    Object.assign(copy.ar, {
+        studySignedOut: 'تم تسجيل خروجك. مسودتك باقية هنا؛ سجّل الدخول مجددًا ثم أعد المحاولة.',
+        studyAccountChanged: 'حساب آخر مسجّل الدخول في هذا المتصفح. مسودتك باقية هنا؛ أعد تحميل الصفحة حين تكون جاهزًا.',
+        archiveItemConfirm: 'أرشفة هذا العنصر؟ سيختفي من قوائمك.',
+        archiveProjectConfirm: 'أرشفة هذا المشروع؟ تبقى مهامه لكن دون ربطها بالمشروع.',
+        archiveResourceConfirm: 'أرشفة هذا المصدر المشترك لكل أعضاء المجموعة؟',
+        removeSavedConfirm: 'إزالة هذه الغرفة المحفوظة؟',
+        ROOM_NOT_FOUND: 'لا توجد غرفة يمكنك دخولها بهذا الرمز. تحقق من الرمز وحاول مجددًا.',
+        SESSION_NOT_FOUND: 'لم تعد هذه الجلسة متاحة. ربما انتهت أو أُلغيت.',
+    });
 
     const global = /** @type {any} */ (window);
     for (const lang of ['ar', 'en']) Object.assign(global.HalaPlatformCopy[lang], copy[lang]);

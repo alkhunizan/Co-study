@@ -68,9 +68,16 @@ function createDigetPayClient(env, fetchImpl = fetch) {
         });
         let redirect;
         try { redirect = new URL(result.redirectUrl); } catch { /* Validate below. */ }
-        requireCondition(UUID.test(result.id) && redirect && CHECKOUT_ORIGINS.has(redirect.origin)
-            && redirect.pathname === '/pay/checkout' && !redirect.username && !redirect.password && !redirect.hash
-            && redirect.searchParams.get('sessionId') === result.id, 'PAYMENT_PROVIDER_INVALID', 503);
+        try {
+            requireCondition(UUID.test(result.id) && redirect && CHECKOUT_ORIGINS.has(redirect.origin)
+                && redirect.pathname === '/pay/checkout' && !redirect.username && !redirect.password && !redirect.hash
+                && redirect.searchParams.get('sessionId') === result.id, 'PAYMENT_PROVIDER_INVALID', 503);
+        } catch (error) {
+            // The provider created a session; the caller persists its id so the
+            // order can still be verified server-side (never redirected to).
+            if (typeof result.id === 'string' && UUID.test(result.id)) error.providerSessionId = result.id;
+            throw error;
+        }
         return { sessionId: result.id, redirectUrl: redirect.href };
     }
     async function status(order) {

@@ -51,7 +51,8 @@ test('release branding, active account headings and footer contact pass responsi
         await page.addStyleTag({ content: 'html {font-size:200% !important}' });
         await expect(page.locator('#signin-email')).toBeVisible();
         await page.locator('.brand').focus(); await page.keyboard.press('Enter');
-        await expect(page).toHaveURL(server.baseUrl + '/');
+        // The last init script saved English, so the brand resolves to the English home (audit A-14).
+        await expect(page).toHaveURL(server.baseUrl + '/en');
         const account = await signupUser(server);
         await context.addCookies(account.cookie.split(';').map(part => {
             const [name, ...value] = part.trim().split('='); return { name, value: value.join('='), url: server.baseUrl };

@@ -12,6 +12,8 @@
             request: 'أدخل بريدك لطلب رابط استعادة الحساب.', verifyNote: 'أرسل رابط التأكيد إلى البريد المرتبط بحسابك.',
             resetNote: 'اختر كلمة مرور من 8 إلى 64 حرفًا. ستنتهي جلسات الدخول السابقة.',
             sent: 'إذا كان الحساب مؤهلًا، أُعدّت رسالة اختبار محلية. لم يُرسل بريد إلكتروني.',
+            sentEmail: 'إذا كان هناك حساب بهذا البريد، فقد أُرسل رابط إعادة التعيين.',
+            sentVerify: 'أُرسل رابط التأكيد إلى بريدك إذا كان الحساب مؤهلًا.',
             done: 'تم التحديث. يمكنك العودة إلى حسابك.', mismatch: 'كلمتا المرور غير متطابقتين.',
             unavailable: 'خدمة البريد غير متاحة حاليًا. حاول لاحقًا.', invalid: 'الرابط منتهي الصلاحية أو مستخدم. اطلب رابطًا جديدًا.',
             failure: 'تعذر إكمال الطلب. حاول مجددًا.', limited: 'طلبات كثيرة. انتظر قليلًا ثم حاول مجددًا.',
@@ -22,6 +24,8 @@
             request: 'Enter your email to request an account recovery link.', verifyNote: 'Send a verification link to your account email.',
             resetNote: 'Choose 8–64 characters. Your previous sign-in sessions will end.',
             sent: 'If the account is eligible, a local test message was prepared. No email was sent.',
+            sentEmail: 'If an account exists for that email, a reset link has been sent.',
+            sentVerify: 'If the account is eligible, a verification link has been sent to your email.',
             done: 'Updated. You can return to your account.', mismatch: 'The passwords do not match.',
             unavailable: 'Email service is currently unavailable. Please try later.', invalid: 'This link has expired or was used. Request a new link.',
             failure: 'The request could not be completed. Try again.', limited: 'Too many requests. Wait a little before trying again.',
@@ -35,6 +39,8 @@
     const confirm = /** @type {HTMLInputElement} */ ($('recovery-confirm'));
     const submit = /** @type {HTMLButtonElement} */ ($('recovery-submit'));
     let statusKey = 'loading';
+    // 'email' = real delivery (Resend); 'local' = dev-only file sink. Copy must match.
+    let mailMode = 'local';
     function status(key) { statusKey = key; $('recovery-status').textContent = core.t(key); }
     core.onLangChange(() => status(statusKey));
     $('theme-toggle').addEventListener('click', core.toggleTheme);
@@ -44,6 +50,7 @@
         try {
             const config = await core.requestJson('GET', '/api/auth/recovery/config');
             if (!config.enabled) { status('unavailable'); return; }
+            mailMode = config.mode === 'email' ? 'email' : 'local';
             if (!token && purpose === 'verify' && !await runtime.HalaAuth.getUser()) { status('login'); return; }
             const resetting = !!token && purpose === 'reset';
             email.required = !token && purpose === 'reset';
@@ -79,7 +86,7 @@
             await core.postJson(completing ? '/api/auth/recovery/complete'
                 : purpose === 'verify' ? '/api/me/email-verification' : '/api/auth/recovery/request',
             completing ? { token, purpose, password: password.value } : { email: email.value });
-            status(completing ? 'done' : 'sent');
+            status(completing ? 'done' : mailMode !== 'email' ? 'sent' : purpose === 'verify' ? 'sentVerify' : 'sentEmail');
             token = '';
             password.value = '';
             confirm.value = '';

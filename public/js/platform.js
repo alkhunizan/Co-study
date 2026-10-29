@@ -249,6 +249,11 @@
                     if (selectedCircle?.id === circle.id) await showCircle(circle);
                 }));
                 actions.push(button(t('remove'), async () => {
+                    // Inline pair: platform-copy.js is owned elsewhere this pass.
+                    const prompt = core.getLang() === 'ar'
+                        ? `هل تريد إزالة ⁨${member.display_name}⁩ من هذه المجموعة؟`
+                        : `Remove ⁨${member.display_name}⁩ from this circle?`;
+                    if (!window.confirm(prompt)) return;
                     await api('PATCH', `/cohorts/${circle.id}/members/${member.user_id}`, { role: 'remove' });
                     if (selectedCircle?.id === circle.id) await showCircle(circle);
                 }));

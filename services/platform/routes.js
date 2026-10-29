@@ -287,6 +287,9 @@ function createPlatformRouter(deps) {
         const reason = sanitizeUserText(req.body?.reason, 250);
         requireCondition(target && reason && target.id !== req.user.id && typeof req.body?.banned === 'boolean', 'ACTION_INVALID');
         requireCondition(!(await platform.access.roles(target.id)).includes('super_admin'), 'SUPER_ADMIN_PROTECTED', 403);
+        // cases.manage alone is not authority over other staff: the target must rank strictly below the caller.
+        const [actorRank, targetRank] = await Promise.all([platform.access.rank(req.user.id), platform.access.rank(target.id)]);
+        requireCondition(targetRank < actorRank, 'ROLE_PROTECTED', 403);
         await platform.db.transaction((tx) => audit(tx, req.user.id, req.body.banned ? 'account.ban.requested' : 'account.unban.requested', target.id, { reason }));
         const previous = target.banned;
         target.banned = req.body.banned;

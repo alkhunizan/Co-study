@@ -738,7 +738,7 @@
         try {
           await auth.signout();
           window.HalaUI.toast(t('signedOutToast'));
-          setTimeout(() => location.assign('/'), 400);
+          setTimeout(() => location.assign(core.localizedPath('/')), 400);
         } catch (error) {
           setFeedback('profile-feedback', errText(error), 'error');
         }
@@ -768,7 +768,7 @@
           await accountRequest('DELETE', '/api/me', { password });
           core.clearStudyStorage(currentUser?.id);
           window.HalaUI.toast(t('deletedToast'));
-          setTimeout(() => location.assign('/'), 800);
+          setTimeout(() => location.assign(core.localizedPath('/')), 800);
         } catch (error) {
           if (error.code === 'REAUTH_REQUIRED') {
             location.assign('/auth/google?purpose=delete');

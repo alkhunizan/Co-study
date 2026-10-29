@@ -61,13 +61,23 @@
         status.hidden = !key;
         status.classList.toggle('error', error);
     }
-    function failure(error) {
-        if (['AUTH_REQUIRED', 'AUTH_ACCOUNT_CHANGED'].includes(error?.code)) {
+    function failure(error, background = false) {
+        if (error?.code === 'AUTH_ACCOUNT_CHANGED' && !background) {
+            // A different account now owns the cookies; never show this account's drafts to it.
             root.closest('main').hidden = true;
             location.reload();
             return;
         }
+        if (['AUTH_REQUIRED', 'AUTH_ACCOUNT_CHANGED'].includes(error?.code)) {
+            // Keep every draft in the DOM; signing in again and retrying continues from here.
+            message(error.code === 'AUTH_REQUIRED' ? 'studySignedOut' : 'studyAccountChanged', true);
+            retry.hidden = false;
+            return;
+        }
         message(g.HalaPlatformCopy.en[error?.code] ? error.code : 'studyUnavailable', true);
+    }
+    function confirmed(key) {
+        return window.confirm(t(key));
     }
     function btn(key, action) {
         const b = tr('button', key);
@@ -187,7 +197,7 @@
         const b = btn(label, () => {
             tab = key;
             showTab();
-            if (owner && !busy) return load();
+            if (owner) return requestLoad();
         });
         tabs[key] = b;
         nav.append(b);
@@ -345,11 +355,28 @@
         taskTitle.focus();
         taskForm.scrollIntoView({ block: 'start' });
     }
+    // Row actions read the newest known record, not the one captured when the row rendered.
+    function latest(kind, item) {
+        return data?.[kind]?.find((x) => x.id === item.id) || item;
+    }
+    function remember(kind, record) {
+        const list = data?.[kind];
+        const index = list && record?.id ? list.findIndex((x) => x.id === record.id) : -1;
+        if (index >= 0 && Number(record.version) >= Number(list[index].version)) list[index] = record;
+        if (kind === 'tasks' && record && editing?.id === record.id) {
+            editing.version = record.version;
+            editing.steps = structuredClone(record.steps);
+        }
+    }
     async function patch(kind, item, changes) {
-        await api('PATCH', `/${kind}/${item.id}`, {
-            ...changes,
-            version: item.version,
-        });
+        const fresh = latest(kind, item);
+        remember(
+            kind,
+            await api('PATCH', `/${kind}/${item.id}`, {
+                ...(typeof changes === 'function' ? changes(fresh) : changes),
+                version: fresh.version,
+            }),
+        );
         await load();
     }
     function renderTasks() {
@@ -383,14 +410,19 @@
                     .join(' · ');
                 const e = row(task.title, detail, [
                     btn(task.completed ? 'reopenTask' : 'completeTask', async () => {
-                        await api('POST', `/tasks/${task.id}/complete`, {
-                            completed: !task.completed,
-                            version: task.version,
-                        });
+                        remember(
+                            'tasks',
+                            await api('POST', `/tasks/${task.id}/complete`, {
+                                completed: !task.completed,
+                                version: latest('tasks', task).version,
+                            }),
+                        );
                         await load();
                     }),
-                    btn('editItem', () => editTask(task)),
-                    btn('archiveItem', () => patch('tasks', task, { archived: true })),
+                    btn('editItem', () => editTask(latest('tasks', task))),
+                    btn('archiveItem', () =>
+                        confirmed('archiveItemConfirm') ? patch('tasks', task, { archived: true }) : undefined,
+                    ),
                 ]);
                 if (task.steps.length) {
                     const ul = n('ul', '', 'study-checklist');
@@ -409,12 +441,12 @@
                             () =>
                                 void work(check, async () => {
                                     try {
-                                        await patch('tasks', task, {
-                                            steps: task.steps.map((s) => ({
+                                        await patch('tasks', task, (fresh) => ({
+                                            steps: fresh.steps.map((s) => ({
                                                 ...s,
                                                 done: s.id === step.id ? check.checked : s.done,
                                             })),
-                                        });
+                                        }));
                                     } catch (error) {
                                         check.checked = step.done;
                                         throw error;
@@ -431,7 +463,11 @@
         rows(
             projectList,
             data.projects.map((p) =>
-                row(p.name, '', [btn('archiveProject', () => patch('projects', p, { archived: true }))]),
+                row(p.name, '', [
+                    btn('archiveProject', () =>
+                        confirmed('archiveProjectConfirm') ? patch('projects', p, { archived: true }) : undefined,
+                    ),
+                ]),
             ),
             'noData',
         );
@@ -448,7 +484,9 @@
                               }),
                           ]
                         : []),
-                    btn('archiveItem', () => patch('distractions', d, { archived: true })),
+                    btn('archiveItem', () =>
+                        confirmed('archiveItemConfirm') ? patch('distractions', d, { archived: true }) : undefined,
+                    ),
                 ]),
             ),
             'distractionsEmpty',
@@ -985,6 +1023,14 @@
     resourcesRoot.className = 'study-tools study-resources';
     function render() {
         if (!data) return;
+        if (editing) {
+            // Keep the typed draft, but save against the newest version and step states.
+            const fresh = data.tasks.find((x) => x.id === editing.id);
+            if (fresh) {
+                editing.version = fresh.version;
+                editing.steps = structuredClone(fresh.steps);
+            }
+        }
         renderTasks();
         renderFocus();
         renderInsights();
@@ -1010,7 +1056,9 @@
                             await chooseRoutine(r.id);
                             location.hash = 'progress';
                         }),
-                        btn('archiveItem', () => patch('routines', r, { archived: true })),
+                        btn('archiveItem', () =>
+                            confirmed('archiveItemConfirm') ? patch('routines', r, { archived: true }) : undefined,
+                        ),
                     ],
                 ),
             ),
@@ -1022,6 +1070,7 @@
                 row(s.available ? s.name : t('roomUnavailable'), s.available ? s.roomId : '', [
                     ...(s.available ? [link('joinSession', `/study?room=${encodeURIComponent(s.roomId)}`)] : []),
                     btn('removeSaved', async () => {
+                        if (!confirmed('removeSavedConfirm')) return;
                         await api('DELETE', `/bookmarks/${s.id}`);
                         await load();
                     }),
@@ -1036,6 +1085,15 @@
             reminderOn.checked = data.preferences.reminders;
             reminderForm.elements.namedItem('reminder_minutes').value = data.preferences.reminder_minutes;
         }
+    }
+    let pendingLoad = false;
+    function requestLoad() {
+        // A refresh that arrives mid-load runs once the current load settles.
+        if (busy) {
+            pendingLoad = true;
+            return undefined;
+        }
+        return load();
     }
     async function load() {
         const user = g.HalaPlatform.context().user;
@@ -1055,7 +1113,12 @@
                 api('GET', '/bookmarks'),
                 api('GET', '/insights'),
             ]);
-            if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id) return obsolete;
+            if (request !== loadRequest) return obsolete;
+            if (g.HalaPlatform.context().user?.id !== user.id) {
+                // The account changed mid-load: reload for the new account once this settles.
+                pendingLoad = true;
+                return obsolete;
+            }
             const changed = owner !== user.id;
             owner = user.id;
             [data, { sessions: agenda }, { bookmarks: saved }, insights] = results;
@@ -1066,17 +1129,25 @@
             }
             render();
             const journalResult = await loadJournal();
+            if (request === loadRequest && g.HalaPlatform.context().user?.id !== user.id) pendingLoad = true;
             if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id || journalResult === obsolete)
                 return obsolete;
             message('');
             return true;
         } catch (error) {
+            if (request === loadRequest && g.HalaPlatform.context().user?.id !== user.id) pendingLoad = true;
             if (request !== loadRequest || g.HalaPlatform.context().user?.id !== user.id) return obsolete;
             failure(error);
             retry.hidden = false;
             return false;
         } finally {
-            if (request === loadRequest) busy = false;
+            if (request === loadRequest) {
+                busy = false;
+                if (pendingLoad) {
+                    pendingLoad = false;
+                    void load();
+                }
+            }
         }
     }
     async function loadResources(selected) {
@@ -1111,6 +1182,7 @@
                         ...(result.canManage
                             ? [
                                   btn('archiveItem', async () => {
+                                      if (!confirmed('archiveResourceConfirm')) return;
                                       await api('DELETE', `/circles/${circleId}/resources/${r.id}`);
                                       await loadResources(circle);
                                   }),
@@ -1220,7 +1292,8 @@
             reminderBanner.hidden = true;
             if (['AUTH_REQUIRED', 'AUTH_ACCOUNT_CHANGED'].includes(error?.code)) {
                 agenda = [];
-                failure(error);
+                // Background timer: report only, never reload over the user's drafts.
+                failure(error, true);
             } else permissionStatus.textContent = t('studyUnavailable');
         } finally {
             reminderBusy = false;
@@ -1264,10 +1337,10 @@
         const changed = context.state !== platformSnapshot || context.user?.id !== owner;
         platformSnapshot = context.state;
         // A language-only render must not clear feedback from a failed save.
-        if (!busy && (changed || !data)) void load();
+        if (changed || !data) void requestLoad();
     });
     window.addEventListener('halastudyrefresh', () => {
-        if (!busy) void load();
+        void requestLoad();
     });
     window.addEventListener(
         'halacirclechange',

@@ -52,7 +52,9 @@ test('coStudy storage keys migrate once and never clobber new values', async ({ 
             } catch (_error) {}
         });
 
-        await page.goto('/');
+        // An app page: public locale routes (/ and /en) now save their own
+        // language, which would mask what the migration copied forward.
+        await page.goto('/open');
 
         const migrated = await page.evaluate(() => ({
             lang: localStorage.getItem('halastudyLang'),

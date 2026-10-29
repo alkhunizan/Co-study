@@ -87,7 +87,7 @@ function renderPage(page, pages) {
 <a href="${english ? '/en' : ''}/privacy">${english ? 'Privacy' : 'الخصوصية'}</a><a href="${english ? '/en' : ''}/terms">${english ? 'Terms' : 'الشروط'}</a></footer>`);
         html = html.replace('</head>', '<script src="/js/halastudy-core.js"></script><script src="/js/legal-shell.js" defer></script>\n</head>');
     }
-    html = html.replace(/<html\b[^>]*>/, `<html lang="${page.lang}" dir="${english ? 'ltr' : 'rtl'}" data-theme="light" data-route-lang="${page.lang}">`);
+    html = html.replace(/<html\b[^>]*>/, `<html lang="${page.lang}" dir="${english ? 'ltr' : 'rtl'}" data-theme="light" data-route-lang="${page.lang}"${page.alternate ? ' data-route-lang-persist' : ''}>`);
     html = html.replace(/<title>[\s\S]*?<\/title>|<meta\b[^>]*(?:name="(?:description|twitter:[^"]+)"|property="og:[^"]+")[^>]*>|<link\b[^>]*rel="(?:canonical|alternate)"[^>]*>/gi, '');
     const alternates = page.alternate ? [
         `<link rel="alternate" hreflang="ar" href="${ORIGIN}${english ? page.alternate : page.path}">`,
