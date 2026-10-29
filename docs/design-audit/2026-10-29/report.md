@@ -4,7 +4,7 @@ Scope: every author UI file in the branch diff (16 HTML pages, 6 CSS files, copy
 
 ## Verdict
 
-**SHIP-READY pending two human items** (first pass NEEDS REWORK → FIX BEFORE MERGE → this, all 2026-10-29). The should-fix list below was closed in a second commit the same day: hard-no and should-fix greps clean, `npm run check` passes, biome unchanged (1 pre-existing warning), smoke suites room+landing+admin 17/17. Left open: multi-`<h1>` visibility (needs a live render) and photo provenance (Aziz). The three ship-blockers below were fixed the same day in `index.html` (commit on `viber/2026-10-27`): hard-no greps clean, `npm run check` passes, in-room smoke suite 8/8. What remains is the should-fix list (about 20 items) plus two items a grep cannot settle (multi-`<h1>` visibility, photo provenance).
+**SHIP-READY pending two human items** (first pass NEEDS REWORK → FIX BEFORE MERGE → this, all 2026-10-29). The should-fix list below was closed in a second commit the same day: hard-no and should-fix greps clean, `npm run check` passes, biome unchanged (1 pre-existing warning), smoke suites room+landing+admin 17/17. Left open: photo provenance (Aziz) only; the `<h1>` question was settled live the same day. The three ship-blockers below were fixed the same day in `index.html` (commit on `viber/2026-10-27`): hard-no greps clean, `npm run check` passes, in-room smoke suite 8/8. What remains is the should-fix list (about 20 items) plus two items a grep cannot settle (multi-`<h1>` visibility, photo provenance).
 
 ## Ship-blockers (§10 hard-no's + critical §11 fails) — ALL FIXED 2026-10-29
 
@@ -49,8 +49,8 @@ Kept as-is with a §12 comment: `landing.css .result-code[role="button"]` 12px r
 - [index.html:443](../../../index.html:443) `color: white`, [index.html:465](../../../index.html:465) `color: white`, [lobby.html:69](../../../lobby.html:69) `color: #fff`, [lobby.html:46](../../../lobby.html:46) `var(--card, #fff)` — fine on black video surfaces, but use `--ink-inv` so the token audit stays clean.
 - [public/css/platform.css:10](../../../public/css/platform.css:10), [admin.html:80](../../../admin.html:80) — primary button `color: #2D3436` instead of `var(--ink)`.
 
-**§11.1 one headline per page**
-- [platform.html](../../../platform.html) has 9 `<h1>` (one per workspace view), [account.html](../../../account.html) 3, [lobby.html](../../../lobby.html) 2, [admin.html](../../../admin.html) 2, [privacy.html](../../../privacy.html) and [terms.html](../../../terms.html) 2 each (AR + EN blocks). If only one is visible at a time this passes; otherwise demote the rest to `<h2>`. Not verified in a browser — a live check is needed.
+**§11.1 one headline per page — VERIFIED LIVE 2026-10-29, passes**
+- Rendered on `localhost:3001` in the built-in browser and counted `<h1>` elements with a layout box: `/app` (guest) 1 of 9, `/plans` 1 of 9, `/app#progress` 1 of 9, `/account` 1 of 3, `/lobby` 1 of 2 before the name gate and 1 of 2 after it, `/privacy` 1, `/terms` 1 (the EN block is removed by the lang script). `admin.html` was not rendered (needs `ADMIN_PATH` + `ADMIN_PASSWORD_HASH`); its two `<h1>` are the login gate and the dashboard, same hidden-toggle pattern as the lobby — inferred from markup only.
 
 **§5 number rules**
 - [index.html:403](../../../index.html:403) — `.schedule-countdown` has no `tabular-nums`; it reflows every second.
@@ -59,7 +59,7 @@ Kept as-is with a §12 comment: `landing.css .result-code[role="button"]` 12px r
 
 ## Pass / fail — §11 checklist
 
-- [✗] One headline / one accent / one image — accent ✓ (single `--accent` family, no blue/purple anywhere); headline ✗ (multi-`<h1>` pages above, pending live check); image — `landing.html` carries 8 `<img>` (3 tile photos + 5 team photos). Justify in a comment per §12 or trim.
+- [~] One headline / one accent / one image — accent ✓ (single `--accent` family, no blue/purple anywhere); headline ✓ (one visible per view, verified live); image — `landing.html` carries 8 `<img>` (3 tile photos + 5 team photos). Justify in a comment per §12 or trim.
 - [✗] Bilingual integrity — `.ambient-popover` and chat-bubble radii break in RTL (ship-blocker above). Depth check deferred to `rtl-bilingual-reviewer`.
 - [✗] Logical properties only — see ship-blocker + should-fix list.
 - [~] Hit targets — `landing.css .btn` 44px ✓, `room-shell.css .cam-btn` 44px ✓, `.status-btn` 36/44 ✓, `admin.html` tabs 36px ✓. `.btn-add` 42px ✗. Dozens of `index.html` icon buttons carry no `min-height` at all — not provable by grep.
