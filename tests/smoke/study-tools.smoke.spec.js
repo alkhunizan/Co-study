@@ -131,8 +131,14 @@ async function fixture(browser, server, name = 'Planner') {
     return { account, context, page };
 }
 async function choose(page, key) {
-    await page.locator(`.study-tabs [data-lang="${key}"]`).click();
-    await expect(page.locator(`.study-tabs [data-lang="${key}"]`)).toBeEnabled();
+    // While it loads, the workspace shows a "Loading" status line above itself and removes it when
+    // done, shifting the tabs; on CI WebKit a click during that shift missed the tab entirely. Wait
+    // until it is not loading, and check the tab actually became the active one, not just re-enabled.
+    await expect(page.locator('#study-status[data-lang="studyLoading"]')).toHaveCount(0);
+    const tab = page.locator(`.study-tabs [data-lang="${key}"]`);
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-pressed', 'true');
+    await expect(tab).toBeEnabled();
 }
 
 test('F01-F14 private planning, lost response, routines, task-linked focus, reflection and journal work end to end', async ({
