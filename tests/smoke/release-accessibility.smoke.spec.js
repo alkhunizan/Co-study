@@ -52,7 +52,9 @@ test('release branding, active account headings and footer contact pass responsi
                 if (await footer.count()) await expect(footer.locator('a[href="mailto:info@halastudy.com"], a[href="/contact"], a[href="/en/contact"]').first()).toBeVisible();
                 rows.push({ route, width, language, theme, fontMode: process.env.CO_STUDY_OFFLINE === '1' ? 'outage/fallback' : 'verified real fonts', violations: findings.violations.length });
                 if (width === 390 && ['/account', '/open', '/privacy', '/en/privacy'].includes(route)) {
-                    await page.screenshot({ path: info.outputPath(`after-${route.replaceAll('/', '-')}-${language}-${theme}.png`), fullPage: true });
+                    // WebKit cannot capture images taller than 32767px (long pages at a 3x device scale).
+                    const fitsFullPage = await page.evaluate(() => document.documentElement.scrollHeight * devicePixelRatio <= 32767);
+                    await page.screenshot({ path: info.outputPath(`after-${route.replaceAll('/', '-')}-${language}-${theme}.png`), fullPage: fitsFullPage });
                 }
             }
         }

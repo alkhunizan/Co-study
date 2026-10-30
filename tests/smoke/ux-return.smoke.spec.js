@@ -246,7 +246,9 @@ test.describe('online fonts diagnostic', () => {
     // WebKit (WPE, as on CI) logs "Successfully preconnected to https://fonts..." for each preconnect
     // hint. That is a success notice, not a font or CSP problem, so it is the only message ignored.
     page.on('console', (message) => { const text = message.text(); if (/font|Content Security Policy|violat/i.test(text) && !/^Successfully preconnected to /.test(text)) messages.push(text); });
-    page.on('requestfailed', (request) => { if (/fonts\./.test(request.url())) requests.push({ url: request.url(), error: request.failure()?.errorText }); });
+    // A request the browser itself cancels (WebKit: "Load request cancelled", Chromium: net::ERR_ABORTED),
+    // e.g. an unused unicode-range subset or a navigation, is not a font failure; real failures still count.
+    page.on('requestfailed', (request) => { const error = request.failure()?.errorText || ''; if (/fonts\./.test(request.url()) && !/^(Load request cancelled|net::ERR_ABORTED)$/.test(error)) requests.push({ url: request.url(), error }); });
     await page.addInitScript(() => {
         const scope = /** @type {any} */ (window); scope.metrics = { cls: 0, lcp: 0 };
         new PerformanceObserver((list) => { for (const entry of list.getEntries()) if (!(/** @type {any} */ (entry)).hadRecentInput) scope.metrics.cls += (/** @type {any} */ (entry)).value; }).observe({ type: 'layout-shift', buffered: true });

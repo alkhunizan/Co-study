@@ -39,19 +39,27 @@ async function joinRoom(page) {
     await page.locator('#create-form button[type=submit]').click();
     await expect(page.locator('#create-result')).toBeVisible();
     await page.locator('#btn-enter-room').click();
-    // "Enter room" navigates to /index.html?room=CODE. Wait for that page, then for either the join
-    // dialog or an auto-join (saved name); a single isVisible() probe after waitForLoadState('load')
-    // can run against the old /open page on WebKit, skip the join and leave chat disabled.
+    // "Enter room" navigates to /index.html?room=CODE. A single isVisible() probe after
+    // waitForLoadState('load') could run on the old /open page (WebKit). And once a name is saved the
+    // room auto-joins, showing the overlay as a busy "Joining..." form until the join lands, so
+    // "overlay visible" alone does not mean the form wants input. Read all three states at once.
     await waitForTestUrl(page, (url) => url.pathname === '/index.html' && url.searchParams.has('room'));
-    const overlay = page.locator('#join-overlay');
-    const chat = page.locator('#chat-input');
-    await expect.poll(async () => (await overlay.isVisible()) || (await chat.isEnabled())).toBe(true);
-    if (await overlay.isVisible()) {
+    const joinState = () => page.evaluate(() => {
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput && !chatInput.disabled) return 'joined';
+        const dialog = document.getElementById('join-overlay');
+        const form = document.getElementById('join-form');
+        if (dialog && !dialog.hidden && form && form.getAttribute('aria-busy') !== 'true') return 'form';
+        return 'waiting';
+    });
+    let state = 'waiting';
+    await expect.poll(async () => { state = await joinState(); return state; }).not.toBe('waiting');
+    if (state === 'form') {
         await page.locator('#join-name').fill('UX guest');
         await page.locator('#join-form button[type=submit]').click();
     }
-    await expect(overlay).toBeHidden();
-    await expect(chat).toBeEnabled();
+    await expect(page.locator('#join-overlay')).toBeHidden();
+    await expect(page.locator('#chat-input')).toBeEnabled();
 }
 
 test('join promise: correct invitation wording and deep-link handoff', async ({ page }) => {
