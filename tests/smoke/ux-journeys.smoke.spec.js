@@ -7,6 +7,9 @@ const { signupUser } = require('../helpers/auth-helpers');
 let server;
 let client = 70;
 test.use({ actionTimeout: 15000 });
+// ux-journeys exercises the real room flow (no API mocking), which relies on the service
+// worker for asset caching; keep it enabled so the heavy in-room app loads within budget on WebKit.
+test.use({ serviceWorkers: 'allow' });
 test.beforeAll(async () => {
     const directory = path.resolve('docs/implementation/2026-10-20-deep-ux/evidence/state');
     require('node:fs').mkdirSync(directory, { recursive: true });

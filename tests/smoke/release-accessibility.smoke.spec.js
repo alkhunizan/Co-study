@@ -24,7 +24,22 @@ test('release branding, active account headings and footer contact pass responsi
                 await expect(brand).toHaveAccessibleName(/Hala\s*study/i);
                 const findings = await new AxeBuilder({ page }).withRules(['label-content-name-mismatch']).analyze();
                 expect(findings.violations, `${route}/${width}/${language}/${theme}`).toEqual([]);
-                expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), route).toBe(true);
+                const horizontalOverflow = await page.evaluate(() => {
+                    const vw = window.innerWidth;
+                    if (document.documentElement.scrollWidth <= vw + 1) return null;
+                    const offenders = [];
+                    for (const el of document.querySelectorAll('*')) {
+                        const r = el.getBoundingClientRect();
+                        if (r.width === 0) continue;
+                        if (r.right > vw + 1 || r.left < -1) {
+                            const cls = typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).join('.') : '';
+                            offenders.push({ sel: el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + cls, left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width) });
+                        }
+                    }
+                    offenders.sort((a, b) => b.right - a.right);
+                    return { vw, scrollWidth: document.documentElement.scrollWidth, offenders: offenders.slice(0, 6) };
+                });
+                expect(horizontalOverflow, `${route}/${width}/${language}/${theme} horizontal overflow: ${JSON.stringify(horizontalOverflow)}`).toBeNull();
                 if (route === '/account') {
                     await expect(page.locator('h1:visible')).toHaveCount(1);
                     await page.locator('#tab-signup').click();

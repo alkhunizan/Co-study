@@ -230,7 +230,11 @@ test('workspace accessibility: returning-user views in both languages, themes an
     }
     await info.attach('workspace-accessibility.json', { body: JSON.stringify(results, null, 2), contentType: 'application/json' });
 });
-test('online fonts diagnostic and real-font layout stability', async ({ page }, info) => {
+test.describe('online fonts diagnostic', () => {
+    // This diagnostic makes many real navigations within a 90s budget; keep the service worker
+    // enabled so cached assets let it finish on WebKit. (Other tests here block it to mock APIs.)
+    test.use({ serviceWorkers: 'allow' });
+    test('online fonts diagnostic and real-font layout stability', async ({ page }, info) => {
     test.skip(process.env.CO_STUDY_OFFLINE === '1', 'This diagnostic needs external font GETs.');
     test.setTimeout(90000);
     // Synthetic anti-rate-limit headers are local-only; never send them to font hosts.
@@ -266,4 +270,5 @@ test('online fonts diagnostic and real-font layout stability', async ({ page }, 
     await info.attach('online-fonts.json', { body: JSON.stringify({ messages, requests, measurements }, null, 2), contentType: 'application/json' });
     expect(messages).toEqual([]);
     expect(requests).toEqual([]);
+});
 });
