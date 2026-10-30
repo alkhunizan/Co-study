@@ -91,7 +91,7 @@ html[lang="ar"] body, html[lang="ar"] #shared-board-card { direction: rtl; text-
   .timer-main-row .focus-summary { inline-size: 100%; padding: 10px 12px; }
   .timer-main-row .focus-summary-text { flex-direction: row; align-items: center; gap: 8px; }
   .timer-main-row .focus-summary strong { font-size: 20px; }
-  .timer-config-bar { gap: 8px; font-size: 13px; }
+  .timer-config-bar { flex-wrap: wrap; gap: 8px; padding-inline: 12px; font-size: 13px; }
   .timer-controls .btn-ctrl { inline-size: 56px; block-size: 56px; }
   .focus-sync-hint { inline-size: 100%; }
 }
