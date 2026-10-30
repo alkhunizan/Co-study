@@ -139,9 +139,11 @@ placeholder panels.
 ### Feature line `viber/2026-10-27` is not on main
 **Priority:** P2
 The platform layer, landing/blog refinements and study tools live on
-`viber/2026-10-27` (archived as tags); the contact page has been ported. A straight merge hits 32 conflicts that
-are behavioural decisions (account storage, OAuth deletion, room persistence,
-video lifecycle), so pieces must be ported one at a time onto hardened `main`.
+`viber/2026-10-27` (archived as tags); the contact page has been ported. On
+2026-10-30 `main` was merged into the feature line (2f3f31b) and PR #35 became
+mergeable, with every CI check passing on 8dc5a29 apart from the flaky WebKit
+mobile items under "Workspace and browser smoke". Remaining: review and merge
+PR #35 (still a draft).
 Codex's half-finished merge attempt was snapshotted as
 `archive/codex-full-expansion-2026-10-28/uncommitted`; it holds nothing beyond
 `main` + `viber` except unresolved conflict markers.
@@ -173,6 +175,43 @@ Codex's triage review trees with its reports. `E:` is the mapped share
 after rewriting their `.git` link files to the `E:/` form (done for the
 readiness tree). Three `refs/codex/*` refs remain but no longer break
 `git fetch --all --prune`.
+
+## Workspace and browser smoke
+
+Diagnose WebKit failures from the CI Playwright artifact (`trace.zip`: network,
+actions, DOM snapshots); local Windows WebKit is slower and renders fonts
+differently, so it both fails tests CI passes and passes tests CI fails.
+
+### Study workspace loading line shifts the tabs
+**Priority:** P3
+While it loads, the study workspace prepends a "Loading" status line (28px plus
+24px of margin) above itself and removes it when done, moving the tabs about
+52px. A tap during that shift can hit the wrong control; CI WebKit caught it in
+study-tools:497 (the test now waits for loading to finish). Reserve the line's
+space or overlay it.
+
+### WebKit mobile LCP budget is borderline (known flake)
+**Priority:** P3
+`ux-journeys` "stable hero" measures LCP on emulated iPhone WebKit against a
+soft 2.5s budget; PR #35 runs measured 2.55-3.09s and failed 4 of 6 runs
+(2026-10-30). The online-fonts diagnostic in `ux-return` shares the budget. The
+likely fix is "Trim the webfont payload" (preload or self-host the hero font).
+The budget was deliberately not loosened.
+
+### WebKit engine crashes on navigation in long smoke runs (known flake)
+**Priority:** P3
+"page.goto: WebKit encountered an internal error" hit `ux-return:21` and
+`landing:85`, once each, in 25-34 minute single-worker WebKit runs. It is
+engine-level and not reproducible from test code. If it keeps recurring, decide
+whether CI should retry WebKit jobs.
+
+### Cross-tab focus pause can miss the 10s window on WebKit (known flake)
+**Priority:** P3
+Once in `study-tools:497`, a pause made in a second tab did not reach the first
+tab within 10s. `focus-client.js` relies on one BroadcastChannel message; its
+fallback runs every 15s and, while a session is active, sends a heartbeat rather
+than re-reading state. Reconciling on that heartbeat or a shorter fallback would
+close the gap.
 
 ## Completed
 
