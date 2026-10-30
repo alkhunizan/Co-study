@@ -25,6 +25,26 @@ const SERVER_OVERRIDE_ALLOWLIST = new Set([
     'ADMIN_PASSWORD_HASH',
     'ADMIN_PATH',
     'ALLOWED_ORIGINS',
+    'AUTH_MAIL_DAILY_LIMIT',
+    'AUTH_MAIL_ENCRYPTION_KEY',
+    'AUTH_MAIL_FROM',
+    'AUTH_MAIL_MODE',
+    'BILLING_MODE',
+    'BILLING_PROVIDER',
+    'DIGETPAY_API_KEY',
+    'DIGETPAY_ENVIRONMENT',
+    'DIGETPAY_PUBLIC_ORIGIN',
+    'DIGETPAY_STATUS_LOOKUP',
+    'DIGETPAY_USD_ENABLED',
+    'GOOGLE_CLIENT_ID',
+    'NODE_OPTIONS',
+    'GOOGLE_CLIENT_SECRET',
+    'PAYMENT_REVIEW_FIXTURE',
+    'OPS_ALERT_WEBHOOK_TOKEN',
+    'OPS_ALERT_WEBHOOK_URL',
+    'PLATFORM_DATABASE_URL',
+    'PLATFORM_DATA_DIR',
+    'PLATFORM_ENABLED',
     'BACKUP_ENCRYPTION_KEY',
     'BACKUP_INTERVAL_MINUTES',
     'BACKUP_RETENTION_COUNT',
@@ -207,7 +227,7 @@ function request(baseUrl, pathname, options = {}) {
     });
 }
 
-async function waitForServer(baseUrl, timeoutMs = 15000) {
+async function waitForServer(baseUrl, timeoutMs = 60000) {
     const startedAt = Date.now();
 
     while (Date.now() - startedAt < timeoutMs) {
@@ -538,6 +558,7 @@ module.exports = {
     launchOnFreePort,
     buildTestEnvironment,
     delay,
+    request,
     startServer,
     waitForServer
 };

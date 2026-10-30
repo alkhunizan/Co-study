@@ -1,4 +1,4 @@
-const { createTestContext, gotoTestPage, test, expect } = require('../helpers/playwright-test');
+const { createTestContext, gotoTestPage, openRoomPanel, test, expect } = require('../helpers/playwright-test');
 
 const { startServer } = require('../helpers/server-control');
 
@@ -210,6 +210,7 @@ async function expectJoined(page) {
 }
 
 async function addTask(page, text) {
+    await openRoomPanel(page, '#shared-board-card');
     await page.fill('#new-task', text);
     await page.click('#add-task-btn');
     await expect(page.locator('#todo-list .todo-text', { hasText: text })).toBeVisible();
@@ -417,10 +418,12 @@ test('chat and shared board stay in sync across two participants', async ({ brow
         });
         await expectJoined(peer.page);
 
+        await openRoomPanel(owner.page, '#chat-room-card');
         await owner.page.fill('#chat-input', 'Smoke hello');
         await owner.page.click('#chat-send');
         await expect(peer.page.locator('#chat-msgs')).toContainText('Smoke hello');
 
+        await openRoomPanel(owner.page, '#shared-board-card');
         await owner.page.fill('#room-goal', 'Ship CI guardrails');
         await owner.page.locator('#room-goal').blur();
         await expect.poll(async () => peer.page.locator('#room-goal').inputValue()).toBe('Ship CI guardrails');
@@ -437,6 +440,7 @@ test('chat and shared board stay in sync across two participants', async ({ brow
             });
         await expect.poll(() => taskTexts(peer.page)).toEqual(['Second shared task', 'First shared task']);
 
+        await openRoomPanel(peer.page, '#shared-board-card');
         await peer.page.locator('#todo-list .todo-item', { hasText: 'Second shared task' })
             .locator('.check-circle')
             .click();
@@ -756,6 +760,9 @@ test('scheduled rooms expose timer defaults and invite actions', async ({ browse
         });
         await expectJoined(owner.page);
 
+        // On mobile the room-tools <details> panels start collapsed (syncRoomTools gates `open`
+        // on min-width:1025px); expand the panel holding the schedule card as a user would.
+        await owner.page.evaluate(() => { const panel = document.getElementById('schedule-card')?.closest('details'); if (panel) panel.open = true; });
         await expect(owner.page.locator('#schedule-card')).toBeVisible();
         await expect(owner.page.locator('#schedule-meta')).toContainText(/timer/i);
         await expect(owner.page.locator('#cfg-f')).toHaveValue('50');

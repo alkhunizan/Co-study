@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-10-26T18:23:48.514Z",
+  "sourceFreeze": "35cf9ba885bae99b32cb41ad4bdf4b542c5a67fb",
+  "beforeFile": "docs/away/2026-10-26/evidence/a13-final-browser-source-before.json",
+  "afterFile": "docs/away/2026-10-26/evidence/a13-final-browser-source-after.json",
+  "headBefore": "455f72d4e7d663076823b26e825e086e3abea7f3",
+  "headAfter": "455f72d4e7d663076823b26e825e086e3abea7f3",
+  "filesBefore": 183,
+  "filesAfter": 183,
+  "manifestBefore": "8b79c64da687c2b172ea2aea09c11ec95796790cbe1a572ad37db0032e69265d",
+  "manifestAfter": "8b79c64da687c2b172ea2aea09c11ec95796790cbe1a572ad37db0032e69265d",
+  "manifestEqual": true,
+  "entriesEqual": true,
+  "recordedManifestsValid": true,
+  "trackedSourceCleanBefore": true,
+  "trackedSourceCleanAfter": true,
+  "noEnvFileBefore": true,
+  "noEnvFileAfter": true,
+  "sources": [
+    {
+      "path": "public/js/platform.js",
+      "expected": "1f09d77a612a69b2c548e054aa67ddb78d13ad265054984fba76f10555e74e6c",
+      "before": "1f09d77a612a69b2c548e054aa67ddb78d13ad265054984fba76f10555e74e6c",
+      "after": "1f09d77a612a69b2c548e054aa67ddb78d13ad265054984fba76f10555e74e6c",
+      "equal": true
+    },
+    {
+      "path": "tests/smoke/circle-feedback-away.smoke.spec.js",
+      "expected": "01367888212e39c949e940044a32493954f18cc3a949999a1ae3473ed1df435b",
+      "before": "01367888212e39c949e940044a32493954f18cc3a949999a1ae3473ed1df435b",
+      "after": "01367888212e39c949e940044a32493954f18cc3a949999a1ae3473ed1df435b",
+      "equal": true
+    }
+  ],
+  "allChecksPass": true
+}

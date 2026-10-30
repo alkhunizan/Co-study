@@ -29,7 +29,7 @@
             scheduleStreakStat: 'Streak',
             scheduleAddCalendar: 'Add to calendar',
             scheduleWhatsappInvite: 'WhatsApp invite',
-            scheduleTimezoneLabel: 'Riyadh time',
+            scheduleTimezoneLabel: 'Riyadh time (Asia/Riyadh, UTC+03:00)',
             scheduleNextLabel: 'Next session',
             scheduleLiveLabel: 'Live now',
             scheduleTimerPresetLabel: 'Timer',
@@ -47,7 +47,8 @@
             priorityMedium: 'Medium priority',
             priorityLow: 'Low priority',
             chatPlaceholder: 'Type a message...',
-            timerSet: 'Focus',
+            roomTools: 'Members and shared board', roomHeading: 'Room for focus', addTaskLabel: 'Add shared task', roomVideoTitle: 'Study room video',
+            timerSet: 'Focus', timerStartLabel: 'Start focus', timerPauseLabel: 'Pause focus', timerResetLabel: 'Reset timer', chatSend: 'Send message',
             timerBreak: 'Break',
             minutesShort: 'm',
             joinTitle: 'Join the focus room',
@@ -61,7 +62,7 @@
             joinButton: 'Enter room',
             roomLabel: 'Room',
             mediaModeLabel: 'Media',
-            mediaModeMeshBadge: 'Mesh room',
+            mediaModeMeshBadge: 'Study room',
             mediaModeSfuBadge: 'Large room',
             mediaModeRealtimeKitBadge: 'Study camera room',
             onlineLabel: 'Online',
@@ -90,6 +91,15 @@
             cameraToggleOff: 'Disable camera',
             cameraToggleStarting: 'Starting...',
             cameraError: 'Unable to access the camera.',
+            cameraBlurHelp: 'Privacy blur could not start. Your camera is off. Retry, or turn blur off only if you want to share unblurred video.',
+            cameraPermissionHelp: 'Camera access is blocked. Allow it in your browser site settings, then try again. You can keep studying without it.',
+            cameraDeviceHelp: 'No camera was found. Connect a camera and try again, or continue without one.',
+            cameraBusyHelp: 'The camera may be in use. Close the other camera app and try again, or keep studying without it.',
+            cameraStoppedHelp: 'The camera stopped. Reconnect it and try again, or continue studying without it.',
+            cameraGenericHelp: 'The camera could not start. Try again or continue your session without it.',
+            cameraBrowserHelp: 'Camera access is unavailable in this browser. Continue studying, or open the room in a supported browser using HTTPS.',
+            cameraRetry: 'Try camera again', cameraContinue: 'Continue without camera',
+            cameraPrivacy: 'Camera optional. When enabled, people in your room can see it. You can turn it off at any time.',
             aiReady: 'AI ready',
             aiFocused: 'Status: focused',
             aiAway: 'Status: possibly away',
@@ -134,7 +144,7 @@
             soundOcean: 'Ocean',
             soundNone: 'Off',
             soundListening: 'Listening to',
-            videoCollapsedBanner: 'No video stream',
+            videoCollapsedBanner: 'Camera off · study at your pace',
             statusHidden: 'Hidden',
             userJoined: 'joined the room',
             userLeft: 'left the room',
@@ -169,6 +179,7 @@
             videoRequestInvalid: 'Video join request was invalid. Refresh and try again.',
             messageRequired: 'Please enter a message.',
             boardTaskRequired: 'Please enter a task.',
+            boardTaskLimit: 'This board has reached its 100-task limit. Delete a task before adding another.',
             boardTaskNotFound: 'That task no longer exists.',
             boardReorderInvalid: 'Could not reorder tasks. Refresh the board and try again.',
             boardErrorGeneric: 'Board update failed.',
@@ -207,7 +218,7 @@
             scheduleStreakStat: 'السلسلة',
             scheduleAddCalendar: 'أضف إلى التقويم',
             scheduleWhatsappInvite: 'دعوة واتساب',
-            scheduleTimezoneLabel: 'توقيت الرياض',
+            scheduleTimezoneLabel: 'توقيت الرياض (Asia/Riyadh، UTC+03:00)',
             scheduleNextLabel: 'الجلسة القادمة',
             scheduleLiveLabel: 'الجلسة جارية الآن',
             scheduleTimerPresetLabel: 'المؤقت',
@@ -225,7 +236,8 @@
             priorityMedium: 'أولوية متوسطة',
             priorityLow: 'أولوية منخفضة',
             chatPlaceholder: 'اكتب رسالة...',
-            timerSet: 'تركيز',
+            roomTools: 'الأعضاء واللوحة المشتركة', roomHeading: 'مساحتك للتركيز', addTaskLabel: 'أضف مهمة مشتركة', roomVideoTitle: 'فيديو غرفة الدراسة',
+            timerSet: 'تركيز', timerStartLabel: 'ابدأ التركيز', timerPauseLabel: 'أوقف التركيز مؤقتًا', timerResetLabel: 'أعد ضبط المؤقت', chatSend: 'أرسل الرسالة',
             timerBreak: 'استراحة',
             minutesShort: 'د',
             joinTitle: 'الدخول إلى غرفة التركيز',
@@ -239,7 +251,7 @@
             joinButton: 'الدخول إلى الغرفة',
             roomLabel: 'الغرفة',
             mediaModeLabel: 'الوسائط',
-            mediaModeMeshBadge: 'غرفة Mesh',
+            mediaModeMeshBadge: 'غرفة مذاكرة',
             mediaModeSfuBadge: 'غرفة كبيرة',
             mediaModeRealtimeKitBadge: 'غرفة كاميرا للمذاكرة',
             onlineLabel: 'المتصلون',
@@ -268,6 +280,15 @@
             cameraToggleOff: 'إيقاف الكاميرا',
             cameraToggleStarting: 'جارٍ التشغيل...',
             cameraError: 'تعذر الوصول إلى الكاميرا.',
+            cameraBlurHelp: 'تعذر تشغيل تمويه الخصوصية، فأوقفنا الكاميرا. أعد المحاولة، أو أوقف التمويه فقط إذا أردت مشاركة الفيديو بدونه.',
+            cameraPermissionHelp: 'إذن الكاميرا مغلق. اسمح به من إعدادات الموقع في متصفحك، ثم أعد المحاولة. تقدر تكمل المذاكرة بدونها.',
+            cameraDeviceHelp: 'لم نعثر على كاميرا. وصّل كاميرا وأعد المحاولة، أو أكمل بدونها.',
+            cameraBusyHelp: 'قد تكون الكاميرا مستخدمة في تطبيق آخر. أغلقه وأعد المحاولة، أو أكمل المذاكرة بدونها.',
+            cameraStoppedHelp: 'توقفت الكاميرا. أعد توصيلها وحاول مرة أخرى، أو أكمل المذاكرة بدونها.',
+            cameraGenericHelp: 'لم تعمل الكاميرا. أعد المحاولة أو أكمل جلستك بدونها.',
+            cameraBrowserHelp: 'الكاميرا غير متاحة في هذا المتصفح. أكمل المذاكرة، أو افتح الغرفة في متصفح يدعمها عبر HTTPS.',
+            cameraRetry: 'جرّب الكاميرا مجددًا', cameraContinue: 'أكمل بدون كاميرا',
+            cameraPrivacy: 'الكاميرا اختيارية. عند تشغيلها يشاهدها أعضاء غرفتك، وتقدر توقفها في أي وقت.',
             aiReady: 'الذكاء الاصطناعي جاهز',
             aiFocused: 'الحالة: مركز',
             aiAway: 'الحالة: قد يكون مبتعداً',
@@ -312,7 +333,7 @@
             soundOcean: 'بحر',
             soundNone: 'إيقاف',
             soundListening: 'يستمع إلى',
-            videoCollapsedBanner: 'لا يوجد بث فيديو',
+            videoCollapsedBanner: 'الكاميرا مغلقة · ذاكر على راحتك',
             statusHidden: 'مخفي',
             userJoined: 'دخل الغرفة',
             userLeft: 'غادر الغرفة',
@@ -347,6 +368,7 @@
             videoRequestInvalid: 'طلب دخول الفيديو غير صحيح. حدّث الصفحة وحاول مرة أخرى.',
             messageRequired: 'فضلاً اكتب رسالة.',
             boardTaskRequired: 'فضلاً اكتب مهمة.',
+            boardTaskLimit: 'وصلت اللوحة إلى حد 100 مهمة. احذف مهمة قبل إضافة أخرى.',
             boardTaskNotFound: 'هذه المهمة لم تعد موجودة.',
             boardReorderInvalid: 'تعذر إعادة ترتيب المهام. حدّث اللوحة وحاول مرة أخرى.',
             boardErrorGeneric: 'تعذر تحديث اللوحة.',
@@ -366,6 +388,24 @@
         }
     };
     const langDict = translations;
+    Object.assign(translations.ar, {
+        readyToFocus: 'جاهز للتركيز', statusPrivacyHint: 'تظهر حالتك للغرفة فقط عند تفعيل المشاركة.',
+        chooseAnotherRoom: 'العودة لاختيار غرفة',
+        companyWaiting: 'بانتظار الاتصال بالغرفة.', companyFirst: 'أنت أول الحاضرين. شارك الرابط إن رغبت.',
+        companyTogether: 'عدد الحاضرين: {count}. كلٌّ على إيقاعه.',
+        focusTodayLabel: 'مؤقّت هذا الجهاز', focusReset: 'مسح',
+        statusAutoSync: 'مزامنة مع المؤقّت', statusShare: 'مشاركة الحالة مع الغرفة',
+        mediaRealtimeKitDetail: 'الكاميرا اختيارية. المايك مقفل تلقائيًا.'
+    });
+    Object.assign(translations.en, {
+        readyToFocus: 'Ready to focus', statusPrivacyHint: 'Your status is visible only when sharing is on.',
+        chooseAnotherRoom: 'Choose another room',
+        companyWaiting: 'Connecting to your room.', companyFirst: 'You’re the first here. Share the link if you like.',
+        companyTogether: 'Here together: {count}. Everyone at their own pace.',
+        focusTodayLabel: 'This device’s timer', focusReset: 'Clear',
+        statusAutoSync: 'Sync with timer', statusShare: 'Share status with room',
+        mediaRealtimeKitDetail: 'Camera optional. Mic stays off automatically.'
+    });
     const SERVER_ERROR_KEYS = {
         ROOM_NAME_REQUIRED: 'roomNameRequired',
         ROOM_CODE_GENERATION_FAILED: 'roomCodeGenerationFailed',
@@ -392,6 +432,7 @@
         MESSAGE_REQUIRED: 'messageRequired',
         RATE_LIMITED: 'rateLimited',
         BOARD_TASK_REQUIRED: 'boardTaskRequired',
+        BOARD_TASK_LIMIT_REACHED: 'boardTaskLimit',
         BOARD_TASK_NOT_FOUND: 'boardTaskNotFound',
         BOARD_REORDER_INVALID: 'boardReorderInvalid'
     };
@@ -574,12 +615,13 @@
     const STATUS_PRESET_MAP = { meal: 'statusMeal', away: 'statusAway', studying: 'statusStudying', working: 'statusWorking' };
     const statusState = { manualText: '', manualPreset: null, goal: '', autoSync: false, isShared: true, lastUpdated: null };
     const ambientSoundState = { type: null, enabled: false, volume: 0.5, showInStatus: true, audio: null, cache: {} };
+    /* Icons live in the #ambient-list markup as Lucide SVGs (DESIGN.md section 10: no emoji in chrome). */
     const AMBIENT_SOUNDS = {
-        rain: { src: '/audio/rain.mp3', labelKey: 'soundRain', icon: '🌧️' },
-        forest: { src: '/audio/forest.mp3', labelKey: 'soundForest', icon: '🌲' },
-        fire: { src: '/audio/chimney-fire.mp3', labelKey: 'soundFire', icon: '🔥' },
-        cafe: { src: '/audio/cafe.mp3', labelKey: 'soundCafe', icon: '☕' },
-        ocean: { src: '/audio/waves.mp3', labelKey: 'soundOcean', icon: '🌊' }
+        rain: { src: '/audio/rain.mp3', labelKey: 'soundRain' },
+        forest: { src: '/audio/forest.mp3', labelKey: 'soundForest' },
+        fire: { src: '/audio/chimney-fire.mp3', labelKey: 'soundFire' },
+        cafe: { src: '/audio/cafe.mp3', labelKey: 'soundCafe' },
+        ocean: { src: '/audio/waves.mp3', labelKey: 'soundOcean' }
     };
     const TIMER_NOTIFICATION_SOUNDS = {
         focusEnd: new Audio('/audio/work-end.mp3'),
@@ -656,11 +698,16 @@
         } catch (_err) {}
     }
 
-    const DEBUG = true;
+    const DEBUG = false;
     function debugLog(category, message, data) {
         if (!DEBUG) return;
         const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
-        console.log(`[${timestamp}] [${category}]`, message, data || '');
+        // Never log raw ICE configuration, credentials, candidates or error bodies.
+        const safeData = data && typeof data === 'object' ? Object.fromEntries(
+            Object.entries(data).filter(([key, value]) => ['width', 'height', 'tracks', 'blurred', 'count'].includes(key)
+                && ['number', 'boolean'].includes(typeof value))
+        ) : undefined;
+        console.log(`[${timestamp}] [${category}]`, message, safeData || '');
     }
 
     function getStoredLanguage() {
@@ -745,6 +792,7 @@
 
         try {
             const response = await fetch('/api/runtime-config', {
+                signal: AbortSignal.timeout(15000),
                 headers: { Accept: 'application/json' }
             });
             if (!response.ok) {
@@ -795,11 +843,7 @@
     function formatRiyadhDateTime(timestamp) {
         if (!timestamp) return '';
         try {
-            return new Intl.DateTimeFormat(curLang === 'ar' ? 'ar-SA' : 'en-SA', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-                timeZone: DEFAULT_SCHEDULE_TIMEZONE
-            }).format(new Date(timestamp));
+            return window.HalaSchedule.format(timestamp, curLang, DEFAULT_SCHEDULE_TIMEZONE);
         } catch (_error) {
             return new Date(timestamp).toISOString();
         }
@@ -1448,22 +1492,37 @@
         }
     }
 
+    async function requireBlurredStream(stream) {
+        try {
+            if (!supportsCanvasFilter) throw new Error('Canvas blur unavailable');
+            const processed = await startBlurPipeline(stream);
+            if (stream !== rawStream || !stream.getVideoTracks().some(track => track.readyState === 'live')) {
+                stopBlurPipeline();
+                throw new Error('Camera ended while preparing blur');
+            }
+            return processed;
+        } catch (error) {
+            throw Object.assign(new Error('Privacy blur unavailable'), { name: 'BlurProcessingError', cause: error });
+        }
+    }
+
     async function toggleBlur() {
         blurEnabled = !blurEnabled;
         try { localStorage.setItem(BLUR_PREF_KEY, blurEnabled ? 'on' : 'off'); } catch (_) {}
         updateBlurToggleLabel();
         if (!cameraEnabled || !rawStream) return;
         try {
-            if (blurEnabled && supportsCanvasFilter) {
-                localStream = await startBlurPipeline(rawStream);
+            if (blurEnabled) {
+                localStream = await requireBlurredStream(rawStream);
             } else {
                 stopBlurPipeline({ keepRaw: true });
                 localStream = rawStream;
             }
         } catch (err) {
-            debugLog('ERROR', 'Blur toggle failed', err.message);
-            stopBlurPipeline({ keepRaw: true });
-            localStream = rawStream;
+            debugLog('ERROR', 'Blur toggle failed', err.name);
+            disableCamera();
+            showCameraHelp('cameraBlurHelp');
+            return;
         }
         localVideo.srcObject = localStream;
         // existingSender.replaceTrack path — swaps without renegotiation.
@@ -1475,7 +1534,7 @@
     function updateBlurToggleLabel() {
         const blurBtn = document.getElementById('blur-toggle');
         if (!blurBtn) return;
-        const showButton = supportsCanvasFilter && isMeshRoom();
+        const showButton = isMeshRoom();
         blurBtn.hidden = !showButton;
         if (!showButton) return;
         blurBtn.textContent = blurEnabled ? langDict[curLang].blurOn : langDict[curLang].blurOff;
@@ -1484,7 +1543,7 @@
 
     function disableCamera(options = {}) {
         const { notify = true, preserveStatusText = false } = options;
-        if (!cameraEnabled && !localStream) {
+        if (!cameraEnabled && !localStream && !rawStream) {
             if (!preserveStatusText && !isSfuRoom()) {
                 aiStatusEl.textContent = langDict[curLang].aiNeedCamera;
             }
@@ -1709,11 +1768,13 @@
         document.documentElement.dir = curLang === 'ar' ? 'rtl' : 'ltr';
         document.body.dataset.lang = curLang;
         document.title = text.pageTitle;
+        document.getElementById('btn-toggle').setAttribute('aria-label', timerRunning ? text.timerPauseLabel : text.timerStartLabel);
         // Mid-Pomodoro language switch: keep the countdown in the tab title.
         if (timerRunning) updateDisp();
 
         languageButtons.forEach((button) => {
             button.classList.toggle('active', button.dataset.langValue === curLang);
+            button.setAttribute('aria-pressed', String(button.dataset.langValue === curLang));
         });
 
         document.querySelectorAll('[data-lang]').forEach(el => {
@@ -1728,9 +1789,12 @@
             const key = el.dataset.langTitle;
             if (text[key]) {
                 el.title = text[key];
-                el.setAttribute('aria-label', text[key]);
+                // A control with visible text keeps that text as its name (axe label-content-name-mismatch).
+                if (!el.textContent.trim()) el.setAttribute('aria-label', text[key]);
+                else el.removeAttribute('aria-label');
             }
         });
+        renderCameraHelp();
         updateRemotePlaceholder();
         const hasRemoteBuddy = hasRemoteBuddyOnline();
         if (!remoteVideoSlots.size && remoteStatusEl) {
@@ -1762,6 +1826,7 @@
         }
         updatePresenceList();
         updateFocusSummary();
+        window.dispatchEvent(new Event('halaroomlanguage'));
         renderScheduleCard();
         renderBoardFeedback();
         renderBoard({ preserveGoalDraft: isBoardGoalFocused() });
@@ -1800,6 +1865,8 @@
     }
 
     function updateStatusPresetUI(activePreset) {
+        const ready = document.getElementById('quiet-ready');
+        ready.setAttribute('aria-pressed', String(activePreset === 'studying'));
         if (!statusPresetButtons || typeof statusPresetButtons.forEach !== 'function') return;
         statusPresetButtons.forEach(btn => {
             const target = btn.dataset.status;
@@ -2295,6 +2362,12 @@
     };
     const FOCUS_HINT_DISMISS_KEY = 'halastudyHintDismissed.focusSync';
     let accountUser = null;
+    let verifiedStreak = 0;
+    window.addEventListener('halaprogress', (event) => {
+        verifiedStreak = (/** @type {CustomEvent} */ (event)).detail.totals.streak;
+        void window.HalaAuth.getUser().then((user) => { accountUser = user; updateStreakBadge(); }).catch(() => {});
+        updateStreakBadge();
+    });
 
     function formatEmotionalNumber(value) {
         // Streaks are emotional numbers — Eastern numerals in Arabic (DESIGN.md §5).
@@ -2304,7 +2377,7 @@
     function updateStreakBadge() {
         const badge = document.getElementById('streak-badge');
         if (!badge) return;
-        const current = accountUser?.streak ? accountUser.streak.current : 0;
+        const current = accountUser ? verifiedStreak : 0;
         if (!current) {
             badge.hidden = true;
             return;
@@ -2327,7 +2400,13 @@
         hint.hidden = false;
     }
 
+    function trackValidatedFocus(action) {
+        if (!window.HalaRoomFocus) return;
+        void window.HalaRoomFocus.action(action);
+    }
+
     function onFocusSessionComplete(minutes) {
+        trackValidatedFocus('complete');
         if (accountUser && window.HalaCore) {
             // One immutable idempotency key belongs to this timer completion.
             // If this request is retried, reuse this payload rather than minting
@@ -2385,7 +2464,7 @@
             const reserved = document.getElementById('join-name-reserved');
             if (reserved) reserved.hidden = false;
             updateStreakBadge();
-        });
+        }).catch(() => window.HalaCore.showUnavailable());
     }
 
     function createEmptyBoardState() {
@@ -2510,6 +2589,8 @@
     function renderBoard(options = {}) {
         if (!todoList) return;
         const preserveGoalDraft = options.preserveGoalDraft === true;
+        document.getElementById('shared-intent').hidden = !boardState.goal;
+        document.getElementById('shared-intent-text').textContent = boardState.goal;
         if (roomGoalInput && !preserveGoalDraft) {
             roomGoalInput.value = boardState.goal;
         }
@@ -2650,6 +2731,7 @@
         const m = Math.floor(timeLeft/60).toString().padStart(2,'0');
         const s = (timeLeft%60).toString().padStart(2,'0');
         document.getElementById('timer-disp').textContent = `${m}:${s}`;
+        document.getElementById('btn-toggle').setAttribute('aria-label', timerRunning ? currentCopy().timerPauseLabel : currentCopy().timerStartLabel);
         // Tab-title countdown while running (Western digits per DESIGN.md §5).
         document.title = timerRunning ? `${m}:${s} · Halastudy` : currentCopy().pageTitle;
     }
@@ -2693,22 +2775,24 @@
     function toggleTimer() {
         const btn = document.getElementById('btn-toggle');
         if(timer) {
+            if (mode === 'focus') trackValidatedFocus('pause');
             reconcileTimer();
             clearInterval(timer); timer = null;
             timerDeadline = null;
             btn.textContent = '▶';
-            btn.style.boxShadow = 'var(--shadow-btn)';
+            btn.style.boxShadow = 'var(--sh-2)';
             timerRunning = false;
             refreshStatusState();
             updateDisp();
         } else {
+            if (mode === 'focus') trackValidatedFocus('start');
             timerDurations = {
                 focus: readTimerMinutes('cfg-f', 25),
                 break: readTimerMinutes('cfg-b', 5)
             };
             if(timeLeft === 25*60 && mode === 'focus') timeLeft = timerDurations.focus * 60;
             btn.textContent = '⏸';
-            btn.style.boxShadow = 'var(--shadow-btn-inset)';
+            btn.style.boxShadow = 'var(--sh-lamp)';
             timerRunning = true;
             timerDeadline = performance.now() + timeLeft * 1000;
             refreshStatusState();
@@ -2718,6 +2802,8 @@
     }
 
     function resetTimer() {
+        // Resetting the countdown never completes a validated focus session on its
+        // own (audit A-76); Finish is the explicit completion.
         clearInterval(timer); timer = null;
         timerDeadline = null;
         document.getElementById('btn-toggle').textContent = '▶';
@@ -2761,6 +2847,7 @@
 
     function updatePresenceText() {
         presenceCountEl.textContent = String(presenceCount);
+        document.getElementById('room-company').textContent = currentCopy()[presenceCount > 1 ? 'companyTogether' : presenceCount === 1 ? 'companyFirst' : 'companyWaiting'].replace('{count}', formatEmotionalNumber(presenceCount));
     }
 
     function updatePresenceList(list) {
@@ -2931,8 +3018,31 @@
     function setChatEnabled(enabled) {
         chatInput.disabled = !enabled;
         chatSendBtn.disabled = !enabled;
-        if (enabled) chatInput.focus();
     }
+
+    function setJoinVisible(visible) {
+        joinOverlay.classList.toggle('hidden', !visible);
+        joinOverlay.hidden = !visible;
+        joinOverlay.inert = !visible;
+        // The overlay traps keyboard focus itself; the workspace stays reachable so
+        // timer settings can be adjusted before joining (main's Pomodoro contract).
+        document.querySelectorAll('body > header, body > .room-meta, body > .ambient-control').forEach(element => {
+            (/** @type {HTMLElement} */ (element)).inert = visible;
+        });
+        requestAnimationFrame(() => {
+            const target = visible ? joinNameInput : document.getElementById('btn-toggle');
+            target?.focus({ preventScroll: true });
+        });
+    }
+
+    joinOverlay.addEventListener('keydown', event => {
+        if (event.key !== 'Tab' || joinOverlay.hidden) return;
+        const controls = /** @type {HTMLElement[]} */ ([...joinOverlay.querySelectorAll('button, input, a[href]')]).filter(element => !(/** @type {any} */ (element)).disabled && element.getClientRects().length);
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    });
 
     function showJoinError(msg = '') {
         joinError.textContent = msg;
@@ -2977,16 +3087,20 @@
         if (window.history?.replaceState) {
             history.replaceState(null, '', `${baseUrl}?room=${roomId}`);
         }
-        joinOverlay.classList.remove('hidden');
+        setJoinVisible(true);
         setChatEnabled(false);
         setBoardEnabled(false);
         connectSocket();
     }
 
     function connectSocket() {
+        const joinStartedAt = performance.now();
+        const joinTransition = {};
+        const measureJoin = (outcome) => window.HalaInsights?.record('join', { outcome, duration: window.HalaInsights.duration(performance.now() - joinStartedAt) }, joinTransition);
         if (!window.io) {
+            measureJoin('network');
             showJoinError(currentCopy().serviceError);
-            joinOverlay.classList.remove('hidden');
+            setJoinVisible(true);
             return;
         }
         roomMembershipToken = '';
@@ -3008,7 +3122,7 @@
             finishJoin();
             roomMembershipToken = '';
             showJoinError(message);
-            joinOverlay.classList.remove('hidden');
+            setJoinVisible(true);
             // Cancel the pending membership attempt so a late ack cannot join
             // behind the visible retry form or leave a ghost participant.
             activeSocket.disconnect();
@@ -3017,7 +3131,7 @@
             clearTimeout(joinDeadline);
             setJoinPending(true);
             showJoinError('');
-            joinOverlay.classList.remove('hidden');
+            setJoinVisible(true);
             joinDeadline = setTimeout(() => {
                 if (socket === activeSocket) failJoin(currentCopy().joinTimeout);
             }, 8000);
@@ -3033,6 +3147,7 @@
             activeSocket.emit('join-room', { roomId, username, clientId: ensureClientId(), password: getRoomPassword() }, (res = {}) => {
                 if (socket !== activeSocket || currentJoinGeneration !== joinGeneration) return;
                 if (!res.ok) {
+                    measureJoin(res.errorCode === 'ROOM_FULL' ? 'full' : /PASSWORD|FORBIDDEN|AUTH|COHORT|MEMBERSHIP/.test(res.errorCode || '') ? 'denied' : 'invalid');
                     roomMembershipToken = '';
                     setChatEnabled(false);
                     setBoardEnabled(false);
@@ -3045,12 +3160,13 @@
                     return;
                 }
                 finishJoin();
-                joinOverlay.classList.add('hidden');
+                setJoinVisible(false);
                 roomJoinStatus.textContent = `${currentCopy().joinedRoom} ${roomId}`;
                 roomMembershipToken = typeof res.membershipToken === 'string'
                     ? res.membershipToken.trim()
                     : '';
                 storeRoomPassword(getRoomPassword());
+                measureJoin('success');
                 clearStoredRoomCode();
                 showJoinError('');
                 applyJoinedRoom(res.room || {});
@@ -3089,6 +3205,7 @@
             joinActiveRoom();
         });
         activeSocket.on('connect_error', () => {
+            measureJoin('network');
             if (socket !== activeSocket) return;
             roomMembershipToken = '';
             if (isRealtimeKitRoom()) {
@@ -3105,7 +3222,7 @@
             // An established session keeps Socket.IO's automatic reconnection;
             // the 'connect' handler rejoins the room once the network returns.
             showJoinError(currentCopy().connectError);
-            joinOverlay.classList.remove('hidden');
+            setJoinVisible(true);
         });
         activeSocket.on('chat-message', msg => appendMessage(msg));
         activeSocket.on('presence', list => updatePresenceList(list || []));
@@ -3143,7 +3260,7 @@
             if (joinPending) {
                 setJoinPending(false);
                 showJoinError(currentCopy().connectError);
-                joinOverlay.classList.remove('hidden');
+                setJoinVisible(true);
             }
             roomMembershipToken = '';
             setChatEnabled(false);
@@ -3163,7 +3280,7 @@
 
     function sendMessage() {
         if (!socket || !roomId) {
-            joinOverlay.classList.remove('hidden');
+            setJoinVisible(true);
             showJoinError(currentCopy().roomNotJoined);
             return;
         }
@@ -3177,7 +3294,7 @@
             const errorText = getErrorMessage(ack.errorCode, 'messageRequired');
             if (ack.errorCode === 'ROOM_NOT_JOINED' || ack.errorCode === 'ROOM_NOT_FOUND') {
                 showJoinError(errorText);
-                joinOverlay.classList.remove('hidden');
+                setJoinVisible(true);
             } else if (errorText) {
                 appendMessage({ type: 'system', text: errorText });
             }
@@ -3247,6 +3364,8 @@
         });
     }
     if (statusPresetButtons?.length) {
+        document.getElementById('quiet-ready').addEventListener('click', () => setStatusPreset(statusState.manualPreset === 'studying' ? 'away' : 'studying'));
+        window.addEventListener('halaroomfinish', () => { if (timer) toggleTimer(); });
         statusPresetButtons.forEach(btn => {
             btn.addEventListener('click', () => setStatusPreset(btn.dataset.status));
         });
@@ -3407,7 +3526,7 @@
             room: roomCode,
             name: displayName || '',
             audio: 'false',
-            video: 'true',
+            video: 'false',
             screen: 'false',
             chat: 'false',
             hide: 'false',
@@ -3431,16 +3550,33 @@
         }, SFU_LOAD_TIMEOUT_MS);
     }
 
+    let cameraHelpKey = '';
+    let cameraStarting = false;
+    function renderCameraHelp() {
+        document.getElementById('camera-help').hidden = !cameraHelpKey;
+        document.getElementById('camera-help-message').textContent = currentCopy()[cameraHelpKey] || '';
+    }
+    function showCameraHelp(key) {
+        cameraHelpKey = key;
+        renderCameraHelp();
+        document.getElementById('camera-help').scrollIntoView({ block: 'nearest' });
+    }
+    document.getElementById('camera-retry').addEventListener('click', () => { void toggleCamera(); });
+    document.getElementById('camera-continue').addEventListener('click', () => {
+        cameraHelpKey = ''; renderCameraHelp(); document.getElementById('btn-toggle').focus();
+    });
     async function toggleCamera() {
-        if (!isMeshRoom()) return;
+        if (!isMeshRoom() || cameraStarting) return;
         if (!navigator.mediaDevices?.getUserMedia) {
-            alert(langDict[curLang].cameraError);
+            showCameraHelp('cameraBrowserHelp');
             return;
         }
         if (cameraEnabled) {
             disableCamera();
             return;
         }
+        cameraStarting = true;
+        document.getElementById('camera-retry').disabled = true;
         updateCameraToggleLabel('loading');
         try {
             debugLog('CAMERA', 'Requesting camera access...');
@@ -3449,20 +3585,19 @@
                 audio: false
             });
             rawStream.getVideoTracks().forEach(track => {
-                track.onended = () => disableCamera();
+                track.onended = () => {
+                    if (!rawStream?.getVideoTracks().includes(track)) return;
+                    disableCamera();
+                    showCameraHelp('cameraStoppedHelp');
+                };
             });
-            if (blurEnabled && supportsCanvasFilter) {
-                try {
-                    localStream = await startBlurPipeline(rawStream);
-                } catch (blurErr) {
-                    debugLog('ERROR', 'Blur pipeline failed, sending raw', blurErr.message);
-                    stopBlurPipeline({ keepRaw: true });
-                    localStream = rawStream;
-                }
+            if (blurEnabled) {
+                localStream = await requireBlurredStream(rawStream);
             } else {
                 localStream = rawStream;
             }
             cameraEnabled = true;
+            cameraHelpKey = ''; renderCameraHelp();
             debugLog('CAMERA', 'Camera enabled', {
                 streamId: localStream.id,
                 tracks: localStream.getTracks().length,
@@ -3483,12 +3618,16 @@
             }
             startAiMonitor();
         } catch (err) {
-            console.error('camera error', err);
-            debugLog('ERROR', 'Camera access failed', err.message);
-            cameraEnabled = false;
+            debugLog('ERROR', 'Camera access failed', err.name);
+            disableCamera();
+            const key = ['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(err.name) ? 'cameraPermissionHelp'
+                : ['NotFoundError', 'DevicesNotFoundError'].includes(err.name) ? 'cameraDeviceHelp'
+                : ['NotReadableError', 'TrackStartError'].includes(err.name) ? 'cameraBusyHelp' : 'cameraGenericHelp';
+            showCameraHelp(err.name === 'BlurProcessingError' ? 'cameraBlurHelp' : key);
+        } finally {
+            cameraStarting = false;
             updateCameraToggleLabel();
-            aiStatusEl.textContent = langDict[curLang].cameraError;
-            alert(langDict[curLang].cameraError);
+            document.getElementById('camera-retry').disabled = false;
         }
     }
 
@@ -3597,7 +3736,7 @@
                 debugLog('OFFER', `Created and set local offer for ${targetId}`);
                 socket.emit('rtc-offer', { targetId, sdp: pc.localDescription });
             } catch (err) {
-                console.error('negotiation error', err);
+                console.error('negotiation error', err.name);
                 debugLog('ERROR', `Negotiation failed for ${targetId}`, err.message);
             } finally {
                 meta.makingOffer = false;
@@ -3691,7 +3830,7 @@
             await pc.addIceCandidate(candidate);
             debugLog('ICE', 'Successfully added ICE candidate');
         } catch (err) {
-            console.error('Failed to add ICE candidate:', err);
+            console.error('Failed to add ICE candidate:', err.name);
             debugLog('ERROR', 'Failed to add ICE candidate', err.message);
         }
     }
@@ -3732,7 +3871,7 @@
             await pc.setLocalDescription(offer);
             socket.emit('rtc-offer', { targetId, sdp: pc.localDescription });
         } catch (err) {
-            console.error('offer error', err);
+            console.error('offer error', err.name);
         } finally {
             meta.makingOffer = false;
         }
@@ -3789,7 +3928,7 @@
             debugLog('ANSWER', `Created and set local answer for ${from}`);
             socket.emit('rtc-answer', { targetId: from, sdp: pc.localDescription });
         } catch (err) {
-            console.error('answer error', err);
+            console.error('answer error', err.name);
             debugLog('ERROR', `Failed to handle offer from ${from}`, err.message);
         }
     }
@@ -3816,7 +3955,7 @@
             await flushPendingIceCandidates(from, pc);
             attachLocalStream(pc);
         } catch (err) {
-            console.error('set answer error', err);
+            console.error('set answer error', err.name);
             debugLog('ERROR', `Failed to handle answer from ${from}`, err.message);
         } finally {
             meta.isSettingRemoteAnswerPending = false;
@@ -4167,10 +4306,18 @@
         setChatEnabled(false);
         setBoardEnabled(false);
 
+        const roomLayout = window.matchMedia('(min-width: 1025px)');
+        const syncRoomTools = () => {
+            document.querySelectorAll('main > details.room-tools').forEach((panel) => { (/** @type {HTMLDetailsElement} */ (panel)).open = roomLayout.matches; });
+        };
+        syncRoomTools();
+        roomLayout.addEventListener('change', syncRoomTools);
+        setJoinVisible(true);
         if (savedName && incomingRoom) {
             username = savedName;
             roomId = incomingRoom;
             updateRoomBadge();
+            setJoinVisible(false);
             connectSocket();
         }
     })();

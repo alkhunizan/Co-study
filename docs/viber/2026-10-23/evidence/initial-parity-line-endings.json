@@ -1,0 +1,830 @@
+﻿{
+    "head":  "a22b1558113f57b0904841c91704dd2e69e71594",
+    "files":  290,
+    "source":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study",
+    "runtime":  "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate",
+    "mismatches":  [
+                       {
+                           "path":  ".github/workflows/ci.yml",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  ".gitignore",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "404.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "CHANGELOG.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "CLAUDE.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "DEPLOYMENT.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "DESIGN.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "LAUNCH.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "README.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "README_AR.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "TODOS.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "admin.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "biome.json",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "blog-best-study-rooms.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "blog-study-with-me.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "blog.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "contact.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "db/migrations/001-platform.sql",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "db/migrations/002-digetpay.sql",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "db/migrations/003-payment-review.sql",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "db/migrations/004-study-tools.sql",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/DESIGN.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/Favicon Handout.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/HANDOFF.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/README.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/SKILL.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/assets/icons.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/assets/logo-wordmark.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/chats/chat1.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/landing.css",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/_card.css",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/buttons.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/cards.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/colors-accent.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/colors-dark.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/colors-paper.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/colors-semantic.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/illustration.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/inputs.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/logo.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/motion.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/nav-toolbars.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/pills-badges.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/shadows.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/space-radii.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/status-presence.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/type-arabic.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/type-body.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/type-display.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/preview/type-scale.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/ui_kits/web/Components.jsx",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/ui_kits/web/Landing.jsx",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/ui_kits/web/Lang.jsx",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/ui_kits/web/README.md",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/ui_kits/web/Room.jsx",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "design-system/ui_kits/web/index.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "docker-compose.yml",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "ecosystem.config.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "images/icons/favicon.svg",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "package-lock.json",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "package.json",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "playwright.config.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "privacy.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/css/recovery.css",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/css/study-workspace.css",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/halastudy-core.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/legal-shell.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/marketing-copy.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/recovery.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/room-focus.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/safe-return.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/schedule-display.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/study-copy.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/study-routine.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/study-workspace.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/ui.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/ux-insights.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/js/video/realtimekit-client.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "public/manifest.webmanifest",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "recovery.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "room-store.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "schedule-utils.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/backup-r2.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/backup-rooms.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/check-platform.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/cloudflare/create-viewer-preset.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/cloudflare/r2-client.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/cloudflare/realtimekit-cleanup.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/cloudflare/realtimekit-common.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/cloudflare/realtimekit-cost-check.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/cloudflare/realtimekit-doctor.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/cloudflare/realtimekit-setup.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/cloudflare/realtimekit-smoke.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/cloudflare/turn-credentials.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/deploy/bootstrap.sh",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/deploy/nginx-halastudy.conf",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/deploy/start.sh",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/hash-admin-password.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/platform-maintenance.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/preview-platform.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/restore-rooms.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/room-state-utils.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/test-postgres.ps1",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/verify-deploy.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "scripts/verify-seo.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "server-config.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "server-https.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "server.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/admin/admin-routes.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/auth/auth-routes.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/auth/google-routes.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/auth/index.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/auth/password.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/auth/reauth.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/auth/recovery.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/logging/logger.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/ops/alerts.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/ops/backup-scheduler.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/ops/error-buffer.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/access.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/billing.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/catalog.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/cohorts.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/common.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/dashboard.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/database.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/digetpay-client.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/index.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/maintenance.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/progress.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/record-store.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/routes.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/study-community.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/study-planner.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/platform/study-routes.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/seo/public-pages.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/socket-boundary.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/supabase/client.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/video/index.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/video/mesh-provider.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/video/realtimekit-provider.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/video/revocations.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "services/video/video-session-registry.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "supabase-user-store.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "terms.html",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/helpers/auth-helpers.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/helpers/digetpay-fixture.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/helpers/fake-realtimekit-fixture.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/helpers/fake-sfu-fixture.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/helpers/payment-review-preload.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/helpers/playwright-global-setup.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/helpers/playwright-global-teardown.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/helpers/server-control.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/helpers/socket-client.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/helpers/test-env.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/account-mutations.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/admin.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/auth.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/board-capacity.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/browser-diagnostics.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/circle-lifecycle.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/database-failure.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/digetpay.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/foundations.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/google-security.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/media-revocation.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/operational-alerts.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/payment-reconciliation.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/platform-api.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/platform-storage.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/platform.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/presence.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/recovery.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/refinement-boundaries.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/seo.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/server.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/session-identity.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/socket-boundary.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/study-routine.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/study-tools.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/ux-dashboard.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/ux-insights.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/video-client-lifecycle.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/integration/video-session-lifecycle.integration.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/postgres/outages.test.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/account.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/admin.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/app.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/board-limit.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/camera-privacy.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/create-timeout.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/digetpay.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/landing.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/lobby.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/open.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/payment-review.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/recovery.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/refinement.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/resilience.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/seo.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/study-tools.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tests/smoke/ux-return.smoke.spec.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "tsconfig.json",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "types.d.ts",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       },
+                       {
+                           "path":  "user-store.js",
+                           "directory":  "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study"
+                       }
+                   ],
+    "envCopied":  false,
+    "manifestSha256":  "b5b723bba0b5e82515924b8a9b91d29af72ce20e5d8d2d4b283d3c6c60c5bb84"
+}

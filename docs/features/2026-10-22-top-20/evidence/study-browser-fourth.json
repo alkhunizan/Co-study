@@ -1,0 +1,214 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\playwright.config.js",
+    "rootDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-top20-2026-10-22/candidate/tests/smoke",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\helpers\\playwright-global-setup.js",
+    "globalTeardown": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\helpers\\playwright-global-teardown.js",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-top20-2026-10-22/artifacts/study-browser-fourth/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-top20-2026-10-22/candidate/tests/smoke",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "study-tools.smoke.spec.js",
+      "file": "study-tools.smoke.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "F01-F14 private planning, lost response, routines, task-linked focus, reflection and journal work end to end",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7574,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-21T23:38:26.094Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-4e04759fcd96634d3b72",
+          "file": "study-tools.smoke.spec.js",
+          "line": 18,
+          "column": 1
+        },
+        {
+          "title": "F15-F20 favorite, RSVP, calendar, in-app reminder and private resource shelf work across members",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 150000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "timedOut",
+                  "duration": 150073,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 150000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 150000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 150000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                        "column": 92,
+                        "line": 115
+                      },
+                      "message": "Error: browserContext.close: Target page, context or browser has been closed\n\n  113 |         expect((await request(`/study/circles/${circle.id}/resources`,'GET',undefined,b.account)).status).toBe(404);\n  114 |         expect(await (await b.context.request.get(`${server.baseUrl}/api/platform/study/calendar.ics`)).text()).not.toContain('BEGIN:VEVENT');\n> 115 |     }finally{for(const socket of sockets)await closeSocket(socket);for(const c of contexts)await c.close();await server.stop();}\n      |                                                                                            ^\n  116 | });\n  117 |\n  118 | test('planner supports Arabic/English, both themes, keyboard, narrow widths, zoom, drafts, history and recovery',async({browser},info)=>{\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js:115:92"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-21T23:38:33.878Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-fourth\\results\\study-tools.smoke-F15-F20--fb05b-e-shelf-work-across-members\\test-failed-2.png"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-fourth\\results\\study-tools.smoke-F15-F20--fb05b-e-shelf-work-across-members\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-fourth\\results\\study-tools.smoke-F15-F20--fb05b-e-shelf-work-across-members\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-fourth\\results\\study-tools.smoke-F15-F20--fb05b-e-shelf-work-across-members\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-062b57552fecfe247b17",
+          "file": "study-tools.smoke.spec.js",
+          "line": 80,
+          "column": 1
+        },
+        {
+          "title": "planner supports Arabic/English, both themes, keyboard, narrow widths, zoom, drafts, history and recovery",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 150000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 17717,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-21T23:41:06.004Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-5b2ec2a73d7af0328dc5",
+          "file": "study-tools.smoke.spec.js",
+          "line": 118,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-21T23:38:22.639Z",
+    "duration": 181528.679,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

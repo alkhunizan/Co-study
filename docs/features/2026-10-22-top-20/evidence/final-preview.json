@@ -1,0 +1,21 @@
+﻿{
+    "url":  "http://127.0.0.1:3510/app#planner",
+    "address":  "127.0.0.1",
+    "pid":  21792,
+    "command":  "\"C:\\Users\\alkhu\\AppData\\Local\\npm-cache\\_npx\\52027bd8fc0022aa\\node_modules\\node\\bin\\node.exe\" scripts/preview-platform.js",
+    "launcher":  "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File docs/features/2026-10-22-top-20/scripts/run.ps1 -Label final-preview-ready -Preview",
+    "createdAt":  "2026-10-22T03:12:35.2193330+03:00",
+    "sourceHead":  "25fb696571180d47e081a65482c57262ae15f0d0",
+    "readiness":  {
+                      "status":  "ready",
+                      "checks":  {
+                                     "roomStore":  true,
+                                     "userStore":  true,
+                                     "socket":  true,
+                                     "config":  true,
+                                     "database":  true
+                                 }
+                  },
+    "privatePlanningNotice":  true,
+    "oldPreview3495StillListening":  true
+}

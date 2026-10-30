@@ -1,0 +1,17 @@
+﻿{
+    "checkedAt":  "2026-10-20T12:57:03.5952398Z",
+    "liveBlogPosts":  [
+                          "/blog/best-online-group-study-rooms-saudi",
+                          "/blog/study-with-me-online-arabic"
+                      ],
+    "homeFooter":  "\u003cfooter class=\"footer\"\u003e\n    \u003cdiv data-i18n=\"footerTag\"\u003eهلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.\u003c/div\u003e\n    \u003cdiv class=\"links\"\u003e\n      \u003ca href=\"/blog\" data-i18n=\"footerBlog\"\u003eالمدونة\u003c/a\u003e\n      \u003ca href=\"/privacy\" data-i18n=\"footerPrivacy\"\u003eالخصوصية\u003c/a\u003e\n      \u003ca href=\"/terms\" data-i18n=\"footerTerms\"\u003eالشروط\u003c/a\u003e\n      \u003ca href=\"#\" id=\"footer-whatsapp\" target=\"_blank\" rel=\"noopener\" data-i18n=\"footerWhatsapp\"\u003eدعوة واتساب\u003c/a\u003e\n    \u003c/div\u003e\n    \u003cdiv class=\"footer-contact\"\u003e\n      \u003ca href=\"mailto:info@halastudy.com\" dir=\"ltr\"\u003einfo@halastudy.com\u003c/a\u003e\n      \u003ca href=\"tel:+966599161315\" dir=\"ltr\"\u003e+966\u0026nbsp;59\u0026nbsp;916\u0026nbsp;1315\u003c/a\u003e\n    \u003c/div\u003e\n  \u003c/footer\u003e",
+    "liveWhatsappCode":  [
+                             "        whatsappShareText: \u0027Try Halastudy — quiet focus rooms for studying and working\u0027,",
+                             "        whatsappShareText: \u0027جرّب هلاستدي — غرف تركيز هادية للمذاكرة والعمل\u0027,",
+                             "        wa.href = \u0027https://wa.me/?text=\u0027 + encodeURIComponent(dict.whatsappShareText + \u0027\\nhttps://halastudy.com\u0027);"
+                         ],
+    "directWhatsappNumberFound":  false,
+    "emailAddresses":  [
+                           "info@halastudy.com"
+                       ]
+}

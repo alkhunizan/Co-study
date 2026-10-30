@@ -56,8 +56,15 @@ chown -R "${SERVICE_USER}:${SERVICE_USER}" "${STATE_DIR}"
 
 # --- nginx site (HTTP only; certbot injects TLS) ---
 echo "-- installing Nginx site"
-sed "s/__DOMAIN__/${DOMAIN}/g" "${APP_DIR}/scripts/deploy/nginx-halastudy.conf" \
-    > /etc/nginx/sites-available/halastudy
+if [ -e /etc/nginx/sites-available/halastudy ]; then
+    echo "-- preserving existing Nginx site (including Certbot TLS configuration)"
+    sed "s/__DOMAIN__/${DOMAIN}/g" "${APP_DIR}/scripts/deploy/nginx-halastudy.conf" \
+        > /etc/nginx/sites-available/halastudy.candidate
+    echo "-- review halastudy.candidate against the active site; do not replace its TLS blocks"
+else
+    sed "s/__DOMAIN__/${DOMAIN}/g" "${APP_DIR}/scripts/deploy/nginx-halastudy.conf" \
+        > /etc/nginx/sites-available/halastudy
+fi
 ln -sf /etc/nginx/sites-available/halastudy /etc/nginx/sites-enabled/halastudy
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx

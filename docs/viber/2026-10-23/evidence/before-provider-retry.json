@@ -1,0 +1,233 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\playwright.config.js",
+    "rootDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/candidate/tests/smoke",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\helpers\\playwright-global-setup.js",
+    "globalTeardown": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\helpers\\playwright-global-teardown.js",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/artifacts/before-provider-retry/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/candidate/tests/smoke",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "account-errors.smoke.spec.js",
+      "file": "account-errors.smoke.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "provider discovery failures can be retried in ar before revealing Google",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 11145,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#provider-unavailable [data-core-unavailable=retry]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#provider-unavailable [data-core-unavailable=retry]')\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#provider-unavailable [data-core-unavailable=retry]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#provider-unavailable [data-core-unavailable=retry]')\u001b[22m\n\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js:13:29",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                      "column": 29,
+                      "line": 13
+                    },
+                    "snippet": "  11 |         await page.goto('/account');\n  12 |         const retry = page.locator('#provider-unavailable [data-core-unavailable=retry]');\n> 13 |         await expect(retry).toBeVisible();\n     |                             ^\n  14 |         await expect(page.locator('[data-google-auth]')).toBeHidden();\n  15 |         unavailable = false;\n  16 |         await retry.click();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                        "column": 29,
+                        "line": 13
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#provider-unavailable [data-core-unavailable=retry]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#provider-unavailable [data-core-unavailable=retry]')\u001b[22m\n\n\n  11 |         await page.goto('/account');\n  12 |         const retry = page.locator('#provider-unavailable [data-core-unavailable=retry]');\n> 13 |         await expect(retry).toBeVisible();\n     |                             ^\n  14 |         await expect(page.locator('[data-google-auth]')).toBeHidden();\n  15 |         unavailable = false;\n  16 |         await retry.click();\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js:13:29"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:47:21.280Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-provider-retry\\results\\account-errors.smoke-provi-1cde8--ar-before-revealing-Google\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-provider-retry\\results\\account-errors.smoke-provi-1cde8--ar-before-revealing-Google\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-provider-retry\\results\\account-errors.smoke-provi-1cde8--ar-before-revealing-Google\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-provider-retry\\results\\account-errors.smoke-provi-1cde8--ar-before-revealing-Google\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                    "column": 29,
+                    "line": 13
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "1f6d0137b59327ef0f69-75aecf62cdfb00d7547c",
+          "file": "account-errors.smoke.spec.js",
+          "line": 4,
+          "column": 5
+        },
+        {
+          "title": "provider discovery failures can be retried in en before revealing Google",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 11030,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#provider-unavailable [data-core-unavailable=retry]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#provider-unavailable [data-core-unavailable=retry]')\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#provider-unavailable [data-core-unavailable=retry]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#provider-unavailable [data-core-unavailable=retry]')\u001b[22m\n\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js:13:29",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                      "column": 29,
+                      "line": 13
+                    },
+                    "snippet": "  11 |         await page.goto('/account');\n  12 |         const retry = page.locator('#provider-unavailable [data-core-unavailable=retry]');\n> 13 |         await expect(retry).toBeVisible();\n     |                             ^\n  14 |         await expect(page.locator('[data-google-auth]')).toBeHidden();\n  15 |         unavailable = false;\n  16 |         await retry.click();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                        "column": 29,
+                        "line": 13
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#provider-unavailable [data-core-unavailable=retry]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#provider-unavailable [data-core-unavailable=retry]')\u001b[22m\n\n\n  11 |         await page.goto('/account');\n  12 |         const retry = page.locator('#provider-unavailable [data-core-unavailable=retry]');\n> 13 |         await expect(retry).toBeVisible();\n     |                             ^\n  14 |         await expect(page.locator('[data-google-auth]')).toBeHidden();\n  15 |         unavailable = false;\n  16 |         await retry.click();\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js:13:29"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:47:33.954Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-provider-retry\\results\\account-errors.smoke-provi-ef07f--en-before-revealing-Google\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-provider-retry\\results\\account-errors.smoke-provi-ef07f--en-before-revealing-Google\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-provider-retry\\results\\account-errors.smoke-provi-ef07f--en-before-revealing-Google\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\before-provider-retry\\results\\account-errors.smoke-provi-ef07f--en-before-revealing-Google\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\account-errors.smoke.spec.js",
+                    "column": 29,
+                    "line": 13
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "1f6d0137b59327ef0f69-cd97d006a436c178cc0b",
+          "file": "account-errors.smoke.spec.js",
+          "line": 4,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-23T03:47:18.853Z",
+    "duration": 26587.211,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

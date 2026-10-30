@@ -1,0 +1,18 @@
+{
+  "sourceHead": "50158269273d27330012dc116685d6898a49ca6b",
+  "sourceFiles": 294,
+  "sourcePreviewMismatches": 0,
+  "artifactFilesHashed": 417,
+  "galleryLinks": 74,
+  "missingLinks": [],
+  "screenshots": 36,
+  "zipArchivesVerified": 13,
+  "siteRequests": 18,
+  "fontRequests": 12,
+  "totalExternalRequests": 30,
+  "commandsPassed": 21,
+  "commandsNonzero": 16,
+  "verdict": "NO-GO for production",
+  "openFinding": "V9-01",
+  "fontDiagnostic": "UNVERIFIED under request cap"
+}

@@ -4,8 +4,10 @@
 // CSRF note: no token needed. originGuard rejects cross-origin non-GET
 // requests and the auth cookie is SameSite=Lax, so cross-site POSTs never
 // carry a session.
+const crypto = require('node:crypto');
 const express = require('express');
 const { hashPassword, verifyPassword } = require('./password');
+const { registerRecoveryRoutes } = require('./recovery');
 const { GOOGLE_DELETE_GRANT_COOKIE } = require('./oauth-security');
 const {
     normalizeEmail,
@@ -19,6 +21,14 @@ const {
     normalizeCompletionId,
     sanitizeFocusStats
 } = require('../../user-store');
+
+// A real PBKDF2 hash of a random secret, computed once per process, so a login
+// against an unknown email performs the same work as a wrong password.
+let decoyHashPromise = null;
+function decoyPasswordHash() {
+    if (!decoyHashPromise) decoyHashPromise = hashPassword(crypto.randomBytes(32).toString('hex'));
+    return decoyHashPromise;
+}
 
 const DISPLAY_NAME_MAX_LENGTH = 20;
 const BIO_MAX_LENGTH = 160;
@@ -41,6 +51,9 @@ function createAuthRouter(deps) {
         publicUser,
         setAuthCookie,
         clearAuthCookie,
+        requireUser,
+        deletePlatformUser,
+        preparePlatformDeletion = async () => () => {},
         rotateAnonymousIdentity,
         appendSetCookie,
         parseCookies,
@@ -51,7 +64,6 @@ function createAuthRouter(deps) {
         onSessionLogout,
         persistFocusCompletion,
         runUserMutation,
-        requireUser,
         logger
     } = deps;
 
@@ -60,6 +72,36 @@ function createAuthRouter(deps) {
     }
 
     const router = express.Router();
+    router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+    router.use('/me', requireUser, (req, res, next) => {
+        const expected = req.get('X-Halastudy-Account');
+        if (expected !== undefined && expected !== req.user?.id) return res.status(401).json({ errorCode: 'AUTH_ACCOUNT_CHANGED' });
+        next();
+    });
+    // Recovery routes mutate accounts through the same per-user coordinator and
+    // durable per-record persistence as the account routes above.
+    function mutateAccount(req, res, fields, change) {
+        const user = req.user;
+        return runUserMutation(user, async () => {
+            const before = Object.fromEntries(fields.map((field) => [field, structuredClone(user[field])]));
+            const result = change(user);
+            try {
+                await persistUser(user);
+            } catch (error) {
+                // Restore only this operation's fields; other state may have moved on.
+                Object.assign(user, before);
+                throw error;
+            }
+            return result;
+        }).then((result) => result(), (error) => {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                return res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+            }
+            logger.error({ event: 'account_mutation_persist_failed', userId: user.id });
+            return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+        });
+    }
+    registerRecoveryRoutes(router, deps, mutateAccount);
 
     function clearDeletionGrantCookie(req, res) {
         if (typeof appendSetCookie !== 'function') return;
@@ -125,7 +167,10 @@ function createAuthRouter(deps) {
 
     router.post('/auth/login', async (req, res) => {
         const requestIp = getRequestIp(req);
-        if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
+        if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) {
+            logger.warn?.({ event: 'authentication_rejected' });
+            return;
+        }
 
         const email = normalizeEmail(req.body?.email);
         const password = typeof req.body?.password === 'string' ? req.body.password : '';
@@ -133,15 +178,24 @@ function createAuthRouter(deps) {
         const failureKey = `${requestIp}:${email || 'invalid'}`;
         const lockout = rateLimiters.authFailure.check(failureKey);
         if (!lockout.allowed) {
+            logger.warn?.({ event: 'authentication_rejected' });
             res.status(429).json({ errorCode: 'RATE_LIMITED', retryAfterMs: lockout.retryAfterMs });
             return;
         }
 
         const userId = email ? usersByEmail.get(email) : null;
         const user = userId ? users.get(userId) : null;
-        const passwordOk = await verifyLoginPassword(user, password);
+        // Unknown emails pay the same hash cost as wrong passwords, so response
+        // time cannot reveal which emails have accounts (A-01).
+        let passwordOk = false;
+        if (user) {
+            passwordOk = await verifyLoginPassword(user, password);
+        } else {
+            await verifyPassword(password, await decoyPasswordHash());
+        }
         if (!user || !passwordOk) {
             rateLimiters.authFailure.consume(failureKey);
+            logger.warn?.({ event: 'authentication_rejected' });
             res.status(401).json({ errorCode: 'INVALID_CREDENTIALS' });
             return;
         }
@@ -374,6 +428,7 @@ function createAuthRouter(deps) {
         const user = req.user;
         const userId = user.id;
         let cleanupPending = false;
+        const finishPlatformDeletion = await preparePlatformDeletion(userId);
         try {
             await runUserMutation(user, async () => {
                 await deleteUser(user);
@@ -389,6 +444,13 @@ function createAuthRouter(deps) {
             res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
             return;
         }
+        // Platform rows (circles, subscriptions, study data) follow the account.
+        try {
+            await deletePlatformUser(userId);
+        } catch (error) {
+            logger.error({ event: 'platform_user_delete_failed', userId, error: error?.message });
+        }
+        finishPlatformDeletion();
         // Durable account deletion and removal from the live identity maps are
         // complete before cascading through room locks. Releasing the per-user
         // coordinator first prevents a join (room -> user) from deadlocking

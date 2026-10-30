@@ -1,0 +1,7 @@
+{
+  "sourceCommit": "35cf9ba885bae99b32cb41ad4bdf4b542c5a67fb",
+  "sha256": {
+    "public/js/platform.js": "1f09d77a612a69b2c548e054aa67ddb78d13ad265054984fba76f10555e74e6c",
+    "tests/smoke/circle-feedback-away.smoke.spec.js": "01367888212e39c949e940044a32493954f18cc3a949999a1ae3473ed1df435b"
+  }
+}

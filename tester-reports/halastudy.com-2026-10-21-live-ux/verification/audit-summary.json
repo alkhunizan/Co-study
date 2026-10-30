@@ -1,0 +1,319 @@
+{
+  "date": "2026-10-21",
+  "timeZone": "Asia/Riyadh",
+  "target": "https://halastudy.com",
+  "overall": 3,
+  "rawMean": 3,
+  "pages": 8,
+  "views": 16,
+  "allStatus200": true,
+  "blockedBy": null,
+  "jsExceptions": 0,
+  "failedRequests": 0,
+  "brokenLinks": 0,
+  "rawFlags": 42,
+  "journeys": [
+    {
+      "slug": "create-mobile",
+      "runnerCompleted": true,
+      "userOutcome": "safety-stop",
+      "mark": "✓",
+      "steps": 6,
+      "wasted": 0,
+      "activeMs": 7951,
+      "slowSteps": [
+        2
+      ],
+      "errors": 0,
+      "failedAt": null
+    },
+    {
+      "slug": "create-desktop",
+      "runnerCompleted": true,
+      "userOutcome": "safety-stop",
+      "mark": "✓",
+      "steps": 5,
+      "wasted": 0,
+      "activeMs": 4016,
+      "slowSteps": [],
+      "errors": 0,
+      "failedAt": null
+    },
+    {
+      "slug": "discover-mobile",
+      "runnerCompleted": true,
+      "userOutcome": "abandoned",
+      "mark": "✗",
+      "steps": 6,
+      "wasted": 1,
+      "activeMs": 4117,
+      "slowSteps": [],
+      "errors": 0,
+      "failedAt": null
+    },
+    {
+      "slug": "recover-mobile",
+      "runnerCompleted": true,
+      "userOutcome": "abandoned",
+      "mark": "✗",
+      "steps": 5,
+      "wasted": 1,
+      "activeMs": 3466,
+      "slowSteps": [],
+      "errors": 0,
+      "failedAt": null
+    },
+    {
+      "slug": "english-mobile",
+      "runnerCompleted": true,
+      "userOutcome": "safety-stop",
+      "mark": "✓",
+      "steps": 6,
+      "wasted": 0,
+      "activeMs": 11634,
+      "slowSteps": [
+        2,
+        3
+      ],
+      "errors": 0,
+      "failedAt": null
+    },
+    {
+      "slug": "article-mobile",
+      "runnerCompleted": true,
+      "userOutcome": "safety-stop",
+      "mark": "✓",
+      "steps": 9,
+      "wasted": 0,
+      "activeMs": 9866,
+      "slowSteps": [
+        1,
+        2
+      ],
+      "errors": 0,
+      "failedAt": null
+    },
+    {
+      "slug": "privacy-mobile",
+      "runnerCompleted": true,
+      "userOutcome": "completed",
+      "mark": "✓",
+      "steps": 6,
+      "wasted": 0,
+      "activeMs": 3561,
+      "slowSteps": [],
+      "errors": 0,
+      "failedAt": null
+    },
+    {
+      "slug": "english-menu-close-mobile",
+      "runnerCompleted": false,
+      "userOutcome": "abandoned",
+      "mark": "✗",
+      "steps": 4,
+      "wasted": 1,
+      "activeMs": 21129,
+      "slowSteps": [
+        2,
+        3,
+        4
+      ],
+      "errors": 0,
+      "failedAt": 4
+    }
+  ],
+  "metrics": [
+    {
+      "route": "/",
+      "view": "desktop",
+      "status": 200,
+      "lcp": 816,
+      "cls": 0.34,
+      "ttfb": 196,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 5
+    },
+    {
+      "route": "/",
+      "view": "mobile",
+      "status": 200,
+      "lcp": 640,
+      "cls": 0,
+      "ttfb": 194,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 4
+    },
+    {
+      "route": "/blog",
+      "view": "desktop",
+      "status": 200,
+      "lcp": 524,
+      "cls": 0.002,
+      "ttfb": 151,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 2
+    },
+    {
+      "route": "/blog",
+      "view": "mobile",
+      "status": 200,
+      "lcp": 528,
+      "cls": 0.004,
+      "ttfb": 152,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 2
+    },
+    {
+      "route": "/account.html",
+      "view": "desktop",
+      "status": 200,
+      "lcp": 560,
+      "cls": 0.092,
+      "ttfb": 193,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 2
+    },
+    {
+      "route": "/account.html",
+      "view": "mobile",
+      "status": 200,
+      "lcp": 532,
+      "cls": 0.001,
+      "ttfb": 189,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 2
+    },
+    {
+      "route": "/open.html",
+      "view": "desktop",
+      "status": 200,
+      "lcp": 616,
+      "cls": 0.001,
+      "ttfb": 195,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 3
+    },
+    {
+      "route": "/open.html",
+      "view": "mobile",
+      "status": 200,
+      "lcp": 588,
+      "cls": 0.002,
+      "ttfb": 190,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 3
+    },
+    {
+      "route": "/privacy",
+      "view": "desktop",
+      "status": 200,
+      "lcp": 580,
+      "cls": 0.018,
+      "ttfb": 150,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 11
+    },
+    {
+      "route": "/privacy",
+      "view": "mobile",
+      "status": 200,
+      "lcp": 552,
+      "cls": 0,
+      "ttfb": 152,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 11
+    },
+    {
+      "route": "/terms",
+      "view": "desktop",
+      "status": 200,
+      "lcp": 540,
+      "cls": 0.002,
+      "ttfb": 157,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 5
+    },
+    {
+      "route": "/terms",
+      "view": "mobile",
+      "status": 200,
+      "lcp": 564,
+      "cls": 0,
+      "ttfb": 185,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 5
+    },
+    {
+      "route": "guide-compare",
+      "view": "desktop",
+      "status": 200,
+      "lcp": 652,
+      "cls": 0.028,
+      "ttfb": 191,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 1
+    },
+    {
+      "route": "guide-compare",
+      "view": "mobile",
+      "status": 200,
+      "lcp": 612,
+      "cls": 0.025,
+      "ttfb": 148,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 3
+    },
+    {
+      "route": "guide-start",
+      "view": "desktop",
+      "status": 200,
+      "lcp": 576,
+      "cls": 0.002,
+      "ttfb": 153,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 1
+    },
+    {
+      "route": "guide-start",
+      "view": "mobile",
+      "status": 200,
+      "lcp": 564,
+      "cls": 0,
+      "ttfb": 154,
+      "js": 0,
+      "failed": 0,
+      "console": 2,
+      "axe": 1
+    }
+  ]
+}

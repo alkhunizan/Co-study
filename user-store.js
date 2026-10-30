@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { sanitizeUserText, normalizeEmail, normalizeAvatarColor } = require('./services/auth');
+const { sanitizeDelivery } = require('./services/auth/recovery-delivery');
 const { createDebouncedAtomicJsonStore } = require('./services/persistence/debounced-atomic-json-store');
 
 const SAVE_DEBOUNCE_MS = 250;
@@ -13,6 +14,10 @@ const MY_ROOMS_LIMIT = 12;
 const GOOGLE_SUB_MAX_LENGTH = 255;
 const USER_ID_MAX_LENGTH = 128;
 const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000; // fixed UTC+3, no DST (same convention as schedule-utils)
+// Logout revokes the signed browser session the account cookie is bound to,
+// not every session of the account. Revocations outlive the 30-day cookie
+// max-age so a replayed cookie pair can never outlast its revocation.
+const SESSION_REVOCATION_LIMIT = 50;
 
 function riyadhDayKey(timestamp = Date.now()) {
     const shifted = new Date(timestamp + RIYADH_OFFSET_MS);
@@ -57,6 +62,22 @@ function normalizePersistedUserId(raw) {
     return value;
 }
 
+/** @param {any} raw */
+function sanitizeRevokedSessions(raw, now = Date.now()) {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set();
+    return raw
+        .filter((entry) => entry && typeof entry === 'object' && /^[a-f0-9]{64}$/.test(entry.session)
+            && Number.isFinite(entry.expiresAt) && entry.expiresAt > now)
+        .filter((entry) => {
+            if (seen.has(entry.session)) return false;
+            seen.add(entry.session);
+            return true;
+        })
+        .map((entry) => ({ session: entry.session, expiresAt: entry.expiresAt }))
+        .slice(-SESSION_REVOCATION_LIMIT);
+}
+
 /** @param {Record<string, any>} raw */
 function sanitizeFocusCompletion(raw = {}) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -95,12 +116,18 @@ function sanitizeFocusStats(raw = {}) {
         retainedFocusMinutes += day.focusMinutes;
         retainedSessions += day.sessions;
     }
+    // v1 totals could exceed the sum of capped days. Only v2 explicitly
+    // separates archived lifetime activity from the retained daily window.
+    const archivedFocusMinutes = source.version === 2 && Number.isSafeInteger(source.archivedFocusMinutes)
+        ? Math.max(0, source.archivedFocusMinutes) : 0;
+    const archivedSessions = source.version === 2 && Number.isSafeInteger(source.archivedSessions)
+        ? Math.max(0, source.archivedSessions) : 0;
     const totalFocusMinutes = Number.isFinite(source.totalFocusMinutes)
-        ? Math.max(Math.round(source.totalFocusMinutes), retainedFocusMinutes)
-        : retainedFocusMinutes;
+        ? Math.max(Math.round(source.totalFocusMinutes), retainedFocusMinutes + archivedFocusMinutes)
+        : retainedFocusMinutes + archivedFocusMinutes;
     const totalSessions = Number.isFinite(source.totalSessions)
-        ? Math.max(Math.round(source.totalSessions), retainedSessions)
-        : retainedSessions;
+        ? Math.max(Math.round(source.totalSessions), retainedSessions + archivedSessions)
+        : retainedSessions + archivedSessions;
     const seenCompletionIds = new Set();
     const completions = (Array.isArray(source.completions) ? source.completions : [])
         .map(sanitizeFocusCompletion)
@@ -110,7 +137,10 @@ function sanitizeFocusStats(raw = {}) {
             return true;
         })
         .sort((a, b) => a.completedAt - b.completedAt);
-    return { days, totalFocusMinutes, totalSessions, completions };
+    return {
+        version: 2, days, archivedFocusMinutes, archivedSessions,
+        totalFocusMinutes, totalSessions, completions
+    };
 }
 
 /**
@@ -153,8 +183,10 @@ function applyFocusSession(user, { minutes, completionId, now = Date.now() } = /
     const safeCompletionId = normalizeCompletionId(completionId);
     if (!safeCompletionId) throw new TypeError('completionId is invalid.');
     const dayKey = riyadhDayKey(now);
-    const stats = user.focusStats;
-    if (!Array.isArray(stats.completions)) stats.completions = [];
+    // Normalize first so legacy v1 records gain the archived counters and the
+    // completion ledger before any mutation touches them.
+    const stats = sanitizeFocusStats(user.focusStats);
+    user.focusStats = stats;
     const priorCompletion = stats.completions.find((completion) => completion.completionId === safeCompletionId);
     if (priorCompletion) {
         return {
@@ -169,7 +201,9 @@ function applyFocusSession(user, { minutes, completionId, now = Date.now() } = /
         };
     }
     const day = stats.days[dayKey] || { focusMinutes: 0, sessions: 0 };
-    const acceptedMinutes = Math.min(safeMinutes, Math.max(0, FOCUS_MINUTES_DAY_CAP - day.focusMinutes));
+    const acceptedMinutes = day.sessions >= 500
+        ? 0
+        : Math.min(safeMinutes, Math.max(0, FOCUS_MINUTES_DAY_CAP - day.focusMinutes));
     if (acceptedMinutes > 0) {
         day.focusMinutes += acceptedMinutes;
         day.sessions += 1;
@@ -187,6 +221,8 @@ function applyFocusSession(user, { minutes, completionId, now = Date.now() } = /
     const dayKeys = Object.keys(stats.days).sort();
     if (dayKeys.length > FOCUS_DAY_KEY_LIMIT) {
         for (const staleKey of dayKeys.slice(0, dayKeys.length - FOCUS_DAY_KEY_LIMIT)) {
+            stats.archivedFocusMinutes += stats.days[staleKey].focusMinutes;
+            stats.archivedSessions += stats.days[staleKey].sessions;
             delete stats.days[staleKey];
         }
     }
@@ -292,6 +328,15 @@ function sanitizeUser(raw = {}, options = {}) {
         createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(),
         banned: !!raw.banned,
         tokenEpoch: Number.isInteger(raw.tokenEpoch) && raw.tokenEpoch > 0 ? raw.tokenEpoch : 1,
+        revokedSessions: sanitizeRevokedSessions(raw.revokedSessions),
+        emailVerifiedAt: Number.isSafeInteger(raw.emailVerifiedAt) && raw.emailVerifiedAt > 0 ? raw.emailVerifiedAt : null,
+        recovery: Object.fromEntries(['reset', 'verify'].flatMap((purpose) => {
+            const record = raw.recovery?.[purpose];
+            return record && /^[a-f0-9]{64}$/.test(record.hash) && Number.isSafeInteger(record.expiresAt)
+                && Number.isInteger(record.epoch) && record.email === email
+                ? [[purpose, { hash: record.hash, expiresAt: record.expiresAt, epoch: record.epoch, email,
+                    ...(sanitizeDelivery(record.delivery) ? { delivery: sanitizeDelivery(record.delivery) } : {}) }]] : [];
+        })),
         focusStats,
         streak: sanitizeStreak(raw.streak, focusStats),
         myRooms: Array.isArray(raw.myRooms)
@@ -405,7 +450,11 @@ function createUser({
         createdAt: now,
         banned: false,
         tokenEpoch: 1,
-        focusStats: { days: {}, totalFocusMinutes: 0, totalSessions: 0, completions: [] },
+        revokedSessions: [],
+        focusStats: {
+            version: 2, days: {}, archivedFocusMinutes: 0, archivedSessions: 0,
+            totalFocusMinutes: 0, totalSessions: 0, completions: []
+        },
         streak: { current: 0, best: 0, lastActiveDay: null },
         myRooms: []
     };

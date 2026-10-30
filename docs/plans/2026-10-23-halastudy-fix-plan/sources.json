@@ -1,0 +1,512 @@
+{
+  "planningHead": "75bdf965a9d097d85fb98a03f602ea162481b5ae",
+  "testedAppSource": "50158269273d27330012dc116685d6898a49ca6b",
+  "priorGate": "docs/viber/2026-10-23",
+  "priorRiskPatterns": 133,
+  "priorObservedPatterns": 107,
+  "uncountedPatterns": [
+    {
+      "id": "H009",
+      "method": "GET",
+      "route": "/api/rooms/:roomId",
+      "source": "co-study-server.js:2189",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H040",
+      "method": "GET",
+      "route": "/auth/google",
+      "source": "services/auth/google-routes.js:70",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H041",
+      "method": "GET",
+      "route": "/auth/google/callback",
+      "source": "services/auth/google-routes.js:100",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H046",
+      "method": "GET",
+      "route": "<ADMIN>/api/dashboard",
+      "source": "services/admin/admin-routes.js:183",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H048",
+      "method": "GET",
+      "route": "<ADMIN>/api/rooms/:roomId",
+      "source": "services/admin/admin-routes.js:226",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H053",
+      "method": "GET",
+      "route": "<ADMIN>/api/video-kill-switch",
+      "source": "services/admin/admin-routes.js:340",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H055",
+      "method": "GET",
+      "route": "<ADMIN>/api/users",
+      "source": "services/admin/admin-routes.js:362",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H062",
+      "method": "GET",
+      "route": "<ADMIN>/api/video-sessions",
+      "source": "services/admin/admin-routes.js:457",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H063",
+      "method": "GET",
+      "route": "/api/platform/catalog",
+      "source": "services/platform/routes.js:29",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H070",
+      "method": "GET",
+      "route": "/api/platform/progress/export",
+      "source": "services/platform/routes.js:89",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H078",
+      "method": "DELETE",
+      "route": "/api/platform/cohorts/:id/invitations",
+      "source": "services/platform/routes.js:120",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H084",
+      "method": "POST",
+      "route": "/api/platform/cohorts/:id/leave",
+      "source": "services/platform/routes.js:144",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H085",
+      "method": "DELETE",
+      "route": "/api/platform/cohorts/:id/sessions/:sessionId",
+      "source": "services/platform/routes.js:149",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H088",
+      "method": "GET",
+      "route": "/api/platform/rooms",
+      "source": "services/platform/routes.js:171",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H098",
+      "method": "PATCH",
+      "route": "/api/platform/staff/cases/:id",
+      "source": "services/platform/routes.js:244",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H102",
+      "method": "GET",
+      "route": "/api/platform/staff/users",
+      "source": "services/platform/routes.js:273",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H103",
+      "method": "POST",
+      "route": "/api/platform/staff/users/:id/status",
+      "source": "services/platform/routes.js:280",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H105",
+      "method": "POST",
+      "route": "/api/platform/staff/rooms/:id/:action",
+      "source": "services/platform/routes.js:305",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H108",
+      "method": "POST",
+      "route": "/api/platform/staff/announcement",
+      "source": "services/platform/routes.js:338",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H109",
+      "method": "DELETE",
+      "route": "/api/platform/staff/announcement",
+      "source": "services/platform/routes.js:350",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H110",
+      "method": "POST",
+      "route": "/api/platform/staff/backup",
+      "source": "services/platform/routes.js:358",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H124",
+      "method": "PATCH",
+      "route": "/api/platform/study/projects/:id",
+      "source": "services/platform/study-routes.js:97",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H126",
+      "method": "PATCH",
+      "route": "/api/platform/study/distractions/:id",
+      "source": "services/platform/study-routes.js:97",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H127",
+      "method": "PATCH",
+      "route": "/api/platform/study/routines/:id",
+      "source": "services/platform/study-routes.js:97",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H130",
+      "method": "DELETE",
+      "route": "/api/platform/study/bookmarks/:id",
+      "source": "services/platform/study-routes.js:131",
+      "executed": false,
+      "statuses": []
+    },
+    {
+      "id": "H136",
+      "method": "DELETE",
+      "route": "/api/platform/study/circles/:id/resources/:resource",
+      "source": "services/platform/study-routes.js:189",
+      "executed": false,
+      "statuses": []
+    }
+  ],
+  "filesNeedingFullRead": [
+    {
+      "id": "F002",
+      "path": "server-https.js",
+      "depth": "I"
+    },
+    {
+      "id": "F004",
+      "path": "co-study-server.js",
+      "depth": "R"
+    },
+    {
+      "id": "F005",
+      "path": "room-store.js",
+      "depth": "I"
+    },
+    {
+      "id": "F006",
+      "path": "user-store.js",
+      "depth": "I"
+    },
+    {
+      "id": "F008",
+      "path": "schedule-utils.js",
+      "depth": "I"
+    },
+    {
+      "id": "F009",
+      "path": "services/admin/admin-routes.js",
+      "depth": "R"
+    },
+    {
+      "id": "F010",
+      "path": "services/auth/auth-routes.js",
+      "depth": "R"
+    },
+    {
+      "id": "F011",
+      "path": "services/auth/google-routes.js",
+      "depth": "S"
+    },
+    {
+      "id": "F012",
+      "path": "services/auth/index.js",
+      "depth": "I"
+    },
+    {
+      "id": "F013",
+      "path": "services/auth/password.js",
+      "depth": "I"
+    },
+    {
+      "id": "F014",
+      "path": "services/auth/reauth.js",
+      "depth": "I"
+    },
+    {
+      "id": "F018",
+      "path": "services/ops/backup-scheduler.js",
+      "depth": "S"
+    },
+    {
+      "id": "F019",
+      "path": "services/ops/error-buffer.js",
+      "depth": "I"
+    },
+    {
+      "id": "F022",
+      "path": "services/platform/catalog.js",
+      "depth": "S"
+    },
+    {
+      "id": "F023",
+      "path": "services/platform/cohorts.js",
+      "depth": "S"
+    },
+    {
+      "id": "F025",
+      "path": "services/platform/dashboard.js",
+      "depth": "I"
+    },
+    {
+      "id": "F027",
+      "path": "services/platform/digetpay-billing.js",
+      "depth": "R"
+    },
+    {
+      "id": "F029",
+      "path": "services/platform/index.js",
+      "depth": "S"
+    },
+    {
+      "id": "F031",
+      "path": "services/platform/progress.js",
+      "depth": "S"
+    },
+    {
+      "id": "F033",
+      "path": "services/platform/routes.js",
+      "depth": "R"
+    },
+    {
+      "id": "F035",
+      "path": "services/platform/study-planner.js",
+      "depth": "R"
+    },
+    {
+      "id": "F037",
+      "path": "services/seo/public-pages.js",
+      "depth": "R"
+    },
+    {
+      "id": "F040",
+      "path": "services/video/index.js",
+      "depth": "I"
+    },
+    {
+      "id": "F041",
+      "path": "services/video/mesh-provider.js",
+      "depth": "I"
+    },
+    {
+      "id": "F044",
+      "path": "services/video/video-session-registry.js",
+      "depth": "S"
+    },
+    {
+      "id": "F045",
+      "path": "public/js/focus-client.js",
+      "depth": "S"
+    },
+    {
+      "id": "F047",
+      "path": "public/js/legal-shell.js",
+      "depth": "I"
+    },
+    {
+      "id": "F048",
+      "path": "public/js/marketing-copy.js",
+      "depth": "S"
+    },
+    {
+      "id": "F049",
+      "path": "public/js/platform-copy.js",
+      "depth": "S"
+    },
+    {
+      "id": "F050",
+      "path": "public/js/platform.js",
+      "depth": "R"
+    },
+    {
+      "id": "F052",
+      "path": "public/js/room-focus.js",
+      "depth": "S"
+    },
+    {
+      "id": "F054",
+      "path": "public/js/schedule-display.js",
+      "depth": "I"
+    },
+    {
+      "id": "F055",
+      "path": "public/js/study-copy.js",
+      "depth": "S"
+    },
+    {
+      "id": "F056",
+      "path": "public/js/study-routine.js",
+      "depth": "I"
+    },
+    {
+      "id": "F057",
+      "path": "public/js/study-workspace.js",
+      "depth": "R"
+    },
+    {
+      "id": "F058",
+      "path": "public/js/ui.js",
+      "depth": "S"
+    },
+    {
+      "id": "F059",
+      "path": "public/js/ux-insights.js",
+      "depth": "S"
+    },
+    {
+      "id": "F060",
+      "path": "public/js/video/realtimekit-client.js",
+      "depth": "S"
+    },
+    {
+      "id": "F061",
+      "path": "public/js/video/video-client.js",
+      "depth": "S"
+    },
+    {
+      "id": "F062",
+      "path": "404.html",
+      "depth": "I"
+    },
+    {
+      "id": "F063",
+      "path": "account.html",
+      "depth": "R"
+    },
+    {
+      "id": "F064",
+      "path": "admin.html",
+      "depth": "S"
+    },
+    {
+      "id": "F065",
+      "path": "blog-best-study-rooms.html",
+      "depth": "I"
+    },
+    {
+      "id": "F066",
+      "path": "blog-study-with-me.html",
+      "depth": "I"
+    },
+    {
+      "id": "F067",
+      "path": "blog.html",
+      "depth": "I"
+    },
+    {
+      "id": "F068",
+      "path": "contact.html",
+      "depth": "S"
+    },
+    {
+      "id": "F069",
+      "path": "index.html",
+      "depth": "R"
+    },
+    {
+      "id": "F070",
+      "path": "landing.html",
+      "depth": "S"
+    },
+    {
+      "id": "F071",
+      "path": "lobby.html",
+      "depth": "S"
+    },
+    {
+      "id": "F072",
+      "path": "open.html",
+      "depth": "R"
+    },
+    {
+      "id": "F073",
+      "path": "platform.html",
+      "depth": "S"
+    },
+    {
+      "id": "F074",
+      "path": "privacy.html",
+      "depth": "I"
+    },
+    {
+      "id": "F075",
+      "path": "recovery.html",
+      "depth": "I"
+    },
+    {
+      "id": "F076",
+      "path": "terms.html",
+      "depth": "I"
+    },
+    {
+      "id": "F077",
+      "path": "db/migrations/001-platform.sql",
+      "depth": "I"
+    },
+    {
+      "id": "F078",
+      "path": "db/migrations/002-digetpay.sql",
+      "depth": "I"
+    },
+    {
+      "id": "F079",
+      "path": "db/migrations/003-payment-review.sql",
+      "depth": "I"
+    },
+    {
+      "id": "F080",
+      "path": "db/migrations/004-study-tools.sql",
+      "depth": "I"
+    }
+  ],
+  "implementationStatus": "planned",
+  "newProductionRequests": 0,
+  "sourceChanged": false
+}

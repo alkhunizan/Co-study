@@ -78,11 +78,50 @@
 
     /* ---------- language ---------- */
     function getLang() {
+        // An explicit English URL (/en/...) is English for everyone, including
+        // crawlers with no storage. The unprefixed Arabic route is the shared
+        // canonical page, so a visitor's saved choice wins there.
+        const routeLang = document.documentElement.getAttribute('data-route-lang');
+        if (routeLang === 'en') return 'en';
         try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ar'; } catch (_e) { return 'ar'; }
     }
     function setStoredLang(lang) {
         try { localStorage.setItem(LANG_KEY, lang); } catch (_e) {}
     }
+    /* A bilingual public route (/ vs /en) is an explicit language choice for a
+     * first-time visitor: save it so app pages continue in that language. A
+     * visitor who already chose a language keeps it; the language switch is
+     * the only thing that changes a saved choice. */
+    (function persistRouteLang() {
+        const root = document.documentElement;
+        if (!root || typeof root.getAttribute !== 'function' || typeof root.hasAttribute !== 'function') return;
+        const routeLang = root.getAttribute('data-route-lang');
+        if (!root.hasAttribute('data-route-lang-persist') || (routeLang !== 'ar' && routeLang !== 'en')) return;
+        let stored = null;
+        try { stored = localStorage.getItem(LANG_KEY); } catch (_e) { /* storage unavailable */ }
+        if (!stored) setStoredLang(routeLang);
+    })();
+
+    /* Markup in one language that re-renders in the visitor's saved language
+     * after parsing would paint twice: the second paint moves every block
+     * below the hero (CLS ≈ 0.4 on the landing page). Keep the body invisible
+     * until that first language pass sets html[lang]; end-of-body scripts run
+     * before DOMContentLoaded, so the hold lasts milliseconds and releases
+     * unconditionally once the document is parsed. */
+    (function holdPaintUntilLangApplied() {
+        const root = document.documentElement;
+        if (!root || typeof root.getAttribute !== 'function' || typeof MutationObserver !== 'function') return;
+        const markupLang = (root.getAttribute('lang') || '').slice(0, 2);
+        if (!markupLang || markupLang === getLang()) return;
+        root.setAttribute('data-lang-swap', '');
+        const observer = new MutationObserver(release);
+        function release() {
+            root.removeAttribute('data-lang-swap');
+            observer.disconnect();
+        }
+        observer.observe(root, { attributes: true, attributeFilter: ['lang'] });
+        document.addEventListener('DOMContentLoaded', release, { once: true });
+    })();
 
     /* Lang engine for pages without their own (account.html, 404.html).
      * Supports both attribute conventions used across the app:
@@ -122,11 +161,19 @@
             if (copy[key] != null) el.setAttribute('aria-label', copy[key]);
         });
         document.querySelectorAll('[data-lang-value]').forEach((b) => {
-            b.classList.toggle('is-on', b.getAttribute('data-lang-value') === langState.lang);
+            const selected = b.getAttribute('data-lang-value') === langState.lang;
+            b.classList.toggle('is-on', selected);
+            if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(selected));
+            else {
+                b.removeAttribute('aria-pressed');
+                if (selected) b.setAttribute('aria-current', 'page');
+                else b.removeAttribute('aria-current');
+            }
         });
         langState.listeners.forEach((cb) => {
             try { cb(langState.lang, copy); } catch (_e) {}
         });
+        translateUnavailable();
     }
 
     function initLang(dict) {
@@ -135,6 +182,7 @@
             b.addEventListener('click', () => {
                 langState.lang = b.getAttribute('data-lang-value') === 'en' ? 'en' : 'ar';
                 setStoredLang(langState.lang);
+                if (b.tagName === 'A') return;
                 applyLangToDom();
             });
         });
@@ -150,11 +198,18 @@
             headers: {},
             credentials: 'include'
         };
+        // Platform requests stay pinned to the account this document first
+        // verified, so a newer sign-in in another tab cannot act as it.
+        if (url.startsWith('/api/platform/') && documentAccountId) {
+            options.headers['X-Halastudy-Account'] ||= documentAccountId;
+        }
         if (body !== undefined) {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body || {});
         }
         if (requestOptions.signal) options.signal = requestOptions.signal;
+        // A stalled request must release the caller: 15 s is the shared deadline (V3-01).
+        else if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') options.signal = AbortSignal.timeout(15000);
         return fetch(url, options).then((response) => response.json().catch(() => ({})).then((payload) => {
                 if (requestOptions.signal?.aborted) {
                     const error = new Error('Request aborted');
@@ -162,7 +217,10 @@
                     throw error;
                 }
                 if (!response.ok) {
-                    if (response.status === 401) invalidateAuthCache(true);
+                    // A 401 on a secondary read drops the cached user, but never
+                    // aborts an identity check already in flight: that check is the
+                    // authoritative answer and aborting it reads as "signed out".
+                    if (response.status === 401 && !authController) invalidateAuthCache(true);
                     /** @type {Error & { status?: number, code?: string, payload?: any }} */
                     const error = new Error(`Request failed: ${response.status}`);
                     error.status = response.status;
@@ -179,6 +237,7 @@
 
     /* ---------- auth session cache ---------- */
     var userPromise = null;
+    var documentAccountId = null;
     var authGeneration = 0;
     var authController = null;
 
@@ -199,6 +258,8 @@
             userPromise = requestJson('GET', '/api/auth/me', undefined, { signal: controller.signal })
                 .then((payload) => {
                     if (generation !== authGeneration || controller.signal.aborted) return null;
+                    // Keep this document bound to its first verified account until navigation.
+                    if (payload?.user && !documentAccountId) documentAccountId = payload.user.id;
                     return payload?.user ? payload.user : null;
                 })
                 .catch(() => null)
@@ -220,6 +281,51 @@
             .catch(() => { /* already signed out */ })
             .then(() => null);
     }
+    function clearStudyStorage(userId) {
+        if (typeof userId !== 'string' || !userId) return;
+        try {
+            for (const key of Object.keys(localStorage)) {
+                if (key === `halastudy:routine:${userId}` || key.startsWith(`halastudy:reminder:${userId}:`)) localStorage.removeItem(key);
+            }
+        } catch { /* storage may be blocked */ }
+    }
+
+    function showUnavailable(target = null, retry = null) {
+        if (!target) {
+            target = document.getElementById('session-unavailable');
+            if (!target) {
+                target = document.createElement('div');
+                target.id = 'session-unavailable';
+                const main = document.querySelector('main') || document.body;
+                main.prepend(target);
+            }
+        }
+        target.hidden = false;
+        target.setAttribute('role', 'status');
+        const message = document.createElement('p');
+        message.setAttribute('data-core-unavailable', 'message');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-secondary';
+        button.style.minBlockSize = '44px';
+        button.setAttribute('data-core-unavailable', 'retry');
+        button.onclick = () => {
+            button.disabled = true;
+            Promise.resolve().then(() => retry ? retry() : global.location.reload())
+                .catch(() => showUnavailable(target, retry))
+                .finally(() => { button.disabled = false; });
+        };
+        target.replaceChildren(message, button);
+        translateUnavailable();
+    }
+    function translateUnavailable() {
+        document.querySelectorAll('[data-core-unavailable]').forEach((element) => {
+            const retry = element.getAttribute('data-core-unavailable') === 'retry';
+            element.textContent = getLang() === 'ar'
+                ? (retry ? 'إعادة المحاولة' : 'تعذّر تحميل البيانات. حاول مرة أخرى.')
+                : (retry ? 'Retry' : 'Data is unavailable. Please try again.');
+        });
+    }
 
     /* Swap the quiet "Sign in" topbar link (#auth-entry) for the avatar chip
      * when a session exists. Pages without #auth-entry are untouched. */
@@ -233,9 +339,13 @@
             if (ui && typeof ui.renderAuthChip === 'function') {
                 ui.renderAuthChip(entry, user, {
                     menuItems: [
+                        { label: ar ? 'مساحتي' : 'My workspace', href: '/app' },
+                        { label: ar ? 'عضوية VIP' : 'VIP membership', href: '/plans' },
                         { label: ar ? 'حسابي' : 'My account', href: '/account.html' },
                         { label: ar ? 'تسجيل الخروج' : 'Sign out', danger: true, onSelect: () => {
-                            signout().then(() => { global.location.assign('/'); });
+                            signout().then(() => { global.location.assign('/'); }).catch(() => {
+                                ui.toast(ar ? 'تعذّر تسجيل الخروج. حاول مرة أخرى.' : 'Sign-out failed. Please try again.', { kind: 'error' });
+                            });
                         } }
                     ]
                 });
@@ -243,6 +353,9 @@
                 entry.textContent = user.displayName;
                 entry.setAttribute('href', '/account.html');
             }
+        }).catch(() => {
+            entry.hidden = true;
+            showUnavailable();
         });
     }
 
@@ -331,6 +444,8 @@
         setTheme: setTheme,
         toggleTheme: toggleTheme,
         requestJson: requestJson,
+        clearStudyStorage: clearStudyStorage,
+        showUnavailable: showUnavailable,
         postJson: (url, body) => requestJson('POST', url, body)
     };
 

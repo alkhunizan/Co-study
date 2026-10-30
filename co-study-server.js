@@ -15,6 +15,8 @@ const { createLogger } = require('./services/logging/logger');
 const { createCompatibilityTelemetry } = require('./services/compatibility/telemetry');
 const { createErrorBuffer } = require('./services/ops/error-buffer');
 const { createBackupScheduler } = require('./services/ops/backup-scheduler');
+const { createOperationalAlerts } = require('./services/ops/alerts');
+const { registerPublicPages } = require('./services/seo/public-pages');
 const { createAdminAuditLog } = require('./services/admin/audit-log');
 const { createAdminRouter } = require('./services/admin/admin-routes');
 const { resolveListenHost } = require('./services/config/network');
@@ -27,16 +29,22 @@ const {
     verifyAnonSessionToken
 } = require('./services/auth');
 const { createAuthRouter } = require('./services/auth/auth-routes');
+const { createRecoveryMail } = require('./services/auth/recovery');
 const { createGoogleAuthRouter } = require('./services/auth/google-routes');
+const { COOKIE_NAME: REAUTH_COOKIE, verifyReauth } = require('./services/auth/reauth');
 const { createOAuthSecurity } = require('./services/auth/oauth-security');
 const {
     createKeyedMutationCoordinator,
     createUserMutationCoordinator
 } = require('./services/auth/user-mutation-coordinator');
-const { createUserStore, recordMyRoom } = require('./user-store');
+const { createUserStore, recordMyRoom, sanitizeUser } = require('./user-store');
 const { createFileUserPersistence } = require('./services/persistence/file-user-persistence');
 const { createSupabaseClient } = require('./services/supabase/client');
 const { createSupabaseUserStore } = require('./supabase-user-store');
+const { createPlatform } = require('./services/platform');
+const { createPlatformRouter } = require('./services/platform/routes');
+const { createRecordStore } = require('./services/platform/record-store');
+const { backupDatabase } = require('./services/platform/maintenance');
 const { createVideoProvider } = require('./services/video');
 const { createVideoSessionRegistry } = require('./services/video/video-session-registry');
 const { createVideoSessionStore } = require('./services/video/video-session-store');
@@ -120,6 +128,12 @@ const VIDEO_RECONCILE_MS = 5 * 60 * 1000;
 const VIDEO_CLEANUP_RETRY_MS = 30 * 1000;
 const MAX_IP_VIDEO_PARTICIPANTS = 3;
 const WEBHOOK_BODY_LIMIT = '128kb';
+// Circle-room membership is re-checked on socket traffic at most this often.
+// Membership changes also disconnect affected sockets directly, so this is a
+// backstop, not the primary revocation path (A-16).
+const ROOM_ACCESS_RECHECK_MS = 10 * 1000;
+// Circle attendance is recorded for quietly connected members on this cadence.
+const ATTENDANCE_SWEEP_MS = 60 * 1000;
 const AUTH_SIGNUP_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
 const AUTH_LOGIN_RATE = { limit: 10, windowMs: 15 * 60 * 1000 };
 const AUTH_FAILURE_RATE = { limit: 5, windowMs: 15 * 60 * 1000 };
@@ -659,11 +673,11 @@ function sanitizeStatus(input = {}) {
         // stripped at the trust boundary, hidden when status is hidden.
         goal: sanitizeUserText(input.goal, 80),
         visible,
-        manual: typeof input.manual === 'string' ? input.manual.slice(0, 40) : '',
-        manualPreset: typeof input.manualPreset === 'string' ? input.manualPreset : null,
-        autoSync: !!input.autoSync,
-        ambientType: typeof input.ambientType === 'string' ? input.ambientType.slice(0, 20) : null,
-        timerMode: input.timerMode === 'break' ? 'break' : (input.timerMode === 'focus' ? 'focus' : null),
+        manual: visible && typeof input.manual === 'string' ? input.manual.slice(0, 40) : '',
+        manualPreset: visible && typeof input.manualPreset === 'string' ? input.manualPreset.slice(0, 40) : null,
+        autoSync: visible && !!input.autoSync,
+        ambientType: visible && typeof input.ambientType === 'string' ? input.ambientType.slice(0, 20) : null,
+        timerMode: visible ? (input.timerMode === 'break' ? 'break' : (input.timerMode === 'focus' ? 'focus' : null)) : null,
         updatedAt
     };
 }
@@ -769,6 +783,7 @@ function getSocketRequestIp(request, trustProxy) {
 }
 
 function createCoStudyServer(options = {}) {
+    const startedAt = Date.now();
     const { env = process.env, mode = 'http', createServer } = options;
     const roomSaveDebounceMs = Number.isFinite(options.roomSaveDebounceMs)
         ? Math.max(0, options.roomSaveDebounceMs)
@@ -784,7 +799,15 @@ function createCoStudyServer(options = {}) {
     const errorBuffer = createErrorBuffer({ capacity: 200 });
     /** @type {ReturnType<typeof createAdminAuditLog> | null} */
     let adminAuditLog = null;
-    const logger = createLogger({ service: 'halastudy' }, { onEntry: errorBuffer.push });
+    let operationalAlerts = null;
+    const earlyOperationalEvents = [];
+    const logger = createLogger({ service: 'halastudy' }, {
+        onEntry: errorBuffer.push,
+        onEvent: (entry) => {
+            if (operationalAlerts) operationalAlerts.observe(entry);
+            else if (earlyOperationalEvents.length < 100) earlyOperationalEvents.push(entry);
+        }
+    });
     const compatibilityTelemetry = options.compatibilityTelemetry || createCompatibilityTelemetry({ logger });
     if (typeof compatibilityTelemetry.record !== 'function'
         || typeof compatibilityTelemetry.snapshot !== 'function') {
@@ -830,10 +853,14 @@ function createCoStudyServer(options = {}) {
         authLogin: new SlidingWindowRateLimiter(AUTH_LOGIN_RATE),
         authFailure: new SlidingWindowRateLimiter(AUTH_FAILURE_RATE),
         profileMutation: new SlidingWindowRateLimiter(PROFILE_MUTATION_RATE),
+        platformMutation: new SlidingWindowRateLimiter({ limit: 120, windowMs: 60000 }),
         focusLog: new SlidingWindowRateLimiter(FOCUS_LOG_RATE),
         adminLogin: new SlidingWindowRateLimiter(ADMIN_LOGIN_RATE),
         metrics: new SlidingWindowRateLimiter(METRICS_RATE),
-        reports: new SlidingWindowRateLimiter(REPORT_RATE)
+        reports: new SlidingWindowRateLimiter(REPORT_RATE),
+        recoveryIp: new SlidingWindowRateLimiter({ limit: 10, windowMs: 600000 }),
+        recoveryAccount: new SlidingWindowRateLimiter({ limit: 3, windowMs: 600000 }),
+        recoveryComplete: new SlidingWindowRateLimiter({ limit: 20, windowMs: 600000 })
     };
     const videoProvider = options.videoProvider || createVideoProvider({ config: config.video, logger });
     const videoSessionRegistry = createVideoSessionRegistry({ logger });
@@ -896,7 +923,15 @@ function createCoStudyServer(options = {}) {
     });
     readinessState.socket = true;
 
-    const roomStore = options.roomStore || createRoomStore({
+    const platform = createPlatform({ userStateFile: config.userStateFile, secret: config.sessionSecret, logger, env,
+        isCurrentUser: (user, epoch) => users.get(user.id) === user && user.tokenEpoch === epoch && !user.banned });
+    operationalAlerts = createOperationalAlerts({
+        file: `${config.userStateFile}.alerts.json`, env, start: platform.ready
+    });
+    earlyOperationalEvents.forEach(operationalAlerts.observe);
+    earlyOperationalEvents.length = 0;
+    /** @type {any} */
+    let roomStore = options.roomStore || createRoomStore({
         filePath: config.roomStateFile,
         roomHistoryLimit: ROOM_HISTORY_LIMIT,
         normalizeRoom,
@@ -908,6 +943,9 @@ function createCoStudyServer(options = {}) {
         sanitizeBoardTaskText,
         normalizeBoardPriority
     });
+    if (platform.enabled) {
+        roomStore = createRecordStore({ platform, kind: 'rooms', legacyStore: roomStore, sanitize: roomStore.sanitizeRoom, logger });
+    }
     const realtimeKitWebhookDeduplicator = options.realtimeKitWebhookDeduplicator
         || createWebhookDeduplicator({
             filePath: config.realtimeKitWebhookStateFile,
@@ -945,6 +983,9 @@ function createCoStudyServer(options = {}) {
             logger,
             onLegacyAuthProvider: () => compatibilityTelemetry.record('auth_provider_fallback')
         });
+        if (platform.enabled) {
+            userStore = createRecordStore({ platform, kind: 'accounts', legacyStore: userStore, sanitize: sanitizeUser, logger });
+        }
         logger.info({ event: 'user_store_backend', backend: 'file' });
     }
 
@@ -954,11 +995,16 @@ function createCoStudyServer(options = {}) {
         backupDir: config.roomStateBackupDir,
         targets: config.backup.plaintextSnapshotsAllowed
             ? [
-                { label: 'rooms', filePath: config.roomStateFile },
-                // Skip the users.json snapshot target when Supabase owns accounts.
-                ...(config.supabase.enabled ? [] : [{ label: 'users', filePath: config.userStateFile }])
+                ...(!roomStore.isPlatform ? [{ label: 'rooms', filePath: config.roomStateFile }] : []),
+                // Skip the users.json snapshot target when Supabase or the platform database owns accounts.
+                ...(config.supabase.enabled || userStore.isPlatform ? [] : [{ label: 'users', filePath: config.userStateFile }])
             ]
             : [],
+        extraBackup: platform.enabled ? async (destination) => {
+            await platform.ready;
+            await Promise.all([roomStore.flush(rooms), userStore.flush(users)]);
+            return backupDatabase(platform.db, destination);
+        } : null,
         logger
     });
     /** @type {Map<string, any>} userId -> user record */
@@ -1050,6 +1096,8 @@ function createCoStudyServer(options = {}) {
             avatarColor: user.avatarColor,
             bio: user.bio,
             createdAt: user.createdAt,
+            authProvider: user.authProvider || 'password',
+            emailVerified: !!user.emailVerifiedAt || (user.authProvider === 'google' && !!user.googleSub),
             authMethods: {
                 password: user.passwordEnabled !== false && !!user.passwordHash,
                 google: !!user.googleSub
@@ -1139,6 +1187,12 @@ function createCoStudyServer(options = {}) {
             return;
         }
         next();
+    }
+
+    function disconnectUser(userId) {
+        for (const socket of io.sockets.sockets.values()) {
+            if (socket.data.userId === userId) socket.disconnect(true);
+        }
     }
 
     function getDefaultRoomVideoPolicy(policy = {}) {
@@ -1572,7 +1626,6 @@ function createCoStudyServer(options = {}) {
                 cameraOn: !!user.cameraOn,
                 status: user.status || null,
                 avatarColor: user.avatarColor || null,
-                streakCurrent: Number.isInteger(user.streakCurrent) ? user.streakCurrent : null
             })),
             messages: room.messages,
             board,
@@ -1594,7 +1647,8 @@ function createCoStudyServer(options = {}) {
                 protected: true,
                 status: 'active',
                 participantCount: room.users.size,
-                requiresPassword: true
+                requiresPassword: !!room.requirePassword,
+                requiresMembership: !!room.cohortId
             }
         };
     }
@@ -1629,6 +1683,7 @@ function createCoStudyServer(options = {}) {
                 : null,
             requirePassword: !!room.requirePassword,
             passwordHash: room.passwordHash || null,
+            cohortId: typeof room.cohortId === 'string' ? room.cohortId : null,
             mediaMode: normalizeMediaMode(room.mediaMode),
             videoProvider: room.videoProvider || config.video.provider,
             videoProviderMeetingId: typeof room.videoProviderMeetingId === 'string' ? room.videoProviderMeetingId : null,
@@ -2291,6 +2346,15 @@ function createCoStudyServer(options = {}) {
         return runRoomLifecycleOperation(roomId, () => performCloseRoomLifecycle(roomId, options));
     }
 
+    // Platform callers (circle archive, account deletion) retire rooms through
+    // the same durable lifecycle as an owner delete; failures are logged and
+    // retried by the periodic closure worker.
+    function deleteRoom(roomId, reason = 'platform_closed') {
+        return closeRoomLifecycle(roomId, { reason }).catch((error) => {
+            logger.error({ event: 'platform_room_close_failed', roomId, error: error?.message });
+        });
+    }
+
     function ensureRoom(roomId, meta = {}) {
         const normalized = normalizeRoom(roomId);
         if (!normalized) return null;
@@ -2686,7 +2750,22 @@ function createCoStudyServer(options = {}) {
         return { cleanupPending };
     }
 
-    function loadPersistedRooms() {
+    async function loadPersistedRooms() {
+        if (typeof roomStore.hydrate === 'function') {
+            // Platform mode: rooms live in the database; circle scope rides on
+            // the rooms table rather than the serialized record.
+            const persistedRooms = await roomStore.hydrate();
+            const scopes = new Map((await platform.db.query('SELECT id,cohort_id FROM halastudy.rooms')).rows.map((row) => [row.id, row.cohort_id]));
+            for (const persistedRoom of persistedRooms) {
+                persistedRoom.cohortId = scopes.get(persistedRoom.id) || null;
+                const runtimeRoom = buildRuntimeRoom(persistedRoom);
+                if (!runtimeRoom.id) continue;
+                rooms.set(runtimeRoom.id, runtimeRoom);
+                if (!runtimeRoom.users.size) scheduleRoomCleanup(runtimeRoom.id);
+            }
+            readinessState.roomStore = true;
+            return persistedRooms.length;
+        }
         const persistedRooms = roomStore.loadRooms({ strict: true });
         persistedRooms.forEach((persistedRoom) => {
             if (persistedRoom.schemaVersion !== ROOM_SCHEMA_VERSION) {
@@ -3265,7 +3344,8 @@ function createCoStudyServer(options = {}) {
             videoSessionStore: readinessState.videoSessionStore,
             // @ts-expect-error internal socket.io flag for closed state
             socket: readinessState.socket && !io._closed,
-            config: readinessState.config
+            config: readinessState.config,
+            ...(platform.enabled ? { database: !!platform.db?.isHealthy() } : {})
         };
         const ready = Object.values(checks).every(Boolean);
 
@@ -3305,6 +3385,8 @@ function createCoStudyServer(options = {}) {
     let videoCleanupRetryTimer = null;
     let roomCleanupRetryTimer = null;
     let roomEventDrainTimer = null;
+    let attendanceTimer = null;
+    let attendanceSweep = null;
     let runtimeWorkersStarted = false;
 
     function resetHydratedRuntimeState() {
@@ -3330,8 +3412,8 @@ function createCoStudyServer(options = {}) {
                 readinessState.videoSessionStore = true;
                 return count;
             }),
-            Promise.resolve().then(() => {
-                const count = loadPersistedRooms();
+            Promise.resolve().then(async () => {
+                const count = await loadPersistedRooms();
                 seedLobbyRoom();
                 return count;
             }),
@@ -3398,6 +3480,26 @@ function createCoStudyServer(options = {}) {
                 }));
         }, VIDEO_SESSION_SWEEP_MS);
         videoSweepTimer.unref();
+        attendanceTimer = setInterval(() => {
+            if (config.backup.intervalMinutes > 0
+                && Date.now() - (backupScheduler.status.lastRunAt || startedAt) > config.backup.intervalMinutes * 120000) {
+                logger.warn({ event: 'backup_stale' });
+            }
+            // A member may arrive before a session's attendance window and then
+            // study quietly. Connected presence must not depend on another join.
+            if (!platform.enabled || !readinessState.userStore || attendanceSweep) return;
+            attendanceSweep = (async () => {
+                for (const socketRef of io.sockets.sockets.values()) {
+                    if (!socketRef.data.roomId || !socketRef.data.userId) continue;
+                    const cookies = parseCookies(socketRef.handshake?.headers?.cookie || '');
+                    const user = resolveUserFromToken(cookies[AUTH_COOKIE_NAME], socketRef.data.sessionId);
+                    if (!user) { socketRef.disconnect(true); continue; }
+                    await platform.recordAttendance(socketRef.data.roomId, user);
+                }
+            })().catch(() => logger.error({ event: 'attendance_sweep_failed' }))
+                .finally(() => { attendanceSweep = null; });
+        }, ATTENDANCE_SWEEP_MS);
+        attendanceTimer.unref();
         if (config.video.provider === VIDEO_PROVIDER_REALTIMEKIT) {
             videoReconcileTimer = setInterval(() => {
                 void reconcileRealtimeKitMeetings();
@@ -3490,11 +3592,14 @@ function createCoStudyServer(options = {}) {
         if (videoCleanupRetryTimer) clearInterval(videoCleanupRetryTimer);
         if (roomCleanupRetryTimer) clearInterval(roomCleanupRetryTimer);
         if (roomEventDrainTimer) clearInterval(roomEventDrainTimer);
+        if (attendanceTimer) clearInterval(attendanceTimer);
+        if (attendanceSweep) await attendanceSweep;
         if (roomSaveTimer) {
             clearTimeout(roomSaveTimer);
             roomSaveTimer = null;
         }
         backupScheduler.stop();
+        await recoveryMail.close?.();
         console.log(`Received ${signal}. Draining mutations and persisting state...`);
         const serverClosed = new Promise((resolve) => {
             if (!server.listening) {
@@ -3535,6 +3640,13 @@ function createCoStudyServer(options = {}) {
                 console.error('Final state flush failed:', result.reason);
             }
         });
+        if (platform.enabled) {
+            try { await platform.ready; await platform.billing.close?.(); await platform.db.close(); } catch (error) {
+                logger.error({ event: 'platform_shutdown_failed', message: error?.message });
+            }
+        }
+        // Persist incidents emitted by every other component's final cleanup.
+        try { await operationalAlerts.close(); } catch (_error) {}
         await serverClosed;
         clearTimeout(hardExitTimer);
         process.exit(exitCode);
@@ -3551,6 +3663,15 @@ function createCoStudyServer(options = {}) {
     }
 
     app.use(securityHeaders);
+    app.use((req, res, next) => {
+        // Keep application/session URLs out of search without preventing
+        // crawlers from reading the noindex directive on the HTML response.
+        if (/^\/(?:api|auth|account(?:\.html)?|open(?:\.html)?|lobby(?:\.html)?|index\.html|study|workspace|room|app|plans|supervisor|recover|recovery\.html)(?:\/|$)/i.test(req.path)
+            || (config.admin.enabled && (req.path === config.admin.path || req.path.startsWith(`${config.admin.path}/`)))) {
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        }
+        next();
+    });
     app.use(originGuard);
     app.post(
         '/api/webhooks/realtimekit',
@@ -3643,6 +3764,16 @@ function createCoStudyServer(options = {}) {
     app.use(sessionMiddleware);
     app.use(attachUser);
     app.use(mutationDrainMiddleware);
+    app.use(['/api', '/auth/google'], (req, res, next) => {
+        if (!readinessState.userStore || !readinessState.roomStore) {
+            return res.status(503).json({ errorCode: 'STORAGE_STARTING' });
+        }
+        if (platform.enabled && platform.db && !platform.db.isHealthy()
+            && !['/health', '/ready'].includes(req.path)) {
+            return res.status(503).json({ errorCode: 'SERVICE_UNAVAILABLE' });
+        }
+        next();
+    });
     app.get([...COMPRESSED_AMBIENT_AUDIO_ALIASES.keys()], (req, res) => {
         const fileName = COMPRESSED_AMBIENT_AUDIO_ALIASES.get(req.path.toLowerCase());
         if (!fileName) {
@@ -3661,6 +3792,7 @@ function createCoStudyServer(options = {}) {
     app.use('/videos/hero/source', (_req, res) => res.status(404).end());
     app.use('/videos', express.static(path.join(__dirname, 'videos'), { maxAge: '1d' }));
     app.use('/js', express.static(path.join(__dirname, 'public', 'js'), { maxAge: '1h' }));
+    app.use('/css', express.static(path.join(__dirname, 'public', 'css'), { maxAge: '1h' }));
     // The pages only need the stylesheets; the rest of design-system/ is
     // internal documentation and must not be publicly fetchable.
     app.use('/design-system', (req, res, next) => {
@@ -3668,7 +3800,12 @@ function createCoStudyServer(options = {}) {
         res.status(404).end();
     }, express.static(path.join(__dirname, 'design-system'), { maxAge: '1d' }));
 
+    const recoveryMail = createRecoveryMail({
+        env: config.supabase.enabled ? { ...env, AUTH_MAIL_MODE: 'disabled' } : env,
+        directory: `${config.userStateFile}.mail`, platform, isReady: () => readinessState.userStore
+    });
     app.use('/api', createAuthRouter({
+        recoveryMail,
         users,
         usersByEmail,
         rooms,
@@ -3690,11 +3827,37 @@ function createCoStudyServer(options = {}) {
         runUserMutation,
         flushUsers: () => userStore.flush(users),
         requireUser,
+        disconnectUser,
+        preparePlatformDeletion: async (userId) => {
+            if (!platform.enabled) return () => {};
+            const owned = await platform.db.query('SELECT id FROM halastudy.cohorts WHERE owner_id=$1', [userId]);
+            const ids = new Set(owned.rows.map((row) => row.id));
+            return () => {
+                for (const room of rooms.values()) {
+                    if (!ids.has(room.cohortId)) continue;
+                    for (const socketId of room.users.keys()) io.sockets.sockets.get(socketId)?.disconnect(true);
+                    deleteRoom(room.id);
+                }
+            };
+        },
+        deletePlatformUser: (userId) => userStore.isPlatform ? Promise.resolve() : platform.removeUser(userId),
+        canDeleteWithProvider: (req) => {
+            const cookies = parseCookies(req.headers.cookie || '');
+            return verifyReauth(cookies[REAUTH_COOKIE], req.user, cookies[AUTH_COOKIE_NAME], config.sessionSecret);
+        },
         // Analytics event log (Supabase only) — powers user + admin dashboards.
         logFocusSession: typeof userStore.logFocusSession === 'function'
             ? (payload) => userStore.logFocusSession(payload)
             : null,
         logger
+    }));
+
+    app.use('/api/platform', createPlatformRouter({
+        platform, requireUser, users, rooms, config, parseCookies, appendSetCookie, logger,
+        applyHttpRateLimit, rateLimiters, disconnectUser,
+        flushUsers: () => userStore.flush(users), flushRooms: () => roomStore.flush(rooms),
+        io, clearRoomCleanupTimer, deleteRoom, runtimeFlags, isVideoJoinDisabled, announcementState, backupScheduler,
+        operationalAlerts
     }));
 
     // Google OAuth (only mounts real handlers when GOOGLE_* env is set; every
@@ -3784,7 +3947,8 @@ function createCoStudyServer(options = {}) {
             maxGlobalVideoParticipants: config.video.maxGlobalParticipants,
             videoJoinDisabled: isVideoJoinDisabled(),
             publicApiBaseUrl: config.video.publicApiBaseUrl,
-            googleAuthEnabled: config.google.enabled
+            googleAuthEnabled: config.google.enabled,
+            platformEnabled: platform.enabled
         });
     });
 
@@ -3799,6 +3963,10 @@ function createCoStudyServer(options = {}) {
         const room = rooms.get(normalizedRoom);
         if (!normalizedRoom || !room || roomIsClosed(room)) {
             sendVideoError(res, 404, 'ROOM_NOT_FOUND');
+            return;
+        }
+        if (!(await platform.canJoin(normalizedRoom, req.user))) {
+            sendVideoError(res, 403, 'ROOM_MEMBERSHIP_REQUIRED');
             return;
         }
 
@@ -4013,7 +4181,7 @@ function createCoStudyServer(options = {}) {
         }
     });
 
-    app.get('/api/rooms/:roomId', (req, res) => {
+    app.get('/api/rooms/:roomId', async (req, res) => {
         const { roomId } = req.params;
         const requestIp = getRequestIp(req);
         if (!applyHttpRateLimit(req, res, rateLimiters.roomLookup, requestIp)) {
@@ -4040,7 +4208,7 @@ function createCoStudyServer(options = {}) {
         }
 
         // Protected rooms leak nothing before a verified, password-gated join.
-        if (room.requirePassword) {
+        if (room.requirePassword || !(await platform.canJoin(normalizedRoom, req.user))) {
             res.json(roomPreview(normalizedRoom, room));
             return;
         }
@@ -4048,41 +4216,25 @@ function createCoStudyServer(options = {}) {
         res.json(roomSnapshot(roomId));
     });
 
-    app.get('/', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'landing.html'));
-    });
+    registerPublicPages(app, __dirname);
 
     app.get(['/open.html', '/open'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'open.html'));
     });
 
-    app.get(['/privacy.html', '/privacy'], (_req, res) => {
-        res.sendFile(path.join(__dirname, 'privacy.html'));
-    });
-
-    app.get(['/terms.html', '/terms'], (_req, res) => {
-        res.sendFile(path.join(__dirname, 'terms.html'));
-    });
-
-    app.get(['/contact.html', '/contact'], (_req, res) => {
-        res.sendFile(path.join(__dirname, 'contact.html'));
-    });
-
-    app.get(['/blog.html', '/blog'], (_req, res) => {
-        res.sendFile(path.join(__dirname, 'blog.html'));
-    });
-
-    // Individual blog posts — explicit slug→file map (no dynamic path lookup, so
-    // no traversal surface). Add a line here per new article.
-    app.get('/blog/best-online-group-study-rooms-saudi', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'blog-best-study-rooms.html'));
-    });
-    app.get('/blog/study-with-me-online-arabic', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'blog-study-with-me.html'));
+    app.get(['/app', '/plans', '/supervisor'], (_req, res) => {
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.sendFile(path.join(__dirname, 'platform.html'));
     });
 
     app.get(['/account.html', '/account'], (_req, res) => {
         res.sendFile(path.join(__dirname, 'account.html'));
+    });
+    app.get(['/recover', '/recovery.html'], (_req, res) => {
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Referrer-Policy', 'no-referrer');
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.sendFile(path.join(__dirname, 'recovery.html'));
     });
 
     app.get(['/index.html', '/study', '/workspace', '/room'], (_req, res) => {
@@ -4097,6 +4249,7 @@ function createCoStudyServer(options = {}) {
         adminAuditLog = createAdminAuditLog({ filePath: config.adminAuditFile, logger });
         app.use(config.admin.path, createAdminRouter({
             config,
+            platform,
             rooms,
             users,
             io,
@@ -4138,6 +4291,7 @@ function createCoStudyServer(options = {}) {
             res.status(404).json({ errorCode: 'NOT_FOUND' });
             return;
         }
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
         res.status(404).sendFile(path.join(__dirname, '404.html'));
     });
 
@@ -4188,6 +4342,38 @@ function createCoStudyServer(options = {}) {
         socket.data.identityId = authedUser ? `user:${authedUser.id}` : `anon:${sessionId}`;
         socket.data.membershipToken = null;
         socket.data.connectionGeneration = 0;
+        // Account-bearing connections must retain a valid account session for
+        // every event. A revoked account never silently becomes a guest.
+        socket.use(async (packet, next) => {
+            if (!readinessState.roomStore || !readinessState.userStore) return next(new Error('STORAGE_STARTING'));
+            if (platform.enabled && platform.db && !platform.db.isHealthy()) {
+                const ack = packet.at(-1);
+                if (typeof ack === 'function') ack({ ok: false, errorCode: 'SERVICE_UNAVAILABLE' });
+                return next(new Error('SERVICE_UNAVAILABLE'));
+            }
+            if (socket.data.userId && !resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME], signedSessionId)) {
+                socket.disconnect(true);
+                return next(new Error('AUTH_REQUIRED'));
+            }
+            // Only circle-scoped rooms carry membership, and the in-memory room
+            // knows its scope, so ordinary rooms never touch the database here
+            // and circle rooms re-check at most once per interval instead of on
+            // every ICE candidate.
+            const currentRoom = socket.data.roomId ? rooms.get(socket.data.roomId) : null;
+            if (currentRoom?.cohortId && packet[0] !== 'join-room'
+                && !(socket.data.roomAccessCheckedAt > Date.now() - ROOM_ACCESS_RECHECK_MS)) {
+                try {
+                    if (!(await platform.canJoin(socket.data.roomId, resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME], signedSessionId)))) {
+                        socket.disconnect(true);
+                        return next(new Error('ROOM_ACCESS_REVOKED'));
+                    }
+                    socket.data.roomAccessCheckedAt = Date.now();
+                } catch {
+                    return next(new Error('SERVICE_UNAVAILABLE'));
+                }
+            }
+            next();
+        });
 
         // Late joiners still see an active admin broadcast.
         const currentAnnouncement = getActiveAnnouncement();
@@ -4197,8 +4383,11 @@ function createCoStudyServer(options = {}) {
 
         function getSocketUser() {
             if (!socket.data.userId) return null;
-            const user = users.get(socket.data.userId);
-            return user && !user.banned ? user : null;
+            // Re-verify the handshake token (epoch, ban, browser-session binding)
+            // on every use so a revoked account never acts as itself again.
+            return signedSessionId
+                ? resolveUserFromToken(handshakeCookies[AUTH_COOKIE_NAME], signedSessionId)
+                : null;
         }
 
         function getAuthenticatedSocketUser(socketRef) {
@@ -4342,7 +4531,10 @@ function createCoStudyServer(options = {}) {
             }
 
             const sanitizedPassword = sanitizeRoomPassword(password);
-            const shouldProtect = !!requirePassword && sanitizedPassword.length > 0;
+            const shouldProtect = !!requirePassword;
+            if (shouldProtect && !sanitizedPassword) {
+                return ackError(ack, 'ROOM_PASSWORD_REQUIRED');
+            }
             let passwordHash = null;
 
             if (shouldProtect) {
@@ -4354,6 +4546,11 @@ function createCoStudyServer(options = {}) {
                 }
             }
 
+            try {
+                await platform.registerRoom(roomCode, creator);
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
             let createdRoom = null;
             let stagedCreateEvents = [];
             try {
@@ -4483,6 +4680,11 @@ function createCoStudyServer(options = {}) {
             const room = rooms.get(normalizedRoom);
             if (!room || roomIsClosed(room)) {
                 return ackError(ack, 'ROOM_NOT_FOUND');
+            }
+            try {
+                if (!(await platform.canJoin(normalizedRoom, getSocketUser()))) return ackError(ack, 'ROOM_MEMBERSHIP_REQUIRED');
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
             }
             const joinNow = Date.now();
             if (Number.isFinite(room.expiresAt) && room.expiresAt <= joinNow) {
@@ -4840,7 +5042,6 @@ function createCoStudyServer(options = {}) {
                 // Profile perks relayed to peers via presence (user content,
                 // not chrome — single-accent rule stays intact client-side).
                 avatarColor: joiningUser ? joiningUser.avatarColor : null,
-                streakCurrent: joiningUser ? joiningUser.streak.current : null
             };
 
             // No await occurs between the liveness check above and this
@@ -4855,6 +5056,8 @@ function createCoStudyServer(options = {}) {
 
             socket.data.username = cleanName;
             socket.data.roomId = normalizedRoom;
+            socket.data.roomAccessCheckedAt = Date.now();
+            socket.data.roomAccessCheckedAt = Date.now();
             socket.join(normalizedRoom);
 
             try {
@@ -5001,6 +5204,15 @@ function createCoStudyServer(options = {}) {
             const membershipToken = issueMembershipToken(socket, normalizedRoom);
             userRecord.membershipToken = membershipToken;
 
+            if (joiningUser) {
+                // Attendance is analytics for circle sessions; the periodic sweep
+                // retries quietly if the platform database is briefly unavailable.
+                try {
+                    await platform.recordAttendance(normalizedRoom, joiningUser);
+                } catch {
+                    logger.error({ event: 'attendance_record_failed', roomId: normalizedRoom });
+                }
+            }
             const snapshot = roomSnapshot(normalizedRoom);
             ack({ ok: true, room: snapshot, membershipToken });
 
@@ -5273,7 +5485,7 @@ function createCoStudyServer(options = {}) {
 
         // Reports are silent: stored on the room for admin review, never
         // broadcast, never exposed through client-facing snapshots.
-        onRequest('report-user', (payload, ack) => {
+        onRequest('report-user', async (payload, ack) => {
             const currentRoom = socket.data.roomId;
             if (!currentRoom) {
                 return ackError(ack, 'ROOM_NOT_JOINED');
@@ -5311,6 +5523,15 @@ function createCoStudyServer(options = {}) {
                 createdAt: Date.now(),
                 status: 'open'
             };
+            try {
+                const reporterUser = getSocketUser();
+                const targetUser = users.get(io.sockets.sockets.get(targetId)?.data?.userId);
+                await platform.ensureUser(reporterUser);
+                await platform.ensureUser(targetUser);
+                await platform.recordCase(currentRoom, report, reporterUser?.id, targetUser?.id);
+            } catch {
+                return ackError(ack, 'SERVICE_UNAVAILABLE');
+            }
             if (!Array.isArray(room.reports)) room.reports = [];
             room.reports.push(report);
             if (room.reports.length > ROOM_REPORTS_LIMIT) {

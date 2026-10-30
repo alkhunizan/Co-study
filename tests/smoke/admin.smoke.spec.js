@@ -4,7 +4,9 @@ const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-clien
 const ADMIN_PATH = '/ops-smoke-test-1234';
 const ADMIN_PASSWORD = 'smoke-admin-password';
 
+
 let adminIpCounter = 180;
+
 
 async function createAdminPage(browser) {
     const forwardedIp = `203.0.113.${adminIpCounter}`;

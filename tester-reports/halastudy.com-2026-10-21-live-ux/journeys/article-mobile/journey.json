@@ -1,0 +1,118 @@
+{
+  "name": "Read a study guide then prepare a room",
+  "viewport": "mobile",
+  "completed": true,
+  "failedAt": null,
+  "steps": 9,
+  "totalMs": 9866,
+  "slowSteps": [
+    1,
+    2
+  ],
+  "errors": [],
+  "log": [
+    {
+      "n": 1,
+      "step": {
+        "goto": "https://halastudy.com/"
+      },
+      "ok": true,
+      "ms": 3042,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\article-mobile\\step-01.png"
+    },
+    {
+      "n": 2,
+      "step": {
+        "click": "القائمة"
+      },
+      "ok": true,
+      "targetSize": "44x44",
+      "ms": 4109,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\article-mobile\\step-02.png"
+    },
+    {
+      "n": 3,
+      "step": {
+        "click": "css=#mobile-menu a[href=\"/blog\"]"
+      },
+      "ok": true,
+      "targetSize": "350x48",
+      "ms": 844,
+      "url": "https://halastudy.com/blog",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\article-mobile\\step-03.png"
+    },
+    {
+      "n": 4,
+      "step": {
+        "expect": "من مكتب هلاستدي"
+      },
+      "ok": true,
+      "ms": 13,
+      "url": "https://halastudy.com/blog",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\article-mobile\\step-04.png"
+    },
+    {
+      "n": 5,
+      "step": {
+        "click": "css=a[href=\"/blog/study-with-me-online-arabic\"]"
+      },
+      "ok": true,
+      "targetSize": "350x262",
+      "ms": 681,
+      "url": "https://halastudy.com/blog/study-with-me-online-arabic",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\article-mobile\\step-05.png"
+    },
+    {
+      "n": 6,
+      "step": {
+        "expect": "ذاكر معي أونلاين"
+      },
+      "ok": true,
+      "ms": 22,
+      "url": "https://halastudy.com/blog/study-with-me-online-arabic",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\article-mobile\\step-06.png"
+    },
+    {
+      "n": 7,
+      "step": {
+        "click": "افتح غرفة"
+      },
+      "ok": true,
+      "targetSize": "119x53",
+      "ms": 1139,
+      "url": "https://halastudy.com/open",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\article-mobile\\step-07.png"
+    },
+    {
+      "n": 8,
+      "step": {
+        "expect": "غرفة تركيز جديدة"
+      },
+      "ok": true,
+      "ms": 16,
+      "url": "https://halastudy.com/open",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\article-mobile\\step-08.png"
+    },
+    {
+      "n": 9,
+      "step": {
+        "note": "Guide-to-room path reached. Stop before creating or joining a live room."
+      },
+      "ok": true,
+      "ms": 0,
+      "url": "https://halastudy.com/open",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\article-mobile\\step-09.png"
+    }
+  ]
+}

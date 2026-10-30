@@ -24,6 +24,7 @@ const REASON_MIN_LENGTH = 3;
 function createAdminRouter(deps) {
     const {
         config,
+        platform,
         rooms,
         users,
         io,
@@ -79,7 +80,11 @@ function createAdminRouter(deps) {
         }, /** @type {Record<string, string>} */ ({}));
     }
 
-    function requireAdmin(req, res, next) {
+    async function requireAdmin(req, res, next) {
+        if (platform?.enabled) {
+            await platform.ready;
+            if (await platform.access.hasStaff()) return res.status(403).json({ errorCode: 'NAMED_STAFF_REQUIRED' });
+        }
         const token = parseCookies(req.headers.cookie || '')[ADMIN_COOKIE_NAME];
         const verified = verifySessionToken(token, {
             secret: config.adminSessionSecret,
@@ -140,6 +145,10 @@ function createAdminRouter(deps) {
     });
 
     router.post('/api/login', async (req, res) => {
+        if (platform?.enabled) {
+            await platform.ready;
+            if (await platform.access.hasStaff()) return res.status(403).json({ errorCode: 'NAMED_STAFF_REQUIRED' });
+        }
         const requestIp = getRequestIp(req);
         // Per-IP lockout plus a global key so distributed guessing is blunted too.
         if (!applyHttpRateLimit(req, res, rateLimiters.adminLogin, requestIp)) return;
@@ -509,9 +518,9 @@ function createAdminRouter(deps) {
 
     // ---- system ----
 
-    router.post('/api/backup', requireAdmin, (req, res) => {
+    router.post('/api/backup', requireAdmin, async (req, res) => {
         try {
-            const result = backupScheduler.runBackup();
+            const result = await backupScheduler.runBackup();
             audit(req, 'backup_run', { type: 'system', id: 'backup', label: '' }, { files: result.files.length });
             res.json({ ok: true, files: result.files.map((file) => path.basename(file)), entries: result.entries });
         } catch (error) {

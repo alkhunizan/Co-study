@@ -1,0 +1,111 @@
+{
+  "notLoaded": true,
+  "variables": [
+    {
+      "name": "PORT",
+      "set": true
+    },
+    {
+      "name": "NODE_ENV",
+      "set": true
+    },
+    {
+      "name": "MESH_PARTICIPANT_LIMIT",
+      "set": true
+    },
+    {
+      "name": "VIDEO_PROVIDER",
+      "set": true
+    },
+    {
+      "name": "VIDEO_JOIN_DISABLED",
+      "set": true
+    },
+    {
+      "name": "MAX_GLOBAL_VIDEO_PARTICIPANTS",
+      "set": true
+    },
+    {
+      "name": "MAX_ROOM_VIDEO_PARTICIPANTS",
+      "set": true
+    },
+    {
+      "name": "MAX_ROOM_DURATION_MINUTES",
+      "set": true
+    },
+    {
+      "name": "VIDEO_RECORDING_ENABLED",
+      "set": true
+    },
+    {
+      "name": "VIDEO_SCREENSHARE_ENABLED",
+      "set": true
+    },
+    {
+      "name": "VIDEO_CHAT_ENABLED",
+      "set": true
+    },
+    {
+      "name": "VIDEO_DEFAULT_PRESET_NAME",
+      "set": true
+    },
+    {
+      "name": "CLOUDFLARE_ACCOUNT_ID",
+      "set": true
+    },
+    {
+      "name": "CLOUDFLARE_REALTIMEKIT_APP_ID",
+      "set": true
+    },
+    {
+      "name": "CLOUDFLARE_REALTIMEKIT_API_TOKEN",
+      "set": true
+    },
+    {
+      "name": "VIDEO_VIEWER_PRESET_NAME",
+      "set": true
+    },
+    {
+      "name": "PUBLIC_API_BASE_URL",
+      "set": true,
+      "host": "localhost",
+      "local": true
+    },
+    {
+      "name": "R2_ACCOUNT_ID",
+      "set": true
+    },
+    {
+      "name": "R2_ENDPOINT",
+      "set": true
+    },
+    {
+      "name": "R2_ACCESS_KEY_ID",
+      "set": true
+    },
+    {
+      "name": "R2_SECRET_ACCESS_KEY",
+      "set": true
+    },
+    {
+      "name": "R2_API_TOKEN",
+      "set": true
+    },
+    {
+      "name": "R2_BUCKET",
+      "set": true
+    },
+    {
+      "name": "CLOUDFLARE_TURN_KEY_ID",
+      "set": true
+    },
+    {
+      "name": "CLOUDFLARE_TURN_API_TOKEN",
+      "set": true
+    },
+    {
+      "name": "ICE_SERVERS_JSON",
+      "set": true
+    }
+  ]
+}

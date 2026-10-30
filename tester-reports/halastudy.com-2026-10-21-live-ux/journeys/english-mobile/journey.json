@@ -1,0 +1,84 @@
+{
+  "name": "Use English and reach account sign in",
+  "viewport": "mobile",
+  "completed": true,
+  "failedAt": null,
+  "steps": 6,
+  "totalMs": 11634,
+  "slowSteps": [
+    2,
+    3
+  ],
+  "errors": [],
+  "log": [
+    {
+      "n": 1,
+      "step": {
+        "goto": "https://halastudy.com/"
+      },
+      "ok": true,
+      "ms": 2708,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\english-mobile\\step-01.png"
+    },
+    {
+      "n": 2,
+      "step": {
+        "click": "القائمة"
+      },
+      "ok": true,
+      "targetSize": "44x44",
+      "ms": 4114,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\english-mobile\\step-02.png"
+    },
+    {
+      "n": 3,
+      "step": {
+        "click": "EN"
+      },
+      "ok": true,
+      "targetSize": "40x44",
+      "ms": 4113,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\english-mobile\\step-03.png"
+    },
+    {
+      "n": 4,
+      "step": {
+        "click": "css=#auth-entry"
+      },
+      "ok": true,
+      "targetSize": "45x21",
+      "ms": 684,
+      "url": "https://halastudy.com/account.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\english-mobile\\step-04.png"
+    },
+    {
+      "n": 5,
+      "step": {
+        "expect": "Welcome back"
+      },
+      "ok": true,
+      "ms": 14,
+      "url": "https://halastudy.com/account.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\english-mobile\\step-05.png"
+    },
+    {
+      "n": 6,
+      "step": {
+        "note": "English account entry reached. Stop before authentication; no login or OAuth action."
+      },
+      "ok": true,
+      "ms": 1,
+      "url": "https://halastudy.com/account.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\english-mobile\\step-06.png"
+    }
+  ]
+}

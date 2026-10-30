@@ -6,8 +6,10 @@
     "scripts/cloudflare/*.js",
     "public/js/**/*.js",
     "tests/integration/*.test.js",
+    "tests/postgres/*.test.js",
     "tests/helpers/fake-sfu-fixture.js",
-    "tests/helpers/fake-realtimekit-fixture.js"
+    "tests/helpers/fake-realtimekit-fixture.js",
+    "tests/helpers/payment-review-preload.js"
   ],
   "project": [
     "*.js",
@@ -17,6 +19,7 @@
     "tests/**/*.js"
   ],
   "ignore": [
-    "ecosystem.config.js"
+    "ecosystem.config.js",
+    "_archive/**"
   ]
 }

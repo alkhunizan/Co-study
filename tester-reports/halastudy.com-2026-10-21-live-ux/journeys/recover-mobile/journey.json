@@ -1,0 +1,68 @@
+{
+  "name": "Recover access to a returning account",
+  "viewport": "mobile",
+  "completed": true,
+  "failedAt": null,
+  "steps": 5,
+  "totalMs": 3466,
+  "slowSteps": [],
+  "errors": [],
+  "log": [
+    {
+      "n": 1,
+      "step": {
+        "goto": "https://halastudy.com/"
+      },
+      "ok": true,
+      "ms": 2715,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\recover-mobile\\step-01.png"
+    },
+    {
+      "n": 2,
+      "step": {
+        "click": "تسجيل الدخول"
+      },
+      "ok": true,
+      "targetSize": "87x21",
+      "ms": 731,
+      "url": "https://halastudy.com/account.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\recover-mobile\\step-02.png"
+    },
+    {
+      "n": 3,
+      "step": {
+        "expect": "أهلاً من جديد"
+      },
+      "ok": true,
+      "ms": 15,
+      "url": "https://halastudy.com/account.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\recover-mobile\\step-03.png"
+    },
+    {
+      "n": 4,
+      "step": {
+        "scroll": "bottom"
+      },
+      "ok": true,
+      "ms": 5,
+      "url": "https://halastudy.com/account.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\recover-mobile\\step-04.png"
+    },
+    {
+      "n": 5,
+      "step": {
+        "note": "Full-page account inventory has no recovery/reset link. Navigation completes, but account-recovery goal is abandoned. Never type a password or submit sign-in."
+      },
+      "ok": true,
+      "ms": 0,
+      "url": "https://halastudy.com/account.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\recover-mobile\\step-05.png"
+    }
+  ]
+}

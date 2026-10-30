@@ -1,0 +1,58 @@
+﻿[
+    {
+        "path":  ".env.example",
+        "sha256":  "A73AD9FFB56A0E21A01B58E4BD8A9CFDCD251C5DC7DF1C1A682DEAFAF6FD4B23"
+    },
+    {
+        "path":  "README.md",
+        "sha256":  "1B22B7D2B17075C786CF9A8CF56D3B4E0CC651EBBB1D00D3117F4F48422AC929"
+    },
+    {
+        "path":  "README_AR.md",
+        "sha256":  "EC18E4B07D8F82001A126AA4E6DD7C207798FEA95E9A59A49F857AD36FD905E1"
+    },
+    {
+        "path":  "co-study-server.js",
+        "sha256":  "98F1BA00A0DE96597BF7CB5AFEEABF8BECEB12F8E4937787384978BB20A99BCA"
+    },
+    {
+        "path":  "platform.html",
+        "sha256":  "A028B341D55E10A0CCE97F7B989F6D0917AAFA4B7F6EAEBFFA98118E3D7F3095"
+    },
+    {
+        "path":  "public/js/platform.js",
+        "sha256":  "7A8AE7AC0A882ECBE2A51873A6BEE5723DFB79E7CC31A6D8E93024291034AA52"
+    },
+    {
+        "path":  "scripts/check-platform.js",
+        "sha256":  "EEBAF3B8CE3EEA78E8A6DB9A53913E34D259F0AFB37596AADB4DFA697E4701AB"
+    },
+    {
+        "path":  "scripts/preview-platform.js",
+        "sha256":  "3552C072CFC67ACADAADB50CA7135CB8AB41E5A389BAD0AD5C168CF7849C1EF2"
+    },
+    {
+        "path":  "services/platform/billing.js",
+        "sha256":  "B5933AE38BC729BC9CB3DDC7B458B7077CF6EED84687717E470F729B51D20057"
+    },
+    {
+        "path":  "services/platform/catalog.js",
+        "sha256":  "2E20E9BB7D2556D116DE43B41A8BF8FA40597368BA75D1409057591E7A58115E"
+    },
+    {
+        "path":  "services/platform/database.js",
+        "sha256":  "E9A59011BBF16CC7514B14E808F84A0F2101280FDCC3C07DBAC1722B5F999BB1"
+    },
+    {
+        "path":  "services/platform/index.js",
+        "sha256":  "22744D06C5FE626F1D81EDC756262C207A1D2C61964F869D89BB92D83EDBF9C2"
+    },
+    {
+        "path":  "services/platform/maintenance.js",
+        "sha256":  "E216D038106F15EE081B5405A7D4954B78531A519CE1D590E438A38DEAD0BCAA"
+    },
+    {
+        "path":  "services/platform/routes.js",
+        "sha256":  "4814458330B6FAD4C967B96E0C7100CE76A5880047B59EDB76E5D59AD1DD1A82"
+    }
+]

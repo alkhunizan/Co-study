@@ -1,0 +1,510 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\playwright.config.js",
+    "rootDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/candidate/tests/smoke",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\helpers\\playwright-global-setup.js",
+    "globalTeardown": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\helpers\\playwright-global-teardown.js",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/artifacts/after-recovery-browser/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-viber-2026-10-23/candidate/tests/smoke",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "account-errors.smoke.spec.js",
+      "file": "account-errors.smoke.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "account errors are useful in ar and keep signup details for retry",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1347,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:42:13.085Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1f6d0137b59327ef0f69-d504a022b08c6e246289",
+          "file": "account-errors.smoke.spec.js",
+          "line": 4,
+          "column": 5
+        },
+        {
+          "title": "account errors are useful in en and keep signup details for retry",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1090,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:42:14.735Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1f6d0137b59327ef0f69-312458230aa0e9498e6c",
+          "file": "account-errors.smoke.spec.js",
+          "line": 4,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "network-timeout.smoke.spec.js",
+      "file": "network-timeout.smoke.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "stalled room lookup releases Join with a useful error and preserves the draft",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 26562,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#join-feedback')\nExpected substring: \u001b[32m\"not found\"\u001b[39m\nReceived string:    \u001b[31m\"That room code does not exist.\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#join-feedback')\u001b[22m\n\u001b[2m    14 × locator resolved to <p id=\"join-feedback\" class=\"form-feedback error\">That room code does not exist.</p>\u001b[22m\n\u001b[2m       - unexpected value \"That room code does not exist.\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#join-feedback')\nExpected substring: \u001b[32m\"not found\"\u001b[39m\nReceived string:    \u001b[31m\"That room code does not exist.\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#join-feedback')\u001b[22m\n\u001b[2m    14 × locator resolved to <p id=\"join-feedback\" class=\"form-feedback error\">That room code does not exist.</p>\u001b[22m\n\u001b[2m       - unexpected value \"That room code does not exist.\"\u001b[22m\n\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js:17:50",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js",
+                      "column": 50,
+                      "line": 17
+                    },
+                    "snippet": "  15 |     await page.unroute('**/api/rooms/ABC123');\n  16 |     await page.click('#join-form button[type=\"submit\"]');\n> 17 |     await expect(page.locator('#join-feedback')).toHaveText('That room code does not exist.');\n     |                                                  ^\n  18 | });\n  19 |\n  20 | test('stalled room runtime configuration settles and releases RTC readiness', async ({ page }) => {"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js",
+                        "column": 50,
+                        "line": 17
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#join-feedback')\nExpected substring: \u001b[32m\"not found\"\u001b[39m\nReceived string:    \u001b[31m\"That room code does not exist.\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#join-feedback')\u001b[22m\n\u001b[2m    14 × locator resolved to <p id=\"join-feedback\" class=\"form-feedback error\">That room code does not exist.</p>\u001b[22m\n\u001b[2m       - unexpected value \"That room code does not exist.\"\u001b[22m\n\n\n  15 |     await page.unroute('**/api/rooms/ABC123');\n  16 |     await page.click('#join-form button[type=\"submit\"]');\n> 17 |     await expect(page.locator('#join-feedback')).toHaveText('That room code does not exist.');\n     |                                                  ^\n  18 | });\n  19 |\n  20 | test('stalled room runtime configuration settles and releases RTC readiness', async ({ page }) => {\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js:17:50"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:42:15.847Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\after-recovery-browser\\results\\network-timeout.smoke-stal-7eace-ror-and-preserves-the-draft\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\after-recovery-browser\\results\\network-timeout.smoke-stal-7eace-ror-and-preserves-the-draft\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\after-recovery-browser\\results\\network-timeout.smoke-stal-7eace-ror-and-preserves-the-draft\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\artifacts\\after-recovery-browser\\results\\network-timeout.smoke-stal-7eace-ror-and-preserves-the-draft\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\candidate\\tests\\smoke\\network-timeout.smoke.spec.js",
+                    "column": 50,
+                    "line": 17
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "47b951b3223b3b240d89-457ed0a372a6b667374f",
+          "file": "network-timeout.smoke.spec.js",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "stalled room runtime configuration settles and releases RTC readiness",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 15825,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:42:44.256Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47b951b3223b3b240d89-3ff6f1dfd05651c9900b",
+          "file": "network-timeout.smoke.spec.js",
+          "line": 20,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "study-tools.smoke.spec.js",
+      "file": "study-tools.smoke.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "an opted-in reminder retries after a transient refresh failure without exposing stale details",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5878,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:43:00.507Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-75b1a558adbbc57e97bf",
+          "file": "study-tools.smoke.spec.js",
+          "line": 6,
+          "column": 1
+        },
+        {
+          "title": "a routine closed before another surface pauses keeps its remaining time on return",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5281,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:43:06.398Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-eaf1179ba9111cdb76de",
+          "file": "study-tools.smoke.spec.js",
+          "line": 59,
+          "column": 1
+        },
+        {
+          "title": "F01-F14 private planning, lost response, routines, task-linked focus, reflection and journal work end to end",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9728,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:43:11.692Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-4e04759fcd96634d3b72",
+          "file": "study-tools.smoke.spec.js",
+          "line": 132,
+          "column": 1
+        },
+        {
+          "title": "F15-F20 favorite, RSVP, calendar, in-app reminder and private resource shelf work across members",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 150000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9024,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:43:21.434Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-062b57552fecfe247b17",
+          "file": "study-tools.smoke.spec.js",
+          "line": 271,
+          "column": 1
+        },
+        {
+          "title": "planner supports Arabic/English, both themes, keyboard, narrow widths, zoom, drafts, history and recovery",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 150000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 32255,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:43:30.473Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-5b2ec2a73d7af0328dc5",
+          "file": "study-tools.smoke.spec.js",
+          "line": 419,
+          "column": 1
+        },
+        {
+          "title": "task attachment, routine pause across tabs and stale-account drafts keep the right identity",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8917,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:44:02.747Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-496ec8048d877ec43159",
+          "file": "study-tools.smoke.spec.js",
+          "line": 491,
+          "column": 1
+        },
+        {
+          "title": "a delayed background journal response cannot overwrite a newer search",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4796,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-23T03:44:11.681Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-501f4ef59b5ee8b5d426",
+          "file": "study-tools.smoke.spec.js",
+          "line": 603,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-23T03:42:10.032Z",
+    "duration": 126856.092,
+    "expected": 10,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

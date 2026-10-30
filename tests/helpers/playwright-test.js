@@ -59,6 +59,15 @@ async function createTestContext(browser, options) {
     return context;
 }
 
+/* Room tool panels (shared board, chat) are collapsed <details> on phone
+ * layouts; open one before typing into it, the way a visitor would. */
+async function openRoomPanel(page, selector) {
+    const panel = page.locator(selector);
+    if (await panel.evaluate((element) => !(/** @type {HTMLDetailsElement} */ (element)).open)) {
+        await panel.locator('> summary').click();
+    }
+}
+
 function gotoTestPage(page, url, options = {}) {
     return page.goto(url, {
         waitUntil: 'domcontentloaded',
@@ -79,6 +88,7 @@ module.exports = {
     gotoTestPage,
     installNetworkGuard,
     isExternalNetworkUrl,
+    openRoomPanel,
     test,
     waitForTestUrl
 };

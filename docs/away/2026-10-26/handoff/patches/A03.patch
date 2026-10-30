@@ -1,0 +1,477 @@
+diff --git a/docs/away/2026-10-26/A03/RESULT.md b/docs/away/2026-10-26/A03/RESULT.md
+new file mode 100644
+index 0000000..41cd9b2
+--- /dev/null
++++ b/docs/away/2026-10-26/A03/RESULT.md
+@@ -0,0 +1,59 @@
++# A03: Workspace refresh and schedule state
++
++Status: implemented and verified locally; branch qualification completed with the existing dependency advisory and expired-date browser fixture still failing.
++Source commit: `eceecddba8e089274a8c206fef0a406bfa3ee09a`.
++Branch: `away/2026-10-26-1834-A03`.
++Runtime source hashes: [source-hashes.json](source-hashes.json).
++
++## What changed
++
++`public/js/platform.js` now keeps asynchronous workspace results in the correct order and view. A delayed refresh cannot overwrite newer room data, show its failure on another page, or replace a focus state updated since that refresh began. Translating or refreshing the same circle retains the selected scheduling room; an unavailable selection becomes invalid instead of silently switching to another room.
++
++The only application file changed is `public/js/platform.js`. There are no backend, schema, authorization, billing, dependency, styling or configuration changes. Test setup uses the existing local payment simulator solely to create a synthetic circle owner.
++
++## Acceptance and evidence
++
++| User-observable acceptance | Before | After |
++| --- | --- | --- |
++| A delayed Groups failure stays off Account; an active-view failure is localized and navigating back after recovery reloads data. | EN 1440 and AR 390 both display the stale failure on Account. | Pass in EN/AR at 390/1440 with light/dark coverage. |
++| Newer refresh data survives a later older result; a superseded failure cannot replace a successful same-view retry. | Older room name replaces the newer room name. | Both controls pass. |
++| Starting focus while a workspace read is pending retains the active focus UI and supports pause/complete. | UI changes to “Ready when you are” while the independent server read says active. | Active UI retained; real pause/complete pass. |
++| Translating a schedule draft preserves its selected room and text through save. A vanished room requires an explicit valid selection. | Arabic switch silently selects the first room. | Draft preserved; missing-room native validation passes; independent server assertion confirms one session in the chosen room. |
++
++- Original three failing cases: `../evidence/a03-before.log` and `a03-before-results/`.
++- Focus and schedule failing cases: `../evidence/a03-nearby-before.log` and `a03-nearby-before-results/`.
++- Final eight cases: `../evidence/a03-verified-targeted.log`, 8 passed in 44.5 seconds; screenshots and JSON under `a03-verified-targeted-results/` and `a03-verified-targeted-browser.json`.
++- The intermediate six-case run passed five; case six hit the existing five-signups/IP fixture limit. The test fixture now uses distinct reserved synthetic proxy addresses. The production rate limiter is unchanged.
++- The initial test typecheck found uninitialized deferred callback types. Corrected; subsequent typecheck passed.
++- Server PID/stop receipt: [server.json](server.json). Only owned fixture processes are stopped. No production request was made.
++
++## Visual and quick review
++
++Visually inspected the final Arabic mobile recovery, English mobile dark error, Arabic desktop dark Account and Arabic mobile scheduling screenshots. Text stays readable, controls remain reachable, and the intended room and retained Arabic title are visible. The navigation cases also assert no horizontal overflow. Browsers are deliberately offline: these images verify the fallback-font state, not external font availability.
++
++The exact application diff and flow-relevant regions of its one-hop dependencies were reviewed: `platform.html`, `halastudy-core.js`, `focus-client.js`, `study-workspace.js`, `platform-copy.js`, `platform.css` and the corresponding platform API handlers. Existing server authentication/ownership checks remain in force; there are no new endpoints, network destinations or public data fields. The core request helper still owns its 15-second deadline. Rendering uses existing text nodes and status announcements. No P0/P1 introduced by the changed lines was found.
++
++Sibling checks: navigation errors capture their origin view; latest-success and latest-failure guards are paired; focus restoration respects later actions/heartbeats; same-circle draft retention does not carry a removed room into submission. The existing circle-detail request counter remains unchanged.
++
++## Qualification and limitations
++
++- Final syntax, typecheck, lint and dead-code checks passed. All 169 integration tests passed (270.5 seconds, no skips); `../evidence/a03-final-integration.log`.
++- Full browser qualification: 90 passed, 1 skipped, 1 failed in 13.6 minutes; `../evidence/a03-final-browser.log` and `a03-final-browser-results/`. All eight A03 cases passed again. Both baseline camera cases and the broad responsive/accessibility matrices passed. The sole failure is the pre-existing `ux-return.smoke.spec.js:118` fixture expecting a session on October 24, 2026, which is now in the past. The skipped case explicitly requires online fonts. The runner exited 1; this is not an all-green release gate.
++- The integration launcher was started before the source commit was created, so its command receipt names the baseline HEAD. The tested working-copy source is recorded by `source-hashes.json`; those hashes still match the frozen application and test files in `eceecdd`.
++- No frontend build command exists in this vanilla HTML/JS project.
++- The final production audit independently reports one existing high-severity `body-parser` advisory, GHSA-27r3-jxmh-p828, and exits 1. No dependency upgrade was attempted under the away constraints. Evidence: `../evidence/a03-final-audit-prod.log`.
++- Local commit only. Remote publication is held because the away guard rejected the isolated clone remote change. No push, merge or deployment occurred.
++- Existing uncommitted original-checkout files were not modified. Hosted providers, production data and font availability remain outside this local verification.
++- Deployment freshness: the protected `platform.html` still uses the existing script version query and `/js` responses cache for one hour. Release integration should account for that cache window or reconcile the version query with the in-flight HTML work.
++
++## Work log
++
++2026-10-26: Reproduced asynchronous navigation/refresh failures, verified their cause, and made the bounded one-file correction. Additional focused checks reproduced and fixed lost focus presentation and schedule-room draft selection. Completed the coordinated branch gate and returned its exact results to the parent. The final full run used descendant documentation commit `c6a7140`; application and test source hashes remain those in `eceecdd`. The owned A03 fixture process, PID 10984, stopped and is no longer present.
++
++## Independent parent-change review
++
++Read A01 `88ef3d2` and A04 `2981761` separately without changing or combining their sources. A01's new checklist IDs remain stable across an identical retry and fit the server's 40-character limit. Server normalized-equality handling precedes version rejection, so an already-committed identical update can be acknowledged on retry. A04's platform-state snapshot is compatible with A03's successful-render event and prevents language-only renders from clearing planner feedback.
++
++One concrete A04 issue was returned to the parent: an obsolete `load()` failure returns `false`, and the new form wrapper then overwrites a newer successful refresh's status with `studySavedRefreshFailed`. A controlled Node VM executed the exact unmodified `form()` and `load()` source from `2981761`: after newer success the message was `studySaved`; after releasing the older failure it became `studySavedRefreshFailed`, even though the guarded `failure()` callback ran zero times. [Proof JSON](reviews/a04-stale-feedback.json). The parent owns the reproduction/correction in A04; A03 application source remains unchanged.
++
++The parent's subsequent working-tree correction was reviewed read-only against `2981761`. Its distinct obsolete sentinel reaches the form wrapper through the primary load, journal load, reflection and circle-resource paths; current failures retain their error outcome while stale success and failure are ignored. Both new overlap tests cover the opposing feedback directions. No further concrete issue was found in that correction. This is a source review, not a claim that A04's full gate has completed.
+diff --git a/docs/away/2026-10-26/A03/reviews/a04-stale-feedback.json b/docs/away/2026-10-26/A03/reviews/a04-stale-feedback.json
+new file mode 100644
+index 0000000..694c42a
+--- /dev/null
++++ b/docs/away/2026-10-26/A03/reviews/a04-stale-feedback.json
+@@ -0,0 +1,35 @@
++{
++  "source": "2981761a5d60cbe7cd09a5a08c1b0fa9b8a65d99",
++  "scope": "Exact form() and load() functions extracted unchanged; controlled local API outcomes",
++  "afterNewerSuccess": {
++    "key": "studySaved",
++    "error": false
++  },
++  "afterOlderFailure": {
++    "key": "studySavedRefreshFailed",
++    "error": true
++  },
++  "loadFailureCalls": 0,
++  "allMessages": [
++    {
++      "key": "studyLoading",
++      "error": false
++    },
++    {
++      "key": "studyLoading",
++      "error": false
++    },
++    {
++      "key": "",
++      "error": false
++    },
++    {
++      "key": "studySaved",
++      "error": false
++    },
++    {
++      "key": "studySavedRefreshFailed",
++      "error": true
++    }
++  ]
++}
+\ No newline at end of file
+diff --git a/docs/away/2026-10-26/A03/server.json b/docs/away/2026-10-26/A03/server.json
+new file mode 100644
+index 0000000..b4366e3
+--- /dev/null
++++ b/docs/away/2026-10-26/A03/server.json
+@@ -0,0 +1 @@
++{"pid":10984,"baseUrl":"http://127.0.0.1:62201","state":"stopped"}
+\ No newline at end of file
+diff --git a/docs/away/2026-10-26/A03/source-hashes.json b/docs/away/2026-10-26/A03/source-hashes.json
+new file mode 100644
+index 0000000..720c271
+--- /dev/null
++++ b/docs/away/2026-10-26/A03/source-hashes.json
+@@ -0,0 +1,10 @@
++﻿[
++    {
++        "path":  "public/js/platform.js",
++        "sha256":  "6409289a9cd70c8e3cac0b5680578a8274c0e721aab6dfdd6b681796925ef4f2"
++    },
++    {
++        "path":  "tests/smoke/workspace-away-refresh.smoke.spec.js",
++        "sha256":  "251c1501661ee8b762a879e9a1a0775982ab04878d9d68355b0fa67a84a2ffd9"
++    }
++]
+diff --git a/public/js/platform.js b/public/js/platform.js
+index d471672..ba4d02d 100644
+--- a/public/js/platform.js
++++ b/public/js/platform.js
+@@ -9,6 +9,7 @@
+     let ownedRooms = [];
+     let selectedCircle = null;
+     let identityKnown = false;
++    let refreshRequest = 0;
+     let circleRequest = 0;
+     let requestedCircleId = null;
+     let checkout = null;
+@@ -199,6 +200,8 @@
+     }
+     async function showCircle(circle) {
+         const request = ++circleRequest;
++        const sameCircle = requestedCircleId === circle.id;
++        const selectedRoom = sameCircle ? $('session-room').value : '';
+         requestedCircleId = circle.id;
+         selectedCircle = null;
+         window.dispatchEvent(new CustomEvent('halacirclechange', { detail: null }));
+@@ -222,6 +225,7 @@
+         $('session-room').replaceChildren(...ownedRooms.filter((room) => room.exists && (!room.cohort_id || room.cohort_id === circle.id)).map((room) => {
+             const option = node('option', room.name); option.value = room.id; return option;
+         }));
++        if (sameCircle) $('session-room').value = selectedRoom;
+         $('session-create').hidden = !supervisor || !$('session-room').options.length;
+         $('session-room-hint').hidden = !supervisor || !!$('session-room').options.length;
+         fill('circle-members', members.members.map((member) => {
+@@ -480,17 +484,31 @@
+             if (heading instanceof HTMLElement) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
+         }
+         if (currentView === 'staff' && state) void renderStaff().catch((error) => noticeError(error, 'staff'));
+-        if (focus && user && ['home','circles'].includes(currentView)) void refresh().catch((error) => noticeError(error,currentView));
++        if (focus && user && ['home','circles'].includes(currentView)) {
++            const view = currentView;
++            void refresh().catch((error) => noticeError(error, view));
++        }
+         if (focus && user && currentView === 'planner') window.dispatchEvent(new CustomEvent('halastudyrefresh'));
+     }
+     async function refresh() {
+         if (!user) return;
+-        [state, progress, { rooms: ownedRooms }, dashboard] = await Promise.all([api('GET', '/me'), api('GET', '/progress'), api('GET', '/rooms'), api('GET', '/dashboard')]);
++        const request = ++refreshRequest;
++        const focusAtStart = global.HalaFocus.current();
++        let result;
++        try {
++            result = await Promise.all([api('GET', '/me'), api('GET', '/progress'), api('GET', '/rooms'), api('GET', '/dashboard')]);
++        } catch (error) {
++            if (request !== refreshRequest) return;
++            throw error;
++        }
++        if (request !== refreshRequest) return;
++        [state, progress, { rooms: ownedRooms }, dashboard] = result;
+         if (selectedCircle && !state.cohorts.some(circle => circle.id === selectedCircle.id)) {
+             selectedCircle = null; circleRequest++; requestedCircleId = null; $('circle-detail').hidden = true;
+             window.dispatchEvent(new CustomEvent('halacirclechange', { detail:null }));
+         }
+-        global.HalaFocus.restore(progress.current);
++        // A focus action or heartbeat can finish while an unrelated workspace read is pending.
++        if (global.HalaFocus.current() === focusAtStart) global.HalaFocus.restore(progress.current);
+         render();
+         showView();
+     }
+diff --git a/tests/smoke/workspace-away-refresh.smoke.spec.js b/tests/smoke/workspace-away-refresh.smoke.spec.js
+new file mode 100644
+index 0000000..473da26
+--- /dev/null
++++ b/tests/smoke/workspace-away-refresh.smoke.spec.js
+@@ -0,0 +1,276 @@
++const { test, expect } = require('@playwright/test');
++const fs = require('node:fs');
++const path = require('node:path');
++const { startServer } = require('../helpers/server-control');
++const { signupUser } = require('../helpers/auth-helpers');
++const { connectSocket, emitAck, closeSocket } = require('../helpers/socket-client');
++
++const evidence = path.resolve('docs/away/2026-10-26/A03');
++let server;
++let client = 10;
++
++test.beforeAll(async () => {
++    fs.mkdirSync(evidence, { recursive: true });
++    server = await startServer({ env: {
++        PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh',
++        BILLING_MODE: 'test', BILLING_PROVIDER: 'simulator', TRUST_PROXY: '1',
++    } });
++    fs.writeFileSync(path.join(evidence, 'server.json'), JSON.stringify({ pid: server.pid, baseUrl: server.baseUrl, state: 'running' }));
++});
++test.afterAll(async () => {
++    if (server) {
++        await server.stop();
++        fs.writeFileSync(path.join(evidence, 'server.json'), JSON.stringify({ pid: server.pid, baseUrl: server.baseUrl, state: 'stopped' }));
++    }
++});
++
++async function member(page, language) {
++    const address = `203.0.113.${client++}`;
++    const account = await signupUser({ request: (url, options) => server.request(url, {
++        ...options, headers: { ...options.headers, 'X-Forwarded-For': address },
++    }) }, { displayName: 'Workspace fixture' });
++    await page.context().addCookies(account.cookie.split(';').map((part) => {
++        const [name, ...value] = part.trim().split('=');
++        return { name, value: value.join('='), url: server.baseUrl };
++    }));
++    await page.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language);
++    await page.goto(`${server.baseUrl}/app#home`);
++    await expect(page.locator('#loading')).toBeHidden();
++    await expect(page.locator('[data-panel=home]')).toBeVisible();
++    await expect(page.locator('#study-status')).toBeHidden();
++    return account;
++}
++
++async function settleRefreshes(page) {
++    await page.evaluate(async () => {
++        await Promise.all(/** @type {any} */ (window).workspaceRequests);
++        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
++    });
++    await expect(page.locator('#study-status')).toBeHidden();
++}
++
++async function observeRefreshes(page) {
++    await page.evaluate(() => {
++        const g = /** @type {any} */ (window);
++        const request = g.HalaCore.requestJson;
++        g.workspaceRequests = [];
++        g.HalaCore.requestJson = (...args) => {
++            const pending = request(...args);
++            if (['/api/platform/me', '/api/platform/progress', '/api/platform/rooms', '/api/platform/dashboard'].includes(args[1])) {
++                g.workspaceRequests.push(pending.catch(() => null));
++            }
++            return pending;
++        };
++    });
++}
++
++for (const [language, width, theme] of [['en', 1440, 'light'], ['ar', 390, 'light'], ['en', 390, 'dark'], ['ar', 1440, 'dark']]) {
++    test(`navigation failure remains scoped to its original view and retries (${language}, ${width}, ${theme})`, async ({ page }, info) => {
++        await page.setViewportSize({ width: Number(width), height: 1000 });
++        await member(page, language);
++        if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('#theme-toggle').click();
++        await observeRefreshes(page);
++        let entered;
++        const requested = new Promise((resolve) => { entered = resolve; });
++        let release = () => {};
++        const held = new Promise((resolve) => { release = () => resolve(undefined); });
++        let fail = true;
++        await page.route('**/api/platform/dashboard', async (route) => {
++            if (!fail) return route.continue();
++            entered();
++            await held;
++            await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'PERSISTENCE_UNAVAILABLE' }) });
++        });
++        try {
++            await page.locator('.platform-nav [data-view=circles]').click();
++            await requested;
++            await page.locator('.platform-nav [data-view=account]').click();
++            release();
++            await settleRefreshes(page);
++            await page.screenshot({ path: info.outputPath('after-navigation.png'), fullPage: true });
++            await expect(page.locator('[data-panel=account]')).toBeVisible();
++            await expect(page.locator('#feedback')).toBeHidden();
++            await expect(page.locator('html')).toHaveAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
++            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
++
++            // Positive failure control: a failure on the active view must remain visible and localized.
++            await page.locator('.platform-nav [data-view=circles]').click();
++            await settleRefreshes(page);
++            await expect(page.locator('#feedback')).toContainText(language === 'ar' ? 'تعذّر' : 'could not');
++            await expect(page.locator('#feedback')).not.toContainText('PERSISTENCE_UNAVAILABLE');
++            await page.screenshot({ path: info.outputPath('active-view-error.png'), fullPage: true });
++
++            // Returning after recovery refreshes real data and clears the old notice.
++            fail = false;
++            await page.locator('.platform-nav [data-view=account]').click();
++            await page.locator('.platform-nav [data-view=circles]').click();
++            await settleRefreshes(page);
++            await expect(page.locator('#feedback')).toBeHidden();
++            await expect(page.locator('#circle-list .empty')).toBeVisible();
++            await page.screenshot({ path: info.outputPath('recovered-view.png'), fullPage: true });
++        } finally { release(); }
++    });
++}
++
++test('an older workspace refresh cannot replace newer room data', async ({ page }, info) => {
++    await member(page, 'en');
++    await observeRefreshes(page);
++    const staleRoom = { id: 'OLDER1', name: 'Older room response', exists: true, can_manage: false };
++    const latestRoom = { id: 'NEWER1', name: 'Newer room response', exists: true, can_manage: false };
++    let entered;
++    const requested = new Promise((resolve) => { entered = resolve; });
++    let release = () => {};
++    const held = new Promise((resolve) => { release = () => resolve(undefined); });
++    let calls = 0;
++    await page.route('**/api/platform/rooms', async (route) => {
++        const first = ++calls === 1;
++        if (first) { entered(); await held; }
++        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ rooms: [first ? staleRoom : latestRoom] }) });
++    });
++    try {
++        await page.locator('.platform-nav [data-view=circles]').click();
++        await requested;
++        await page.locator('.platform-nav [data-view=home]').click();
++        await expect(page.locator('#owned-rooms')).toContainText(latestRoom.name);
++        release();
++        await settleRefreshes(page);
++        await page.screenshot({ path: info.outputPath('latest-response.png'), fullPage: true });
++        await expect(page.locator('#owned-rooms')).toContainText(latestRoom.name);
++        await expect(page.locator('#owned-rooms')).not.toContainText(staleRoom.name);
++        expect(calls).toBe(2);
++    } finally { release(); }
++});
++
++test('an older failure cannot replace a successful retry on the same view', async ({ page }) => {
++    await member(page, 'en');
++    await observeRefreshes(page);
++    let entered;
++    const requested = new Promise((resolve) => { entered = resolve; });
++    let release = () => {};
++    const held = new Promise((resolve) => { release = () => resolve(undefined); });
++    let calls = 0;
++    await page.route('**/api/platform/rooms', async (route) => {
++        if (++calls !== 1) return route.continue();
++        entered();
++        await held;
++        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'PERSISTENCE_UNAVAILABLE' }) });
++    });
++    try {
++        await page.locator('.platform-nav [data-view=home]').click();
++        await requested;
++        const retried = page.waitForResponse((response) => response.url().endsWith('/api/platform/rooms') && response.status() === 200);
++        await page.locator('.platform-nav [data-view=home]').click();
++        await retried;
++        release();
++        await settleRefreshes(page);
++        await expect(page.locator('#feedback')).toBeHidden();
++        expect(calls).toBe(2);
++    } finally { release(); }
++});
++
++test('a pending workspace refresh cannot erase a newly started focus session', async ({ page }, info) => {
++    const account = await member(page, 'en');
++    await observeRefreshes(page);
++    let entered;
++    const requested = new Promise((resolve) => { entered = resolve; });
++    let release = () => {};
++    const held = new Promise((resolve) => { release = () => resolve(undefined); });
++    let calls = 0;
++    await page.route('**/api/platform/rooms', async (route) => {
++        if (++calls !== 1) return route.continue();
++        const response = await route.fetch();
++        entered();
++        await held;
++        await route.fulfill({ response });
++    });
++    try {
++        await page.locator('.platform-nav [data-view=home]').click();
++        await requested;
++        // The old progress response is complete; only the unrelated room request remains held.
++        await page.evaluate(async () => {
++            const requests = /** @type {any} */ (window).workspaceRequests;
++            await Promise.all([requests[0], requests[1], requests[3]]);
++        });
++        await page.locator('.platform-nav [data-view=progress]').click();
++        await page.locator('#focus-start').click();
++        await expect(page.locator('#focus-state')).toHaveText('Focusing');
++        release();
++        await settleRefreshes(page);
++        await page.screenshot({ path: info.outputPath('focus-after-late-refresh.png'), fullPage: true });
++        const current = await server.request('/api/platform/progress', { headers: { Cookie: account.cookie } });
++        expect(current.body.current.state).toBe('active');
++        await expect(page.locator('#focus-state')).toHaveText('Focusing');
++        await expect(page.locator('#focus-start')).toBeHidden();
++        await page.locator('#focus-pause').click();
++        await expect(page.locator('#focus-state')).toHaveText('Paused');
++        await page.locator('#focus-finish').click();
++        await expect(page.locator('#focus-recap')).toBeVisible();
++    } finally { release(); }
++});
++
++test('translating a circle schedule draft preserves its selected room through save', async ({ page }, info) => {
++    const account = await member(page, 'en');
++    const headers = { Cookie: account.cookie };
++    const checkout = await server.request('/api/platform/billing/checkout', { method: 'POST', headers, body: {} });
++    expect(checkout.status).toBe(200);
++    const activated = await server.request(`/api/platform/billing/checkout/${checkout.body.id}/complete`, {
++        method: 'POST', headers, body: { token: checkout.body.token, outcome: 'success' },
++    });
++    expect(activated.status).toBe(200);
++    const circle = await server.request('/api/platform/cohorts', { method: 'POST', headers, body: { name: 'Study schedule fixture' } });
++    expect(circle.status).toBe(200);
++    const socket = await connectSocket(server.baseUrl, { extraHeaders: headers, clientId: `workspace-away-${Date.now()}` });
++    try {
++        for (const roomName of ['First focus room', 'Chosen focus room']) {
++            const room = await emitAck(socket, 'create-room', { roomName });
++            expect(room.ok).toBe(true);
++        }
++        await page.goto(`${server.baseUrl}/app#circles`);
++        await page.locator('#circle-list button').click();
++        await expect(page.locator('#session-room option')).toHaveCount(2);
++        const chosenRoom = await page.locator('#session-room option').nth(1).getAttribute('value');
++        await page.locator('#session-room').selectOption(chosenRoom);
++        await page.locator('#session-create [name=title]').fill('مراجعة كيمياء');
++        const start = await page.evaluate(() => {
++            const date = new Date(Date.now() + 86400000);
++            const pad = (n) => String(n).padStart(2, '0');
++            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
++        });
++        await page.locator('#session-create [name=startsAt]').fill(start);
++        await page.setViewportSize({ width: 390, height: 1000 });
++        await page.locator('[data-lang-value=ar]').click();
++        await expect(page.locator('#circle-detail')).toBeVisible();
++        await expect(page.locator('#study-status')).toBeHidden();
++        await page.screenshot({ path: info.outputPath('schedule-draft-ar.png'), fullPage: true });
++        await expect(page.locator('#session-room')).toHaveValue(chosenRoom);
++        await expect(page.locator('#session-create [name=title]')).toHaveValue('مراجعة كيمياء');
++        await expect(page.locator('#session-create [name=startsAt]')).toHaveValue(start);
++        await page.locator('[data-lang-value=en]').click();
++        await expect(page.locator('#circle-detail')).toBeVisible();
++        await expect(page.locator('#session-room')).toHaveValue(chosenRoom);
++
++        // If a previously chosen room is no longer available, never silently schedule in another one.
++        await page.route('**/api/platform/rooms', async (route) => {
++            const response = await route.fetch();
++            const data = await response.json();
++            await route.fulfill({ response, json: { rooms: data.rooms.filter((room) => room.id !== chosenRoom) } });
++        });
++        await page.evaluate(() => /** @type {any} */ (window).HalaPlatform.refresh());
++        await page.locator('[data-lang-value=ar]').click();
++        await expect(page.locator('#circle-detail')).toBeVisible();
++        await expect(page.locator('#session-room')).toHaveValue('');
++        expect(await page.locator('#session-room').evaluate((select) => /** @type {HTMLSelectElement} */ (select).validity.valueMissing)).toBe(true);
++        await expect(page.locator('#session-create [name=title]')).toHaveValue('مراجعة كيمياء');
++        await page.unroute('**/api/platform/rooms');
++        await page.evaluate(() => /** @type {any} */ (window).HalaPlatform.refresh());
++        await page.locator('[data-lang-value=en]').click();
++        await expect(page.locator('#session-room option')).toHaveCount(2);
++        await page.locator('#session-room').selectOption(chosenRoom);
++        await page.locator('#session-create button').click();
++        await expect(page.locator('#circle-sessions')).toContainText('مراجعة كيمياء');
++        const saved = await server.request(`/api/platform/cohorts/${circle.body.id}/sessions`, { headers });
++        expect(saved.status).toBe(200);
++        expect(saved.body.sessions).toHaveLength(1);
++        expect(saved.body.sessions[0].room_id).toBe(chosenRoom);
++    } finally { await closeSocket(socket); }
++});

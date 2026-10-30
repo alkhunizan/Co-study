@@ -1,0 +1,37 @@
+{
+  "name": "Read a study guide then prepare a room",
+  "viewport": "mobile",
+  "auditGoal": "Reach a relevant guide through visible navigation and follow its room CTA.",
+  "auditOutcome": "safety-stop",
+  "steps": [
+    {
+      "goto": "https://halastudy.com/"
+    },
+    {
+      "click": "القائمة"
+    },
+    {
+      "click": "css=#mobile-menu a[href=\"/blog\"]"
+    },
+    {
+      "expect": "من مكتب هلاستدي"
+    },
+    {
+      "click": "css=a[href=\"/blog/study-with-me-online-arabic\"]"
+    },
+    {
+      "expect": "ذاكر معي أونلاين"
+    },
+    {
+      "click": "افتح غرفة"
+    },
+    {
+      "expect": "غرفة تركيز جديدة"
+    },
+    {
+      "note": "Guide-to-room path reached. Stop before creating or joining a live room."
+    }
+  ],
+  "allowSubmit": false,
+  "stepDelay": 800
+}

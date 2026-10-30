@@ -58,10 +58,13 @@ test('every HTML page the server sends is shipped in the Docker image', () => {
         .split(/\r?\n/)
         .filter((line) => /^COPY\b/.test(line.trim()))
         .flatMap((line) => line.trim().split(/\s+/).filter((token) => token.endsWith('.html'))));
-    const served = [...new Set(Array.from(
-        server.matchAll(/sendFile\(path\.join\(__dirname, '([^']+\.html)'\)\)/g),
-        (match) => match[1]
-    ))];
+    // Marketing pages are rendered by the SEO module from their source files;
+    // they ship in the image exactly like the pages the server sends directly.
+    const publicPages = readRepoFile('services/seo/public-pages.js');
+    const served = [...new Set([
+        ...Array.from(server.matchAll(/sendFile\(path\.join\(__dirname, '([^']+\.html)'\)\)/g), (match) => match[1]),
+        ...Array.from(publicPages.matchAll(/file: '([^']+\.html)'/g), (match) => match[1])
+    ])];
 
     assert.ok(served.length >= 10, `expected the public pages to be found, got ${served.length}`);
     for (const page of served) {

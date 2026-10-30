@@ -163,7 +163,9 @@
             theme.setAttribute('title', text.theme);
             language.querySelectorAll('button').forEach(button => {
                 button.setAttribute('aria-pressed', String(button.getAttribute('data-lang-value') === lang));
-                button.setAttribute('aria-label', button.getAttribute('data-lang-value') === 'ar' ? 'العربية' : 'English');
+                // Visible text (EN / ع) stays the accessible name; a different
+                // aria-label fails label-content-name-mismatch for voice users.
+                button.setAttribute('title', button.getAttribute('data-lang-value') === 'ar' ? 'العربية' : 'English');
             });
         }
         if (body.hasAttribute('data-legal-page')) core.initLang({});

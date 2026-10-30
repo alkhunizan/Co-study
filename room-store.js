@@ -420,6 +420,7 @@ function createRoomStore(options = {}) {
                 : null,
             requirePassword: room.requirePassword === undefined ? !!passwordHash : !!room.requirePassword,
             passwordHash,
+            cohortId: typeof room.cohortId === 'string' ? room.cohortId : null,
             mediaMode: normalizeMediaMode(room.mediaMode),
             videoProvider: sanitizeVideoProvider(room.videoProvider),
             videoProviderMeetingId: typeof room.videoProviderMeetingId === 'string' && room.videoProviderMeetingId.trim()
@@ -503,6 +504,7 @@ function createRoomStore(options = {}) {
     return {
         filePath: resolvedFilePath,
         loadRooms,
+        sanitizeRoom,
         scheduleSave,
         flush,
         needsMigration() {

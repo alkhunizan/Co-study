@@ -1,0 +1,8 @@
+﻿{
+    "priorManifest":  "candidate-source-verified-ci.json",
+    "currentManifest":  "candidate-source.json",
+    "changedFiles":  [
+                         "tests/smoke/refinement.smoke.spec.js"
+                     ],
+    "appChanged":  false
+}

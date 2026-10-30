@@ -16,6 +16,7 @@ COPY --chown=node:node design-system/*.css ./design-system/
 COPY --chown=node:node 404.html account.html admin.html blog.html contact.html ./
 COPY --chown=node:node blog-best-study-rooms.html blog-study-with-me.html ./
 COPY --chown=node:node index.html landing.html lobby.html open.html privacy.html terms.html ./
+COPY --chown=node:node platform.html recovery.html ./
 
 RUN mkdir -p /app/data/backups && chown -R node:node /app/data
 

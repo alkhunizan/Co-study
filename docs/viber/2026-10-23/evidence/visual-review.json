@@ -1,0 +1,169 @@
+{
+  "base": "http://127.0.0.1:3522",
+  "rows": [
+    {
+      "lang": "ar",
+      "theme": "light",
+      "width": 390,
+      "state": "account provider retry",
+      "file": "screenshots/ar-light-390-account-retry.png",
+      "fonts": {
+        "tajawal": true,
+        "amiri": false
+      },
+      "axeViolations": [
+        "page-has-heading-one"
+      ],
+      "pageErrors": [],
+      "keyboardRetry": true
+    },
+    {
+      "lang": "ar",
+      "theme": "light",
+      "width": 390,
+      "state": "join lookup error",
+      "file": "screenshots/ar-light-390-join-retry.png",
+      "buttonEnabled": true
+    },
+    {
+      "lang": "ar",
+      "theme": "dark",
+      "width": 390,
+      "state": "account provider retry",
+      "file": "screenshots/ar-dark-390-account-retry.png",
+      "fonts": {
+        "tajawal": true,
+        "amiri": false
+      },
+      "axeViolations": [
+        "page-has-heading-one"
+      ],
+      "pageErrors": [],
+      "keyboardRetry": true
+    },
+    {
+      "lang": "ar",
+      "theme": "dark",
+      "width": 390,
+      "state": "join lookup error",
+      "file": "screenshots/ar-dark-390-join-retry.png",
+      "buttonEnabled": true
+    },
+    {
+      "lang": "en",
+      "theme": "light",
+      "width": 390,
+      "state": "account provider retry",
+      "file": "screenshots/en-light-390-account-retry.png",
+      "fonts": {
+        "tajawal": false,
+        "amiri": false
+      },
+      "axeViolations": [
+        "page-has-heading-one"
+      ],
+      "pageErrors": [],
+      "keyboardRetry": true
+    },
+    {
+      "lang": "en",
+      "theme": "light",
+      "width": 390,
+      "state": "join lookup error",
+      "file": "screenshots/en-light-390-join-retry.png",
+      "buttonEnabled": true
+    },
+    {
+      "lang": "en",
+      "theme": "dark",
+      "width": 390,
+      "state": "account provider retry",
+      "file": "screenshots/en-dark-390-account-retry.png",
+      "fonts": {
+        "tajawal": false,
+        "amiri": false
+      },
+      "axeViolations": [
+        "page-has-heading-one"
+      ],
+      "pageErrors": [],
+      "keyboardRetry": true
+    },
+    {
+      "lang": "en",
+      "theme": "dark",
+      "width": 390,
+      "state": "join lookup error",
+      "file": "screenshots/en-dark-390-join-retry.png",
+      "buttonEnabled": true
+    },
+    {
+      "lang": "ar",
+      "theme": "light",
+      "width": 1440,
+      "state": "account provider retry",
+      "file": "screenshots/ar-light-1440-account-retry.png",
+      "fonts": {
+        "tajawal": true,
+        "amiri": false
+      },
+      "axeViolations": [
+        "label-content-name-mismatch",
+        "page-has-heading-one"
+      ],
+      "pageErrors": [],
+      "keyboardRetry": true
+    },
+    {
+      "lang": "ar",
+      "theme": "dark",
+      "width": 1440,
+      "state": "account provider retry",
+      "file": "screenshots/ar-dark-1440-account-retry.png",
+      "fonts": {
+        "tajawal": true,
+        "amiri": false
+      },
+      "axeViolations": [
+        "label-content-name-mismatch",
+        "page-has-heading-one"
+      ],
+      "pageErrors": [],
+      "keyboardRetry": true
+    },
+    {
+      "lang": "en",
+      "theme": "light",
+      "width": 1440,
+      "state": "account provider retry",
+      "file": "screenshots/en-light-1440-account-retry.png",
+      "fonts": {
+        "tajawal": false,
+        "amiri": false
+      },
+      "axeViolations": [
+        "label-content-name-mismatch",
+        "page-has-heading-one"
+      ],
+      "pageErrors": [],
+      "keyboardRetry": true
+    },
+    {
+      "lang": "en",
+      "theme": "dark",
+      "width": 1440,
+      "state": "account provider retry",
+      "file": "screenshots/en-dark-1440-account-retry.png",
+      "fonts": {
+        "tajawal": false,
+        "amiri": false
+      },
+      "axeViolations": [
+        "label-content-name-mismatch",
+        "page-has-heading-one"
+      ],
+      "pageErrors": [],
+      "keyboardRetry": true
+    }
+  ]
+}

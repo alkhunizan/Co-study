@@ -61,7 +61,7 @@ test(`protected room create, invite, refresh and leave: ${lang}, ${signedIn ? 'a
 
         const roomCode = (await page.locator('#result-code').textContent()).trim();
         expect(roomCode).toMatch(/^[A-Z0-9]{6}$/);
-        expect(await page.evaluate(() => sessionStorage.getItem('halastudyOpenDraft'))).toBeNull();
+        expect(await page.evaluate(() => sessionStorage.getItem('halastudyRoomDraft:v1'))).toBeNull();
 
         await page.click('#btn-enter-room');
         await waitForTestUrl(page, /\/index\.html\?room=/);
@@ -149,7 +149,9 @@ test('schedule signup returns to the same draft and refresh preserves it', async
         await expect(page).toHaveURL(/\/open\.html\?schedule=1/);
         await expect(page.locator('#room-name')).toHaveValue('My planned session');
         await expect(page.locator('#require-password')).toBeChecked();
-        await expect(page.locator('#room-password')).toHaveValue('draft-room-password');
+        // Secrets never enter the draft: the restored form asks for the password again.
+        await expect(page.locator('#room-password')).toHaveValue('');
+        await expect(page.locator('#draft-restored')).toBeVisible();
         await expect(page.locator('#schedule-fields-inner')).toBeVisible();
         await page.fill('#schedule-goal-template', 'Finish chapter two');
         await page.reload({ waitUntil: 'domcontentloaded' });
@@ -351,13 +353,13 @@ test('expired form drafts are discarded', async ({ browser }) => {
     const visitor = await createOpenPage(browser);
     try {
         const { page } = visitor;
-        await page.addInitScript(() => sessionStorage.setItem('halastudyOpenDraft', JSON.stringify({
-            expires: Date.now() - 1, values: { 'room-name': 'Expired draft', 'room-password': 'old-password' }
+        await page.addInitScript(() => sessionStorage.setItem('halastudyRoomDraft:v1', JSON.stringify({
+            version: 1, expiresAt: Date.now() - 1, values: { 'room-name': 'Expired draft', 'room-password': 'old-password' }
         })));
         await gotoTestPage(page, '/open');
         await expect(page.locator('#room-name')).toHaveValue('');
         await expect(page.locator('#room-password')).toHaveValue('');
-        expect(await page.evaluate(() => sessionStorage.getItem('halastudyOpenDraft'))).toBeNull();
+        expect(await page.evaluate(() => sessionStorage.getItem('halastudyRoomDraft:v1'))).toBeNull();
     } finally { await visitor.context.close(); }
 });
 

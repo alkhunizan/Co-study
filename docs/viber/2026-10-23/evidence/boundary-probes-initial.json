@@ -1,0 +1,202 @@
+{
+  "target": "http://127.0.0.1:60350",
+  "synthetic": true,
+  "results": [
+    {
+      "label": "protected anonymous",
+      "request": {
+        "method": "GET",
+        "path": "/api/platform/me",
+        "identity": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "error": "AUTH_REQUIRED",
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "protected anonymous",
+      "request": {
+        "method": "GET",
+        "path": "/api/platform/progress",
+        "identity": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "error": "AUTH_REQUIRED",
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "protected anonymous",
+      "request": {
+        "method": "GET",
+        "path": "/api/platform/cohorts",
+        "identity": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "error": "AUTH_REQUIRED",
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "protected anonymous",
+      "request": {
+        "method": "GET",
+        "path": "/api/platform/study/overview",
+        "identity": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "error": "AUTH_REQUIRED",
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "protected anonymous",
+      "request": {
+        "method": "GET",
+        "path": "/api/platform/study/tasks",
+        "identity": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "error": "AUTH_REQUIRED",
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "protected anonymous",
+      "request": {
+        "method": "GET",
+        "path": "/api/platform/study/agenda",
+        "identity": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "error": "AUTH_REQUIRED",
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "protected anonymous",
+      "request": {
+        "method": "GET",
+        "path": "/api/platform/study/calendar.ics",
+        "identity": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "error": "AUTH_REQUIRED",
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "protected anonymous",
+      "request": {
+        "method": "GET",
+        "path": "/api/platform/staff",
+        "identity": "anonymous"
+      },
+      "response": {
+        "status": 401,
+        "error": "AUTH_REQUIRED",
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "ordinary member denied staff",
+      "request": {
+        "method": "GET",
+        "path": "/api/platform/staff",
+        "identity": "Probe A"
+      },
+      "response": {
+        "status": 403,
+        "error": "MFA_REQUIRED",
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "valid create",
+      "request": {
+        "method": "POST",
+        "path": "/api/platform/study/tasks",
+        "body": {
+          "title": "Synthetic private task",
+          "note": "Local probe only",
+          "priority": "normal",
+          "due_date": "",
+          "recurrence": "none",
+          "estimate_minutes": 25,
+          "steps": [],
+          "requestId": "9cf939cc-6c70-4e9c-a158-23313640e977"
+        },
+        "identity": "Probe A"
+      },
+      "response": {
+        "status": 200,
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "duplicate create",
+      "request": {
+        "method": "POST",
+        "path": "/api/platform/study/tasks",
+        "body": {
+          "title": "Synthetic private task",
+          "note": "Local probe only",
+          "priority": "normal",
+          "due_date": "",
+          "recurrence": "none",
+          "estimate_minutes": 25,
+          "steps": [],
+          "requestId": "9cf939cc-6c70-4e9c-a158-23313640e977"
+        },
+        "identity": "Probe A"
+      },
+      "response": {
+        "status": 200,
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "same idempotency key another user",
+      "request": {
+        "method": "POST",
+        "path": "/api/platform/study/tasks",
+        "body": {
+          "title": "Synthetic private task",
+          "note": "Local probe only",
+          "priority": "normal",
+          "due_date": "",
+          "recurrence": "none",
+          "estimate_minutes": 25,
+          "steps": [],
+          "requestId": "9cf939cc-6c70-4e9c-a158-23313640e977"
+        },
+        "identity": "Probe B"
+      },
+      "response": {
+        "status": 200,
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "label": "own list positive control",
+      "request": {
+        "method": "GET",
+        "path": "/api/platform/study/tasks",
+        "identity": "Probe A"
+      },
+      "response": {
+        "status": 404,
+        "error": "NOT_FOUND",
+        "cacheControl": "no-store"
+      }
+    }
+  ]
+}

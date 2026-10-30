@@ -1,0 +1,1556 @@
+{
+  "startUrl": "https://halastudy.com",
+  "ranAt": "2026-10-21T18:27:34.528Z",
+  "pages": 8,
+  "blockedBy": null,
+  "flags": [
+    "P2 console errors (2): https://halastudy.com/ [desktop]",
+    "P1 CLS 0.34 (poor): https://halastudy.com/ [desktop]",
+    "P2 a11y critical aria-required-children x1: https://halastudy.com/ [desktop]",
+    "P2 a11y serious color-contrast x4: https://halastudy.com/ [desktop]",
+    "P2 console errors (2): https://halastudy.com/ [mobile]",
+    "P2 tap targets <24px (7): https://halastudy.com/ [mobile]",
+    "P2 console errors (2): https://halastudy.com/blog [desktop]",
+    "P2 a11y critical aria-required-children x1: https://halastudy.com/blog [desktop]",
+    "P2 a11y serious color-contrast x1: https://halastudy.com/blog [desktop]",
+    "P2 console errors (2): https://halastudy.com/blog [mobile]",
+    "P2 tap targets <24px (4): https://halastudy.com/blog [mobile]",
+    "P2 console errors (2): https://halastudy.com/account.html [desktop]",
+    "P3 0 <h1> tags: https://halastudy.com/account.html [desktop]",
+    "P3 no meta description: https://halastudy.com/account.html [desktop]",
+    "P2 a11y critical aria-required-children x1: https://halastudy.com/account.html [desktop]",
+    "P2 a11y serious color-contrast x1: https://halastudy.com/account.html [desktop]",
+    "P2 console errors (2): https://halastudy.com/account.html [mobile]",
+    "P2 tap targets <24px (3): https://halastudy.com/account.html [mobile]",
+    "P2 console errors (2): https://halastudy.com/open.html [desktop]",
+    "P2 a11y critical aria-allowed-attr x1: https://halastudy.com/open.html [desktop]",
+    "P2 a11y critical aria-required-children x1: https://halastudy.com/open.html [desktop]",
+    "P2 a11y serious color-contrast x1: https://halastudy.com/open.html [desktop]",
+    "P2 console errors (2): https://halastudy.com/open.html [mobile]",
+    "P2 tap targets <24px (4): https://halastudy.com/open.html [mobile]",
+    "P2 console errors (2): https://halastudy.com/privacy [desktop]",
+    "P3 2 <h1> tags: https://halastudy.com/privacy [desktop]",
+    "P2 a11y serious color-contrast x11: https://halastudy.com/privacy [desktop]",
+    "P2 console errors (2): https://halastudy.com/privacy [mobile]",
+    "P2 tap targets <24px (11): https://halastudy.com/privacy [mobile]",
+    "P2 console errors (2): https://halastudy.com/terms [desktop]",
+    "P3 2 <h1> tags: https://halastudy.com/terms [desktop]",
+    "P2 a11y serious color-contrast x5: https://halastudy.com/terms [desktop]",
+    "P2 console errors (2): https://halastudy.com/terms [mobile]",
+    "P2 tap targets <24px (6): https://halastudy.com/terms [mobile]",
+    "P2 console errors (2): https://halastudy.com/blog/best-online-group-study-rooms-saudi [desktop]",
+    "P2 a11y serious color-contrast x1: https://halastudy.com/blog/best-online-group-study-rooms-saudi [desktop]",
+    "P2 console errors (2): https://halastudy.com/blog/best-online-group-study-rooms-saudi [mobile]",
+    "P2 tap targets <24px (6): https://halastudy.com/blog/best-online-group-study-rooms-saudi [mobile]",
+    "P2 console errors (2): https://halastudy.com/blog/study-with-me-online-arabic [desktop]",
+    "P2 a11y serious color-contrast x1: https://halastudy.com/blog/study-with-me-online-arabic [desktop]",
+    "P2 console errors (2): https://halastudy.com/blog/study-with-me-online-arabic [mobile]",
+    "P2 tap targets <24px (6): https://halastudy.com/blog/study-with-me-online-arabic [mobile]"
+  ],
+  "brokenLinks": [],
+  "results": [
+    {
+      "url": "https://halastudy.com/",
+      "views": {
+        "desktop": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1798,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 196,
+            "domContentLoaded": 728,
+            "transferKB": 12
+          },
+          "vitals": {
+            "lcp": 816,
+            "cls": 0.34
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/videos/hero/01-nouf-abdulaziz.webm",
+              "kb": 255
+            },
+            {
+              "u": "https://halastudy.com/videos/hero/05-danah-saad.webm",
+              "kb": 124
+            },
+            {
+              "u": "https://halastudy.com/videos/hero/06-saud-abdullah.webm",
+              "kb": 112
+            },
+            {
+              "u": "https://halastudy.com/videos/hero/03-lama-faisal.webm",
+              "kb": 94
+            },
+            {
+              "u": "https://halastudy.com/videos/hero/04-jawaher-khalid.webm",
+              "kb": 86
+            }
+          ],
+          "dom": {
+            "title": "هلاستدي | غرفة هادية. مفتوحة طول الليل.",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "A quiet room. Open all night. Body-doubling for GCC students — camera on, mic off, work alongside someone.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": "https://halastudy.com/",
+            "ogImage": "https://halastudy.com/videos/hero/01-nouf-abdulaziz-poster.jpg",
+            "h1": [
+              "ادخل. الكاميرا شغّالة. اشتغل مع غيرك."
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 4835,
+            "smallTargets": [
+              "ليش هلا؟ (57x21)",
+              "كيف تشتغل (73x21)",
+              "الغرف (36x21)",
+              "الطلاب (42x21)",
+              "المدونة (43x21)",
+              "تسجيل الدخول (87x21)",
+              "المدونة (39x20)",
+              "الخصوصية (59x20)",
+              "الشروط (44x20)",
+              "دعوة واتساب (72x20)",
+              "info@halastudy.com (109x20)",
+              "+966 59 916 1315 (91x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 34,
+            "ctaAboveFold": [
+              "Halastudy.\nهلا",
+              "ليش هلا؟",
+              "كيف تشتغل",
+              "الغرف",
+              "الطلاب",
+              "المدونة",
+              "تسجيل الدخول",
+              "EN",
+              "ع",
+              "Toggle theme",
+              "افتح غرفة",
+              "افتح غرفة\n→"
+            ]
+          },
+          "axe": [
+            {
+              "id": "aria-required-children",
+              "impact": "critical",
+              "help": "Certain ARIA roles must contain particular children",
+              "count": 1,
+              "sample": ".lang-switch"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 4,
+              "sample": "span:nth-child(1) > em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\01-home-desktop.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\01-home-desktop-fold.png"
+        },
+        "mobile": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1674,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 194,
+            "domContentLoaded": 639,
+            "transferKB": 12
+          },
+          "vitals": {
+            "lcp": 640,
+            "cls": 0
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/videos/hero/01-nouf-abdulaziz.webm",
+              "kb": 255
+            },
+            {
+              "u": "https://halastudy.com/videos/hero/05-danah-saad.webm",
+              "kb": 124
+            },
+            {
+              "u": "https://halastudy.com/videos/hero/06-saud-abdullah.webm",
+              "kb": 112
+            },
+            {
+              "u": "https://halastudy.com/videos/hero/03-lama-faisal.webm",
+              "kb": 94
+            },
+            {
+              "u": "https://halastudy.com/videos/hero/04-jawaher-khalid.webm",
+              "kb": 86
+            }
+          ],
+          "dom": {
+            "title": "هلاستدي | غرفة هادية. مفتوحة طول الليل.",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "A quiet room. Open all night. Body-doubling for GCC students — camera on, mic off, work alongside someone.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": "https://halastudy.com/",
+            "ogImage": "https://halastudy.com/videos/hero/01-nouf-abdulaziz-poster.jpg",
+            "h1": [
+              "ادخل. الكاميرا شغّالة. اشتغل مع غيرك."
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 5843,
+            "smallTargets": [
+              "تسجيل الدخول (87x21)",
+              "المدونة (39x20)",
+              "الخصوصية (59x20)",
+              "الشروط (44x20)",
+              "دعوة واتساب (72x20)",
+              "info@halastudy.com (109x20)",
+              "+966 59 916 1315 (91x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 34,
+            "ctaAboveFold": [
+              "Halastudy.",
+              "تسجيل الدخول",
+              "القائمة"
+            ]
+          },
+          "axe": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 4,
+              "sample": "span:nth-child(1) > em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\01-home-mobile.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\01-home-mobile-fold.png"
+        }
+      }
+    },
+    {
+      "url": "https://halastudy.com/blog",
+      "views": {
+        "desktop": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1501,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap' violates the following Content Security Policy directive: \"connect-src 'self",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 151,
+            "domContentLoaded": 494,
+            "transferKB": 3
+          },
+          "vitals": {
+            "lcp": 524,
+            "cls": 0.002
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/landing.css",
+              "kb": 45
+            },
+            {
+              "u": "https://halastudy.com/js/halastudy-core.js",
+              "kb": 12
+            },
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400",
+              "kb": 2
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700",
+              "kb": 2
+            }
+          ],
+          "dom": {
+            "title": "هلاستدي | المدونة",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "مدونة هلاستدي — عن التركيز والمرافقة بالوجود والمذاكرة في ليل الخليج. The Halastudy blog — on focus, body-doubling, and studying through the Gulf night.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": "https://halastudy.com/blog",
+            "ogImage": null,
+            "h1": [
+              "من مكتب هلاستدي"
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 922,
+            "smallTargets": [
+              "الخصوصية (59x20)",
+              "الشروط (44x20)",
+              "info@halastudy.com (109x20)",
+              "+966 59 916 1315 (91x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "Halastudy.\nهلا",
+              "EN",
+              "ع",
+              "دليل مقارنة\nأفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودي",
+              "دليل البداية\nذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ ",
+              "الخصوصية",
+              "الشروط",
+              "info@halastudy.com",
+              "+966 59 916 1315"
+            ]
+          },
+          "axe": [
+            {
+              "id": "aria-required-children",
+              "impact": "critical",
+              "help": "Certain ARIA roles must contain particular children",
+              "count": 1,
+              "sample": ".lang-switch"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 1,
+              "sample": "em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\02-blog-desktop.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\02-blog-desktop-fold.png"
+        },
+        "mobile": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1608,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap' violates the following Content Security Policy directive: \"connect-src 'self",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 152,
+            "domContentLoaded": 515,
+            "transferKB": 3
+          },
+          "vitals": {
+            "lcp": 528,
+            "cls": 0.004
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/landing.css",
+              "kb": 45
+            },
+            {
+              "u": "https://halastudy.com/js/halastudy-core.js",
+              "kb": 12
+            },
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400",
+              "kb": 2
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700",
+              "kb": 2
+            }
+          ],
+          "dom": {
+            "title": "هلاستدي | المدونة",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "مدونة هلاستدي — عن التركيز والمرافقة بالوجود والمذاكرة في ليل الخليج. The Halastudy blog — on focus, body-doubling, and studying through the Gulf night.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": "https://halastudy.com/blog",
+            "ogImage": null,
+            "h1": [
+              "من مكتب هلاستدي"
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 1067,
+            "smallTargets": [
+              "الخصوصية (59x20)",
+              "الشروط (44x20)",
+              "info@halastudy.com (109x20)",
+              "+966 59 916 1315 (91x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "Halastudy.",
+              "EN",
+              "ع",
+              "دليل مقارنة\nأفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودي",
+              "دليل البداية\nذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ "
+            ]
+          },
+          "axe": [
+            {
+              "id": "aria-required-children",
+              "impact": "critical",
+              "help": "Certain ARIA roles must contain particular children",
+              "count": 1,
+              "sample": ".lang-switch"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 1,
+              "sample": "em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\02-blog-mobile.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\02-blog-mobile-fold.png"
+        }
+      }
+    },
+    {
+      "url": "https://halastudy.com/account.html",
+      "views": {
+        "desktop": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1559,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 193,
+            "domContentLoaded": 541,
+            "transferKB": 11
+          },
+          "vitals": {
+            "lcp": 560,
+            "cls": 0.092
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/landing.css",
+              "kb": 45
+            },
+            {
+              "u": "https://halastudy.com/js/ui.js",
+              "kb": 15
+            },
+            {
+              "u": "https://halastudy.com/js/halastudy-core.js",
+              "kb": 12
+            },
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400",
+              "kb": 2
+            }
+          ],
+          "dom": {
+            "title": "هلاستدي | حسابك",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": null,
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": null,
+            "ogImage": null,
+            "h1": [],
+            "forms": 3,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 900,
+            "smallTargets": [
+              "← Halastudy (68x20)",
+              "الخصوصية (59x20)",
+              "الشروط (44x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "Halastudy.\nهلا",
+              "EN",
+              "ع",
+              "Toggle theme",
+              "دخول",
+              "حساب جديد",
+              "ادخل",
+              "تابع مع جوجل",
+              "← Halastudy",
+              "الخصوصية",
+              "الشروط"
+            ]
+          },
+          "axe": [
+            {
+              "id": "aria-required-children",
+              "impact": "critical",
+              "help": "Certain ARIA roles must contain particular children",
+              "count": 1,
+              "sample": ".lang-switch"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 1,
+              "sample": "em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\03-account_html-desktop.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\03-account_html-desktop-fold.png"
+        },
+        "mobile": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1565,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 189,
+            "domContentLoaded": 532,
+            "transferKB": 11
+          },
+          "vitals": {
+            "lcp": 532,
+            "cls": 0.001
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/landing.css",
+              "kb": 45
+            },
+            {
+              "u": "https://halastudy.com/js/ui.js",
+              "kb": 15
+            },
+            {
+              "u": "https://halastudy.com/js/halastudy-core.js",
+              "kb": 12
+            },
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400",
+              "kb": 2
+            }
+          ],
+          "dom": {
+            "title": "هلاستدي | حسابك",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": null,
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": null,
+            "ogImage": null,
+            "h1": [],
+            "forms": 3,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 946,
+            "smallTargets": [
+              "← Halastudy (68x20)",
+              "الخصوصية (59x20)",
+              "الشروط (44x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "Halastudy.",
+              "EN",
+              "ع",
+              "Toggle theme",
+              "دخول",
+              "حساب جديد",
+              "ادخل",
+              "تابع مع جوجل"
+            ]
+          },
+          "axe": [
+            {
+              "id": "aria-required-children",
+              "impact": "critical",
+              "help": "Certain ARIA roles must contain particular children",
+              "count": 1,
+              "sample": ".lang-switch"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 1,
+              "sample": "em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\03-account_html-mobile.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\03-account_html-mobile-fold.png"
+        }
+      }
+    },
+    {
+      "url": "https://halastudy.com/open.html",
+      "views": {
+        "desktop": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1631,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 195,
+            "domContentLoaded": 602,
+            "transferKB": 20
+          },
+          "vitals": {
+            "lcp": 616,
+            "cls": 0.001
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/landing.css",
+              "kb": 45
+            },
+            {
+              "u": "https://halastudy.com/socket.io/socket.io.js",
+              "kb": 37
+            },
+            {
+              "u": "https://halastudy.com/js/ui.js",
+              "kb": 15
+            },
+            {
+              "u": "https://halastudy.com/js/halastudy-core.js",
+              "kb": 12
+            },
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            }
+          ],
+          "dom": {
+            "title": "هلاستدي | غرفة هادئة. مفتوحة طول الليل.",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "افتح غرفة تركيز جديدة أو ادخل بغرفة شغّالة برمزها — بدون تنزيل وبدون تسجيل.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": null,
+            "ogImage": "https://halastudy.com/videos/hero/01-nouf-abdulaziz-poster.jpg",
+            "h1": [
+              "اختر طريقتك"
+            ],
+            "forms": 2,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 967,
+            "smallTargets": [
+              "تسجيل الدخول (87x21)",
+              "← Halastudy (68x20)",
+              "الخصوصية (59x20)",
+              "الشروط (44x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "Halastudy.\nهلا",
+              "تسجيل الدخول",
+              "EN",
+              "ع",
+              "تبديل المظهر",
+              "✦\nافتح غرفة\n\nاسم، وكلمة مرور اختيارية، وجدولة اختيارية.",
+              "➤\nادخل غرفة\n\nعندك رمز من مجموعتك؟ ادخله هنا.",
+              "غرفة عادية\nغرف كاميرا المذاكرة تدعم حتى 20 شخصاً. المايك مقف",
+              "افتح الغرفة"
+            ]
+          },
+          "axe": [
+            {
+              "id": "aria-allowed-attr",
+              "impact": "critical",
+              "help": "Elements must only use supported ARIA attributes",
+              "count": 1,
+              "sample": "button[data-media-mode=\"mesh\"]"
+            },
+            {
+              "id": "aria-required-children",
+              "impact": "critical",
+              "help": "Certain ARIA roles must contain particular children",
+              "count": 1,
+              "sample": ".lang-switch"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 1,
+              "sample": "em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\04-open_html-desktop.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\04-open_html-desktop-fold.png"
+        },
+        "mobile": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1685,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 190,
+            "domContentLoaded": 578,
+            "transferKB": 20
+          },
+          "vitals": {
+            "lcp": 588,
+            "cls": 0.002
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/landing.css",
+              "kb": 45
+            },
+            {
+              "u": "https://halastudy.com/socket.io/socket.io.js",
+              "kb": 37
+            },
+            {
+              "u": "https://halastudy.com/js/ui.js",
+              "kb": 15
+            },
+            {
+              "u": "https://halastudy.com/js/halastudy-core.js",
+              "kb": 12
+            },
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            }
+          ],
+          "dom": {
+            "title": "هلاستدي | غرفة هادئة. مفتوحة طول الليل.",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "افتح غرفة تركيز جديدة أو ادخل بغرفة شغّالة برمزها — بدون تنزيل وبدون تسجيل.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": null,
+            "ogImage": "https://halastudy.com/videos/hero/01-nouf-abdulaziz-poster.jpg",
+            "h1": [
+              "اختر طريقتك"
+            ],
+            "forms": 2,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 1344,
+            "smallTargets": [
+              "تسجيل الدخول (87x21)",
+              "← Halastudy (68x20)",
+              "الخصوصية (59x20)",
+              "الشروط (44x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "Halastudy.",
+              "تسجيل الدخول",
+              "EN",
+              "ع",
+              "تبديل المظهر",
+              "✦\nافتح غرفة\n\nاسم، وكلمة مرور اختيارية، وجدولة اختيارية.",
+              "➤\nادخل غرفة\n\nعندك رمز من مجموعتك؟ ادخله هنا.",
+              "غرفة عادية\nغرف كاميرا المذاكرة تدعم حتى 20 شخصاً. المايك مقف"
+            ]
+          },
+          "axe": [
+            {
+              "id": "aria-allowed-attr",
+              "impact": "critical",
+              "help": "Elements must only use supported ARIA attributes",
+              "count": 1,
+              "sample": "button[data-media-mode=\"mesh\"]"
+            },
+            {
+              "id": "aria-required-children",
+              "impact": "critical",
+              "help": "Certain ARIA roles must contain particular children",
+              "count": 1,
+              "sample": ".lang-switch"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 1,
+              "sample": "em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\04-open_html-mobile.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\04-open_html-mobile-fold.png"
+        }
+      }
+    },
+    {
+      "url": "https://halastudy.com/privacy",
+      "views": {
+        "desktop": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1438,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600&family=Inter:wght@400;500;600&family=Tajawal:wght@400;500;700&display=swap' violates the following Content Security Policy directive: \"connect-src 'self' https://*.cloudflare.com wss://*.cloudfl",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 150,
+            "domContentLoaded": 162,
+            "transferKB": 8
+          },
+          "vitals": {
+            "lcp": 580,
+            "cls": 0.018
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700",
+              "kb": 2
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600&family=Inter:wght@400;500;600&family=Tajawal:wght@400;500;700&display",
+              "kb": 1
+            }
+          ],
+          "dom": {
+            "title": "Halastudy | سياسة الخصوصية · Privacy Policy",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "سياسة الخصوصية لهلاستدي — ماذا نخزّن، وماذا لا نخزّن، وكم يبقى. Halastudy privacy policy — what we store, what we never store, and for how long.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": null,
+            "ogImage": null,
+            "h1": [
+              "سياسة الخصوصية",
+              "Privacy Policy"
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 6060,
+            "smallTargets": [
+              "info@halastudy.com (134x22)",
+              "+966 59 916 1315 (112x22)",
+              "صفحة الحساب (101x22)",
+              "info@halastudy.com (134x22)",
+              "info@halastudy.com (134x22)",
+              "+966 59 916 1315 (112x22)",
+              "info@halastudy.com (154x20)",
+              "+966 59 916 1315 (132x20)",
+              "account page (104x20)",
+              "info@halastudy.com (154x20)",
+              "info@halastudy.com (154x20)",
+              "+966 59 916 1315 (132x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "هلاستدي · Halastudy",
+              "افتح غرفة · Open a room",
+              "info@halastudy.com",
+              "+966 59 916 1315"
+            ]
+          },
+          "axe": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 11,
+              "sample": "p:nth-child(5) > a[href$=\"mailto:info@halastudy.com\"][dir=\"ltr\"]"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\05-privacy-desktop.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\05-privacy-desktop-fold.png"
+        },
+        "mobile": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1404,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600&family=Inter:wght@400;500;600&family=Tajawal:wght@400;500;700&display=swap' violates the following Content Security Policy directive: \"connect-src 'self' https://*.cloudflare.com wss://*.cloudfl",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 152,
+            "domContentLoaded": 161,
+            "transferKB": 8
+          },
+          "vitals": {
+            "lcp": 552,
+            "cls": 0
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700",
+              "kb": 2
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600&family=Inter:wght@400;500;600&family=Tajawal:wght@400;500;700&display",
+              "kb": 1
+            }
+          ],
+          "dom": {
+            "title": "Halastudy | سياسة الخصوصية · Privacy Policy",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "سياسة الخصوصية لهلاستدي — ماذا نخزّن، وماذا لا نخزّن، وكم يبقى. Halastudy privacy policy — what we store, what we never store, and for how long.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": null,
+            "ogImage": null,
+            "h1": [
+              "سياسة الخصوصية",
+              "Privacy Policy"
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 8792,
+            "smallTargets": [
+              "info@halastudy.com (134x22)",
+              "+966 59 916 1315 (112x22)",
+              "info@halastudy.com (134x22)",
+              "info@halastudy.com (134x22)",
+              "+966 59 916 1315 (112x22)",
+              "info@halastudy.com (154x20)",
+              "+966 59 916 1315 (132x20)",
+              "account page (104x20)",
+              "info@halastudy.com (154x20)",
+              "info@halastudy.com (154x20)",
+              "+966 59 916 1315 (132x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "هلاستدي · Halastudy",
+              "افتح غرفة · Open a room",
+              "info@halastudy.com",
+              "+966 59 916 1315"
+            ]
+          },
+          "axe": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 11,
+              "sample": "p:nth-child(5) > a[href$=\"mailto:info@halastudy.com\"][dir=\"ltr\"]"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\05-privacy-mobile.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\05-privacy-mobile-fold.png"
+        }
+      }
+    },
+    {
+      "url": "https://halastudy.com/terms",
+      "views": {
+        "desktop": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1384,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600&family=Inter:wght@400;500;600&family=Tajawal:wght@400;500;700&display=swap' violates the following Content Security Policy directive: \"connect-src 'self' https://*.cloudflare.com wss://*.cloudfl",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 157,
+            "domContentLoaded": 166,
+            "transferKB": 7
+          },
+          "vitals": {
+            "lcp": 540,
+            "cls": 0.002
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700",
+              "kb": 2
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600&family=Inter:wght@400;500;600&family=Tajawal:wght@400;500;700&display",
+              "kb": 1
+            }
+          ],
+          "dom": {
+            "title": "Halastudy | شروط الاستخدام · Terms of Service",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "شروط استخدام هلاستدي — قواعد السلوك داخل الغرف، الحساب، والمسؤولية. Halastudy terms of service — room conduct, accounts, and liability.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": null,
+            "ogImage": null,
+            "h1": [
+              "شروط الاستخدام",
+              "Terms of Service"
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 5786,
+            "smallTargets": [
+              "سياسة الخصوصية (126x22)",
+              "info@halastudy.com (134x22)",
+              "+966 59 916 1315 (112x22)",
+              "Privacy Policy (105x20)",
+              "info@halastudy.com (154x20)",
+              "+966 59 916 1315 (132x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "هلاستدي · Halastudy",
+              "افتح غرفة · Open a room",
+              "سياسة الخصوصية"
+            ]
+          },
+          "axe": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 5,
+              "sample": "a[href$=\"mailto:info@halastudy.com\"][dir=\"ltr\"]"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\06-terms-desktop.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\06-terms-desktop-fold.png"
+        },
+        "mobile": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1420,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600&family=Inter:wght@400;500;600&family=Tajawal:wght@400;500;700&display=swap' violates the following Content Security Policy directive: \"connect-src 'self' https://*.cloudflare.com wss://*.cloudfl",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 185,
+            "domContentLoaded": 194,
+            "transferKB": 7
+          },
+          "vitals": {
+            "lcp": 564,
+            "cls": 0
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700",
+              "kb": 2
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600&family=Inter:wght@400;500;600&family=Tajawal:wght@400;500;700&display",
+              "kb": 1
+            }
+          ],
+          "dom": {
+            "title": "Halastudy | شروط الاستخدام · Terms of Service",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "شروط استخدام هلاستدي — قواعد السلوك داخل الغرف، الحساب، والمسؤولية. Halastudy terms of service — room conduct, accounts, and liability.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": null,
+            "ogImage": null,
+            "h1": [
+              "شروط الاستخدام",
+              "Terms of Service"
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 8011,
+            "smallTargets": [
+              "سياسة الخصوصية (126x22)",
+              "info@halastudy.com (134x22)",
+              "+966 59 916 1315 (112x22)",
+              "Privacy Policy (105x20)",
+              "info@halastudy.com (154x20)",
+              "+966 59 916 1315 (132x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "هلاستدي · Halastudy",
+              "افتح غرفة · Open a room",
+              "سياسة الخصوصية"
+            ]
+          },
+          "axe": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 5,
+              "sample": "a[href$=\"mailto:info@halastudy.com\"][dir=\"ltr\"]"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\06-terms-mobile.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\06-terms-mobile-fold.png"
+        }
+      }
+    },
+    {
+      "url": "https://halastudy.com/blog/best-online-group-study-rooms-saudi",
+      "views": {
+        "desktop": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1655,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap' violates the following Content Security Policy directive: \"connect-src 'self",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 191,
+            "domContentLoaded": 626,
+            "transferKB": 10
+          },
+          "vitals": {
+            "lcp": 652,
+            "cls": 0.028
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/landing.css",
+              "kb": 45
+            },
+            {
+              "u": "https://halastudy.com/js/halastudy-core.js",
+              "kb": 12
+            },
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400",
+              "kb": 2
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700",
+              "kb": 2
+            }
+          ],
+          "dom": {
+            "title": "أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية | هلاستدي",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "تبحث عن غرفة مذاكرة جماعية أونلاين؟ قارن بين Halastudy وStudyStream وFocusmate ويوتيوب وغرف الديسكورد، واعرف أفضل خيار للمذاكرة الصامتة والقدرات والتحصيلي.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": "https://halastudy.com/blog/best-online-group-study-rooms-saudi",
+            "ogImage": null,
+            "h1": [
+              "أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية: كيف تختار الغرفة المناسبة لك؟"
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 8094,
+            "smallTargets": [
+              "→\nكل التدوينات (84x20)",
+              "المدونة (39x20)",
+              "الخصوصية (59x20)",
+              "الشروط (44x20)",
+              "info@halastudy.com (109x20)",
+              "+966 59 916 1315 (91x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "Halastudy.\nهلا",
+              "افتح غرفة",
+              "→\nكل التدوينات",
+              "ادخل غرفة مذاكرة عربية الآن"
+            ]
+          },
+          "axe": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 1,
+              "sample": "em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\07-blog_best_online_group_study_rooms_saudi-desktop.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\07-blog_best_online_group_study_rooms_saudi-desktop-fold.png"
+        },
+        "mobile": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1625,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap' violates the following Content Security Policy directive: \"connect-src 'self",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 148,
+            "domContentLoaded": 596,
+            "transferKB": 10
+          },
+          "vitals": {
+            "lcp": 612,
+            "cls": 0.025
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/landing.css",
+              "kb": 45
+            },
+            {
+              "u": "https://halastudy.com/js/halastudy-core.js",
+              "kb": 12
+            },
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400",
+              "kb": 2
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700",
+              "kb": 2
+            }
+          ],
+          "dom": {
+            "title": "أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية | هلاستدي",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "تبحث عن غرفة مذاكرة جماعية أونلاين؟ قارن بين Halastudy وStudyStream وFocusmate ويوتيوب وغرف الديسكورد، واعرف أفضل خيار للمذاكرة الصامتة والقدرات والتحصيلي.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": "https://halastudy.com/blog/best-online-group-study-rooms-saudi",
+            "ogImage": null,
+            "h1": [
+              "أفضل غرف مذاكرة جماعية أونلاين للطلاب في السعودية: كيف تختار الغرفة المناسبة لك؟"
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 9985,
+            "smallTargets": [
+              "→\nكل التدوينات (84x20)",
+              "المدونة (39x20)",
+              "الخصوصية (59x20)",
+              "الشروط (44x20)",
+              "info@halastudy.com (109x20)",
+              "+966 59 916 1315 (91x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "Halastudy.",
+              "افتح غرفة",
+              "→\nكل التدوينات"
+            ]
+          },
+          "axe": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 1,
+              "sample": "em"
+            },
+            {
+              "id": "scrollable-region-focusable",
+              "impact": "serious",
+              "help": "Scrollable region must have keyboard access",
+              "count": 2,
+              "sample": ".table-wrap:nth-child(10)"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\07-blog_best_online_group_study_rooms_saudi-mobile.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\07-blog_best_online_group_study_rooms_saudi-mobile-fold.png"
+        }
+      }
+    },
+    {
+      "url": "https://halastudy.com/blog/study-with-me-online-arabic",
+      "views": {
+        "desktop": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1594,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap' violates the following Content Security Policy directive: \"connect-src 'self",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 153,
+            "domContentLoaded": 552,
+            "transferKB": 8
+          },
+          "vitals": {
+            "lcp": 576,
+            "cls": 0.002
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/landing.css",
+              "kb": 45
+            },
+            {
+              "u": "https://halastudy.com/js/halastudy-core.js",
+              "kb": 12
+            },
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400",
+              "kb": 2
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700",
+              "kb": 2
+            }
+          ],
+          "dom": {
+            "title": "ذاكر معي أونلاين | غرفة مذاكرة صامتة للتركيز · هلاستدي",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "تبي تذاكر بس التسويف ماسكك؟ ادخل غرفة مذاكرة صامتة أونلاين مع طلاب مثلك، حدد هدفك، شغل جلستك، وابدأ مذاكرة بدون سوالف ولا تشتيت.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": "https://halastudy.com/blog/study-with-me-online-arabic",
+            "ogImage": null,
+            "h1": [
+              "ذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ الآن"
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 6884,
+            "smallTargets": [
+              "→\nكل التدوينات (84x20)",
+              "المدونة (39x20)",
+              "الخصوصية (59x20)",
+              "الشروط (44x20)",
+              "info@halastudy.com (109x20)",
+              "+966 59 916 1315 (91x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "Halastudy.\nهلا",
+              "افتح غرفة",
+              "→\nكل التدوينات",
+              "ادخل غرفة مذاكرة الآن"
+            ]
+          },
+          "axe": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 1,
+              "sample": "em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\08-blog_study_with_me_online_arabic-desktop.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\08-blog_study_with_me_online_arabic-desktop-fold.png"
+        },
+        "mobile": {
+          "status": 200,
+          "error": null,
+          "loadMs": 1572,
+          "consoleErrors": [
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap' violates the following Content Security Policy directive: \"connect-src 'self",
+            "Connecting to 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&disp"
+          ],
+          "pageErrors": [],
+          "failedRequests": [],
+          "nav": {
+            "ttfb": 154,
+            "domContentLoaded": 549,
+            "transferKB": 8
+          },
+          "vitals": {
+            "lcp": 564,
+            "cls": 0
+          },
+          "heaviest": [
+            {
+              "u": "https://halastudy.com/design-system/landing.css",
+              "kb": 45
+            },
+            {
+              "u": "https://halastudy.com/js/halastudy-core.js",
+              "kb": 12
+            },
+            {
+              "u": "https://halastudy.com/design-system/colors_and_type.css",
+              "kb": 10
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400",
+              "kb": 2
+            },
+            {
+              "u": "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700",
+              "kb": 2
+            }
+          ],
+          "dom": {
+            "title": "ذاكر معي أونلاين | غرفة مذاكرة صامتة للتركيز · هلاستدي",
+            "lang": "ar",
+            "dir": "rtl",
+            "metaDescription": "تبي تذاكر بس التسويف ماسكك؟ ادخل غرفة مذاكرة صامتة أونلاين مع طلاب مثلك، حدد هدفك، شغل جلستك، وابدأ مذاكرة بدون سوالف ولا تشتيت.",
+            "viewportMeta": "width=device-width, initial-scale=1.0",
+            "canonical": "https://halastudy.com/blog/study-with-me-online-arabic",
+            "ogImage": null,
+            "h1": [
+              "ذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ الآن"
+            ],
+            "forms": 0,
+            "inputsWithoutLabel": 0,
+            "pageHeight": 8172,
+            "smallTargets": [
+              "→\nكل التدوينات (84x20)",
+              "المدونة (39x20)",
+              "الخصوصية (59x20)",
+              "الشروط (44x20)",
+              "info@halastudy.com (109x20)",
+              "+966 59 916 1315 (91x20)"
+            ],
+            "overflow": [],
+            "imgsNoAlt": [],
+            "brokenImgs": [],
+            "emptyLinks": [],
+            "tinyText": 0,
+            "ctaAboveFold": [
+              "Halastudy.",
+              "افتح غرفة",
+              "→\nكل التدوينات"
+            ]
+          },
+          "axe": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "help": "Elements must meet minimum color contrast ratio thresholds",
+              "count": 1,
+              "sample": "em"
+            }
+          ],
+          "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\08-blog_study_with_me_online_arabic-mobile.png",
+          "foldScreenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\shots\\08-blog_study_with_me_online_arabic-mobile-fold.png"
+        }
+      }
+    }
+  ]
+}

@@ -558,14 +558,11 @@
                 }
             });
         }
-
         return {
             joinRealtimeKitRoom,
             leave,
             heartbeat,
-            setApiBaseUrl(nextApiBaseUrl = '') {
-                apiBaseUrl = nextApiBaseUrl || '';
-            }
+            setApiBaseUrl(nextApiBaseUrl = '') { apiBaseUrl = nextApiBaseUrl || ''; }
         };
     }
 

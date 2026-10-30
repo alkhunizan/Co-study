@@ -1,0 +1,85 @@
+{
+  "name": "Prepare a new study room on mobile",
+  "viewport": "mobile",
+  "completed": true,
+  "failedAt": null,
+  "steps": 6,
+  "totalMs": 7951,
+  "slowSteps": [
+    2
+  ],
+  "errors": [],
+  "log": [
+    {
+      "n": 1,
+      "step": {
+        "goto": "https://halastudy.com/"
+      },
+      "ok": true,
+      "ms": 2683,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-mobile\\step-01.png"
+    },
+    {
+      "n": 2,
+      "step": {
+        "click": "القائمة"
+      },
+      "ok": true,
+      "targetSize": "44x44",
+      "ms": 4100,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-mobile\\step-02.png"
+    },
+    {
+      "n": 3,
+      "step": {
+        "click": "css=#mobile-menu a[href=\"/open.html\"]"
+      },
+      "ok": true,
+      "targetSize": "350x53",
+      "ms": 1122,
+      "url": "https://halastudy.com/open.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-mobile\\step-03.png"
+    },
+    {
+      "n": 4,
+      "step": {
+        "expect": "غرفة تركيز جديدة"
+      },
+      "ok": true,
+      "ms": 16,
+      "url": "https://halastudy.com/open.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-mobile\\step-04.png"
+    },
+    {
+      "n": 5,
+      "step": {
+        "fill": {
+          "target": "اسم الغرفة",
+          "value": "اختبار تجربة - دون إنشاء"
+        }
+      },
+      "ok": true,
+      "ms": 30,
+      "url": "https://halastudy.com/open.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-mobile\\step-05.png"
+    },
+    {
+      "n": 6,
+      "step": {
+        "note": "Creation form reached. Stop before the submit button; no room is created."
+      },
+      "ok": true,
+      "ms": 0,
+      "url": "https://halastudy.com/open.html",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\create-mobile\\step-06.png"
+    }
+  ]
+}

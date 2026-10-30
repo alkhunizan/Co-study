@@ -1,0 +1,1185 @@
+{
+  "source": "\\\\192.168.50.113\\E\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\docs\\viber\\2026-10-23\\scripts\\..\\..\\..\\..",
+  "runtime": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-viber-2026-10-23\\preview",
+  "head": "50158269273d27330012dc116685d6898a49ca6b",
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "6fc653a59d367e022aafba0ed0e5d777a782e1ab024afa0e9f7e6e4718af4172"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "f8754307fa5fae783dd82a899d3c1d9b9d95d1d0537794da0ed6399c1b14144e"
+    },
+    {
+      "path": "404.html",
+      "sha256": "cafe2203bd515b68831a77c14b80dbc612e542ed08c1ece38ea437c79c1f62e5"
+    },
+    {
+      "path": "account.html",
+      "sha256": "8e1c0d8429c564ece669062e3f4dbc279305b3baf2fd5942aab80532f3bbe857"
+    },
+    {
+      "path": "admin.html",
+      "sha256": "e03e3011e0c0f292ce04d47ce518178289d0e6b19061064c224fb123e00c1a60"
+    },
+    {
+      "path": "audio/break-end.mp3",
+      "sha256": "1b6e4c8857f5633d949237bdd8e0c5f988675f31203672017483f6b795a40934"
+    },
+    {
+      "path": "audio/cafe.wav",
+      "sha256": "721331d0039cd499c640de5a1ecf4477dc45b3b6a709153420274e867c1b337d"
+    },
+    {
+      "path": "audio/chimney-fire.wav",
+      "sha256": "9fb5f0f33d24a62fdb3ca5d86fdb7d029dcbccca25ff12fc7f841706d623794a"
+    },
+    {
+      "path": "audio/forest.mp3",
+      "sha256": "d78af63a4546d522125a6fe66223665069b855be8f37a9ff2db15e5156dae144"
+    },
+    {
+      "path": "audio/rain.mp3",
+      "sha256": "a85a403d25f98e141a3297b47535990ad2f99a7152f7e2c6577a37b44e1a6973"
+    },
+    {
+      "path": "audio/waves.wav",
+      "sha256": "1fc0fb125910c1c83567bd55611d0fd0e26fa6885f7ffd80ee4a127715cc97a3"
+    },
+    {
+      "path": "audio/work-end.mp3",
+      "sha256": "e70844c24e5906335e9aece27a844af98dae82fb765438b8bee6e56f0ac955c7"
+    },
+    {
+      "path": "biome.json",
+      "sha256": "2e69c5109bb27f8ff38656a24b2d3830834fa9ceb117a9d404fe9023c13d104f"
+    },
+    {
+      "path": "blog.html",
+      "sha256": "47b3e435090144f89864a506a8d7be7a5fa156e2f7a6b8251edffe854eb698df"
+    },
+    {
+      "path": "blog-best-study-rooms.html",
+      "sha256": "37cc759296b3dc9e50c3f29d00933ffa789549b34e46baac81b1e2b551c26388"
+    },
+    {
+      "path": "blog-study-with-me.html",
+      "sha256": "d535fda0c72162ebdf9b994fe39edbb9c8a56b15eeea3a0659bb45a6e4ebf000"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "da178d8c4b7df012bff21d2de00cddb7d1efefafcee801220c4c8be97c861f73"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "f1b1e55ff433aeda57c7b668c2c4dafed008774a08d35754d5fd2367b42f6e7c"
+    },
+    {
+      "path": "contact.html",
+      "sha256": "8769d05bf8cad847e903d19dc06de5535119e530d91c2d85b014965315fd259d"
+    },
+    {
+      "path": "co-study-server.js",
+      "sha256": "863038e33a7fe518a30b8209a5a13207ef6f7da02786e3a5143377fe328837f1"
+    },
+    {
+      "path": "db/migrations/001-platform.sql",
+      "sha256": "f7ae90acb41de433a4655d112a617a74ebe0daaf0fab51d25b4df074204a9545"
+    },
+    {
+      "path": "db/migrations/002-digetpay.sql",
+      "sha256": "41c318ee5a98f8ca12e165dfa0f981a4a1371ef0651456999824343486525776"
+    },
+    {
+      "path": "db/migrations/003-payment-review.sql",
+      "sha256": "8fda9d432fdb1f72325788ee10684e97efdf03be6fc2de7b21cb6fb4e19bd0b4"
+    },
+    {
+      "path": "db/migrations/004-study-tools.sql",
+      "sha256": "2c4b5d3e0637f5da7a6be954f17b66dec0b44849acab50abd37a71547db5435a"
+    },
+    {
+      "path": "DEPLOYMENT.md",
+      "sha256": "9f5cfa49063777bd267dc3014f642895aa65c47910a448c6f9a5bf06941dbbf7"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "520a52a53b36621ee01688f8ae8954753303f6901cfbefe4ee1a87bf73ab4709"
+    },
+    {
+      "path": "design-system/assets/baby-chick.gif",
+      "sha256": "f138d2a1744ec473d34497fb9f2d551f662c55f57ddd355fd3f7e63e1f0bf795"
+    },
+    {
+      "path": "design-system/assets/icons.html",
+      "sha256": "6d35399ac9a08484c237376e39467332ec390d0ecd83c409d7dc8cfb5da84f89"
+    },
+    {
+      "path": "design-system/assets/logo-wordmark.html",
+      "sha256": "8568cd5f66627257aee49c05148235ed1794b4ecf7f369aec60e6498261fecd1"
+    },
+    {
+      "path": "design-system/chats/chat1.md",
+      "sha256": "01d14b356961277f2206523189c63b9ca1ad7f24fd2406e7b66538e6fe0b5e9a"
+    },
+    {
+      "path": "design-system/colors_and_type.css",
+      "sha256": "4d7709f286566d7049715081aec19ba36b8cfdef349dff19b4ad4acc810438fc"
+    },
+    {
+      "path": "design-system/DESIGN.md",
+      "sha256": "e3e7bdbbc5c10e91699422b280e45799b092eebac6a4258d45a0350a1a0ec1fb"
+    },
+    {
+      "path": "design-system/Favicon Handout.html",
+      "sha256": "261199b27aaf04f9079c5c56083b463514c681df59d189fc4aa3130c75a333dd"
+    },
+    {
+      "path": "design-system/HANDOFF.md",
+      "sha256": "0c14e24598dec142d913a44153e4f08c397c816df9ec359081cf7533d9eff790"
+    },
+    {
+      "path": "design-system/landing.css",
+      "sha256": "0fe1668b7538a44d081c7ef87be1fef56b130a087ec2483f279b57689b5ad1c6"
+    },
+    {
+      "path": "design-system/preview/_card.css",
+      "sha256": "27fb01a40e0418fdddd7cd72b25ec983cd9dab015bd85674a53a7e014f502ecf"
+    },
+    {
+      "path": "design-system/preview/buttons.html",
+      "sha256": "3e5d59d3c11e8ec3b07e6ea69a7e3491811a00a5ec8b6b3e228c6b760ba363b0"
+    },
+    {
+      "path": "design-system/preview/cards.html",
+      "sha256": "1a76d78b1237687ff7a525180a5958db7e619f7e107e6669d22a96ccdfac5af8"
+    },
+    {
+      "path": "design-system/preview/colors-accent.html",
+      "sha256": "b41e41745cb933ce3d6b060ddedeb63dff9c9083c615360f8104b21a2ca49f7d"
+    },
+    {
+      "path": "design-system/preview/colors-dark.html",
+      "sha256": "d196bb961c96d79e2f99ba6c71688ff74c61e59e67ef552b4b4e0f1908796c23"
+    },
+    {
+      "path": "design-system/preview/colors-paper.html",
+      "sha256": "7142de14077aadd6fd693b54e77f1189779008d567272b56c02fc2dcbe81facb"
+    },
+    {
+      "path": "design-system/preview/colors-semantic.html",
+      "sha256": "22d49ec09fff35608251a073a434ade2a745df8d459789c46217646004622ef3"
+    },
+    {
+      "path": "design-system/preview/illustration.html",
+      "sha256": "f9e80e5fff9b5ff03874c4875ba78d10ddc01fa7375d966f7f9192cf2786ed82"
+    },
+    {
+      "path": "design-system/preview/inputs.html",
+      "sha256": "52aeb408d582340294f12f771774cd5d0107bf212b41c0f075ca160841ec0005"
+    },
+    {
+      "path": "design-system/preview/logo.html",
+      "sha256": "ebd08e1c005d5bf6cc892f393651ff3fd924a60a4217ed77b36b010589604733"
+    },
+    {
+      "path": "design-system/preview/motion.html",
+      "sha256": "6d1d7aafbdd47d82acc9ecb4dfd1730c36a87961619ae8e52ebc5c4545f206c1"
+    },
+    {
+      "path": "design-system/preview/nav-toolbars.html",
+      "sha256": "966c32c2cc680e98b2f446d4acbe3f8257436e3da4d46ca5a2b61029f8d621c8"
+    },
+    {
+      "path": "design-system/preview/pills-badges.html",
+      "sha256": "8f2965ce847bd1a448e8228e78300f7403caa587f9fae694d59fd4eda1b9e854"
+    },
+    {
+      "path": "design-system/preview/shadows.html",
+      "sha256": "09e4b3888fd0969f70e54f44a61361feac3e4aa57ceaa2e7dd918f902d8a7d51"
+    },
+    {
+      "path": "design-system/preview/space-radii.html",
+      "sha256": "3b0323dea3265d400fb4ac489140cefe5d6e5175a7745e0e3c01c2242dfbab0d"
+    },
+    {
+      "path": "design-system/preview/status-presence.html",
+      "sha256": "9ef5cf3700b3375843f2d820c522b5e23a4ac291accc665046254daa05cfb04b"
+    },
+    {
+      "path": "design-system/preview/type-arabic.html",
+      "sha256": "4ca218710382b50b97b6d20bc73af01260a1d7a945d7edaa4044e75ade721331"
+    },
+    {
+      "path": "design-system/preview/type-body.html",
+      "sha256": "f7419ef6a2083dc81cb07914d591af5242a804501b4bd9804c3adb2b4e53f5d4"
+    },
+    {
+      "path": "design-system/preview/type-display.html",
+      "sha256": "958c10f454af453ede1c1b1bce63cfa8f404c72c2850e28a0d6a85c141987745"
+    },
+    {
+      "path": "design-system/preview/type-scale.html",
+      "sha256": "6a16ddbce600ec83d3279384b87b563a6f929803cede298b0275e109f3866a55"
+    },
+    {
+      "path": "design-system/preview/ui-kit-dark.png",
+      "sha256": "6ba55102dc748034ceae89b0a04f120989d796386ec2875b941e4039242cf4ac"
+    },
+    {
+      "path": "design-system/preview/ui-kit-landing.png",
+      "sha256": "fed2d5c23dceb7367cb408a259d533d7de52bbe9607c9177f325b78d427a5eb7"
+    },
+    {
+      "path": "design-system/preview/ui-kit-room.png",
+      "sha256": "1cc15111a56573db96693979c3f949ac00d1fb0c1ce67c91a0e6342022f2de71"
+    },
+    {
+      "path": "design-system/README.md",
+      "sha256": "3753e27443fb8c4b0c4e8eae637626158acb7df572c5ae3bb04b24f2cbdf9b50"
+    },
+    {
+      "path": "design-system/SKILL.md",
+      "sha256": "00c814dca6767a490979d8162202da4109799ac438f4b8e632e8bcf5504d584c"
+    },
+    {
+      "path": "design-system/ui_kits/web/Components.jsx",
+      "sha256": "e7aa4969d84f61afc5258c1bdf14f737067e833d3aaa4f8889fba43b7715d67e"
+    },
+    {
+      "path": "design-system/ui_kits/web/index.html",
+      "sha256": "f62f70953010666573c305b5b2a2ed8d955497f744c0b79f043b66f0fdfed0c6"
+    },
+    {
+      "path": "design-system/ui_kits/web/Landing.jsx",
+      "sha256": "b14459ea337f90f3d1adcd70e8252e193e33ea3ed5d8c0e6fdbe5729460283ee"
+    },
+    {
+      "path": "design-system/ui_kits/web/Lang.jsx",
+      "sha256": "d2a010f4e56321a5845f46f80eda2236ab013ff1c216e6c3f0538f6c8a6d0737"
+    },
+    {
+      "path": "design-system/ui_kits/web/README.md",
+      "sha256": "0ef4ba878958100185a7641e86a5f335f9b35103b8c226b95a39363f90708609"
+    },
+    {
+      "path": "design-system/ui_kits/web/Room.jsx",
+      "sha256": "3f2eed1e3611e4e3b80d02cfd5e7515fb7c6e9f71e0642d8023cf90ff9412e19"
+    },
+    {
+      "path": "design-system/uploads/pasted-1778785292651-0.png",
+      "sha256": "30d87cd5fe42badc1d29ecd1ec5dbfdf2b8bbbecdd0dd3bf5061302663ae416b"
+    },
+    {
+      "path": "docker-compose.yml",
+      "sha256": "1066af8001f913d52138aecf0f964589d1850876ed6ff5f7fb08ee88ae8fd71e"
+    },
+    {
+      "path": "ecosystem.config.js",
+      "sha256": "0771848540e94158eb65e4fd37ecdd70c90556b234524951a37d198b21aac9e3"
+    },
+    {
+      "path": "images/icons/apple-touch-icon.png",
+      "sha256": "651879978dee52114ffba45827b02a3dc6448efe32b2049acd4c97071a370d1c"
+    },
+    {
+      "path": "images/icons/favicon.raster-backup.svg",
+      "sha256": "8e18b85b08145def4eacc23e517a329dda1221cbedfaadc2875ac26ad3a8d9ba"
+    },
+    {
+      "path": "images/icons/favicon.svg",
+      "sha256": "5937ea979af7a5f4c9dd89b3321f55acc55e2dd802dbd2dade36195c27607844"
+    },
+    {
+      "path": "images/icons/favicon-128.png",
+      "sha256": "1e58b3e28dd9de19b3d8de575257f743765dbaf9bfca915e5b84309855bb9869"
+    },
+    {
+      "path": "images/icons/favicon-16.png",
+      "sha256": "c6fd77d17aec336a99ab1379d9d1d4efe4b06e178344d729a5a6f022ca98f9df"
+    },
+    {
+      "path": "images/icons/favicon-180.png",
+      "sha256": "8587322bc6aa30bb47951d6ac130659bad3f69ebfe703d877fbe66e7a60be393"
+    },
+    {
+      "path": "images/icons/favicon-192.png",
+      "sha256": "a3c7e7fc1f96dbefd04e67ec332740530edcac09e16a9293ef735322ef16ee78"
+    },
+    {
+      "path": "images/icons/favicon-256.png",
+      "sha256": "f50506f2d4a37f0243a1827726bbf46f89362acb8e87b68cd1024394b7609b68"
+    },
+    {
+      "path": "images/icons/favicon-32.png",
+      "sha256": "122bfe14851dff3875b84fdd10a67f739f64e4db5a98e30999ce9cc77384fe00"
+    },
+    {
+      "path": "images/icons/favicon-48.png",
+      "sha256": "546ba719fefdab59d9c9464cfb7a70761d861b0d828ed6429340320b6efe1041"
+    },
+    {
+      "path": "images/icons/favicon-512.png",
+      "sha256": "7318c418db6fb6a8547489088f7dd56e14f2f2f7423139b8f489318dbb9fb708"
+    },
+    {
+      "path": "images/icons/favicon-64.png",
+      "sha256": "1debe7804e6a00491f76c402dbd9139d2979178af977fddb5987905b93cec234"
+    },
+    {
+      "path": "images/icons/maskable-512.png",
+      "sha256": "19ca47fca3db310715279f16732dc95bd65cdf2840e0b25902e0ab5da20ef2c4"
+    },
+    {
+      "path": "images/og/blog-best-study-rooms.png",
+      "sha256": "fb1d6e67101d8cf47f6d1ac7339e1f450354658e75d30a08b6497e4c32cda9e7"
+    },
+    {
+      "path": "images/og/blog-study-with-me.png",
+      "sha256": "71fa26326ddd54ca4a7b50b89c30ed1c239373aeb70203af1a678d1df4bb2c03"
+    },
+    {
+      "path": "images/team/bahaa-el-masri.jpg",
+      "sha256": "0a57805b0add629877ff2e517071da058cf285a604a965cb3e6e06d4edc95f6e"
+    },
+    {
+      "path": "images/team/dana-azzam.jpg",
+      "sha256": "1d7768e7b6588197b3a12b30abb5eb1e97ca04bcfa6d4df231dab2478460f440"
+    },
+    {
+      "path": "images/team/fahad-sultan.jpg",
+      "sha256": "80b6bda3917acb48e3a3b4ed2b21eb3c446675f1d58a93f5375ebc04ca8adc7d"
+    },
+    {
+      "path": "images/team/fahad-sultan.webp",
+      "sha256": "1b193f405209aa8d8c5d6d417c00eb8f07f2f2ac2dade83cb5b0e87f0e8e7421"
+    },
+    {
+      "path": "images/team/munira-abdullah.jpg",
+      "sha256": "2ba6f66ff187c23d0c663b80367bf3e2dbe0dca2338c69c7a7e9ea0a01e43c8b"
+    },
+    {
+      "path": "images/team/munira-abdullah.webp",
+      "sha256": "dcbce1d700df832cc418376c188890b3c07561af976512c64f28df9bf687fb4b"
+    },
+    {
+      "path": "images/team/noor-al-hassan.jpg",
+      "sha256": "aaf7493a60837def0f82345e72d000971dbe08701747dcbf4ad6e3f50742a483"
+    },
+    {
+      "path": "images/team/omar-khalid.jpg",
+      "sha256": "abf9efb1ad64a66217a117445eaec094b0ecbdec2dcf191db855d9ed81a8637d"
+    },
+    {
+      "path": "images/team/sarah-khalid.jpg",
+      "sha256": "4d9731460ec2c2c4ccbef4461d8dec5b6a3c252e54464d40dd80e986cc5ceabf"
+    },
+    {
+      "path": "images/team/sarah-khalid.webp",
+      "sha256": "f4a17b4fe058912308176df7051b95228b75899f56f5f797358993a5ec7f1a98"
+    },
+    {
+      "path": "images/team/shahad-nasser.jpg",
+      "sha256": "987a484e116add40607879a2fe837c809b44e4df9f9fdbbb7c45e02b61aab2c1"
+    },
+    {
+      "path": "images/team/shahad-nasser.webp",
+      "sha256": "cf615da5c5490587ac6f08488e090221e76a9c8f775e8c7b047567fc18c09270"
+    },
+    {
+      "path": "images/team/turki-nasser.jpg",
+      "sha256": "e8269132045f935463367c6695f761555b0f67cea82c37e15f044dd31c378e0c"
+    },
+    {
+      "path": "images/team/turki-nasser.webp",
+      "sha256": "5bdea8e02d62a27ab19119755e491f56101e051388c0d3e7aef6a949b0e137e3"
+    },
+    {
+      "path": "images/team/zayd-nasser.jpg",
+      "sha256": "856d2bd2ad435ba2cb6ffa33b52d2266b63eed643088aa075dd6d4950fedd674"
+    },
+    {
+      "path": "images/tiles/al-anoud.jpg",
+      "sha256": "a621f6d755c2083f3c2876dd720834ea10450ed9316b102dc35d72892d507611"
+    },
+    {
+      "path": "images/tiles/haya-turki.jpg",
+      "sha256": "dfadbd7ff31c9632cd32e68b56dd45eb5a40490c57cfb8ae62e625d95aae0b14"
+    },
+    {
+      "path": "images/tiles/haya-turki.webp",
+      "sha256": "453099731e6c85a28ea092c9055dd0dca9a8716c8a036e43cc66e9a9c052f98e"
+    },
+    {
+      "path": "images/tiles/majed-faisal.jpg",
+      "sha256": "5389cbff16f04bac2bbb0fe43b72e19e2073782dc5675711e7cf27ef194ec25e"
+    },
+    {
+      "path": "images/tiles/majed-faisal.webp",
+      "sha256": "2ae4b983e2f5d81f79d3957b2d77b9e5abf7098f193c3c11f53e5e7e68e7a9e8"
+    },
+    {
+      "path": "images/tiles/razan-fahad.jpg",
+      "sha256": "2ba6f66ff187c23d0c663b80367bf3e2dbe0dca2338c69c7a7e9ea0a01e43c8b"
+    },
+    {
+      "path": "images/tiles/razan-fahad.webp",
+      "sha256": "dcbce1d700df832cc418376c188890b3c07561af976512c64f28df9bf687fb4b"
+    },
+    {
+      "path": "images/tiles/tariq.jpg",
+      "sha256": "4b4bf75c97ad856fa660f2e7fdbdcc9404d321e77d14e76ae79f5eeb6ac0e133"
+    },
+    {
+      "path": "index.html",
+      "sha256": "8d7246631faeefb4d4de28f0d49f0c7ee49a68539348fd8581eb7632c75779f4"
+    },
+    {
+      "path": "knip.json",
+      "sha256": "84b3fa274f18ce77c5d780a04fc6479b4b1100b9ea414f7f5e2bd138cfc2acc8"
+    },
+    {
+      "path": "landing.html",
+      "sha256": "3cb1f211454369a286134a45433645ccb3adf401a234dfe0b45ecc1135b9eca7"
+    },
+    {
+      "path": "LAUNCH.md",
+      "sha256": "6e8b17ce2fe531b86b4b6a59fb7cbe3ef78a17f5fc3bd2aa5c56ddfcd4d2399d"
+    },
+    {
+      "path": "lobby.html",
+      "sha256": "9bb9ea3b68ca22101657a56fc0851b278f96738958aea87e5df84bcb249424fb"
+    },
+    {
+      "path": "open.html",
+      "sha256": "c9bc07e10281429642b3368a050d5053daf05b724f5a46a75cf29327bab43308"
+    },
+    {
+      "path": "package.json",
+      "sha256": "23deb27b7aa409f7a340743e41c13ac68c4f47cabac470c128b59b2a07fd0133"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "36220bfbf1c235853076c03fecf29bdd71ad9751504bd86ef40cd3cb16ba9dfd"
+    },
+    {
+      "path": "platform.html",
+      "sha256": "61afd6e11591022a54d69083c71f4ce687fc97f73c83c8c8fd2398a92ed8627e"
+    },
+    {
+      "path": "playwright.config.js",
+      "sha256": "543ed17591f3866fbeeb17496544065f888e6f93799f2197b85700d58be3623f"
+    },
+    {
+      "path": "privacy.html",
+      "sha256": "1347c81e1b08043c8dbb5b123c30b763f3a9b01cf0b2838aae7428d8488f764d"
+    },
+    {
+      "path": "public/css/platform.css",
+      "sha256": "832c6455cdf62e46c6246cb137688d75c4f143d8d41ec9448a5649f0f0a32790"
+    },
+    {
+      "path": "public/css/recovery.css",
+      "sha256": "227decf6a211589589214a0567525404e9aa58685840ebf3ba3ce784f6cb67be"
+    },
+    {
+      "path": "public/css/room-shell.css",
+      "sha256": "acab7f851de2c7e374f5bfa64bd497d6af26a566ba657932d8ef60fb4782cd80"
+    },
+    {
+      "path": "public/css/study-workspace.css",
+      "sha256": "baa1ab2f08b11c2a92027b72b82d4474fe9a6920ffe818d080757353ea0a4cd6"
+    },
+    {
+      "path": "public/js/focus-client.js",
+      "sha256": "3023f868945d15a78b19572ac636a42b92e5088a8740d5f7dadd0b9e381e4a21"
+    },
+    {
+      "path": "public/js/halastudy-core.js",
+      "sha256": "9588a952c522a6c416eead4077e7cabe2cb890e37bbcfbed0d37a6d7fc400378"
+    },
+    {
+      "path": "public/js/legal-shell.js",
+      "sha256": "5cce5deb1fa9ba0ecf97eb67ce03400e9410f8690709056dde02dd80c9d9df7e"
+    },
+    {
+      "path": "public/js/marketing-copy.js",
+      "sha256": "9258d95329a15616c94409392875204fc5374b4e30405c94e5f968a827b109e0"
+    },
+    {
+      "path": "public/js/platform.js",
+      "sha256": "cadfefc38e714e1a85dcc73280772221c20423b9c607f340bb5b51c0f911a9b3"
+    },
+    {
+      "path": "public/js/platform-copy.js",
+      "sha256": "9f28abc7046abcbc528e1eb23c5cfd1442852f35c0239f2b93dc0c74fefd3d0d"
+    },
+    {
+      "path": "public/js/recovery.js",
+      "sha256": "53f3026c86f24a5eece7eb6445939cf69ba83b692476f78f479112dfa057420f"
+    },
+    {
+      "path": "public/js/room-focus.js",
+      "sha256": "921e01964a0c83e463557162b0e8777385df6cfdf3f4c90f1d50e189eb251d51"
+    },
+    {
+      "path": "public/js/safe-return.js",
+      "sha256": "7540b64ed5c0fe86be52987a020f70af3caea6133fdeba112cb7bc6f913d87dd"
+    },
+    {
+      "path": "public/js/schedule-display.js",
+      "sha256": "bdadf065780628c2cc6c4f9c3c6de7635e5fab659f07551ae0fcebabf84c8151"
+    },
+    {
+      "path": "public/js/study-copy.js",
+      "sha256": "63abe5cbd9ee367a904db263b5b29769771b92c6578b78882a227bbdf7f3e5e3"
+    },
+    {
+      "path": "public/js/study-routine.js",
+      "sha256": "768d209949c782a02e426fb73bea7bc92bd11617bcdcb1ec94aa78c8c6140fcf"
+    },
+    {
+      "path": "public/js/study-workspace.js",
+      "sha256": "a4893148e41f05370a53dca470c58a9e3bb0dac9e1c73e9fb6394dc5835c5e2e"
+    },
+    {
+      "path": "public/js/ui.js",
+      "sha256": "65701d3108a6d16e32236dbcddda6580e0a73ecfb039be78730efff0b880d32c"
+    },
+    {
+      "path": "public/js/ux-insights.js",
+      "sha256": "0c7bad807138f494e5edf1e6a1e1770e216fa60c5a41a58eeb95e01f15c70d95"
+    },
+    {
+      "path": "public/js/video/realtimekit-client.js",
+      "sha256": "f7c403e6abc70ae328e58cbba62f9c5f23316ff6292a5d39dfe5c9e4ed483568"
+    },
+    {
+      "path": "public/js/video/video-client.js",
+      "sha256": "5a7e75234e859453c66e030e77e036093b610ba6d4f932f81dfa578c0f0e0d2b"
+    },
+    {
+      "path": "public/manifest.webmanifest",
+      "sha256": "a32b968718fba4a888dddd05b76b3d830dc25b5b3f1831e981f40b9e1112d1f6"
+    },
+    {
+      "path": "README.md",
+      "sha256": "1b22b7d2b17075c786cf9a8cf56d3b4e0cc651ebbb1d00d3117f4f48422ac929"
+    },
+    {
+      "path": "README_AR.md",
+      "sha256": "ec18e4b07d8f82001a126aa4e6dd7c207798fea95e9a59a49f857ad36fd905e1"
+    },
+    {
+      "path": "recovery.html",
+      "sha256": "c2d6d3072e649a302cc79269ffd0b46dd3e649a6fbb08992a46f7d7540f2c29d"
+    },
+    {
+      "path": "room-store.js",
+      "sha256": "732bdc60b1208c7be1f5d47258bef390b45a980010e20872440b4e5b3f4597da"
+    },
+    {
+      "path": "schedule-utils.js",
+      "sha256": "4a6ab18c5425351eec519f3948c53190308aecddaa5d9b8bcc9ff908c65e5a70"
+    },
+    {
+      "path": "scripts/backup-r2.js",
+      "sha256": "f9667f81c3a1dbf8c14498f0f05becaf0878e4325e7493420afb0d23e6ec8c8f"
+    },
+    {
+      "path": "scripts/backup-rooms.js",
+      "sha256": "89f4e544a128ba516efd98127d3ba3a1ec82c140fc79bbc2c89cb8e6d5a55c0c"
+    },
+    {
+      "path": "scripts/check-platform.js",
+      "sha256": "191acfafe155a1042e416a82ab9e7d0094af773541a3315d53b3ccb61db91955"
+    },
+    {
+      "path": "scripts/cloudflare/create-viewer-preset.js",
+      "sha256": "594ccb6bc89cb009caa3bb506b26f57745cc8eb9a4ad869491cc8e94628c7125"
+    },
+    {
+      "path": "scripts/cloudflare/r2-client.js",
+      "sha256": "5e3b9fe1323d622cff95a3d5a7e4bf463fd1ffc62893a38a7a19a7990bf5cb8a"
+    },
+    {
+      "path": "scripts/cloudflare/realtimekit-cleanup.js",
+      "sha256": "579453b846c88a60cae128ec4c961262433e90feb12a4b769f2884166dabda0d"
+    },
+    {
+      "path": "scripts/cloudflare/realtimekit-common.js",
+      "sha256": "26ce423fd91f095102bbf568d52f1653edabb26f56b2ed54cb21b3334b3ea440"
+    },
+    {
+      "path": "scripts/cloudflare/realtimekit-cost-check.js",
+      "sha256": "a6660f799d881bba35aad702829092216829ff231b9db4a837bfee6560cc7232"
+    },
+    {
+      "path": "scripts/cloudflare/realtimekit-doctor.js",
+      "sha256": "fd3d50ae6e1a2d2cb477a9a0155e22a317c2ab2a6e3d88e3143a1a187e129504"
+    },
+    {
+      "path": "scripts/cloudflare/realtimekit-setup.js",
+      "sha256": "d518bf467183a76b160395b3e2618db253a32e1c58a8bb4f8e873b201fb49d50"
+    },
+    {
+      "path": "scripts/cloudflare/realtimekit-smoke.js",
+      "sha256": "0d29e264f5b67e4fd6c94e5da490d1200e4fd334ae34a0e927cd404ee8223130"
+    },
+    {
+      "path": "scripts/cloudflare/turn-credentials.js",
+      "sha256": "1c2566160d5fac132478de701fc65d925371d24ab54c97489a1874ecd32d330d"
+    },
+    {
+      "path": "scripts/deploy/bootstrap.sh",
+      "sha256": "184d59b06e5fee0afc462014e84265d19dcd37f3c893a1f311b61d10df7f0104"
+    },
+    {
+      "path": "scripts/deploy/nginx-halastudy.conf",
+      "sha256": "c1c5871ce083b7a64169fcbffff26603f41351d67e61d6b2167dadebddaaf4fe"
+    },
+    {
+      "path": "scripts/deploy/start.sh",
+      "sha256": "ba97d3d096c7ed5898c7540150371e3f4e476171b17cd3bcb6d91f5fb1bf5f66"
+    },
+    {
+      "path": "scripts/hash-admin-password.js",
+      "sha256": "80fe12ee33b9d59871f3884d8e7491ec3a48a8e745bc465db8882abde4542f61"
+    },
+    {
+      "path": "scripts/platform-maintenance.js",
+      "sha256": "18b7a6fd1f6ecb2be88ca2650ae83f0600ea9571e05c3e54a9f2ae48cbfc7e78"
+    },
+    {
+      "path": "scripts/preview-platform.js",
+      "sha256": "3552c072cfc67acadaadb50ca7135cb8ab41e5a389bad0ad5c168cf7849c1ef2"
+    },
+    {
+      "path": "scripts/restore-rooms.js",
+      "sha256": "6f450900034a93f15dab796a64651c559303efb429ca27e3af33c704c28b7044"
+    },
+    {
+      "path": "scripts/room-state-utils.js",
+      "sha256": "dad6244d5fc771616b511cc1a69487f1803297d2e9d8d60f2bab1777f835c1ae"
+    },
+    {
+      "path": "scripts/test-postgres.ps1",
+      "sha256": "f8449299f64d4a7f8bb241a5d819d7f45d902b7556638d2be04f6511778c6ca9"
+    },
+    {
+      "path": "scripts/verify-deploy.js",
+      "sha256": "9d8a9af0b7d486ea13cc34d10b9cee3f9b78cc4df2e7753536f5543c17d826af"
+    },
+    {
+      "path": "scripts/verify-seo.js",
+      "sha256": "710cc81390a8fcb6ce5a3d80ae1944e5fe54125bd65f2358b356d1030ee9e9f4"
+    },
+    {
+      "path": "server.js",
+      "sha256": "d71b7d1952ff6ebd5711d850521dbf89673cef9b625710b071bcc7a8d1f1707b"
+    },
+    {
+      "path": "server-config.js",
+      "sha256": "4a3db07af2d6333cf056a32f15c1f9360a2adfab95731eafe9419f8b320862b4"
+    },
+    {
+      "path": "server-https.js",
+      "sha256": "45228a81a7447b4ed34336491235821fc2824529521e41c6ebf91947694011b6"
+    },
+    {
+      "path": "services/admin/admin-routes.js",
+      "sha256": "8cb407e1dea7fd1f73c5bca28fd16bd9388c8bb24afda5cd8ce7986de7e3db55"
+    },
+    {
+      "path": "services/auth/auth-routes.js",
+      "sha256": "9cfa78cf2c90867f03d1a4e3e6b151d78b8dde497a2af85fb97f808757da6f6c"
+    },
+    {
+      "path": "services/auth/google-routes.js",
+      "sha256": "15fb0a36b1a59ca67d9811780b3ccd057de06158a108ca8a610d126fd2809f14"
+    },
+    {
+      "path": "services/auth/index.js",
+      "sha256": "02fa9a0b3ada520a89537f428bda96803327a71c8aa30e026c9b23fac1f730bf"
+    },
+    {
+      "path": "services/auth/password.js",
+      "sha256": "c81d3dd733ffb8edfd7a0e8906c9a20eedc96b8953df6ddb36d2bbc84f9e8043"
+    },
+    {
+      "path": "services/auth/reauth.js",
+      "sha256": "fad440e0c4696321344226813779c0cff0ccd8df06f5d383a8217f830c75339c"
+    },
+    {
+      "path": "services/auth/recovery.js",
+      "sha256": "24734e4502ca5eb3c55afd7583ee0e353098018bcd1840f5ec6a461b7958910d"
+    },
+    {
+      "path": "services/logging/logger.js",
+      "sha256": "ef2d93db95a9911653b1ebce9610b6e7c4372ca783a105fc3cd7c7c4f6d127db"
+    },
+    {
+      "path": "services/ops/alerts.js",
+      "sha256": "e90f3258dc50c6abb489b033348b92bb8610b7b124da6c0045feeed49fd198cc"
+    },
+    {
+      "path": "services/ops/backup-scheduler.js",
+      "sha256": "14022169bda10168a1dc3cb77688587a9c136302be80512947582877c838be70"
+    },
+    {
+      "path": "services/ops/error-buffer.js",
+      "sha256": "8d99b5ac4d84eb758100249acce1f534a980fad1067702cae2e9baac54c212b3"
+    },
+    {
+      "path": "services/platform/access.js",
+      "sha256": "cf59d6999119d2b0199178953a7c1311997d2221fe605de73af6eb5cddb8108a"
+    },
+    {
+      "path": "services/platform/billing.js",
+      "sha256": "b5933ae38bc729bc9cb3ddc7b458b7077cf6eed84687717e470f729b51d20057"
+    },
+    {
+      "path": "services/platform/catalog.js",
+      "sha256": "2e20e9bb7d2556d116de43b41a8bf8fa40597368ba75d1409057591e7a58115e"
+    },
+    {
+      "path": "services/platform/cohorts.js",
+      "sha256": "ef2267e89c287722d8e960e342886c4a4e14416ee5208cccf4614c8af826ce6b"
+    },
+    {
+      "path": "services/platform/common.js",
+      "sha256": "5620135a77a423610ec284ba377a9241aaa68e83dfe6b30541e26f97c354645c"
+    },
+    {
+      "path": "services/platform/dashboard.js",
+      "sha256": "e162deb43e465c131e288d45d620dc1ede235b369a3347c37bcfbe60d441c4be"
+    },
+    {
+      "path": "services/platform/database.js",
+      "sha256": "c512cf0cfbc415f48753bbd32cd9b93ff398e3fb65f407d3c1753a1a24cc905e"
+    },
+    {
+      "path": "services/platform/digetpay-billing.js",
+      "sha256": "bd1d39d608c45dc4b98e28cc1e7823666902b0d9fadf138de41e9c6f932f7982"
+    },
+    {
+      "path": "services/platform/digetpay-client.js",
+      "sha256": "29c0303953febadffb0789ecfdfb85141750882099972865fda208990b9a6e49"
+    },
+    {
+      "path": "services/platform/index.js",
+      "sha256": "d25ac72b9cb609c8cc75c278a69b405af212decc2fcac00f9fea12058a381ac3"
+    },
+    {
+      "path": "services/platform/maintenance.js",
+      "sha256": "e36e1457416d61b82f0c5e7821dc50bc762a2e86c73a8a506b07e031df00d4a0"
+    },
+    {
+      "path": "services/platform/progress.js",
+      "sha256": "33fd23ebae58d8d5171d174ed2cbae0245a70ed1d200779b9e13f9833b454c5c"
+    },
+    {
+      "path": "services/platform/record-store.js",
+      "sha256": "8e46bd96490c5afb1c3614e31d380caa5bfb003bcf3b4223c7ecdd52930c9bd7"
+    },
+    {
+      "path": "services/platform/routes.js",
+      "sha256": "82088afc1f9caa14de86869d5c129c232fd6ace3e84ff50382a6706115874080"
+    },
+    {
+      "path": "services/platform/study-community.js",
+      "sha256": "c807d18037f5ac36c6f3249fddbd5008fdac54cd4e6d095e7e9614b9265adb50"
+    },
+    {
+      "path": "services/platform/study-planner.js",
+      "sha256": "185edcc66514811b52a8455431a7dd3af2b94fc4714fa54a532c74a0438de5ac"
+    },
+    {
+      "path": "services/platform/study-routes.js",
+      "sha256": "a190f4ac03f088c988513d8d8a119697888540b96f4fecf9c6f304a836d094ac"
+    },
+    {
+      "path": "services/seo/public-pages.js",
+      "sha256": "be0fc0a99a2b6e9fbd922f46b51ac7919a4592defa37f8669f3aab1e0a72cff8"
+    },
+    {
+      "path": "services/socket-boundary.js",
+      "sha256": "fa3a540d0830b57753bdd20c9d61ee1908be2717160b532b04d99da1b4fa0326"
+    },
+    {
+      "path": "services/supabase/client.js",
+      "sha256": "3020e01ea577d54536ec53af0bba5f26c6df87d03eae2fd37a5aeee38e458cea"
+    },
+    {
+      "path": "services/video/index.js",
+      "sha256": "089dc0c4ffe5f28b6a4c4bc61860d94c29d0824ff48068d0057235439560349d"
+    },
+    {
+      "path": "services/video/mesh-provider.js",
+      "sha256": "7287e665ee4c84cd07d1d022e61f42c3a4d82599bdc67daea920addf03e7fb9e"
+    },
+    {
+      "path": "services/video/realtimekit-provider.js",
+      "sha256": "d8745062c231d8f2b7c24d1b0669cb7e0a31a28cbf04fef89177ddde051c2c68"
+    },
+    {
+      "path": "services/video/revocations.js",
+      "sha256": "cf7b9c7fc330486889b1363c422a692fad049eb75d8a5388557e70d13534edb4"
+    },
+    {
+      "path": "services/video/video-session-registry.js",
+      "sha256": "3ebb4b9a3aacf9d5fb4251fdcd4a7078339cadff40175cf9e6bf8643df438717"
+    },
+    {
+      "path": "supabase-user-store.js",
+      "sha256": "98993473d2fa9912dc0928ffce66611571453cda388e643e293a8e963aa224ce"
+    },
+    {
+      "path": "terms.html",
+      "sha256": "d99831b0ccee61b37054496e5f663593eacab30cc57a5dd5095fce6bffbbac6f"
+    },
+    {
+      "path": "tests/helpers/auth-helpers.js",
+      "sha256": "5e5360c88507ca0b7457a836b9fec4cbec00703f277273338f34e5b832ca5541"
+    },
+    {
+      "path": "tests/helpers/digetpay-fixture.js",
+      "sha256": "4c1cfa1425e6e943949283591c0e970f66fa58797dcd944062e593b63dc8a803"
+    },
+    {
+      "path": "tests/helpers/fake-realtimekit-fixture.js",
+      "sha256": "2a12fa726631ae237af67df24c8610480c13afeb3904d15d0a1b74dbc03a9616"
+    },
+    {
+      "path": "tests/helpers/fake-sfu-fixture.js",
+      "sha256": "614470b0fce2626364512ce199b74e1861c3f71e67fa5a71f93f95989bd38b66"
+    },
+    {
+      "path": "tests/helpers/payment-review-preload.js",
+      "sha256": "5eededd8b133f43fa34f23055ba1223b1680f9b833c145d1af2f7eec6b8f1516"
+    },
+    {
+      "path": "tests/helpers/playwright-global-setup.js",
+      "sha256": "4f8389f3c5a454194916017a892004513d274ef967b94096e65ec8ed67c4dc8d"
+    },
+    {
+      "path": "tests/helpers/playwright-global-teardown.js",
+      "sha256": "fbc01086d5db3a5bdad8bfe8d236ca567a075d1bf5fe01a1585d1028ea2998b9"
+    },
+    {
+      "path": "tests/helpers/server-control.js",
+      "sha256": "1dbf236d15963ffbc9d66d9e3789d6edb164dc02abe6ead9aaf65e120cc9c359"
+    },
+    {
+      "path": "tests/helpers/socket-client.js",
+      "sha256": "947b9a6c2843cfb03307fc75ed2a311d12421babf96bfe0f83417a37a64bd7c3"
+    },
+    {
+      "path": "tests/helpers/test-env.js",
+      "sha256": "bff10b43d1033a600799a62f40788d9a4aa43af1001509739f22b1055743fd45"
+    },
+    {
+      "path": "tests/integration/account-mutations.integration.test.js",
+      "sha256": "fa613ee8d9c83cde27fcf777acf16910988117d8dacd6dd95f63027ffc4ff524"
+    },
+    {
+      "path": "tests/integration/admin.integration.test.js",
+      "sha256": "d054d8f54b1a6213621736be45d3733ec43185ba36deb866090841c849c69bd9"
+    },
+    {
+      "path": "tests/integration/auth.integration.test.js",
+      "sha256": "6e51d75b46a75aff868668f322eb5c978df730b7589486d45cf47d1ef5714ee7"
+    },
+    {
+      "path": "tests/integration/board-capacity.integration.test.js",
+      "sha256": "0bfcf8d060fa407c56367a1904e44f0690cba6ca2548f4c0a4404c1e0cc5dd65"
+    },
+    {
+      "path": "tests/integration/browser-diagnostics.integration.test.js",
+      "sha256": "61b10548b5514ccd4d352e28514a5e30c0ca0603c473123bb7ea6e7ef6d37b73"
+    },
+    {
+      "path": "tests/integration/circle-lifecycle.integration.test.js",
+      "sha256": "4f448af37013329bd7d8461bfbd57dfbf56c5731eb80ea01ccf4ba8ecadb9da4"
+    },
+    {
+      "path": "tests/integration/database-failure.integration.test.js",
+      "sha256": "ad5dd953c631b836b07dfd866b37adb72a80d82af6db24e843c86de347d00f00"
+    },
+    {
+      "path": "tests/integration/digetpay.integration.test.js",
+      "sha256": "2fc7453941af51f39c31c31686a0fb0d727374b212a6e827b706f23129c6eb17"
+    },
+    {
+      "path": "tests/integration/foundations.integration.test.js",
+      "sha256": "8209e9717c442a6639370a9c8930d8c5e5cbd58c50616f5065928c808c8adaa9"
+    },
+    {
+      "path": "tests/integration/google-security.integration.test.js",
+      "sha256": "57b6a0698ad5cb388cabd571d917d2698fddd796b73d9f837333b49c53d2d240"
+    },
+    {
+      "path": "tests/integration/media-revocation.integration.test.js",
+      "sha256": "d2ba4676324a150f5df7dc16799a161e24f7d201543889f547c5ad6dba78e9c1"
+    },
+    {
+      "path": "tests/integration/operational-alerts.integration.test.js",
+      "sha256": "ba484f8d88752f77ccfdc1589384d4fe82bd51deff4e349fa74c2dc81aaead80"
+    },
+    {
+      "path": "tests/integration/payment-reconciliation.integration.test.js",
+      "sha256": "b8024e033585458f59affde60988d7b01e040a19236cba8991c68cf40538d3f1"
+    },
+    {
+      "path": "tests/integration/platform.integration.test.js",
+      "sha256": "ad69ae96591276f6db19880ab4438ee3ef52e43ab2c8f3515b60d990c61a134b"
+    },
+    {
+      "path": "tests/integration/platform-api.integration.test.js",
+      "sha256": "e6a424ed44d0eaadfe38516fafcfbb44915597b53273e67a81a8c67aa9055c0b"
+    },
+    {
+      "path": "tests/integration/platform-storage.integration.test.js",
+      "sha256": "24ed9416951061fd27ac1ce7457b8c661ef60c1b71ebf07a61878fa04b8c8226"
+    },
+    {
+      "path": "tests/integration/presence.integration.test.js",
+      "sha256": "38f35914128a990358e5dbcb2b1b09e86ae8e581d1c020f4ca3d43d36c8b1aea"
+    },
+    {
+      "path": "tests/integration/recovery.integration.test.js",
+      "sha256": "1ccb855e3aba1a2e792c21a9f93065fa6f00cb29d47d09fa111cc6a381b59898"
+    },
+    {
+      "path": "tests/integration/refinement-boundaries.integration.test.js",
+      "sha256": "56bea118642ed3e100a5e250178ae55ceb514d904d9d15acec5e70aa30f9ad11"
+    },
+    {
+      "path": "tests/integration/seo.integration.test.js",
+      "sha256": "efb497cd248ad50716bf75a6ed3a11bd3f62ef2e528369039142cad20ea25f6e"
+    },
+    {
+      "path": "tests/integration/server.integration.test.js",
+      "sha256": "d1cf709162cf7e3551778b8554199f98ebabdfd86c91aafe7df54f4105cb3a55"
+    },
+    {
+      "path": "tests/integration/session-identity.integration.test.js",
+      "sha256": "9df8bc306b52ae00374a2c272c9d7d8796426d4f1199deb0a2a7413fbd4fe34d"
+    },
+    {
+      "path": "tests/integration/socket-boundary.integration.test.js",
+      "sha256": "b9bf85ab22896ed9542f612859992c2aab78f2357e6f7cced1505739de390c47"
+    },
+    {
+      "path": "tests/integration/study-routine.integration.test.js",
+      "sha256": "ee5b5560654a288f7ca6191773b5983c2346995ce7acb12f2afc54d1df87fbb6"
+    },
+    {
+      "path": "tests/integration/study-tools.integration.test.js",
+      "sha256": "4047a1995ac7009961ee536c49ffe4de81384e24cd3b459395c45d1fca5a138c"
+    },
+    {
+      "path": "tests/integration/supabase-deadline.integration.test.js",
+      "sha256": "b0d5a7f3ce858849ac12786be01e4d568397162f8f4bf57b6b0a557e70b268ce"
+    },
+    {
+      "path": "tests/integration/supabase-error-privacy.integration.test.js",
+      "sha256": "f25e70551fbfe1d56d493caedeaa87a19b6f26d4c884181f660ad265368d8f27"
+    },
+    {
+      "path": "tests/integration/ux-dashboard.integration.test.js",
+      "sha256": "ed2a38997e0a0db8ab5d7fed44784236ea4010546ab27615904e3d30cd200a96"
+    },
+    {
+      "path": "tests/integration/ux-insights.integration.test.js",
+      "sha256": "3b5c2511ab2f7fc126cf17f04b64503420e685cf778bac6dacc6a0cceb2e0e21"
+    },
+    {
+      "path": "tests/integration/video-client-lifecycle.integration.test.js",
+      "sha256": "cce34b85cc616a9da30415cdf9d81bb93a1969a965d56854addfab8b6285b184"
+    },
+    {
+      "path": "tests/integration/video-session-lifecycle.integration.test.js",
+      "sha256": "630ebb2333f8fd98e37c29424cea52fe639e21f5058040dea173a5e130a543d2"
+    },
+    {
+      "path": "tests/postgres/outages.test.js",
+      "sha256": "34fa4d3f9654d0ed9b3ed5ae7129e9df804ef073cd3c4fedf17771cdc3bd9399"
+    },
+    {
+      "path": "tests/smoke/account.smoke.spec.js",
+      "sha256": "6d6ba9a710fcb6fde72da0eba3cba704cf759ede9e084809ed91b59eaae4cea3"
+    },
+    {
+      "path": "tests/smoke/account-errors.smoke.spec.js",
+      "sha256": "bd30b338c2e58d03a8659b307c920d51239d630a7ff85fce43a9452482534237"
+    },
+    {
+      "path": "tests/smoke/admin.smoke.spec.js",
+      "sha256": "564f1d5f99805354e4ae10e4332a7514ab683411e92dfc93342ae11d04e95001"
+    },
+    {
+      "path": "tests/smoke/app.smoke.spec.js",
+      "sha256": "7fce3e14a66a436c261c6b27dba9372e5e1c1f53901046b63afaad607c57beb7"
+    },
+    {
+      "path": "tests/smoke/board-limit.smoke.spec.js",
+      "sha256": "2a3cca37d75caf4bc00465afc7a12dbf1e8ba90ddf3a05ba3375ae25e08ca9b8"
+    },
+    {
+      "path": "tests/smoke/camera-privacy.smoke.spec.js",
+      "sha256": "5da9aed81ea19cf320d4deba6ac4cfd19c5a3362fc102652693f03365ac47988"
+    },
+    {
+      "path": "tests/smoke/create-timeout.smoke.spec.js",
+      "sha256": "c75aeb22c83e0e1e7ffd5723effbacc47ab6e66720b4775bf4e9301f630cd9d8"
+    },
+    {
+      "path": "tests/smoke/digetpay.smoke.spec.js",
+      "sha256": "f9febebf8d342d86cb6811c95d6d537e3f6a66d8736278ad78fa999bb19310ec"
+    },
+    {
+      "path": "tests/smoke/landing.smoke.spec.js",
+      "sha256": "416292c1222666c3c2f2bf8ba4a192abeb1000512f45cadb8f85ee6ed67de8fb"
+    },
+    {
+      "path": "tests/smoke/lobby.smoke.spec.js",
+      "sha256": "b4e57f28580733c619d4c88eae77cc25fccf164f81fa1521d251c7d4affa2d1e"
+    },
+    {
+      "path": "tests/smoke/network-timeout.smoke.spec.js",
+      "sha256": "d643fb2f79b089a955f861d5b412306d9655a7f5ffba3a8fcdab51a03727deab"
+    },
+    {
+      "path": "tests/smoke/open.smoke.spec.js",
+      "sha256": "7a7da2c7f00f7b53b7e8bf2a27097a9ed45e04749ad2f5c184f9769eb2014ecd"
+    },
+    {
+      "path": "tests/smoke/payment-review.smoke.spec.js",
+      "sha256": "50257058e87af11f33a02102ba30a44c94f8871a93ad62aa4dc59c02ce48b964"
+    },
+    {
+      "path": "tests/smoke/platform.smoke.spec.js",
+      "sha256": "a0a67f7a1f9d609d1835b78bb3f6f716243693cddc9c4856f5adc344ca8303aa"
+    },
+    {
+      "path": "tests/smoke/recovery.smoke.spec.js",
+      "sha256": "9debef0d51bdc82f74b7fc4e568d275a06f0906ba5e6a14c175421eb213d347e"
+    },
+    {
+      "path": "tests/smoke/refinement.smoke.spec.js",
+      "sha256": "f3d72d3903414cebca8c43875ba63846b285c7becafcbb3c472df69f8e8d7bb5"
+    },
+    {
+      "path": "tests/smoke/resilience.smoke.spec.js",
+      "sha256": "1d5a9f53174f1962ed3cdf0989a11ac6e7ecba3e20fe3f2786f6a4eebbadd3c4"
+    },
+    {
+      "path": "tests/smoke/seo.smoke.spec.js",
+      "sha256": "200f2511250dd728d6a72b2b6544982553e0ecf279f5ee1dd3b4ec631b221a5f"
+    },
+    {
+      "path": "tests/smoke/study-tools.smoke.spec.js",
+      "sha256": "4067b076ab528768f6bf99129e91c2e16b6e0ae5151910e64b0fba589c139b15"
+    },
+    {
+      "path": "tests/smoke/ux-journeys.smoke.spec.js",
+      "sha256": "1900b777a532f88fefaa010314827198536c42d0d7b49d95ded6c3acc7c7dab1"
+    },
+    {
+      "path": "tests/smoke/ux-return.smoke.spec.js",
+      "sha256": "9a0d595747f82903ae56cd7c8fbcda81d6704fd18c98f537fecfa950b49f915f"
+    },
+    {
+      "path": "TODOS.md",
+      "sha256": "5765281bbe4430fd1a27d3db6d35a8a958d6132cc427dbba1cb3d19dcac01833"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "50c24d43c579e922abb76a9d92950a3d0774625c63eb4ad79c9c40f67f760f25"
+    },
+    {
+      "path": "types.d.ts",
+      "sha256": "1302f22dd3abf41d07783afa95515277d687db12a9ec365780b2e357d3a0ebd7"
+    },
+    {
+      "path": "user-store.js",
+      "sha256": "850485d20b6e6f10bf7a0e9f321c35275e05237ae1d2df8f6384a3b8e963fd67"
+    },
+    {
+      "path": "videos/hero/01-nouf-abdulaziz.mp4",
+      "sha256": "05f2daaf45892d9ee8b524ccf11ae35a5508787de57c8ab2e6ea9514d445458b"
+    },
+    {
+      "path": "videos/hero/01-nouf-abdulaziz.webm",
+      "sha256": "2627f3068696d35f96b04a8e1fe806ceb33cc918ff68e0fea026366a2cc955ab"
+    },
+    {
+      "path": "videos/hero/01-nouf-abdulaziz-poster.jpg",
+      "sha256": "efe8207fefb0f30907a62f56aad90b5d3e1727c5f090ffda30f3a1ce97c47880"
+    },
+    {
+      "path": "videos/hero/02-reem-sultan.mp4",
+      "sha256": "75f4d65dd7cc696f689fae4a6f95cfb0fdb91c5425700615d8cdd9757f69c8e6"
+    },
+    {
+      "path": "videos/hero/02-reem-sultan.webm",
+      "sha256": "d767ee8bb65032fbac679cfc87ac62f60131a26f794614956aa3d99e22dba1f7"
+    },
+    {
+      "path": "videos/hero/02-reem-sultan-poster.jpg",
+      "sha256": "3bb66f07b2fc5724a1634f9b0fd42a65661d6e7c77b2960e9370bd63415ebc36"
+    },
+    {
+      "path": "videos/hero/03-lama-faisal.mp4",
+      "sha256": "d2ed593afe21c430cc5c5b32860c14de8f6278f835a17003825ad1d5faa2bf10"
+    },
+    {
+      "path": "videos/hero/03-lama-faisal.webm",
+      "sha256": "2d1c088ce6e5b667c843cff3e4f6998a11e30002e48d35dcbbeff9bb0ab31141"
+    },
+    {
+      "path": "videos/hero/03-lama-faisal-poster.jpg",
+      "sha256": "686805c451155d775ad5121ca025caff19fd366f8a31170e6173b5750ad7116f"
+    },
+    {
+      "path": "videos/hero/04-jawaher-khalid.mp4",
+      "sha256": "9e5c63d8a22ec885ebef4f55410dcd48d9eff2b1ee390f8efa2f67886fcc6fe0"
+    },
+    {
+      "path": "videos/hero/04-jawaher-khalid.webm",
+      "sha256": "ca090309f84a7088b709e0e08b128f3575932303073c8c1ad02f6e3512f46f64"
+    },
+    {
+      "path": "videos/hero/04-jawaher-khalid-poster.jpg",
+      "sha256": "d3220a640bd33fa1cbd22376c2de5d454524760260f1a3c41862be64c4eb371c"
+    },
+    {
+      "path": "videos/hero/05-danah-saad.mp4",
+      "sha256": "cc04c38c8d422fda1dcc6adcf67ff5de34337be4ecb31c2160b620c587c8003f"
+    },
+    {
+      "path": "videos/hero/05-danah-saad.webm",
+      "sha256": "53aaa0908570e73a3ccfbf1d73cf4cf108188bafa29797bf61f0b1e2d575c791"
+    },
+    {
+      "path": "videos/hero/05-danah-saad-poster.jpg",
+      "sha256": "86c7895be1196d5ff55f3e2e1388fe80594fc03654a8d9d1ecc2acc39d9d0871"
+    },
+    {
+      "path": "videos/hero/06-saud-abdullah.mp4",
+      "sha256": "f215df4b996a2deb18361d62081352588f3d074ec27bfe98fdb008932a7cd133"
+    },
+    {
+      "path": "videos/hero/06-saud-abdullah.webm",
+      "sha256": "52e140f0bdb87738eb09bbb709dba2e2563d324abc53572aeed38335ff2bd2d9"
+    },
+    {
+      "path": "videos/hero/06-saud-abdullah-poster.jpg",
+      "sha256": "426637f17ed270b0ec44610621ea2f24530191e5fa7b27c73f3f41b49f9b71ee"
+    }
+  ],
+  "envCopied": false,
+  "dependencies": "junction to the final frozen install"
+}

@@ -1,0 +1,48 @@
+{
+  "sourceUnchanged": true,
+  "temporaryDOMOnly": true,
+  "name": {
+    "visible": "Halastudy.\n      \n      هلا",
+    "label": "Halastudy home"
+  },
+  "before": [
+    {
+      "id": "label-content-name-mismatch",
+      "impact": "serious",
+      "tags": [
+        "cat.semantics",
+        "wcag21a",
+        "wcag253",
+        "EN-301-549",
+        "EN-9.2.5.3",
+        "RGAAv4",
+        "RGAA-6.1.5"
+      ],
+      "description": "Ensure that elements labelled through their content must have their visible text as part of their accessible name",
+      "help": "Elements must have their visible text as part of their accessible name",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright",
+      "nodes": [
+        {
+          "any": [
+            {
+              "id": "label-content-name-mismatch",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Text inside the element is not included in the accessible name"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<a class=\"brand\" href=\"/\" aria-label=\"Halastudy home\">\n      <span>Hala<em>study</em><span class=\"dot\">.</span></span>\n      <span class=\"divider\" aria-hidden=\"true\"></span>\n      <span class=\"ar\" aria-hidden=\"true\">هلا</span>\n    </a>",
+          "target": [
+            ".brand"
+          ],
+          "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+        }
+      ]
+    }
+  ],
+  "after": []
+}

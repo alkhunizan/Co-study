@@ -1,0 +1,79 @@
+{
+  "name": "Read the camera privacy policy",
+  "viewport": "mobile",
+  "completed": true,
+  "failedAt": null,
+  "steps": 6,
+  "totalMs": 3561,
+  "slowSteps": [],
+  "errors": [],
+  "log": [
+    {
+      "n": 1,
+      "step": {
+        "goto": "https://halastudy.com/"
+      },
+      "ok": true,
+      "ms": 2679,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\privacy-mobile\\step-01.png"
+    },
+    {
+      "n": 2,
+      "step": {
+        "scroll": "bottom"
+      },
+      "ok": true,
+      "ms": 6,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\privacy-mobile\\step-02.png"
+    },
+    {
+      "n": 3,
+      "step": {
+        "click": "الخصوصية"
+      },
+      "ok": true,
+      "targetSize": "59x20",
+      "ms": 857,
+      "url": "https://halastudy.com/privacy",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\privacy-mobile\\step-03.png"
+    },
+    {
+      "n": 4,
+      "step": {
+        "expect": "سياسة الخصوصية"
+      },
+      "ok": true,
+      "ms": 16,
+      "url": "https://halastudy.com/privacy",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\privacy-mobile\\step-04.png"
+    },
+    {
+      "n": 5,
+      "step": {
+        "expect": "ماذا نخزّن على الخادم؟"
+      },
+      "ok": true,
+      "ms": 3,
+      "url": "https://halastudy.com/privacy",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\privacy-mobile\\step-05.png"
+    },
+    {
+      "n": 6,
+      "step": {
+        "note": "Public privacy information reached. This is navigation/content QA, not legal verification."
+      },
+      "ok": true,
+      "ms": 0,
+      "url": "https://halastudy.com/privacy",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\privacy-mobile\\step-06.png"
+    }
+  ]
+}

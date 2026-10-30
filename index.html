@@ -21,7 +21,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Halastudy webfonts -->
     <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/design-system/colors_and_type.css">
+    <link rel="stylesheet" href="/design-system/colors_and_type.css?v=20261021-refinement">
     <style>
         /* Halastudy aliases — base tokens live in /design-system/colors_and_type.css.
            Neumorphic shadows (DESIGN.md §10 hard-no) replaced with the warm-ink
@@ -37,7 +37,6 @@
 
             --shadow-card:    var(--sh-2);
             --shadow-btn:     var(--sh-2);       /* was neumorphic; now soft elevation */
-            --shadow-btn-inset: var(--sh-inner); /* press state */
 
             --radius-card:    var(--r-xl);
         }
@@ -97,22 +96,22 @@
         html[lang="ar"] .schedule-meta,
         html[lang="ar"] .schedule-stat {
             direction: rtl;
-            text-align: right;
+            text-align: end;
         }
 
         html[lang="ar"] input:not([data-force-ltr]) {
             direction: rtl;
-            text-align: right;
+            text-align: end;
         }
 
         html[lang="ar"] [data-force-ltr] {
             direction: ltr;
-            text-align: left;
+            text-align: start;
         }
 
         html[lang="ar"] #shared-board-card {
             direction: ltr;
-            text-align: left;
+            text-align: start;
         }
 
         html[lang="ar"] #shared-board-card .board-goal-label,
@@ -122,7 +121,7 @@
         html[lang="ar"] #shared-board-card .card-title,
         html[lang="ar"] #shared-board-card .card-sub {
             direction: rtl;
-            text-align: right;
+            text-align: end;
         }
 
         .room-meta {
@@ -207,8 +206,8 @@
             gap: 10px;
             padding: 12px 14px;
             border-radius: 18px;
-            background: rgba(255,255,255,0.45);
-            border: 1px solid rgba(255,255,255,0.4);
+            background: var(--paper-2);
+            border: 1px solid var(--line);
         }
         .user-dot {
             width: 10px;
@@ -220,7 +219,7 @@
             margin-top: 0.4rem;
         }
         .user-dot.online {
-            background: #53d47a;
+            background: var(--success);
         }
         .user-body {
             min-width: 0;
@@ -246,7 +245,7 @@
             padding: 2px 10px;
             border-radius: 999px;
             background: rgba(111, 144, 255, 0.14);
-            color: var(--accent);
+            color: var(--accent-3);
             font-size: 0.72rem;
             font-weight: 800;
             letter-spacing: 0.01em;
@@ -300,6 +299,7 @@
             visibility: hidden;
             pointer-events: none;
         }
+        .join-overlay[hidden] { display: none; }
         .join-card {
             margin-block: auto;
             flex-shrink: 0;
@@ -400,7 +400,7 @@
 
         .lang-switch { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9rem; background: var(--bg-card); padding: 4px 6px; border-radius: 20px; box-shadow: var(--shadow-card); user-select: none; }
         .lang-option { border: none; background: transparent; color: var(--text-sec); padding: 4px 8px; border-radius: 14px; cursor: pointer; font: inherit; }
-        .lang-option.active { color: var(--accent); background: rgba(224,176,139,0.12); }
+        .lang-option.active { color: var(--accent-3); background: rgba(224,176,139,0.12); }
         .board-goal-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
         .board-goal-label { font-size: 0.82rem; font-weight: 600; color: var(--text-sec); }
         .board-goal-input,
@@ -408,14 +408,14 @@
         .board-goal-input:focus,
         .todo-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); background: var(--bg-card); }
         .board-goal-input:disabled,
-        .todo-input:disabled { opacity: 0.65; cursor: not-allowed; }
+        .todo-input:disabled { opacity: 0.45; cursor: not-allowed; }
         .schedule-card { margin-bottom: 16px; padding: 16px; border-radius: 20px; background: var(--bg-input); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
         .schedule-card[hidden] { display: none; }
         .schedule-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .schedule-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
         .schedule-title { font-size: 0.82rem; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.06em; }
         .schedule-subtitle { font-size: 0.95rem; font-weight: 600; color: var(--text-main); line-height: 1.4; }
-        .schedule-countdown { font-size: 0.9rem; font-weight: 700; color: var(--accent-3); white-space: nowrap; }
+        .schedule-countdown { font-size: 0.9rem; font-weight: 700; color: var(--accent-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
         .schedule-meta { font-size: 0.82rem; color: var(--text-sec); line-height: 1.5; }
         .schedule-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
         .schedule-stat { padding: 10px 12px; border-radius: 16px; background: var(--bg-card); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
@@ -425,8 +425,8 @@
         .schedule-btn, .schedule-link { border: none; border-radius: 999px; padding: 9px 16px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: rgba(224,176,139,0.14); color: var(--accent-3); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         .schedule-btn:hover, .schedule-link:hover { background: rgba(224,176,139,0.22); }
         .todo-input-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-        .btn-add { width: 42px; height: 42px; border: none; border-radius: 14px; background: var(--accent); color: var(--ink); font-size: 1.35rem; cursor: pointer; flex-shrink: 0; box-shadow: var(--sh-lamp); }
-        .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-add { width: 44px; height: 44px; border: none; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 1.35rem; cursor: pointer; flex-shrink: 0; box-shadow: var(--sh-lamp); }
+        .btn-add:disabled { opacity: 0.45; cursor: not-allowed; }
         .todo-priority-picker { display: flex; gap: 10px; margin-block-end: 12px; margin-inline-start: 5px; }
         .todo-priority-btn { border: none; background: transparent; padding: 0; cursor: pointer; }
         .todo-priority-btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -448,14 +448,14 @@
 
         .prio-line { width: 4px; height: 20px; border-radius: 2px; background: #ddd; }
         .check-circle { width: 20px; height: 20px; border: 2px solid var(--text-sec); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: 0.2s; }
-        .check-circle:disabled { opacity: 0.5; cursor: not-allowed; }
+        .check-circle:disabled { opacity: 0.45; cursor: not-allowed; }
         .todo-text { flex: 1; min-width: 0; font-size: 0.95rem; color: var(--text-main); transition: 0.3s; word-break: break-word; }
         .todo-delete { border: none; background: transparent; color: var(--text-sec); font-size: 1.1rem; line-height: 1; padding: 6px; border-radius: 10px; cursor: pointer; flex-shrink: 0; }
         .todo-delete:hover { color: var(--prio-high); background: rgba(0,0,0,0.05); }
-        .todo-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+        .todo-delete:disabled { opacity: 0.45; cursor: not-allowed; }
 
         .todo-item.done .check-circle { background: var(--accent); border-color: var(--accent); }
-        .todo-item.done .check-circle::after { content: '✓'; color: white; font-size: 12px; }
+        .todo-item.done .check-circle::after { content: '✓'; color: var(--on-accent); font-size: 12px; }
         .todo-item.done .todo-text { text-decoration: line-through; color: var(--text-sec); opacity: 0.6; }
 
         /* --- Timer & Video --- */
@@ -475,9 +475,9 @@
         .media-state-text { font-size: 0.92rem; font-weight: 700; line-height: 1.4; }
         .media-state-detail { font-size: 0.8rem; line-height: 1.5; opacity: 0.85; }
         .media-state-detail[hidden] { display: none; }
-        .media-state-btn { align-self: flex-start; border: none; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: var(--accent); color: var(--ink); }
+        .media-state-btn { align-self: flex-start; border: none; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; background: var(--accent); color: var(--on-accent); }
         .media-state-btn[hidden] { display: none; }
-        .cam-feed { flex: 1; background: #1a1a1a; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; position: relative; overflow: hidden; }
+        .cam-feed { flex: 1; background: #1a1a1a; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; /* video surface is always dark in both themes — not a light-mode leak */ position: relative; overflow: hidden; }
         .cam-feed video { width: 100%; height: 100%; object-fit: cover; border-radius: 20px; display: none; }
         .remote-grid { flex: 1; width: 100%; align-self: stretch; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); grid-auto-rows: minmax(180px, 1fr); gap: 12px; padding: 15px; box-sizing: border-box; align-content: stretch; justify-items: center; }
         .remote-tile { width: 100%; height: 100%; border-radius: 18px; overflow: hidden; position: relative; background: #0a0a0a; box-shadow: 0 12px 25px rgba(0,0,0,0.4); transition: transform 0.2s ease, box-shadow 0.2s ease; }
@@ -485,11 +485,11 @@
         .remote-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
         .remote-tile-name { position: absolute; top: 12px; inset-inline-start: 12px; background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
         .cam-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 1rem; opacity: 0.85; }
-        .cam-controls { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 5; }
+        .cam-controls { position: absolute; bottom: 15px; inset-inline-start: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 5; }
         .cam-btn { border: none; border-radius: 999px; padding: 10px 20px; font-size: 0.9rem; cursor: pointer; background: rgba(0,0,0,0.6); color: #fff; backdrop-filter: blur(6px); }
-        .cam-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .cam-btn:disabled { opacity: 0.45; cursor: not-allowed; }
         .status-badge { position: absolute; top: 15px; inset-inline-start: 15px; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; }
-        .status-dot { width: 6px; height: 6px; background: #4cd137; border-radius: 50%; animation: pulse 2s infinite; }
+        .status-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite; }
         .status-dot.warn { background: #FDCB6E; }
         .status-dot.neutral { background: #636E72; }
         .ai-status { position: absolute; top: 45px; inset-inline-start: 15px; font-size: 0.75rem; opacity: 0.8; }
@@ -505,7 +505,7 @@
         .timer-box { background: var(--bg-card); padding: 25px; border-radius: var(--radius-card); box-shadow: var(--shadow-card); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
         .timer-tabs { display: flex; gap: 5px; background: var(--bg-input); padding: 4px; border-radius: 20px; margin-bottom: 15px; }
         .timer-tab { padding: 6px 16px; border-radius: 16px; font-size: 0.85rem; color: var(--text-sec); cursor: pointer; transition: 0.3s; }
-        .timer-tab.active { background: var(--bg-card); color: var(--accent); font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .timer-tab.active { background: var(--bg-card); color: var(--accent-3); font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .time-display { font-size: 4.5rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; margin: 5px 0 15px 0; color: var(--text-main); }
 
         .timer-main-row { width: 100%; display: flex; align-items: center; justify-content: center; gap: 30px; margin: 15px 0; }
@@ -516,7 +516,7 @@
 
         .timer-config-bar { display: flex; align-items: center; gap: 15px; background: var(--bg-input); padding: 8px 20px; border-radius: 20px; margin-bottom: 10px; font-size: 0.85rem; color: var(--text-sec); }
         .config-item { display: flex; align-items: center; gap: 8px; }
-        .config-input { width: 40px; text-align: center; border: none; background: var(--bg-card); border-radius: 8px; padding: 4px 0; color: var(--text-main); font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .config-input { width: 52px; min-height: 36px; text-align: center; border: none; background: var(--bg-card); border-radius: 16px; padding: 4px 0; color: var(--text-main); font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
         .timer-presets { display: flex; gap: 8px; margin-block-end: 10px; }
         .timer-preset-chip { border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; background: var(--bg-input); color: var(--text-sec); transition: 0.2s; }
@@ -524,8 +524,8 @@
         .timer-preset-chip.active { background: rgba(224,176,139,0.14); border-color: var(--accent); color: var(--accent-3); }
         .timer-controls { display: flex; gap: 30px; align-items: center; margin-top: 10px; }
         .btn-ctrl { width: 64px; height: 64px; border-radius: 50%; border: none; background: var(--bg-card); color: var(--text-main); font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-btn); transition: all 0.2s ease; }
-        .btn-ctrl:active { box-shadow: var(--shadow-btn-inset); transform: scale(0.95); }
-        .btn-ctrl.main { color: var(--accent); font-size: 1.8rem; }
+        .btn-ctrl:active { box-shadow: var(--sh-1); transform: scale(0.98); } /* DESIGN.md §4 press: scale(0.98) + shadow one step down */
+        .btn-ctrl.main { color: var(--accent-3); font-size: 1.8rem; }
 
         .focus-summary { width: 100%; margin-top: 15px; background: var(--bg-input); border-radius: 18px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-main); }
         .focus-summary-text { display: flex; flex-direction: column; gap: 4px; }
@@ -547,8 +547,8 @@
         .chat-container { flex: 1; display: flex; flex-direction: column; margin-bottom: 20px; overflow: hidden; }
         .chat-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 5px; }
         .msg { padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; max-width: 85%; line-height: 1.4; }
-        .msg.l { background: var(--bg-input); align-self: flex-start; border-bottom-left-radius: 2px; }
-        .msg.r { background: var(--accent); color: var(--ink); align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg.l { background: var(--bg-input); align-self: flex-start; border-end-start-radius: 2px; }
+        .msg.r { background: var(--accent); color: var(--on-accent); align-self: flex-end; border-end-end-radius: 2px; }
         .msg-author { font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px; display: block; }
         .msg-author-dot { display: inline-block; inline-size: 8px; block-size: 8px; border-radius: 50%; margin-inline-end: 5px; vertical-align: middle; }
         .join-name-reserved { display: block; margin-block-start: 4px; font-size: 0.75rem; color: var(--accent-3); }
@@ -557,15 +557,15 @@
 
         .chat-input-area { position: relative; margin-top: 10px; background: var(--bg-input); border-radius: 24px; display: flex; align-items: center; padding: 6px; }
         .chat-input { flex: 1; border: none; background: transparent; padding: 8px 12px; font-size: 0.9rem; color: var(--text-main); min-width: 0; }
-        .chat-input:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-send { width: 36px; height: 36px; background: var(--accent); border: none; border-radius: 50%; color: var(--ink); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; }
-        .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+        .chat-input:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-send { width: 36px; height: 36px; background: var(--accent); border: none; border-radius: 50%; color: var(--on-accent); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; }
+        .btn-send:disabled { opacity: 0.45; cursor: not-allowed; }
         .btn-send:hover { transform: rotate(-10deg) scale(1.1); }
 
         .ambient-control { margin-top: 12px; display: flex; justify-content: flex-end; position: relative; }
         .ambient-btn { border: 1px solid var(--border); border-radius: 999px; padding: 8px 18px; background: var(--bg-card); font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: var(--shadow-card); color: var(--text-main); font-weight: 500; }
         .ambient-btn:hover { background: var(--bg-input); }
-        .ambient-popover { position: absolute; bottom: 110%; right: 0; width: 240px; background: var(--bg-card); border-radius: 18px; padding: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border); z-index: 10; }
+        .ambient-popover { position: absolute; bottom: 110%; inset-inline-end: 0; width: 240px; background: var(--bg-card); border-radius: 18px; padding: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border); z-index: 10; }
         .ambient-popover[hidden] { display: none; }
         .ambient-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
         .ambient-status-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-sec); }
@@ -581,7 +581,7 @@
             display: inline-flex; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
-        .ambient-list li.active .ambient-icon { background: var(--accent); color: var(--ink); }
+        .ambient-list li.active .ambient-icon { background: var(--accent); color: var(--on-accent); }
         .ambient-off { color: var(--prio-high); }
         .ambient-volume { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 0.78rem; }
         .ambient-volume input { width: 100%; }
@@ -610,11 +610,16 @@
             .schedule-stats { grid-template-columns: 1fr; }
         }
     </style>
+    <link rel="stylesheet" href="/css/room-shell.css?v=20261021-refinement">
     <script src="/js/halastudy-core.js"></script>
+  <script src="/js/ux-insights.js"></script>
+  <script src="/js/schedule-display.js"></script>
+    <script src="/js/focus-client.js?v=20261021-refinement" defer></script>
+    <script src="/js/room-focus.js?v=20261021-refinement" defer></script>
     <script src="/js/ui.js" defer></script>
 </head>
 <body>
-<div class="join-overlay" id="join-overlay">
+<div class="join-overlay" id="join-overlay" role="dialog" aria-modal="true" aria-labelledby="join-title">
     <form class="join-card" id="join-form">
         <div class="lang-switch" aria-label="Language selector">
             <button type="button" class="lang-option active" data-lang-value="ar">AR</button>
@@ -627,7 +632,7 @@
                 <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
             </svg>
         </div>
-        <h2 data-lang="joinTitle">Join the focus room</h2>
+        <h2 id="join-title" data-lang="joinTitle">Join the focus room</h2>
         <p class="join-sub" data-lang="joinSubtitle">Enter your nickname and room code to start focusing together.</p>
         <label class="join-label" for="join-name" data-lang="joinName">Your nickname</label>
         <input type="text" id="join-name" class="join-input" maxlength="20" autocomplete="nickname" data-lang-placeholder="joinNamePlaceholder" placeholder="Name shown to others">
@@ -642,12 +647,13 @@
              click would otherwise do a native submit that reloads the page and
              drops what was typed. A disabled default button also blocks Enter. -->
         <button class="join-submit" type="submit" data-lang="joinButton" disabled>Enter room</button>
+        <a class="join-exit" href="/open" data-lang="chooseAnotherRoom">Choose another room</a>
     </form>
 </div>
 
 <header>
     <div class="join-announcement" id="room-join-status" role="status" aria-live="polite" aria-atomic="true"></div>
-    <a href="/" class="logo" aria-label="Halastudy home" style="text-decoration:none;color:inherit;">
+    <a href="/" class="logo" style="text-decoration:none;color:inherit;">
         <span class="logo-mark" aria-hidden="true">H</span>
         <span class="logo-word">Hala<em>study</em></span>
     </a>
@@ -663,7 +669,7 @@
                 <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
             </svg>
         </button>
-        <button class="icon-btn" id="share-room-btn" data-lang-title="shareRoomTitle" title="Share room link" style="background:var(--accent); color:var(--ink); border-color:transparent; box-shadow:var(--sh-lamp);" aria-label="Share">
+        <button class="icon-btn" id="share-room-btn" data-lang-title="shareRoomTitle" title="Share room link" style="background:var(--accent); color:var(--on-accent); border-color:transparent; box-shadow:var(--sh-lamp);" aria-label="Share">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
             </svg>
@@ -687,7 +693,9 @@
 </div>
 
 <main>
-    <div class="card" id="shared-board-card">
+    <details class="card room-tools" id="shared-board-card" open>
+        <summary data-lang="roomTools">Members and shared board</summary>
+        <div class="room-tool-content" tabindex="0">
         <div class="user-panel">
             <div class="user-panel-header">
                 <span data-lang="userListTitle">Room members</span>
@@ -698,22 +706,21 @@
         <div class="status-control">
             <label class="status-label" data-lang="myStatus">My status</label>
             <div class="status-presets">
-                <button class="status-btn" type="button" data-status="meal">🍜 <span data-lang="statusMeal">Meal break</span></button>
-                <button class="status-btn" type="button" data-status="away">🚶 <span data-lang="statusAway">Away</span></button>
-                <button class="status-btn" type="button" data-status="studying">📖 <span data-lang="statusStudying">Studying</span></button>
-                <button class="status-btn" type="button" data-status="working">💼 <span data-lang="statusWorking">Working</span></button>
+                <button class="status-btn" type="button" data-status="meal"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 3v7a3 3 0 0 0 6 0V3M7 3v18M19 3v18M19 3c-5 2-5 10 0 10"/></svg><span data-lang="statusMeal">Meal break</span></button>
+                <button class="status-btn" type="button" data-status="away"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 5h9v14H9M3 12h10M9 8l4 4-4 4"/></svg><span data-lang="statusAway">Away</span></button>
+                <button class="status-btn" type="button" data-status="studying"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 5v16M12 5C9 2 4 3 2 4v16c4-2 7-1 10 1 3-2 6-3 10-1V4c-4-2-7-1-10 1Z"/></svg><span data-lang="statusStudying">Studying</span></button>
+                <button class="status-btn" type="button" data-status="working"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V3h8v4M3 12h18"/></svg><span data-lang="statusWorking">Working</span></button>
             </div>
             <input type="text" id="status-custom" class="status-input" maxlength="20" data-lang-placeholder="statusCustomPlaceholder" placeholder="Custom status...">
-            <label class="status-label status-goal-label" for="status-goal" data-lang="goalLabel">Session goal</label>
-            <input type="text" id="status-goal" class="status-input" maxlength="80" data-lang-placeholder="goalPlaceholder" placeholder="What are you working on?">
+
             <div class="status-options">
                 <label class="status-toggle">
                     <input type="checkbox" id="status-auto-sync">
-                    <span data-lang="statusAutoSync">🔄 Sync with timer</span>
+                    <span data-lang="statusAutoSync">Sync with timer</span>
                 </label>
                 <label class="status-toggle">
                     <input type="checkbox" id="status-share" checked>
-                    <span data-lang="statusShare">🔒 Share with room</span>
+                    <span data-lang="statusShare">Share with room</span>
                 </label>
             </div>
             <div class="status-preview" id="status-preview">--</div>
@@ -758,7 +765,7 @@
 
         <div class="todo-input-wrapper">
             <input type="text" class="todo-input" id="new-task" maxlength="120" data-lang-placeholder="todoPlaceholder" placeholder="Add shared task...">
-            <button class="btn-add" id="add-task-btn" type="button">+</button>
+            <button class="btn-add" id="add-task-btn" type="button" data-lang-title="addTaskLabel">+</button>
         </div>
         <div class="todo-priority-picker" id="todo-priority-picker">
             <button class="todo-priority-btn" type="button" data-priority="3" data-lang-title="priorityHigh" title="High priority" aria-label="High priority">
@@ -771,13 +778,15 @@
                 <span class="color-dot" style="background:var(--prio-low)"></span>
             </button>
         </div>
-        <div class="todo-feedback" id="board-feedback"></div>
+        <div class="todo-feedback" id="board-feedback" role="status" aria-live="polite"></div>
         <div class="todo-list" id="todo-list"></div>
-    </div>
+        </div>
+    </details>
 
     <div class="center-col">
+        <p class="camera-privacy" data-lang="cameraPrivacy">Camera optional. When enabled, people in your room can see it. You can turn it off at any time.</p>
         <div class="video-box">
-            <div class="video-box-collapsed-banner" id="video-collapse-banner" hidden>📹 <span data-lang="videoCollapsedBanner">No video stream</span></div>
+            <div class="video-box-collapsed-banner" id="video-collapse-banner" hidden><span data-lang="videoCollapsedBanner">No video stream</span></div>
             <div class="cam-feed" id="local-cam">
                 <div class="status-badge"><div class="status-dot" id="ai-dot"></div><span data-lang="aiMonitor">AI Focus Monitor</span></div>
                 <div class="ai-status" id="ai-status-text">AI ready</div>
@@ -794,7 +803,7 @@
                 <div class="cam-placeholder" id="remote-placeholder" data-lang="remoteWaiting">Waiting for your buddy to enable camera</div>
                 <div class="remote-status" id="remote-status"></div>
             </div>
-            <iframe id="sfu-frame" class="sfu-frame"
+            <iframe id="sfu-frame" class="sfu-frame" title="Study room video" data-lang-title="roomVideoTitle"
                     allow="camera; microphone; display-capture; fullscreen; autoplay"></iframe>
             <div id="realtimekit-container" class="realtimekit-container" hidden>
                 <rtk-meeting id="realtimekit-meeting" show-setup-screen="false"></rtk-meeting>
@@ -806,7 +815,22 @@
             </div>
         </div>
 
+        <section class="camera-help" id="camera-help" hidden>
+            <p id="camera-help-message" role="status" aria-live="polite"></p>
+            <div class="camera-help-actions">
+                <button type="button" id="camera-retry" data-lang="cameraRetry">Try camera again</button>
+                <button type="button" id="camera-continue" data-lang="cameraContinue">Continue without camera</button>
+            </div>
+        </section>
         <div class="timer-box">
+            <h1 class="room-heading" data-lang="roomHeading">Room for focus</h1>
+            <p id="room-company" class="room-company" role="status"></p>
+            <div id="shared-intent" class="shared-intent" hidden><span data-lang="roomGoalLabel">Room goal</span><bdi id="shared-intent-text" dir="auto"></bdi></div>
+            <div class="focus-intent">
+            <label class="status-label status-goal-label" for="status-goal" data-lang="goalLabel">Session goal</label>
+            <input type="text" id="status-goal" class="status-input" maxlength="80" data-lang-placeholder="goalPlaceholder" placeholder="What are you working on?">
+            </div>
+            <div class="quiet-ready"><button type="button" id="quiet-ready" aria-pressed="false" data-lang="readyToFocus">Ready to focus</button><small data-lang="statusPrivacyHint">Your status is visible only when sharing is on.</small></div>
             <div class="timer-tabs">
                 <div class="timer-tab active" id="tab-focus" data-lang="focusMode">Focus mode</div>
                 <div class="timer-tab" id="tab-break" data-lang="breakMode">Break mode</div>
@@ -829,14 +853,18 @@
                 </div>
             </div>
 
+            <div class="timer-controls">
+                <button class="btn-ctrl" id="btn-reset-timer" data-lang-title="timerResetLabel" title="Reset timer">↻</button>
+                <button class="btn-ctrl main" id="btn-toggle" aria-label="Start focus">▶</button>
+            </div>
             <div class="timer-config-bar">
                 <div class="config-item">
-                    <span data-lang="timerSet">Focus</span>:
+                    <label for="cfg-f" data-lang="timerSet">Focus</label>:
                     <input type="number" id="cfg-f" value="25" class="config-input"> <span data-lang="minutesShort">m</span>
                 </div>
                 <div style="width:1px; height:15px; background:#ccc; margin:0 5px;"></div>
                 <div class="config-item">
-                    <span data-lang="timerBreak">Break</span>:
+                    <label for="cfg-b" data-lang="timerBreak">Break</label>:
                     <input type="number" id="cfg-b" value="5" class="config-input"> <span data-lang="minutesShort">m</span>
                 </div>
             </div>
@@ -847,24 +875,23 @@
                 <button type="button" class="timer-preset-chip" data-focus="90" data-break="15" data-lang-title="preset90">90/15</button>
             </div>
 
-            <div class="timer-controls">
-                <button class="btn-ctrl" id="btn-reset-timer">↻</button>
-                <button class="btn-ctrl main" id="btn-toggle">▶</button>
-            </div>
+            <div class="room-credit"><p id="room-focus-message" role="status"></p><div class="room-credit-actions"><button type="button" id="room-focus-finish" hidden data-lang="saveFocus">Finish and save</button><button type="button" id="room-focus-retry" hidden data-lang="mediaRetry">Retry</button><a href="/app#progress" id="room-progress-link" hidden data-lang="verifiedProgress">Verified progress</a></div></div>
+            <section id="room-session-recap" class="room-recap" hidden tabindex="-1"><h2 data-lang="roomRecapTitle">A good place to pause</h2><p id="room-recap-values"></p><p data-lang="roomRecapRest">Your progress is saved. Rest, or choose your next small step.</p></section>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header"><div class="card-title" data-lang="chatTitle">Chat room</div></div>
+    <details class="card room-tools" id="chat-room-card" open>
+        <summary data-lang="chatTitle">Chat room</summary>
+        <div class="room-tool-content" tabindex="0">
         <div class="chat-container">
-            <div class="chat-msgs" id="chat-msgs"></div>
+            <div class="chat-msgs" id="chat-msgs" tabindex="0" role="log" data-lang-aria="chatTitle" aria-label="Room chat"></div>
             <form class="chat-input-area" id="chat-form">
                 <input type="text" class="chat-input" id="chat-input" maxlength="500" autocomplete="off" enterkeyhint="send" data-lang-placeholder="chatPlaceholder" placeholder="Type a message..." disabled>
-                <button class="btn-send" id="chat-send" type="submit" disabled>➤</button>
+                <button class="btn-send" id="chat-send" data-lang-title="chatSend" type="submit" disabled>➤</button>
             </form>
         </div>
         <div class="ambient-control">
-            <button id="ambient-toggle" class="ambient-btn" type="button">🎵 <span data-lang="ambientSound">Ambient sound</span> ▼</button>
+            <button id="ambient-toggle" class="ambient-btn" type="button"><span data-lang="ambientSound">Ambient sound</span> <span aria-hidden="true">⌄</span></button>
             <div id="ambient-popover" class="ambient-popover" hidden>
                 <div class="ambient-header">
                     <span data-lang="ambientTitle">Choose ambient sound</span>
@@ -889,7 +916,8 @@
                 </label>
             </div>
         </div>
-    </div>
+        </div>
+    </details>
 </main>
 
 <script src="/socket.io/socket.io.js"></script>

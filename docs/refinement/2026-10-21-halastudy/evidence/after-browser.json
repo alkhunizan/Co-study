@@ -1,0 +1,170 @@
+[
+  {
+    "route": "/",
+    "label": "landing",
+    "width": 390,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/landing-390-ar-light.png",
+    "title": "غرف مذاكرة وتركيز أونلاين | هلاستدي",
+    "heading": "\n          جلسة هادئة.\n          على إيقاعك.\n          ذاكر مع رفقة.\n        ",
+    "overflow": false
+  },
+  {
+    "route": "/open",
+    "label": "open",
+    "width": 390,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/open-390-ar-light.png",
+    "title": "هلاستدي | غرفة هادئة. مفتوحة طول الليل.",
+    "heading": "\n            اختر طريقتك\n          ",
+    "overflow": false
+  },
+  {
+    "route": "/account",
+    "label": "account",
+    "width": 390,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/account-390-ar-light.png",
+    "title": "هلاستدي | حسابك",
+    "overflow": false
+  },
+  {
+    "route": "/lobby",
+    "label": "lobby",
+    "width": 390,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/lobby-390-ar-light.png",
+    "title": "هلاستدي | اللوبي",
+    "heading": "وش اسمك في الغرفة؟",
+    "overflow": false
+  },
+  {
+    "route": "/app",
+    "label": "study",
+    "width": 1440,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/study-1440-ar-light.png",
+    "title": "فسحة للتركيز — Halastudy",
+    "heading": "كل جلسة، خطوة أقرب",
+    "overflow": false
+  },
+  {
+    "route": "/app",
+    "label": "study",
+    "width": 390,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/study-390-ar-light.png",
+    "title": "فسحة للتركيز — Halastudy",
+    "heading": "كل جلسة، خطوة أقرب",
+    "overflow": false
+  },
+  {
+    "route": "/app#progress",
+    "label": "progress",
+    "width": 1440,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/progress-1440-ar-light.png",
+    "title": "وقت يستحق أن يُحسب — Halastudy",
+    "heading": "كل جلسة، خطوة أقرب",
+    "overflow": false
+  },
+  {
+    "route": "/app#progress",
+    "label": "progress",
+    "width": 390,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/progress-390-ar-light.png",
+    "title": "وقت يستحق أن يُحسب — Halastudy",
+    "heading": "كل جلسة، خطوة أقرب",
+    "overflow": false
+  },
+  {
+    "route": "/app#circles",
+    "label": "circles",
+    "width": 1440,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/circles-1440-ar-light.png",
+    "title": "موعدكم مع التركيز — Halastudy",
+    "heading": "كل جلسة، خطوة أقرب",
+    "overflow": false
+  },
+  {
+    "route": "/app#circles",
+    "label": "circles",
+    "width": 390,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/circles-390-ar-light.png",
+    "title": "موعدكم مع التركيز — Halastudy",
+    "heading": "كل جلسة، خطوة أقرب",
+    "overflow": false
+  },
+  {
+    "route": "/app#account",
+    "label": "workspace-account",
+    "width": 1440,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/workspace-account-1440-ar-light.png",
+    "title": "حسابك وخياراتك — Halastudy",
+    "heading": "كل جلسة، خطوة أقرب",
+    "overflow": false
+  },
+  {
+    "route": "/app#account",
+    "label": "workspace-account",
+    "width": 390,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/workspace-account-390-ar-light.png",
+    "title": "حسابك وخياراتك — Halastudy",
+    "heading": "كل جلسة، خطوة أقرب",
+    "overflow": false
+  },
+  {
+    "route": "/app#progress",
+    "label": "progress",
+    "width": 768,
+    "lang": "en",
+    "theme": "dark",
+    "file": "after/progress-768-en-dark.png",
+    "title": "Time worth counting — Halastudy",
+    "heading": "One session closer",
+    "overflow": false
+  },
+  {
+    "type": "created-room",
+    "roomId": "XCT7F9"
+  },
+  {
+    "route": "/study?room=XCT7F9",
+    "label": "room",
+    "width": 1440,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/room-1440-ar-light.png",
+    "title": "هلاستدي | غرفة تركيز",
+    "heading": "مساحتك للتركيز",
+    "overflow": false
+  },
+  {
+    "route": "/study?room=XCT7F9",
+    "label": "room",
+    "width": 390,
+    "lang": "ar",
+    "theme": "light",
+    "file": "after/room-390-ar-light.png",
+    "title": "هلاستدي | غرفة تركيز",
+    "heading": "مساحتك للتركيز",
+    "overflow": false
+  }
+]

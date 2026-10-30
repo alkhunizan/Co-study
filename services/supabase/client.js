@@ -3,7 +3,7 @@
 // service_role key bypasses RLS, so this must never run in the browser.
 //
 // Only the verbs the app needs: select / insert / upsert / remove. Errors
-// surface as thrown Error with the PostgREST body attached for logging.
+// surface as thrown errors with status only; provider bodies may contain private data.
 
 const REST_PATH = '/rest/v1/';
 
@@ -68,7 +68,8 @@ function createSupabaseClient(options = {}) {
                 // slow/trickled response bodies must not hold a worker forever.
                 const text = await res.text();
                 if (!res.ok) {
-                    const error = new Error(`Supabase ${method} ${path} failed: ${res.status} ${text.slice(0, 400)}`);
+                    // Query strings and provider bodies can carry row data; keep both out of the message.
+                    const error = new Error(`Supabase ${method} ${path.split('?')[0]} failed: ${res.status}`);
                     // @ts-expect-error attach for callers that want to branch on status
                     error.status = res.status;
                     const code = providerErrorCode(text);

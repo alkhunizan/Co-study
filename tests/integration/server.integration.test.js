@@ -1977,7 +1977,7 @@ test('socket payloads are bounded at server boundaries', async (t) => {
     assert.ok(snapshot.body.messages.some((message) => message.type === 'user' && message.text.length === 500));
 });
 
-test('privacy page is served bilingually and linked from landing and open footers', async (t) => {
+test('privacy has connected Arabic and English routes and links from landing and open footers', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
 
@@ -1986,10 +1986,16 @@ test('privacy page is served bilingually and linked from landing and open footer
     assert.match(`${privacy.headers['content-type']}`, /text\/html/);
     assert.match(`${privacy.body}`, /lang="ar"/);
     assert.match(`${privacy.body}`, /سياسة الخصوصية/);
-    assert.match(`${privacy.body}`, /Privacy Policy/);
+    assert.match(`${privacy.body}`, /href="\/en\/privacy"/);
+    const englishPrivacy = await server.request('/en/privacy');
+    assert.equal(englishPrivacy.status, 200);
+    assert.match(`${englishPrivacy.body}`, /<html lang="en" dir="ltr"/);
+    assert.match(`${englishPrivacy.body}`, /<h1>Privacy Policy<\/h1>/);
+    assert.match(`${englishPrivacy.body}`, /href="\/privacy" lang="ar"/);
 
     const privacyAlias = await server.request('/privacy.html');
-    assert.equal(privacyAlias.status, 200);
+    assert.equal(privacyAlias.status, 301);
+    assert.equal(privacyAlias.headers.location, '/privacy');
 
     const landing = await server.request('/');
     assert.match(`${landing.body}`, /href="\/privacy"/);

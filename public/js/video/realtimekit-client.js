@@ -110,6 +110,9 @@
             return globalAny.RealtimeKitClient;
         }).catch((error) => {
             sdkLoadPromise = null;
+            for (const script of [/** @type {HTMLScriptElement|null} */ (document.querySelector(`script[src="${CORE_SDK_URL}"]`)), document.getElementById?.('halastudy-rtk-ui-loader')]) {
+                if (script && script.dataset.loaded !== 'true') script.remove();
+            }
             throw error;
         });
         return sdkLoadPromise;

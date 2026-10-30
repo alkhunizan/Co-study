@@ -1,0 +1,477 @@
+diff --git a/docs/away/2026-10-26/A02/BACKLOG-TRIAGE.md b/docs/away/2026-10-26/A02/BACKLOG-TRIAGE.md
+new file mode 100644
+index 0000000..9f247d2
+--- /dev/null
++++ b/docs/away/2026-10-26/A02/BACKLOG-TRIAGE.md
+@@ -0,0 +1,24 @@
++# A-02 read-only focus backlog triage
++
++The primary agent requested a read-only pass over remaining focus-client/room-focus error paths against F06/F07/F09 after freezing the existing fix. No application or test source was changed by this triage.
++
++One eligible pre-existing defect was reproduced with the actual focus client in a deterministic local VM. This is client behavior against an in-memory model of the existing idempotent start/complete API, not yet a real-browser/end-to-end result.
++
++1. Start session S1.
++2. Complete S1; the server commits the completion, but its response is lost.
++3. Deliberately Start again, creating session S2.
++4. Finish S2.
++
++Observed: `pendingCompletion` still identifies S1 after the second Start. The next Finish POST targets S1, returns S1's completed result and leaves S2 active on the server. The client reports S1 completed. The successful-response control finishes S2 normally. The same defect occurs on baseline `c4d6c50` and frozen A02 source; it is not introduced by the retry fix.
++
++This affects the F09 expectation that Stop/Finish follows the correct session and the F06 distinction between acknowledged completed time and an active session. F07 task binding belongs to the workspace caller; no new linkage claim or proposed mutation was made here.
++
++Runnable evidence, from the A02 worktree with Node 22:
++
++```powershell
++node docs/away/2026-10-26/evidence/a02-pending-completion-triage.cjs
++```
++
++The adjacent log records both baseline/frozen results, the positive controls, exact request paths and resulting states. The harness makes no network calls and reads application source without changing it. Heartbeats are disabled to make this rapid ordering deterministic; a real-browser test should reproduce the sequence before the next background reconciliation.
++
++Proposed next qualification: reproduce with a real loopback server and a lost response after commit, using the room's Start and Finish controls. Independently assert that two intended sessions complete and no current active session remains. Keep the existing lost-response Retry positive control. No fix is proposed until that qualification and the primary agent's backlog decision.
+diff --git a/docs/away/2026-10-26/A02/CHECKPOINT.md b/docs/away/2026-10-26/A02/CHECKPOINT.md
+new file mode 100644
+index 0000000..e947e5a
+--- /dev/null
++++ b/docs/away/2026-10-26/A02/CHECKPOINT.md
+@@ -0,0 +1,45 @@
++# A-02: Room focus recovery
++
++Source: the existing F07-F11 focus/routine acceptance contract and the release-plan failure-path matrix.
++Branch: `away/2026-10-26-1834-A02`, baseline `c4d6c50`.
++
++Acceptance checks set before implementation:
++
++1. A failed room-session start can be retried; the server then has one active session and the room reports confirmed synchronization.
++2. A failed room pause can be retried; the original session becomes paused and an unrelated newer session is not changed.
++3. A lost completion response retries the original session once and shows a truthful saved recap, without creating another session or credit.
++4. The failure and recovered states retain Arabic/English behavior at 390px and 1440px, with visible controls and no added horizontal overflow.
++
++Candidate: the Retry handler replays completion only. It uses a read-only refresh for failed starts and pauses, so a successful GET can dismiss the warning without applying the intended action.
++
++Execution uses Node 22, disposable local state and fake providers. No production requests or source `.env` access. Existing unrelated dirty files are excluded.
++
++Historical gate: first seven targeted browser scenarios passed. The full gate on earlier app/test commit `35321717cba9a198d4720cb345ffeb790c26b33e` passed syntax, types, lint, dead-code and all 169 integration tests. Browser: 89 passed, 1 skipped (external fonts), and one existing past-date calendar-fixture failure. This predates the queued-Pause follow-up and is not final-source proof. Production dependency audit remained red with the pre-existing body-parser advisory.
++
++Scoped follow-up: rapid Pause while the first Start response is delayed reproduced a missing target ID. `../evidence/a02-queued-before.log` shows Retry leaves the server active. The client now records the exact target inside its queue immediately before the POST and carries that target on rejection. It never infers the original target from a later current-session snapshot. All eight cases passed in `../evidence/a02-queued-after.log` on that final application source.
++
++Frozen app/test HEAD: `bc7f2ec6f7f55cce923fe0258ae18e739d4c4728`. Application code was last changed by `a981929bec04b812aeda693aec68491eff14908d`; the final commit adds two test-only callback type annotations. File hashes are recorded in `../evidence/a02-qualified-source-hashes.json`. The type annotation correction passes typecheck.
++
++Final frozen-source browser gate: the centrally executed `a02-final2-browser` run finished with **85 passed, 2 failed, 1 offline-font skip, and 4 app serial cases not run**. All eight new focus recovery cases passed. The failures are the existing privacy-blur case (`app.smoke.spec.js:318`) and expired DST fixture (`ux-return.smoke.spec.js:118`). These original counts remain unchanged; this gate is not green.
++
++The queue receipt reports `sourceStable: true`, with the same before/after manifest digest `a9bff54e58249995ad39e480d8583a0f10b29ba3f92cd42e3fab8ae87c7604c6`. Queue HEAD stayed at docs-only commit `5ef988d73d126cb128fde32768e39ceaeed8c9bd`; app/test bytes remain the frozen `bc7f2ec` version. Evidence: `../evidence/a02-final2-browser.log` and the copied A02 entry `../evidence/a02-final2-browser-receipt.json` from the primary run's `browser-queue.json`.
++
++Subsequent original app-suite isolation: `a02-app-isolated` finished at 21:23:45 +03:00 with **8 passed, 0 failed, 0 skipped, 0 not run**. The privacy-blur case passed, and all four cases that had not run after the broad serial failure executed and passed. No application, test assertion, deadline or browser configuration changed. Classify the camera result as intermittent with its cause unproven; the isolated pass neither erases the broad failure nor establishes a fully green browser gate. Evidence: `../evidence/a02-app-isolated.log`, the matching `a02-app-isolated-source-before.json` / `a02-app-isolated-source-after.json`, and `../evidence/a02-app-isolated-receipt.json`, copied from the primary `app-isolation.json`. The source manifest is again `a9bff54e58249995ad39e480d8583a0f10b29ba3f92cd42e3fab8ae87c7604c6`, with `sourceStable: true`.
++
++Frozen-source check, typecheck, lint and deadcode were rerun at `bc7f2ec` and all passed (`../evidence/a02-frozen-*.log`). Lint retained the same four existing informational notices. No source changes followed these checks.
++
++The follow-up non-browser gate (`a02-qualified`) passed check, lint and deadcode; its first typecheck caught the deferred test callback annotation and was corrected. Production audit still fails on the existing body-parser advisory. Integration was 168/169: the unchanged `supabase-deadline.integration.test.js` successful control exceeded its 100ms request budget. The exact test failed again alone while other agents' suites were running (`a02-supabase-deadline-solo.log`). The earlier gate passed all 169 tests. No assertions or deadlines were weakened.
++
++Later disposition: the unchanged deadline case passed in a separated rerun after all active browser/integration batches ended (`../evidence/a02-deadline-separated.log`, 1/1 pass). Its test duration was 171.7ms including the intentionally stalled 100ms phase. The 100ms successful-control budget is intermittent; this evidence does not establish a new application defect. Preserve the 168/169 gate and both original failure artifacts. The separated pass and `local-deadline-timing.json` are diagnostic support only, not a replacement full green gate.
++
++Before: English and Arabic start retry left the server without a session; a background refresh hid a failed pause. Completion lost-response positive control already passed. The incorrect-navigation harness run is discarded.
++
++After: Retry recovers start/pause, keeps failure feedback until confirmed, adopts a newer session without mutating it, and preserves completion idempotency. Arabic/English 390/1440 screenshots, light/dark samples, keyboard activation, target sizing and overflow checks pass. Independent server queries confirm the session state.
++
++Scope: two existing browser JS files and one new smoke suite. No API, schema, auth, billing, HTML or CSS change. Source `.env` was not copied. Browser/network fixtures use only local data.
++
++The original recorded gate process trees have stopped (30 recorded entries, none with the same PID and creation time still active). `../evidence/a02-process-cleanup.json` records the check. No unrelated process was stopped.
++
++Known release boundary: existing script URLs retain their version token and static JS is cached for one hour. Protected dirty HTML files cannot be revised in this run; asset-version/cache handling belongs to integration/release.
++
++Requested read-only backlog refill found one separate pre-existing completion-target issue; see the historical BACKLOG-TRIAGE.md. It was subsequently qualified and fixed on the independent A12 branch, with app/test commit `0a8b1a05`. A02 does not include that patch, and combined-source acceptance is not claimed.
+diff --git a/docs/away/2026-10-26/A02/REVIEW.md b/docs/away/2026-10-26/A02/REVIEW.md
+new file mode 100644
+index 0000000..10ca8ba
+--- /dev/null
++++ b/docs/away/2026-10-26/A02/REVIEW.md
+@@ -0,0 +1,49 @@
++# Room focus retry review
++
++A failed start or pause could leave the room timer and account session in different states. Retry fetched the current session but did not repeat the failed action. A successful background refresh also dismissed the warning even when the requested pause was still unapplied.
++
++The room now remembers the failed action and its original session. Retry first reconciles with the server, then repeats the action only when it still applies. A successful read does not dismiss an unapplied action. When another surface has replaced the session, Retry adopts that state without pausing the newer session. The shared client checks the original session again inside its queue before a retried pause. It captures a failed request's target at the actual POST boundary, including a Pause queued before the first Start returns.
++
++Completion keeps the existing idempotent endpoint behavior. An acknowledged completion followed by a failed summary refresh needs only another read; the saved mutation is not repeated. Later explicit actions supersede earlier failures.
++
++## Evidence
++
++- `../evidence/a02-before.log`: English start retry fails its independent server-state assertion; lost-completion positive control passes.
++- `../evidence/a02-before-confirmed.log`: Arabic start retry leaves the server without a session; background refresh hides the unapplied-pause warning. Both fail on unchanged application source.
++- `../evidence/a02-after.log`: first four focused browser cases pass after the change.
++- `../evidence/a02-targeted-isolated.log`: first seven-case matrix, all passed.
++- `../evidence/a02-final-*.log`: full gate on first app/test commit `3532171` (before the queued-target follow-up).
++- `../evidence/a02-final2-browser.log`: final frozen-source full browser gate: 85 passed, 2 failed (existing privacy blur and expired DST fixture), 1 offline-font skip, 4 app serial cases not run. All eight new focus cases passed. These original results are preserved; the gate remains non-green.
++- `../evidence/a02-final2-browser-receipt.json`: copied central queue receipt with `sourceStable: true` and matching manifest digest `a9bff54e58249995ad39e480d8583a0f10b29ba3f92cd42e3fab8ae87c7604c6`; frozen application/test source is `bc7f2ec`.
++- `../evidence/a02-app-isolated.log`: later original app-suite isolation passed 8/8, including privacy blur and all four previously unrun cases. No assertions, deadlines, browser configuration or application source changed. Camera behavior is intermittent; cause unproven. This pass is supporting evidence, not a replacement broad green gate.
++- `../evidence/a02-app-isolated-receipt.json` and the matching source-before/source-after JSON: copied isolation receipt and unchanged manifest `a9bff54e58249995ad39e480d8583a0f10b29ba3f92cd42e3fab8ae87c7604c6`, `sourceStable: true`, finished at 21:23:45 +03:00.
++- `../evidence/a02-queued-before.log`: rapid Start/Pause independently leaves the session active after Retry.
++- `../evidence/a02-queued-after.log`: expanded eight-case matrix after capturing the target inside the request queue, all passed.
++- `../evidence/a02-qualified-*.log`: follow-up non-browser gate; see the unresolved audit/integration results in CHECKPOINT.md.
++- `../evidence/a02-fixture-types.log`: passing typecheck after the test-only callback annotations.
++- `../evidence/a02-frozen-*.log`: passing check, typecheck, lint and deadcode at final app/test commit `bc7f2ec`.
++- `../evidence/a02-supabase-deadline-solo.log`: unchanged integration control failed again alone while other agent suites were active; no clean machine-idle timing conclusion is claimed.
++- `../evidence/a02-deadline-separated.log`: unchanged deadline test passed 1/1 after active browser/integration batches ended (171.7ms including the intentionally stalled 100ms phase). The control's 100ms budget is intermittent; this is diagnostic support, not a new app defect or a replacement for the earlier 168/169 gate. Original failure logs remain intact.
++
++The intermediate `a02-before-corrected` run used an incorrect test navigation expectation and is discarded. The first expanded matrix reached the signup rate limit because its cases shared one server; tests now use a disposable server per case. Neither artifact is counted as an application failure.
++
++## Import-hop review
++
++Changed: `public/js/room-focus.js`, `public/js/focus-client.js`, and one new browser test. Read-only callers: room HTML timer hooks, platform focus controls, and guided-routine controls. Read-only callees: shared bounded JSON requests, the platform router, and the progress service.
++
++| Concern | Result |
++| --- | --- |
++| Error/success honesty | Confirmed by failed start/pause, background refresh and saved-completion cases. |
++| Async ordering | Latest explicit action wins; Retry is disabled while running; queued pause retains its intended session. |
++| Sibling behavior | Ordinary workspace/routine pause calls omit the optional session guard and keep their existing behavior. Completion retains its original pending-session retry. |
++| Authentication/ownership | Existing server session and user-scoped progress queries are unchanged. No new endpoint, permission, role, database or billing behavior. |
++| Validation/credit | Session IDs are still URL-encoded and server-owned. Retry does not manufacture elapsed time, XP or completed sessions. |
++| Secrets/debug/mocks | No new production literals, logging, third-party calls, fake data or fallback permissions. Test fixtures use loopback servers and synthetic accounts. |
++| Asset/import completeness | Both changed scripts are already served by the existing room/platform pages; no new runtime dependency or asset. |
++| Visual checks | Existing controls/copy retained. Arabic/English at 390/1440px, light/dark examples, keyboard Retry, 44px retry target and overflow checks. External fonts blocked in these local tests; font-provider acceptance is not claimed. |
++
++No open P0/P1 was found in this change's scoped review. Full-project production readiness remains separate: existing dependency audit, provider, migration and remote-publication gates are owned by the primary run.
++
++## Boundaries
++
++No production request, paid provider call, message, push, merge, deployment, configuration change or migration was made. The existing source checkout and its dirty files remain untouched. Evidence is local only.
+diff --git a/public/js/focus-client.js b/public/js/focus-client.js
+index 6ffa7d8..faa8bb0 100644
+--- a/public/js/focus-client.js
++++ b/public/js/focus-client.js
+@@ -34,10 +34,12 @@
+         synchronized = false;
+         window.dispatchEvent(new CustomEvent('halafocuserror', { detail: error.code || 'SERVICE_UNAVAILABLE' }));
+     }
+-    async function action(name) {
++    async function action(name, expectedSessionId = null) {
+         return run(async () => {
++            let attemptedSessionId = null;
+             try {
+                 if (name === 'complete' && pendingCompletion) {
++                    attemptedSessionId = pendingCompletion;
+                     const completed = await global.HalaCore.postJson(`/api/platform/focus/${encodeURIComponent(pendingCompletion)}/complete`, {});
+                     pendingCompletion = null;
+                     return publish(completed, true);
+@@ -48,11 +50,16 @@
+                     if (current.state === 'active') return current;
+                 } else if (!current) await readCurrent();
+                 if (!current || !['active', 'paused'].includes(current.state)) return current;
++                // A retried pause belongs to the session the user originally paused.
++                if (expectedSessionId && current.id !== expectedSessionId) return current;
+                 if (name === 'complete') pendingCompletion = current.id;
++                attemptedSessionId = current.id;
+                 const result = await global.HalaCore.postJson(`/api/platform/focus/${encodeURIComponent(current.id)}/${name}`, {});
+                 if (name === 'complete') pendingCompletion = null;
+                 return publish(result, true);
+             } catch (error) {
++                // Preserve the request target, even when a preceding queued Start created it.
++                if (attemptedSessionId) error.focusSessionId = attemptedSessionId;
+                 if (['SESSION_EXPIRED', 'SESSION_CLOSED', 'SESSION_NOT_FOUND', 'AUTH_REQUIRED'].includes(error.code)) {
+                     if (name === 'complete' || error.code === 'AUTH_REQUIRED') pendingCompletion = null;
+                     publish(null);
+@@ -73,7 +80,7 @@
+     window.addEventListener('focus', () => { if (enabled) void reconcile().catch(failed); });
+     document.addEventListener('visibilitychange', () => { if (enabled && !document.hidden) void reconcile().catch(failed); });
+     global.HalaFocus = {
+-        start: () => action('resume'), pause: () => action('pause'), complete: () => action('complete'),
++        start: () => action('resume'), pause: (sessionId) => action('pause', sessionId), complete: () => action('complete'),
+         restore: publish, reconcile, hasPendingCompletion: () => !!pendingCompletion, current: () => current,
+         // Smooth visual clock only. The server alone persists time and awards XP.
+         displaySeconds: () => Math.floor(Math.min(240 * 60000, Number(current?.credited_ms || 0)
+diff --git a/public/js/room-focus.js b/public/js/room-focus.js
+index a1cbc26..a68fefd 100644
+--- a/public/js/room-focus.js
++++ b/public/js/room-focus.js
+@@ -5,6 +5,8 @@
+     let member = false;
+     let unavailable = false;
+     let recap = null;
++    let failedAction = null;
++    let actionRequest = 0;
+     const copy = {
+         ar: { guest: 'وقت المؤقّت على هذا الجهاز فقط. الحساب يحفظ الجلسات الموثّقة.', idle: 'ابدأ المؤقّت لحفظ جلسة موثّقة. الكاميرا لا تؤثر على احتسابها.',
+             active: 'جارٍ حفظ وقت التركيز:', paused: 'الجلسة متوقفة مؤقتًا:', minutes: 'دقيقة موثّقة', points: 'نقطة',
+@@ -46,20 +48,50 @@
+             if (!member) { unavailable = false; render(); return; }
+         }
+         const summary = await global.HalaFocus.reconcile();
+-        unavailable = false;
++        unavailable = !!failedAction;
+         window.dispatchEvent(new CustomEvent('halaprogress', { detail: summary }));
+         render();
+     }
+-    async function action(name) {
++    async function action(name, expectedSessionId = null) {
+         if (!member) return null;
++        const request = ++actionRequest;
++        const intended = { name, sessionId: expectedSessionId || global.HalaFocus.current()?.id || null };
++        let acknowledged = false;
+         try {
+-            const result = await global.HalaFocus[name]();
++            const result = await global.HalaFocus[name](expectedSessionId);
++            acknowledged = true;
++            if (request !== actionRequest) return result;
++            failedAction = null;
+             unavailable = false;
+             if (name === 'complete' && result?.state === 'completed') { recap = result; await reconcile(); }
+             else if (name === 'start') recap = null;
+             render();
+             return result;
+-        } catch { unavailable = true; render(); return null; }
++        } catch (error) {
++            if (request === actionRequest) {
++                // A failed follow-up refresh must not replay an acknowledged mutation.
++                failedAction = acknowledged ? null : { ...intended, sessionId: error.focusSessionId || intended.sessionId };
++                unavailable = true;
++                render();
++            }
++            return null;
++        }
++    }
++    async function retry() {
++        if (global.HalaFocus.hasPendingCompletion()) return action('complete');
++        const pending = failedAction;
++        const request = actionRequest;
++        await reconcile();
++        if (!pending || failedAction !== pending || request !== actionRequest) return;
++        const session = global.HalaFocus.current();
++        if ((pending.sessionId && session?.id !== pending.sessionId) || (!pending.sessionId && session)) {
++            // Another surface replaced this session. Adopt its state without changing it.
++            failedAction = null;
++            unavailable = false;
++            render();
++            return;
++        }
++        return action(pending.name, pending.sessionId);
+     }
+     $('room-focus-finish').addEventListener('click', async () => {
+         window.dispatchEvent(new Event('halaroomfinish'));
+@@ -69,13 +101,20 @@
+         control.disabled = false;
+         if (result) $('room-session-recap').focus({ preventScroll: true });
+     });
+-    $('room-focus-retry').addEventListener('click', () => {
+-        if (global.HalaFocus.hasPendingCompletion()) void action('complete');
+-        else void reconcile().catch(() => { unavailable = true; render(); });
++    $('room-focus-retry').addEventListener('click', async () => {
++        const control = /** @type {HTMLButtonElement} */ ($('room-focus-retry'));
++        const request = actionRequest;
++        control.disabled = true;
++        try { await retry(); }
++        catch { if (request === actionRequest) { unavailable = true; render(); } }
++        finally { control.disabled = false; }
+     });
+     window.addEventListener('halafocuschange', () => {
+-        unavailable = false;
+-        if (member && global.HalaFocus.current()?.state === 'completed') recap = global.HalaFocus.current();
++        const session = global.HalaFocus.current();
++        const intendedState = { start: 'active', pause: 'paused', complete: 'completed' }[failedAction?.name];
++        if (failedAction && session?.state === intendedState && (!failedAction.sessionId || session.id === failedAction.sessionId)) failedAction = null;
++        unavailable = !!failedAction;
++        if (member && session?.state === 'completed') recap = session;
+         render();
+     });
+     window.addEventListener('halafocuserror', () => { unavailable = true; render(); });
+diff --git a/tests/smoke/focus-recovery-away.smoke.spec.js b/tests/smoke/focus-recovery-away.smoke.spec.js
+new file mode 100644
+index 0000000..eb626ba
+--- /dev/null
++++ b/tests/smoke/focus-recovery-away.smoke.spec.js
+@@ -0,0 +1,197 @@
++const { test, expect } = require('@playwright/test');
++const { startServer } = require('../helpers/server-control');
++const { signupUser } = require('../helpers/auth-helpers');
++
++let server;
++test.beforeEach(async () => {
++    server = await startServer({ env: {
++        PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh',
++    } });
++});
++test.afterEach(async () => { await server?.stop(); });
++
++async function enterRoom(page, language, theme = 'light') {
++    const account = await signupUser(server, { displayName: 'Focus student' });
++    await page.context().addCookies(account.cookie.split(';').map((part) => {
++        const [name, ...value] = part.trim().split('=');
++        return { name, value: value.join('='), url: server.baseUrl };
++    }));
++    await page.addInitScript(({ lang, color }) => {
++        localStorage.setItem('halastudyLang', lang);
++        localStorage.setItem('halastudyTheme', color);
++        const devices = Object.create(navigator.mediaDevices || {});
++        devices.getUserMedia = async () => { throw new DOMException('Fixture camera denied', 'NotAllowedError'); };
++        Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: devices });
++    }, { lang: language, color: theme });
++    await page.goto(`${server.baseUrl}/open`);
++    await page.locator('#room-name').fill('Quiet recovery room');
++    await page.locator('#create-form button[type=submit]').click();
++    await expect(page.locator('#create-result')).toBeVisible();
++    await page.locator('#btn-enter-room').click();
++    await page.waitForURL(/\/index\.html\?room=/);
++    await page.waitForLoadState('load');
++    if (await page.locator('#join-overlay').isVisible()) {
++        await page.locator('#join-name').fill(account.user.displayName);
++        await page.locator('#join-form button[type=submit]').click();
++    }
++    await expect(page.locator('#join-overlay')).toBeHidden();
++    await expect(page.locator('#room-progress-link')).toBeVisible();
++    await expect(page.locator('#room-focus-retry')).toBeHidden();
++    return account;
++}
++
++test('a background refresh does not dismiss an unapplied pause; Retry leaves a newer session alone', async ({ page }) => {
++    const account = await enterRoom(page, 'en');
++    await page.locator('#btn-toggle').click();
++    await expect(page.locator('#room-focus-finish')).toBeVisible();
++    const id = (await progress(account)).current.id;
++    await page.route('**/api/platform/focus/*/pause', (route) => route.fulfill({
++        status: 503, json: { error: 'PERSISTENCE_UNAVAILABLE' },
++    }));
++    await page.locator('#btn-toggle').click();
++    await expect(page.locator('#room-focus-retry')).toBeVisible();
++    await page.evaluate(() => (/** @type {any} */ (window)).HalaFocus.reconcile());
++    await expect(page.locator('#room-focus-retry')).toBeVisible();
++    await page.unroute('**/api/platform/focus/*/pause');
++    const finished = await server.request(`/api/platform/focus/${id}/complete`, {
++        method: 'POST', headers: { Cookie: account.cookie }, body: {},
++    });
++    expect(finished.status).toBe(200);
++    const newer = await server.request('/api/platform/focus/start', {
++        method: 'POST', headers: { Cookie: account.cookie }, body: {},
++    });
++    expect(newer.status).toBe(200);
++    expect(newer.body.id).not.toBe(id);
++    await page.locator('#room-focus-retry').click();
++    await expect(page.locator('#room-focus-retry')).toBeHidden();
++    expect((await progress(account)).current.id).toBe(newer.body.id);
++    expect((await progress(account)).current.state).toBe('active');
++});
++
++async function progress(account) {
++    const response = await server.request('/api/platform/progress', { headers: { Cookie: account.cookie } });
++    expect(response.status).toBe(200);
++    return response.body;
++}
++
++for (const { language, width, theme } of [
++    { language: 'en', width: 1440, theme: 'light' },
++    { language: 'ar', width: 390, theme: 'light' },
++    { language: 'en', width: 390, theme: 'dark' },
++    { language: 'ar', width: 1440, theme: 'dark' },
++]) {
++    test(`room Retry reapplies failed start and pause (${language}, ${width}px)`, async ({ page }, info) => {
++        const errors = [];
++        page.on('pageerror', (error) => errors.push(error.message));
++        await page.setViewportSize({ width, height: 960 });
++        const account = await enterRoom(page, language, theme);
++        await page.route('**/api/platform/focus/start', (route) => route.fulfill({
++            status: 503, json: { error: 'PERSISTENCE_UNAVAILABLE' },
++        }));
++        await page.locator('#btn-toggle').click();
++        await expect(page.locator('#room-focus-retry')).toBeVisible();
++        expect((await progress(account)).current).toBeNull();
++        await page.locator('.room-credit').scrollIntoViewIfNeeded();
++        expect((await page.locator('#room-focus-retry').boundingBox()).height).toBeGreaterThanOrEqual(44);
++        await page.screenshot({ path: info.outputPath(`start-failed-${language}-${width}.png`), fullPage: true });
++        await page.unroute('**/api/platform/focus/start');
++        await page.locator('#room-focus-retry').focus();
++        await page.keyboard.press('Enter');
++        await expect.poll(async () => (await progress(account)).current?.state).toBe('active');
++        await expect(page.locator('#room-focus-retry')).toBeHidden();
++        const sessionId = (await progress(account)).current.id;
++        await page.route('**/api/platform/focus/*/pause', (route) => route.fulfill({
++            status: 503, json: { error: 'PERSISTENCE_UNAVAILABLE' },
++        }));
++        await page.locator('#btn-toggle').click();
++        await expect(page.locator('#room-focus-retry')).toBeVisible();
++        expect((await progress(account)).current.state).toBe('active');
++        await page.unroute('**/api/platform/focus/*/pause');
++        await page.locator('#room-focus-retry').click();
++        await expect.poll(async () => (await progress(account)).current?.state).toBe('paused');
++        expect((await progress(account)).current.id).toBe(sessionId);
++        await expect(page.locator('#room-focus-retry')).toBeHidden();
++        await expect(page.locator('#room-focus-message')).toContainText(language === 'ar' ? 'متوقفة مؤقت' : 'Session paused');
++        await expect(page.locator('html')).toHaveAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
++        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
++        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
++        await page.locator('.room-credit').scrollIntoViewIfNeeded();
++        await page.screenshot({ path: info.outputPath(`pause-recovered-${language}-${width}.png`), fullPage: true });
++        expect(errors).toEqual([]);
++    });
++}
++
++test('room completion retries a lost response without duplicating a saved session', async ({ page }, info) => {
++    const account = await enterRoom(page, 'en');
++    await page.locator('#btn-toggle').click();
++    await expect(page.locator('#room-focus-finish')).toBeVisible();
++    const id = (await progress(account)).current.id;
++    await page.route('**/api/platform/focus/*/complete', async (route) => {
++        await route.fetch();
++        await route.abort('failed');
++    }, { times: 1 });
++    await page.locator('#room-focus-finish').click();
++    await expect(page.locator('#room-focus-retry')).toBeVisible();
++    await page.locator('#room-focus-retry').click();
++    await expect(page.locator('#room-session-recap')).toBeVisible();
++    await expect(page.locator('#room-recap-values')).toContainText('Session saved');
++    const saved = await progress(account);
++    expect(saved.current).toBeNull();
++    expect(saved.sessions.map((session) => session.id)).toEqual([id]);
++    expect(saved.sessions[0].state).toBe('completed');
++    expect(saved.totals.xp).toBe(0);
++    await page.screenshot({ path: info.outputPath('completion-recovered.png'), fullPage: true });
++});
++
++test('room Retry after a saved completion and failed summary only refreshes the saved result', async ({ page }) => {
++    const account = await enterRoom(page, 'en');
++    await page.locator('#btn-toggle').click();
++    await expect(page.locator('#room-focus-finish')).toBeVisible();
++    let completions = 0;
++    await page.route('**/api/platform/focus/*/complete', async (route) => {
++        completions++;
++        await route.continue();
++    });
++    await page.route('**/api/platform/progress', (route) => route.fulfill({
++        status: 503, json: { error: 'PERSISTENCE_UNAVAILABLE' },
++    }));
++    await page.locator('#room-focus-finish').click();
++    await expect(page.locator('#room-focus-retry')).toBeVisible();
++    await expect(page.locator('#room-session-recap')).toBeVisible();
++    expect((await progress(account)).sessions[0].state).toBe('completed');
++    await page.unroute('**/api/platform/progress');
++    await page.locator('#room-focus-retry').click();
++    await expect(page.locator('#room-focus-retry')).toBeHidden();
++    expect(completions).toBe(1);
++    expect((await progress(account)).sessions).toHaveLength(1);
++});
++
++test('a pause queued behind a delayed first start retries the session that its request actually targeted', async ({ page }) => {
++    const account = await enterRoom(page, 'en');
++    /** @type {() => void} */
++    let releaseStart;
++    /** @type {() => void} */
++    let markStart;
++    const startGate = new Promise((resolve) => { releaseStart = () => resolve(undefined); });
++    const startRequested = new Promise((resolve) => { markStart = () => resolve(undefined); });
++    await page.route('**/api/platform/focus/start', async (route) => {
++        markStart();
++        await startGate;
++        await route.continue();
++    }, { times: 1 });
++    await page.route('**/api/platform/focus/*/pause', (route) => route.fulfill({
++        status: 503, json: { error: 'PERSISTENCE_UNAVAILABLE' },
++    }));
++    await page.locator('#btn-toggle').click();
++    await startRequested;
++    await page.locator('#btn-toggle').click();
++    releaseStart();
++    await expect(page.locator('#room-focus-retry')).toBeVisible();
++    const started = (await progress(account)).current;
++    expect(started.state).toBe('active');
++    await page.unroute('**/api/platform/focus/*/pause');
++    await page.locator('#room-focus-retry').click();
++    await expect.poll(async () => (await progress(account)).current?.state).toBe('paused');
++    expect((await progress(account)).current.id).toBe(started.id);
++    await expect(page.locator('#room-focus-retry')).toBeHidden();
++});

@@ -5,6 +5,9 @@ declare global {
         HALASTUDY_CONFIG?: any;
         HalaAuth?: any;
         HalaCore?: any;
+        HalaInsights?: any;
+        HalaRoomFocus?: any;
+        HalaSchedule?: any;
         HalaUI?: any;
         HalastudyVideoClient?: any;
         io?: any;

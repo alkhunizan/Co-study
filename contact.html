@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Halastudy | تواصل معنا · Contact</title>
+  <title>تواصل معنا | هلاستدي</title>
   <meta name="description" content="تواصل مع هلاستدي عبر البريد أو الهاتف أو واتساب. Contact Halastudy by email, phone or WhatsApp.">
-  <link rel="canonical" href="https://halastudy.com/contact">
   <link rel="icon" type="image/svg+xml" href="/images/icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/icons/favicon-16.png">
@@ -17,6 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Amiri:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/design-system/colors_and_type.css">
   <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/marketing-copy.js"></script>
   <script src="/js/halastudy-core.js"></script>
   <style>
     .contact-shell { max-inline-size: 720px; margin-inline: auto; padding-block: 112px 72px; padding-inline: 20px; }
@@ -35,6 +35,7 @@
     .contact-option {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       justify-content: space-between;
       gap: 16px;
       min-block-size: 56px;
@@ -49,7 +50,7 @@
     .contact-option:hover { border-color: var(--accent-2); }
     .contact-option:focus-visible, .contact-shell p a:focus-visible { outline: none; box-shadow: var(--sh-focus); }
     .contact-option .label { font-weight: var(--w-semibold); }
-    .contact-option .value { color: var(--ink-2); font-family: var(--font-mono); font-size: var(--t-body-sm); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+    .contact-option .value { min-inline-size: 0; color: var(--ink-2); font-family: var(--font-mono); font-size: var(--t-body-sm); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
     @media (prefers-reduced-motion: reduce) { .contact-option { transition: none; } }
   </style>
   <link rel="stylesheet" href="/design-system/public-shell.css">
@@ -57,7 +58,7 @@
 </head>
 <body class="is-landing-page" data-public-page="contact">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="الصفحة الرئيسية لـ Halastudy" data-lang-aria="brandAria">
+    <a class="brand" href="/">
       <span>Hala<em>study</em><span class="dot">.</span></span>
       <span class="divider" aria-hidden="true"></span>
       <span class="ar" aria-hidden="true">هلا</span>
@@ -72,8 +73,8 @@
 
   <main class="contact-shell">
     <div class="eyebrow" data-lang="contactEyebrow">تواصل معنا</div>
-    <h1 data-lang="contactTitle">تواصل مع هلاستدي</h1>
-    <p data-lang="contactIntro">للاستفسارات أو المساعدة في استخدام غرف المذاكرة والتركيز، راسلنا أو اتصل بنا أو تواصل معنا عبر واتساب.</p>
+    <h1 data-lang="heading">تواصل مع هلاستدي</h1>
+    <p data-lang="intro">للاستفسارات أو المساعدة في استخدام غرف المذاكرة والتركيز، تواصل معنا عبر البريد الإلكتروني أو الهاتف أو واتساب.</p>
 
     <div class="contact-options">
       <a class="contact-option" href="mailto:info@halastudy.com">
@@ -93,14 +94,14 @@
     <!-- Mirrors the operator disclosure in privacy.html ("من نحن" / "Who we are"). -->
     <p data-lang="contactOperator">هلاستدي خدمة تديرها مؤسسة هلا، وهي منشأة فردية يملكها عزيز الخنيزان، ومقرها الرياض، المملكة العربية السعودية.</p>
     <p>
-      <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a> ·
-      <a href="/terms" data-lang="footerTerms">الشروط</a>
+      <a href="/privacy" data-lang="privacy">سياسة الخصوصية</a> ·
+      <a href="/terms" data-lang="terms">شروط الاستخدام</a>
     </p>
   </main>
 
   <footer class="footer">
     <div class="links">
-      <a href="/blog" data-lang="footerBlog">المدونة</a>
+      <a href="/blog" data-lang="blog">المدونة</a>
       <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
       <a href="/terms" data-lang="footerTerms">الشروط</a>
       <a href="/contact" data-lang="footerContact" aria-current="page">تواصل معنا</a>
@@ -112,40 +113,44 @@
   </footer>
 
   <script>
-    window.HalaCore.initLang({
-      en: {
-        pageTitle: 'Halastudy | Contact',
-        brandAria: 'Halastudy home',
-        langAria: 'Language',
-        contactEyebrow: 'Contact',
-        contactTitle: 'Get in touch with Halastudy',
-        contactIntro: 'For questions or help using the study and focus rooms, email us, call, or message us on WhatsApp.',
-        contactEmail: 'Email',
-        contactPhone: 'Phone',
-        contactWhatsapp: 'WhatsApp',
-        contactOperator: 'Halastudy is operated by Hala, a sole proprietorship owned by Aziz Al Khunizan, based in Riyadh, Kingdom of Saudi Arabia.',
-        footerBlog: 'Blog',
-        footerPrivacy: 'Privacy',
-        footerTerms: 'Terms',
-        footerContact: 'Contact'
-      },
-      ar: {
-        pageTitle: 'هلاستدي | تواصل معنا',
-        brandAria: 'الصفحة الرئيسية لـ Halastudy',
-        langAria: 'اللغة',
-        contactEyebrow: 'تواصل معنا',
-        contactTitle: 'تواصل مع هلاستدي',
-        contactIntro: 'للاستفسارات أو المساعدة في استخدام غرف المذاكرة والتركيز، راسلنا أو اتصل بنا أو تواصل معنا عبر واتساب.',
-        contactEmail: 'البريد الإلكتروني',
-        contactPhone: 'الهاتف',
-        contactWhatsapp: 'واتساب',
-        contactOperator: 'هلاستدي خدمة تديرها مؤسسة هلا، وهي منشأة فردية يملكها عزيز الخنيزان، ومقرها الرياض، المملكة العربية السعودية.',
-        footerBlog: 'المدونة',
-        footerPrivacy: 'الخصوصية',
-        footerTerms: 'الشروط',
-        footerContact: 'تواصل معنا'
-      }
-    });
+    // Shared keys (heading, intro, privacy, terms, blog) come from
+    // marketing-copy.js so the server-rendered /en/contact text and the
+    // client-side switch agree; page-only labels are layered underneath.
+    (function () {
+      var shared = (window.HalaMarketingCopy && window.HalaMarketingCopy.contact) || { en: {}, ar: {} };
+      var pageOnly = {
+        en: {
+          pageTitle: 'Contact Us | Halastudy',
+          brandAria: 'Halastudy home',
+          langAria: 'Language',
+          contactEyebrow: 'Contact',
+          contactEmail: 'Email',
+          contactPhone: 'Phone',
+          contactWhatsapp: 'WhatsApp',
+          contactOperator: 'Halastudy is operated by Hala, a sole proprietorship owned by Aziz Al Khunizan, based in Riyadh, Kingdom of Saudi Arabia.',
+          footerPrivacy: 'Privacy',
+          footerTerms: 'Terms',
+          footerContact: 'Contact'
+        },
+        ar: {
+          pageTitle: 'تواصل معنا | هلاستدي',
+          brandAria: 'الصفحة الرئيسية لـ Halastudy',
+          langAria: 'اللغة',
+          contactEyebrow: 'تواصل معنا',
+          contactEmail: 'البريد الإلكتروني',
+          contactPhone: 'الهاتف',
+          contactWhatsapp: 'واتساب',
+          contactOperator: 'هلاستدي خدمة تديرها مؤسسة هلا، وهي منشأة فردية يملكها عزيز الخنيزان، ومقرها الرياض، المملكة العربية السعودية.',
+          footerPrivacy: 'الخصوصية',
+          footerTerms: 'الشروط',
+          footerContact: 'تواصل معنا'
+        }
+      };
+      window.HalaCore.initLang({
+        en: Object.assign({}, pageOnly.en, shared.en),
+        ar: Object.assign({}, pageOnly.ar, shared.ar)
+      });
+    })();
   </script>
 </body>
 </html>

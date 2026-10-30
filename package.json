@@ -16,6 +16,7 @@
         "restore:rooms": "node scripts/restore-rooms.js",
         "restore:state": "node scripts/restore-state.js",
         "verify:deploy": "node scripts/verify-deploy.js",
+        "verify:seo": "node scripts/verify-seo.js",
         "audit:prod": "npm audit --omit=dev",
         "audit:supabase-synthetic": "node scripts/audit-supabase-synthetic-records.js",
         "inventory:images": "node scripts/inventory-container-images.js",
@@ -31,7 +32,7 @@
         "supabase:migrations:apply-test": "node scripts/ci/verify-postgres-migrations.js",
         "supabase:migrations:check": "node scripts/verify-supabase-migrations.js",
         "test:unit": "node --test \"tests/unit/*.test.js\"",
-        "test:integration": "node --test \"tests/integration/*.test.js\"",
+        "test:integration": "node --test --test-concurrency=2 \"tests/integration/*.test.js\"",
         "admin:hash": "node scripts/hash-admin-password.js",
         "secret:gen": "node -e \"const c=require('crypto'); console.log('SESSION_SECRET='+c.randomBytes(32).toString('hex')); console.log('ADMIN_SESSION_SECRET='+c.randomBytes(32).toString('hex'))\"",
         "test:smoke": "playwright test --config=playwright.config.js",
@@ -46,7 +47,11 @@
         "cloudflare:cost-check": "node scripts/cloudflare/realtimekit-cost-check.js",
         "cloudflare:turn": "node scripts/cloudflare/turn-credentials.js",
         "cf:doctor": "npm run cloudflare:doctor",
-        "migration:rooms": "node scripts/migrate-rooms.js"
+        "migration:rooms": "node scripts/migrate-rooms.js",
+        "platform:backup": "node scripts/platform-maintenance.js backup",
+        "platform:restore": "node scripts/platform-maintenance.js restore",
+        "platform:migrate": "node scripts/platform-maintenance.js migrate",
+        "platform:preview": "node scripts/preview-platform.js"
     },
     "keywords": [],
     "author": "",
@@ -57,10 +62,15 @@
         "socket.io-parser": "^4.2.7"
     },
     "dependencies": {
+        "@electric-sql/pglite": "0.5.10",
         "express": "^5.2.1",
+        "otpauth": "9.5.2",
+        "pg": "8.23.1",
+        "qrcode": "1.5.4",
         "socket.io": "^4.8.3"
     },
     "devDependencies": {
+        "@axe-core/playwright": "4.14.0",
         "@biomejs/biome": "2.4.15",
         "@playwright/test": "^1.59.1",
         "@types/express": "5.0.6",

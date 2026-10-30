@@ -1,0 +1,59 @@
+{
+  "scope": "Read-only public-response versus current local file comparison; no build or deployment assertion.",
+  "comparisons": [
+    {
+      "file": "landing.html",
+      "publicEvidence": "verification/home-public-source.html",
+      "publicSha256": "069528830e4300e76ed5291d0c7712c0db6cc69d9f8cbb3ec9b7e0a95d04e833",
+      "localSha256": "3cb1f211454369a286134a45433645ccb3adf401a234dfe0b45ecc1135b9eca7",
+      "equal": false,
+      "publicHasLanguageTablist": true,
+      "localHasLanguageGroup": true,
+      "publicHasSyntheticCount": true,
+      "localHasSyntheticCount": false,
+      "publicHasRecoveryLink": false,
+      "localHasRecoveryLink": false
+    },
+    {
+      "file": "open.html",
+      "publicEvidence": "verification/open-public-source.html",
+      "publicSha256": "5a6cf74cfd07282d1474865357e1332fdb5c5abb0ca7658bd1f2e45b4e447ba7",
+      "localSha256": "e681c31377017f463c7735c3132ae7eb2cf91f44f61b6f133f391f5df8826029",
+      "equal": false,
+      "publicHasLanguageTablist": true,
+      "localHasLanguageGroup": true,
+      "publicHasSyntheticCount": false,
+      "localHasSyntheticCount": false,
+      "publicHasRecoveryLink": false,
+      "localHasRecoveryLink": false
+    },
+    {
+      "file": "account.html",
+      "publicEvidence": "verification/account-public-source.html",
+      "publicSha256": "0075e11529290b80a0ffa189b8089c3bde4f35eb2a1414f23c73c67ee3e57a5d",
+      "localSha256": "ba8e256fa8c022f78f06b0a2ea78e4a47668558ea7e3b6f785571be9d4d0b6ae",
+      "equal": false,
+      "publicHasLanguageTablist": true,
+      "localHasLanguageGroup": true,
+      "publicHasSyntheticCount": false,
+      "localHasSyntheticCount": false,
+      "publicHasRecoveryLink": false,
+      "localHasRecoveryLink": true
+    },
+    {
+      "file": "blog.html",
+      "publicEvidence": "verification/blog-public-source.html",
+      "publicSha256": "357c8391dc85dbc9c7f69e0f12852090ec9af1e7a41eaff4946b5c24e54099c8",
+      "localSha256": "47b3e435090144f89864a506a8d7be7a5fa156e2f7a6b8251edffe854eb698df",
+      "equal": false,
+      "publicHasLanguageTablist": true,
+      "localHasLanguageGroup": true,
+      "publicHasSyntheticCount": false,
+      "localHasSyntheticCount": false,
+      "publicHasRecoveryLink": false,
+      "localHasRecoveryLink": false
+    }
+  ],
+  "probeSampledAt": "2026-10-21T18:27:34.528Z",
+  "note": "Local source was read separately from the production probe. Other worktree changes may occur concurrently; hashes describe the files read by the comparison, not a tested release candidate."
+}

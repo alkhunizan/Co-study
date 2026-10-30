@@ -724,3 +724,253 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 **Next session starts with:** Task 6 lobby guest/account entry and existing media/session lifecycle coverage. Read .harness/handoffs/handoff-2026-10-18-readiness-task5.md and preserve all Task 1–5 work.
 
 **Open questions for Aziz:** None for this local Task 5 closure. Real-provider/device, OAuth, staging migration, lost-host recovery, final release-wide gates and deployed SHA remain separate requirements.
+
+## 2026-10-20 — Viber production gate
+
+**Goal for this session:** Run all nine Viber phases on the new member/VIP/staff platform and produce an evidence-backed release verdict.
+
+**What worked:**
+- Three small fixes committed on `viber/2026-10-20`: Docker context hygiene, real-only lobby presence, and visible/recoverable lobby join/camera failures.
+- Existing 89 integration tests and 28 browser tests passed across initial and targeted reruns; four fresh platform screenshots inspected.
+- Frozen Node 22 local candidate checks pass; network-drive dependency folders were restored from that stable install after files disappeared during verification.
+
+**What broke:**
+- P0 V9-01: guest Socket.IO `create-room` with null payload terminates Node at co-study-server.js:2218; valid create/health succeeded beforehand and health failed afterward.
+- Four account/circle failure/lifecycle defects remain in pre-existing dirty files protected by the invoked skill.
+- Production workspace/VIP/supervisor routes are 404; release source remains partly uncommitted. Initial test runs also encountered environment/configuration/time-limit failures, retained in the evidence.
+
+**What I changed:**
+- Commits: 3b6440f, 594ce74, 0c91440. Application paths: .dockerignore, lobby.html, tests/smoke/lobby.smoke.spec.js.
+- Full report and evidence: docs/viber/2026-10-20/. No push, merge, live database write or deployment.
+
+**Next session starts with:**
+- Repair socket payload/callback validation and async rejection handling across the shared server, then rerun Viber before release.
+
+**Open questions for Aziz:**
+- Circle-owner deletion needs an explicit transfer/archive policy before release; real payment provider remains unselected by design.
+
+## 2026-10-20 — Viber authorized dirty-file remediation
+
+**Goal for this session:** Fix the previously blocked implementation findings and verify a complete committed candidate.
+
+**What worked:**
+- Git-archived runtime candidate 6319399 passes 99 integration tests and 32 browser tests in complete runs, plus syntax, types, lint, dead-code scan and production dependency audit.
+- The original guest-null socket probe now returns PAYLOAD_INVALID and leaves health at 200. All 40 anonymous protected-route probes remain denied.
+- Independent review found two additional recovery/selection races; both were fixed. Real HTTP owner deletion disconnects connected circle members.
+- Five layouts were reviewed; the Arabic dark mobile retry control measures 15.09:1 text contrast with no overflow.
+
+**What broke:**
+- The first execution copy omitted published hero videos, causing an asset 404; rebuilding from Git fixed the assembly error.
+- The network checkout's cached Chromium executable was missing; verification used installed Chrome. Unsigned PowerShell probe wrappers were not executed; their inspected Node bodies ran directly without changing execution policy.
+
+**What I changed:**
+- Checkpointed related implementation in 14aa494; ten focused remediation commits run from d504302 through 6319399.
+- Fixed socket boundaries, atomic durable account changes, unavailable/retry states, private scheduling and circle lifecycle, connected attendance, database deadlines and deployment-template preservation.
+- Owner deletion now archives owned circles, revokes invites and closes active rooms while preserving private history.
+- Outputs: docs/viber/2026-10-20/remediation/. Unrelated blog/image work preserved. No push, merge, live write or deployment.
+
+**Next session starts with:**
+- Complete the production handoff in remediation/RUN.md: live-data parity/restore, actual provider/PostgreSQL verification, reviewed HTTPS configuration and deployment acceptance.
+
+**Open questions for Aziz:**
+- No input needed for these local fixes. The payment provider remains intentionally unselected; VIP is USD 4.99/month with local test checkout only.
+
+## 2026-10-20 — Sequential media, recovery, database and alert hardening
+
+**Goal:** Implement the four approved resilience batches in order and retain reviewable local evidence.
+
+**What worked:**
+- Final Git-archived runtime `32947ab` passes 110 integration tests, 33 browser tests, syntax, types, lint and dead-code checks. The unchanged dependency lockfile has zero reported production vulnerabilities.
+- An isolated real PostgreSQL 16 cluster validates lock/statement deadlines, rollback, terminated connections, ownership loss, fresh restore, API/socket rejection and persisted outage alerts. The cluster was stopped.
+- Recovery and staff alerts pass bilingual mobile/browser accessibility checks; generated evidence stays in `docs/hardening/2026-10-20/evidence/`.
+
+**What broke:**
+- Actual PostgreSQL connection termination initially raised an uncaught borrowed-client error. The runtime now observes/discards failed connections.
+- Recovery fragment-only navigation did not initially reopen the form; hash-change handling fixes it.
+- Review found late media and backup failures could arrive after the final alert flush; shutdown now awaits them before flushing alerts.
+
+**What changed:**
+- Five commits, `aac08ca` through `32947ab`: durable provider grant revocation, secure local recovery, real PostgreSQL resilience tests, private operational alerts and shutdown ordering.
+- No changes to VIP USD 4.99/month or local test checkout. Unrelated dirty blog pages and `images/og/` remain preserved.
+- Run receipt and operational handoff: `docs/hardening/2026-10-20/RUN.md` and `OPERATIONS.md`. No push, merge, deployment, real notification or live data write.
+
+**Next session starts with:**
+- Production gate remains NO-GO until actual Cloudflare revocation/replay and pre-journal sessions are reconciled, recovery email and external monitoring are integrated, and hosted-data/HTTPS acceptance is verified.
+
+**Open questions for Aziz:**
+- Production mail provider, alert destination and hosting choices are still needed for live integration. Payment provider remains undecided; simulated purchases must stay disabled in production.
+
+## 2026-10-20 — DigetPay provider review
+
+**Goal for this session:** Assess DigetPay for the current VIP membership.
+
+**What worked:**
+- Reviewed public payment, recurring, onboarding, pricing, settlement and webhook documentation against local billing code.
+- Recurring payments are documented; recommendation is a conditional shortlist pending the commercial quote and demonstrated subscription lifecycle.
+
+**What broke:**
+- Documentation-index retrieval required PowerShell UseBasicParsing; the retry succeeded.
+- The attempted SAMA register fetch was unavailable; regulatory verification remains incomplete.
+
+**What I changed:**
+- Saved the review and draft provider questions in docs/payments/2026-10-20-digetpay/REVIEW.md, with resolved tooling errors in that folder's .learnings/ERRORS.md.
+- No runtime changes, provider selection, merchant registration, outgoing message, payment or deployment.
+
+**Next session starts with:**
+- Obtain DigetPay's quote and canonical hosted-recurring demonstration, including cancellation and payment-method eligibility.
+
+**Open questions for Aziz:**
+- No answer needed to complete the review; merchant-specific terms remain with the provider.
+
+## 2026-10-20 — SEO structure and crawlable public pages
+
+**Goal for this session:** Audit the live SEO structure and implement verified local improvements without disrupting public article URLs or private workflows.
+
+**What worked:**
+- A clean Git archive of runtime 685e636 passes all 113 integration tests plus syntax, types, lint and dead-code checks.
+- Seven public desktop/tablet/mobile views pass accessibility and overflow checks; English/Arabic navigation works without JavaScript. Screenshots were visually reviewed.
+- Read-only production checks identified missing sitemap/robots, missing article cover assets, public URL duplication and absent indexing headers on private workflows.
+
+**What broke:**
+- Verification caught low-contrast public controls and a comparison table that could not receive keyboard focus; both are fixed.
+- One final browser run timed out waiting for a live preview track in the existing camera-blur test. The preceding full run and isolated rerun passed. The trace does not establish the teardown cause; no camera code or timeout was changed to hide it.
+
+**What I changed:**
+- Existing article/cover checkpoint e4ab7c4; SEO implementation 976532c; canonical host normalization 685e636.
+- Added a ten-page sitemap, robots rules, canonical redirects, initial-HTML English routes, reciprocal language links, metadata/schema, contact pages and direct WhatsApp support links. Kept descriptive article slugs stable.
+- Report, release provenance, test receipts and screenshots: docs/seo/2026-10-20/. VIP and the dependency lockfile remain unchanged. No deployment or indexing submission.
+
+**Next session starts with:**
+- After the existing production gates and normal deployment process, run npm run verify:seo -- https://halastudy.com and verify hosting redirects before submitting the sitemap to Search Console.
+
+**Open questions for Aziz:**
+- No input needed for these local SEO changes; production integrations from the earlier hardening handoff remain outstanding.
+
+## 2026-10-20 — DigetPay sandbox adaptation
+
+**Goal for this session:** Adapt the selected DigetPay provider to Halastudy's existing VIP flow.
+
+**What worked:**
+- Added hosted sandbox checkout, fixed USD 4.99 server pricing, account-bound verification, durable webhook work, reconciliation, duplicate protection and refund handling.
+- Added Arabic/English checkout and payment-status screens; mobile RTL, dark mode and accessibility checks passed.
+- Existing platform integration and member/staff browser journeys passed with the additive database migration.
+
+**What broke:**
+- Public status documentation conflicts on session versus transaction identifiers. Lookup is explicit configuration; missing transaction binding fails closed.
+- Playwright's bundled Chromium was unavailable; installed headless Chrome passed the browser tests.
+- Test-only type declarations needed correction; final checks are retained in the dedicated evidence directory.
+
+**What I changed:**
+- DigetPay client/billing modules, platform routes/configuration, database migration 002 and backup format v2 (with v1 restore support), checkout UI, provider tests and documentation.
+- Setup and limitations: docs/payments/2026-10-20-digetpay/IMPLEMENTATION.md. Evidence: VALIDATION.md and evidence/ in that folder.
+- No actual credentials, DigetPay API calls, recurring charge scheduler, live payment, remote migration, push or deployment. Unrelated contact-audit documentation preserved.
+
+**Next session starts with:**
+- Configure the merchant sandbox and confirm USD support plus the exact status lookup/binding contract; run real sandbox acceptance before adding automatic renewal or live support.
+
+**Open questions for Aziz:**
+- Merchant sandbox credentials and provider confirmation are needed for actual DigetPay testing. Secrets should be configured server-side, not committed.
+
+## 2026-10-20 — Full Viber gate after DigetPay adaptation
+
+**Goal for this session:** Run all nine Viber phases against the current candidate and record production readiness.
+
+**What worked:**
+- Final local candidate: 126 integration tests, 36 browser tests, real PostgreSQL 16 outage/restore scenario, syntax/types/lint/deadcode and zero-vulnerability production audit.
+- Real application HTTP payment flow with a fake external provider; scoped latest/verification, fixed price, duplicate protection and account isolation.
+- Explicit inventory and evidence for 84 of 103 API/socket surfaces (81.6%); 19 anonymous production GET/HEAD requests.
+
+**What broke:**
+- Twenty untrusted transaction hints created twenty durable verification jobs; a three-order delayed-approval timeline collided with the open-order uniqueness constraint.
+- Two older domain fixtures implicitly selected the new default provider and failed checkout setup. Explicit test/simulator configuration restores their unchanged assertions.
+- Payment worker errors were logged without operational alerts. The new alert rule passes its before/after regression.
+- A network-filesystem PostgreSQL run timed out; the unchanged local-disk run passed in 31.7 seconds.
+
+**What I changed:**
+- Local commits `31676dc` (payment worker alert) and `c1a29dd` (explicit simulator in two fixtures), on `viber/2026-10-20-digetpay-gate`.
+- Full report, coverage, reproductions and evidence: `docs/viber/2026-10-20-digetpay-gate/`.
+- No billing-rule changes, real charges, provider mutations, push or deployment. Earlier dirty work preserved.
+
+**Next session starts with:**
+- Address the two reproduced billing-state/queue defects and unresolved-order operations in a dedicated implementation pass, then assemble and validate the coherent payment release.
+
+**Open questions for Aziz:**
+- Production remains NO-GO until merchant acceptance, real recovery delivery, external monitoring/media acceptance and approved deployment are completed; the report contains the consolidated owner checklist.
+
+## 2026-10-21 — Full Viber gate and approved camera privacy fix
+
+**Goal for this session:** Run the nine-phase production gate against the current UX/payment candidate, preserving earlier dirty work.
+
+**What worked:**
+- Isolated Node 22 candidate without the real workspace .env; fresh locked dependencies, static checks and 133 integration tests passed. Real disposable PostgreSQL outage/restore scenario passed.
+- Four local commits fix headless media cleanup, media request deadlines, admin logout failure feedback and stalled admin requests (3907975, fa51864, de7d0e6, 55e5b8e).
+- User explicitly approved the blur patch in dirty index.html. It fails closed on processing failure/unsupported canvas, restores retry, and rejects a camera source that ended during preparation. Deterministic failure probes pass; unrelated UX edits are retained.
+
+**What broke / remains:**
+- Lobby has no heartbeat/page-exit lifecycle; shared board has no stored-task ceiling; ICE diagnostics are too verbose.
+- Two prior sandbox payment queue/reconciliation defects remain reproduced. Real merchant, mail, media revocation, hosted restore and external alert acceptance remain pending.
+- Starting Git, the dirty tested candidate and production are different artifacts. New public routes sampled in production still return 404.
+- Early test-created browser CDN traffic was not counted; final browser containment is stricter. The report does not claim an unmeasured production request total.
+
+**What I changed:**
+- Four focused fix commits on viber/2026-10-21; approved blur work remains uncommitted with existing UX. Audit report/scripts/patch are in docs/viber/2026-10-21; generated receipts are in its ignored evidence folder.
+- No payment-rule change, live write, paid provider call, push, merge or deployment. Final counts and NO-GO reasons are recorded in RUN.md.
+
+**Next session starts with:**
+- Read docs/viber/2026-10-21/RUN.md and coverage.md. Implement the full lobby lifecycle and sandbox billing fixes, then assemble a coherent release and repeat the gate.
+
+**Open questions for Aziz:**
+- Owner-controlled sandbox/service acceptance and an approved release are still required before real users/payments.
+
+**Final receipt:** 133 integration tests and 55 browser tests passed; one online-font diagnostic intentionally skipped. All five targeted probes passed. Final verdict remains NO-GO for the open release/payment/lobby and external acceptance items.
+
+
+## 2026-10-21 - Ordered hardening and clean-release verification
+
+**Goal for this session:** Implement the six recommended hardening items, reviewing and testing after each fix.
+
+**What worked:**
+- Lobby media renewal, serialized role changes, reconnect/departure cleanup and permanent camera privacy regressions pass focused checks.
+- Shared boards enforce a non-destructive 100-task ceiling with bilingual draft-preserving feedback; sensitive browser diagnostics are disabled/redacted.
+- Payment notifications coalesce per order, preserve cooldown/retry limits, retain concurrent hints and cannot revive exhausted jobs. Migration 003 preserves overlapping paid review orders beside pending checkouts.
+- MFA-verified billing readers can view unresolved payments; only super admins can perform audited, provider-verified rechecks/explicit review activation. No manual paid overrides or live charging.
+- Clean Git archive of source release 3754ef0, fresh npm ci, all static/dependency checks, 145 integration tests and 62 browser tests pass. One online-font diagnostic intentionally skipped. Disposable PostgreSQL 16 outage/restore test passes and its cluster is stopped. Archive/source/lockfile parity is exact after tests.
+
+**What broke:**
+- Regressions reproduced lobby lifecycle gaps, board overflow, sensitive diagnostics, notification-job multiplication and delayed-approval uniqueness failure.
+- Staff review initially used a UUID cursor cast against a text column; corrected. Its harness initially omitted the operator path and failed to renew MFA after role grants; corrected while retaining the permission assertions. Review also prevented callback revival of exhausted jobs and refreshed subscription/audit lists after rechecks.
+
+**What I changed:**
+- Focused commits 94cd1dd (media lifecycle), 5372f6a (privacy CI), and coherent source assembly 3754ef0 (preserved UX/payment overlay plus reviewed hardening). Required previously untracked modules/tests/migrations are now committed. Unrelated audit folders remain untouched.
+- Review, runner, acceptance handoff and ignored evidence are under docs/hardening/2026-10-21. No .env copied, no production/provider calls, real email, push, hosted migration or deployment.
+
+**Next session starts with:**
+- Read docs/hardening/2026-10-21/ACCEPTANCE.md and complete owner-controlled service acceptance against the tested release.
+
+**Open questions for Aziz:**
+- Which staging URL and recovery-email provider should be used? Production recovery currently has no delivery adapter; the local-only outbox is not real delivery.
+- Merchant selection/contract, actual media termination, hosted restore, external alert receipt and deployment still require their designated environments and acceptance evidence.
+
+## 2026-10-30 — merge origin/main into viber/2026-10-27
+
+**Goal for this session:** bring main (6072cec) into the branch, resolve the 44 conflicts, keep every quality gate green.
+
+**What worked:**
+- Main's architecture adopted (user-mutation coordinator, join saga + socket locks, public shell, site-wide legal pages, Playwright 4-project matrix); branch features re-applied on top (platform, SEO locale renderer, recovery mail, operational alerts, audit P1 fixes).
+- Gates on the merged tree: check, warning-free lint, tsc, knip, audit:prod, unit 242/242, integration 302/302, chromium-desktop + chromium-mobile smoke green.
+
+**What broke:**
+- `/en` landing rendered from `marketing-copy.js` then re-rendered from an inline dict → CLS 0.38. The inline dict is gone; the module is the single source again.
+- `/` for English visitors painted Arabic then swapped → `halastudy-core.js` now holds the first paint until the language pass runs.
+- A 401 on a secondary account read aborted the in-flight identity check and read as "signed out" (reload loop) → the auth cache no longer aborts a running refresh.
+- `measureJoin('success')` and the branch order of the timer controls were lost in the merge; restored.
+- Main's open page stored room passwords in the session draft; the branch's no-secrets draft semantics were ported instead.
+
+**What I changed:**
+- Merge commit on `viber/2026-10-27`; superseded branch modules/tests archived under `_archive/merge-2026-10-29-superseded/`.
+
+**Next session starts with:**
+- WebKit matrix: 122 failures, all in branch-only specs that never ran under WebKit (the branch config had no WebKit projects). Groups: fake-camera specs (camera-privacy, 16), `#room-focus-retry` hidden (28), circle feedback (18), join/`#chat-input` (6), font-load screenshot timeouts. Decide skip-vs-fix per group.
+
+**Open questions for Aziz:**
+- None blocking the push.

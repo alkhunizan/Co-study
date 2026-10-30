@@ -41,6 +41,8 @@ videos/hero/source/
 !open.html
 !privacy.html
 !terms.html
+!platform.html
+!recovery.html
 
 # Defense in depth: these stay excluded even if the allowlist grows later.
 .env
@@ -50,6 +52,21 @@ runtime/
 *.pid
 *.sock
 *.log
+# Secrets and runtime state must never enter the image build context.
+.env*
+!.env.example
+data
+# Review artifacts can contain synthetic sessions and local database snapshots.
+docs
+.gstack
+playwright-report
+test-results
+tests
+README_AR.md
+DEPLOYMENT.md
+nginx.conf
+ecosystem.config.js
+playwright.config.js
 *.hsbackup
 diagnostics/
 docs/reports/*-diagnostic.*

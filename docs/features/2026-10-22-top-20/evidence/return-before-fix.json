@@ -1,0 +1,149 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\playwright.config.js",
+    "rootDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-top20-2026-10-22/candidate/tests/smoke",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\helpers\\playwright-global-setup.js",
+    "globalTeardown": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\helpers\\playwright-global-teardown.js",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-top20-2026-10-22/artifacts/return-before-fix/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-top20-2026-10-22/candidate/tests/smoke",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "study-tools.smoke.spec.js",
+      "file": "study-tools.smoke.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "a routine closed before another surface pauses keeps its remaining time on return",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 15280,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#study-guide [data-lang=routineResume]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#study-guide [data-lang=routineResume]')\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#study-guide [data-lang=routineResume]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#study-guide [data-lang=routineResume]')\u001b[22m\n\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js:17:82",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                      "column": 82,
+                      "line": 17
+                    },
+                    "snippet": "  15 |         await server.request(`/api/platform/focus/${current.id}/pause`,{method:'POST',headers:{Cookie:account.cookie},body:{}});\n  16 |         const returned=await context.newPage();await returned.clock.install({time:new Date(Date.now()+3600000)});await returned.goto(`${server.baseUrl}/app#progress`);\n> 17 |         await expect(returned.locator('#study-guide [data-lang=routineResume]')).toBeVisible();await expect(returned.locator('#study-guide-clock')).not.toHaveText('00:00');\n     |                                                                                  ^\n  18 |         expect(await returned.evaluate(()=>/** @type {any} */(window).HalaFocus.current().state)).toBe('paused');\n  19 |     } finally {await context?.close();await server.stop();}\n  20 | });"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                        "column": 82,
+                        "line": 17
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#study-guide [data-lang=routineResume]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#study-guide [data-lang=routineResume]')\u001b[22m\n\n\n  15 |         await server.request(`/api/platform/focus/${current.id}/pause`,{method:'POST',headers:{Cookie:account.cookie},body:{}});\n  16 |         const returned=await context.newPage();await returned.clock.install({time:new Date(Date.now()+3600000)});await returned.goto(`${server.baseUrl}/app#progress`);\n> 17 |         await expect(returned.locator('#study-guide [data-lang=routineResume]')).toBeVisible();await expect(returned.locator('#study-guide-clock')).not.toHaveText('00:00');\n     |                                                                                  ^\n  18 |         expect(await returned.evaluate(()=>/** @type {any} */(window).HalaFocus.current().state)).toBe('paused');\n  19 |     } finally {await context?.close();await server.stop();}\n  20 | });\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js:17:82"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T00:02:48.592Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\return-before-fix\\results\\study-tools.smoke-a-routin-28ac2-ts-remaining-time-on-return\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\return-before-fix\\results\\study-tools.smoke-a-routin-28ac2-ts-remaining-time-on-return\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\return-before-fix\\results\\study-tools.smoke-a-routin-28ac2-ts-remaining-time-on-return\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                    "column": 82,
+                    "line": 17
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-eaf1179ba9111cdb76de",
+          "file": "study-tools.smoke.spec.js",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-22T00:02:45.726Z",
+    "duration": 18852.248,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

@@ -1,0 +1,302 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\playwright.config.js",
+    "rootDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-top20-2026-10-22/candidate/tests/smoke",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\helpers\\playwright-global-setup.js",
+    "globalTeardown": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\helpers\\playwright-global-teardown.js",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-top20-2026-10-22/artifacts/study-browser-second/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/alkhu/AppData/Local/Temp/halastudy-top20-2026-10-22/candidate/tests/smoke",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "study-tools.smoke.spec.js",
+      "file": "study-tools.smoke.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "F01-F14 private planning, lost response, routines, task-linked focus, reflection and journal work end to end",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 20194,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#study-guide [data-lang=routineNext]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#study-guide [data-lang=routineNext]')\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#study-guide [data-lang=routineNext]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#study-guide [data-lang=routineNext]')\u001b[22m\n\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js:57:76",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                      "column": 76,
+                      "line": 57
+                    },
+                    "snippet": "  55 |         await page.locator('#study-guide [data-lang=routineResume]').click();\n  56 |         await page.clock.install();await page.clock.fastForward(5*60000+1000);\n> 57 |         await expect(page.locator('#study-guide [data-lang=routineNext]')).toBeVisible();\n     |                                                                            ^\n  58 |         await page.locator('#study-guide [data-lang=routineNext]').click();await expect(page.locator('#study-guide')).toContainText('Short break');\n  59 |         await page.locator('#study-guide [data-lang=routineStop]').click();await expect(page.locator('#focus-start')).toBeEnabled();\n  60 |         const current=(await server.request('/api/platform/study/journal',{headers:{Cookie:account.cookie}})).body.sessions[0];"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                        "column": 76,
+                        "line": 57
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#study-guide [data-lang=routineNext]')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#study-guide [data-lang=routineNext]')\u001b[22m\n\n\n  55 |         await page.locator('#study-guide [data-lang=routineResume]').click();\n  56 |         await page.clock.install();await page.clock.fastForward(5*60000+1000);\n> 57 |         await expect(page.locator('#study-guide [data-lang=routineNext]')).toBeVisible();\n     |                                                                            ^\n  58 |         await page.locator('#study-guide [data-lang=routineNext]').click();await expect(page.locator('#study-guide')).toContainText('Short break');\n  59 |         await page.locator('#study-guide [data-lang=routineStop]').click();await expect(page.locator('#focus-start')).toBeEnabled();\n  60 |         const current=(await server.request('/api/platform/study/journal',{headers:{Cookie:account.cookie}})).body.sessions[0];\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js:57:76"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-21T23:30:45.241Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-second\\results\\study-tools.smoke-F01-F14--a4c7f-and-journal-work-end-to-end\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-second\\results\\study-tools.smoke-F01-F14--a4c7f-and-journal-work-end-to-end\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-second\\results\\study-tools.smoke-F01-F14--a4c7f-and-journal-work-end-to-end\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                    "column": 76,
+                    "line": 57
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-4e04759fcd96634d3b72",
+          "file": "study-tools.smoke.spec.js",
+          "line": 18,
+          "column": 1
+        },
+        {
+          "title": "F15-F20 favorite, RSVP, calendar, in-app reminder and private resource shelf work across members",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 150000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 17661,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#study-reminder-banner')\nExpected substring: \u001b[32m\"Read together soon\"\u001b[39m\nReceived string:    \u001b[31m\"\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#study-reminder-banner')\u001b[22m\n\u001b[2m    14 × locator resolved to <div hidden=\"\" role=\"status\" class=\"study-alert\" id=\"study-reminder-banner\"></div>\u001b[22m\n\u001b[2m       - unexpected value \"\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#study-reminder-banner')\nExpected substring: \u001b[32m\"Read together soon\"\u001b[39m\nReceived string:    \u001b[31m\"\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#study-reminder-banner')\u001b[22m\n\u001b[2m    14 × locator resolved to <div hidden=\"\" role=\"status\" class=\"study-alert\" id=\"study-reminder-banner\"></div>\u001b[22m\n\u001b[2m       - unexpected value \"\"\u001b[22m\n\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js:100:116",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                      "column": 116,
+                      "line": 100
+                    },
+                    "snippet": "   98 |         const calendar=await b.context.request.get(`${server.baseUrl}/api/platform/study/calendar.ics`);expect(calendar.ok()).toBe(true);expect(await calendar.text()).toContain(`UID:${session.id}@halastudy`);\n   99 |         await b.page.locator('#study-reminders-reminders').check();await b.page.locator('#study-reminders button[type=submit]').click();\n> 100 |         await b.page.goto(`${server.baseUrl}/app#progress`);await expect(b.page.locator('#study-reminder-banner')).toContainText('Read together soon');\n      |                                                                                                                    ^\n  101 |         await b.page.locator('#study-reminder-banner button').click();await b.page.reload();await expect(b.page.locator('#study-reminder-banner')).toBeHidden();\n  102 |         await a.page.goto(`${server.baseUrl}/app#circles`);await a.page.locator('#circle-list button').click();await expect(a.page.locator('#study-resource')).toBeVisible();\n  103 |         await a.page.locator('#study-resource-title').fill('Read chapter 3');await a.page.locator('#study-resource-url').fill('https://example.com/chapter-3');await a.page.locator('#study-resource-note').fill('Our shared reading');await a.page.locator('#study-resource button[type=submit]').click();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                        "column": 116,
+                        "line": 100
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#study-reminder-banner')\nExpected substring: \u001b[32m\"Read together soon\"\u001b[39m\nReceived string:    \u001b[31m\"\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('#study-reminder-banner')\u001b[22m\n\u001b[2m    14 × locator resolved to <div hidden=\"\" role=\"status\" class=\"study-alert\" id=\"study-reminder-banner\"></div>\u001b[22m\n\u001b[2m       - unexpected value \"\"\u001b[22m\n\n\n   98 |         const calendar=await b.context.request.get(`${server.baseUrl}/api/platform/study/calendar.ics`);expect(calendar.ok()).toBe(true);expect(await calendar.text()).toContain(`UID:${session.id}@halastudy`);\n   99 |         await b.page.locator('#study-reminders-reminders').check();await b.page.locator('#study-reminders button[type=submit]').click();\n> 100 |         await b.page.goto(`${server.baseUrl}/app#progress`);await expect(b.page.locator('#study-reminder-banner')).toContainText('Read together soon');\n      |                                                                                                                    ^\n  101 |         await b.page.locator('#study-reminder-banner button').click();await b.page.reload();await expect(b.page.locator('#study-reminder-banner')).toBeHidden();\n  102 |         await a.page.goto(`${server.baseUrl}/app#circles`);await a.page.locator('#circle-list button').click();await expect(a.page.locator('#study-resource')).toBeVisible();\n  103 |         await a.page.locator('#study-resource-title').fill('Read chapter 3');await a.page.locator('#study-resource-url').fill('https://example.com/chapter-3');await a.page.locator('#study-resource-note').fill('Our shared reading');await a.page.locator('#study-resource button[type=submit]').click();\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js:100:116"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-21T23:31:10.109Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-second\\results\\study-tools.smoke-F15-F20--fb05b-e-shelf-work-across-members\\test-failed-1.png"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-second\\results\\study-tools.smoke-F15-F20--fb05b-e-shelf-work-across-members\\test-failed-2.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-second\\results\\study-tools.smoke-F15-F20--fb05b-e-shelf-work-across-members\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-second\\results\\study-tools.smoke-F15-F20--fb05b-e-shelf-work-across-members\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                    "column": 116,
+                    "line": 100
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-062b57552fecfe247b17",
+          "file": "study-tools.smoke.spec.js",
+          "line": 79,
+          "column": 1
+        },
+        {
+          "title": "planner supports Arabic/English, both themes, keyboard, narrow widths, zoom, drafts, history and recovery",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 150000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 8915,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  -  1\u001b[39m\n\u001b[31m+ Received  + 40\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"description\": \"Ensure that elements labelled through their content must have their visible text as part of their accessible name\",\u001b[39m\n\u001b[31m+     \"help\": \"Elements must have their visible text as part of their accessible name\",\u001b[39m\n\u001b[31m+     \"helpUrl\": \"https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright\",\u001b[39m\n\u001b[31m+     \"id\": \"label-content-name-mismatch\",\u001b[39m\n\u001b[31m+     \"impact\": \"serious\",\u001b[39m\n\u001b[31m+     \"nodes\": Array [\u001b[39m\n\u001b[31m+       Object {\u001b[39m\n\u001b[31m+         \"all\": Array [],\u001b[39m\n\u001b[31m+         \"any\": Array [\u001b[39m\n\u001b[31m+           Object {\u001b[39m\n\u001b[31m+             \"data\": null,\u001b[39m\n\u001b[31m+             \"id\": \"label-content-name-mismatch\",\u001b[39m\n\u001b[31m+             \"impact\": \"serious\",\u001b[39m\n\u001b[31m+             \"message\": \"Text inside the element is not included in the accessible name\",\u001b[39m\n\u001b[31m+             \"relatedNodes\": Array [],\u001b[39m\n\u001b[31m+           },\u001b[39m\n\u001b[31m+         ],\u001b[39m\n\u001b[31m+         \"failureSummary\": \"Fix any of the following:\u001b[39m\n\u001b[31m+   Text inside the element is not included in the accessible name\",\u001b[39m\n\u001b[31m+         \"html\": \"<a class=\\\"brand\\\" href=\\\"/\\\" aria-label=\\\"Halastudy home\\\"><span lang=\\\"en\\\" dir=\\\"ltr\\\">Halastudy</span><span aria-hidden=\\\"true\\\">هلا</span></a>\",\u001b[39m\n\u001b[31m+         \"impact\": \"serious\",\u001b[39m\n\u001b[31m+         \"none\": Array [],\u001b[39m\n\u001b[31m+         \"target\": Array [\u001b[39m\n\u001b[31m+           \".brand\",\u001b[39m\n\u001b[31m+         ],\u001b[39m\n\u001b[31m+       },\u001b[39m\n\u001b[31m+     ],\u001b[39m\n\u001b[31m+     \"tags\": Array [\u001b[39m\n\u001b[31m+       \"cat.semantics\",\u001b[39m\n\u001b[31m+       \"wcag21a\",\u001b[39m\n\u001b[31m+       \"wcag253\",\u001b[39m\n\u001b[31m+       \"EN-301-549\",\u001b[39m\n\u001b[31m+       \"EN-9.2.5.3\",\u001b[39m\n\u001b[31m+       \"RGAAv4\",\u001b[39m\n\u001b[31m+       \"RGAA-6.1.5\",\u001b[39m\n\u001b[31m+     ],\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+ ]\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  -  1\u001b[39m\n\u001b[31m+ Received  + 40\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"description\": \"Ensure that elements labelled through their content must have their visible text as part of their accessible name\",\u001b[39m\n\u001b[31m+     \"help\": \"Elements must have their visible text as part of their accessible name\",\u001b[39m\n\u001b[31m+     \"helpUrl\": \"https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright\",\u001b[39m\n\u001b[31m+     \"id\": \"label-content-name-mismatch\",\u001b[39m\n\u001b[31m+     \"impact\": \"serious\",\u001b[39m\n\u001b[31m+     \"nodes\": Array [\u001b[39m\n\u001b[31m+       Object {\u001b[39m\n\u001b[31m+         \"all\": Array [],\u001b[39m\n\u001b[31m+         \"any\": Array [\u001b[39m\n\u001b[31m+           Object {\u001b[39m\n\u001b[31m+             \"data\": null,\u001b[39m\n\u001b[31m+             \"id\": \"label-content-name-mismatch\",\u001b[39m\n\u001b[31m+             \"impact\": \"serious\",\u001b[39m\n\u001b[31m+             \"message\": \"Text inside the element is not included in the accessible name\",\u001b[39m\n\u001b[31m+             \"relatedNodes\": Array [],\u001b[39m\n\u001b[31m+           },\u001b[39m\n\u001b[31m+         ],\u001b[39m\n\u001b[31m+         \"failureSummary\": \"Fix any of the following:\u001b[39m\n\u001b[31m+   Text inside the element is not included in the accessible name\",\u001b[39m\n\u001b[31m+         \"html\": \"<a class=\\\"brand\\\" href=\\\"/\\\" aria-label=\\\"Halastudy home\\\"><span lang=\\\"en\\\" dir=\\\"ltr\\\">Halastudy</span><span aria-hidden=\\\"true\\\">هلا</span></a>\",\u001b[39m\n\u001b[31m+         \"impact\": \"serious\",\u001b[39m\n\u001b[31m+         \"none\": Array [],\u001b[39m\n\u001b[31m+         \"target\": Array [\u001b[39m\n\u001b[31m+           \".brand\",\u001b[39m\n\u001b[31m+         ],\u001b[39m\n\u001b[31m+       },\u001b[39m\n\u001b[31m+     ],\u001b[39m\n\u001b[31m+     \"tags\": Array [\u001b[39m\n\u001b[31m+       \"cat.semantics\",\u001b[39m\n\u001b[31m+       \"wcag21a\",\u001b[39m\n\u001b[31m+       \"wcag253\",\u001b[39m\n\u001b[31m+       \"EN-301-549\",\u001b[39m\n\u001b[31m+       \"EN-9.2.5.3\",\u001b[39m\n\u001b[31m+       \"RGAAv4\",\u001b[39m\n\u001b[31m+       \"RGAA-6.1.5\",\u001b[39m\n\u001b[31m+     ],\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+ ]\u001b[39m\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js:124:73",
+                    "location": {
+                      "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                      "column": 73,
+                      "line": 124
+                    },
+                    "snippet": "  122 |             for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});for(const key of ['tasksTab','routinesTab','libraryTab','agendaTab','insightsTab']){await choose(page,key);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}\n  123 |                 await page.screenshot({path:info.outputPath(`planner-${lang}-${theme}-${width}.png`),fullPage:true});}\n> 124 |             expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);\n      |                                                                         ^\n  125 |         }\n  126 |         await choose(page,'tasksTab');await page.locator('#study-task-title').fill('Draft survives language');await page.locator('[data-lang-value=ar]').click();await expect(page.locator('#study-task-title')).toHaveValue('Draft survives language');\n  127 |         await page.locator('#study-task-title').focus();await page.keyboard.press('Tab');await expect(page.locator('#study-task-details summary')).toBeFocused();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                        "column": 73,
+                        "line": 124
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  -  1\u001b[39m\n\u001b[31m+ Received  + 40\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   Object {\u001b[39m\n\u001b[31m+     \"description\": \"Ensure that elements labelled through their content must have their visible text as part of their accessible name\",\u001b[39m\n\u001b[31m+     \"help\": \"Elements must have their visible text as part of their accessible name\",\u001b[39m\n\u001b[31m+     \"helpUrl\": \"https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright\",\u001b[39m\n\u001b[31m+     \"id\": \"label-content-name-mismatch\",\u001b[39m\n\u001b[31m+     \"impact\": \"serious\",\u001b[39m\n\u001b[31m+     \"nodes\": Array [\u001b[39m\n\u001b[31m+       Object {\u001b[39m\n\u001b[31m+         \"all\": Array [],\u001b[39m\n\u001b[31m+         \"any\": Array [\u001b[39m\n\u001b[31m+           Object {\u001b[39m\n\u001b[31m+             \"data\": null,\u001b[39m\n\u001b[31m+             \"id\": \"label-content-name-mismatch\",\u001b[39m\n\u001b[31m+             \"impact\": \"serious\",\u001b[39m\n\u001b[31m+             \"message\": \"Text inside the element is not included in the accessible name\",\u001b[39m\n\u001b[31m+             \"relatedNodes\": Array [],\u001b[39m\n\u001b[31m+           },\u001b[39m\n\u001b[31m+         ],\u001b[39m\n\u001b[31m+         \"failureSummary\": \"Fix any of the following:\u001b[39m\n\u001b[31m+   Text inside the element is not included in the accessible name\",\u001b[39m\n\u001b[31m+         \"html\": \"<a class=\\\"brand\\\" href=\\\"/\\\" aria-label=\\\"Halastudy home\\\"><span lang=\\\"en\\\" dir=\\\"ltr\\\">Halastudy</span><span aria-hidden=\\\"true\\\">هلا</span></a>\",\u001b[39m\n\u001b[31m+         \"impact\": \"serious\",\u001b[39m\n\u001b[31m+         \"none\": Array [],\u001b[39m\n\u001b[31m+         \"target\": Array [\u001b[39m\n\u001b[31m+           \".brand\",\u001b[39m\n\u001b[31m+         ],\u001b[39m\n\u001b[31m+       },\u001b[39m\n\u001b[31m+     ],\u001b[39m\n\u001b[31m+     \"tags\": Array [\u001b[39m\n\u001b[31m+       \"cat.semantics\",\u001b[39m\n\u001b[31m+       \"wcag21a\",\u001b[39m\n\u001b[31m+       \"wcag253\",\u001b[39m\n\u001b[31m+       \"EN-301-549\",\u001b[39m\n\u001b[31m+       \"EN-9.2.5.3\",\u001b[39m\n\u001b[31m+       \"RGAAv4\",\u001b[39m\n\u001b[31m+       \"RGAA-6.1.5\",\u001b[39m\n\u001b[31m+     ],\u001b[39m\n\u001b[31m+   },\u001b[39m\n\u001b[31m+ ]\u001b[39m\n\n  122 |             for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});for(const key of ['tasksTab','routinesTab','libraryTab','agendaTab','insightsTab']){await choose(page,key);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}\n  123 |                 await page.screenshot({path:info.outputPath(`planner-${lang}-${theme}-${width}.png`),fullPage:true});}\n> 124 |             expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);\n      |                                                                         ^\n  125 |         }\n  126 |         await choose(page,'tasksTab');await page.locator('#study-task-title').fill('Draft survives language');await page.locator('[data-lang-value=ar]').click();await expect(page.locator('#study-task-title')).toHaveValue('Draft survives language');\n  127 |         await page.locator('#study-task-title').focus();await page.keyboard.press('Tab');await expect(page.locator('#study-task-details summary')).toBeFocused();\n    at C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js:124:73"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-21T23:31:29.484Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-second\\results\\study-tools.smoke-planner--368f3-drafts-history-and-recovery\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-second\\results\\study-tools.smoke-planner--368f3-drafts-history-and-recovery\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\artifacts\\study-browser-second\\results\\study-tools.smoke-planner--368f3-drafts-history-and-recovery\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\alkhu\\AppData\\Local\\Temp\\halastudy-top20-2026-10-22\\candidate\\tests\\smoke\\study-tools.smoke.spec.js",
+                    "column": 73,
+                    "line": 124
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "66be53b0b4b61d25578c-5b2ec2a73d7af0328dc5",
+          "file": "study-tools.smoke.spec.js",
+          "line": 115,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-21T23:30:37.966Z",
+    "duration": 61248.799,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 3,
+    "flaky": 0
+  }
+}

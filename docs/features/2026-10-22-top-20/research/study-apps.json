@@ -1,0 +1,29 @@
+{
+  "query": "Study Together StudyStream features tasks goals focus analytics sounds study rooms official",
+  "retrievedDate": "2026-10-22",
+  "request_id": "53ed252e-7e01-4e4c-b88e-db1a9eb2e60b",
+  "originalResultSha256": "6a10e35c50f83ea6e70529650b56cf95660831b50e65333213e49d8b5345e4bf",
+  "note": "Official-source search metadata; full page text omitted from the review packet. See RESEARCH.md for the feature synthesis.",
+  "results": [
+    {
+      "url": "https://www.studystream.live",
+      "title": "StudyStream | Study With Strangers | Study Together",
+      "score": 0.5066652
+    },
+    {
+      "url": "https://app.studystream.live",
+      "title": "StudyStream | Study With Strangers | Study Together 24/7",
+      "score": 0.5003668
+    },
+    {
+      "url": "https://www.studytogether.com/zoom",
+      "title": "Join our 24/7 zoom study rooms | Study Together",
+      "score": 0.48952848
+    },
+    {
+      "url": "https://www.studytogether.com",
+      "title": "24/7 Study Room & Focus Room | Study Together",
+      "score": 0.47548413
+    }
+  ]
+}

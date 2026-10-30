@@ -131,24 +131,29 @@ For these, work in normal mode and report when ready for review.
 
 ## 9. Health Stack
 
-Use Node 22 and `NODE_ENV=test`, without production credentials. The manifest
-and `.github/workflows/ci.yml` define three gate groups:
+Used by `/health` (gstack skill) and `npm run test:ci`. Use Node 22 and
+`NODE_ENV=test`, without production credentials. The manifest and
+`.github/workflows/ci.yml` define three gate groups; package.json and CI are the
+command source of truth:
 
-- typecheck (syntax): `npm run check` — `scripts/ci/check-syntax.js` runs `node --check` on every `.js`/`.mjs` source and on every inline `<script>` in `.html` pages (classic and module; JSON-LD is parsed as JSON; `text/babel` mock-ups are skipped), reporting HTML line numbers
+- typecheck (syntax): `npm run check` — `scripts/ci/check-syntax.js` runs `node --check` on every `.js`/`.mjs` source and on every inline `<script>` in `.html` pages (classic and module; JSON-LD is parsed as JSON; `text/babel` mock-ups are skipped), reporting HTML line numbers; then `scripts/check-platform.js` checks platform and inline author scripts
 - typecheck (types):  `npm run typecheck` — `tsc -p .` with `allowJs`/`checkJs`. Permissive (`strict: false`, `noImplicitAny: false`); JSDoc opt-in per function for the JSON-trust-boundary sanitizers (`sanitizeStatus`, `sanitizeMessage`, `sanitizeBoardTask`, `sanitizeRoom`, `normalizeSchedule`)
 - lint:               `npm run lint` — `biome check .`. Scoped to JS author code only via `biome.json` includes (HTML/CSS/JSX/design-system mocks/`day*-*.mjs` spike scripts excluded). Auto-fix with `npm run lint:fix`
 - deadcode:           `npm run deadcode` — `knip --no-progress` per `knip.json`
 - audit:              `npm run audit:prod` — `npm audit --omit=dev`
 - migration contracts: `npm run supabase:migrations:check` — static checks of all three ordered SQL files
-- tests: `npm run test:unit` and `npm run test:integration` — Node tests; counts belong to dated evidence, not a permanent contract
+- tests: `npm run test:unit` and `npm run test:integration` — Node tests; counts belong to dated evidence, not a permanent contract (use the current runner output)
 - infrastructure: `npm run test:ci:infra` — ShellCheck, disposable PostgreSQL migration apply/reapply, Docker layers/final filesystem, and Nginx template validation; requires Linux/Docker and LF shell scripts
 - browser: `npm run test:smoke` — Playwright Chromium/WebKit, each desktop/mobile
 
 `test:ci:quality` runs syntax, migration contracts, types, warning-free lint,
 deadcode, production audit, unit and integration tests. `test:ci` then runs
 infrastructure and browser gates. CI runs these in separate jobs, with a
-four-project browser matrix. Real-provider/device and recovery evidence remain
-separate release gates even when CI passes.
+four-project browser matrix, plus a separate PostgreSQL 16 platform resilience
+job; a local PGlite pass does not replace that PostgreSQL job. Real-provider/device
+and recovery evidence remain separate release gates even when CI passes.
+
+Record actual command durations; full browser and database suites can take several minutes.
 
 ---
 
@@ -160,7 +165,7 @@ separate release gates even when CI passes.
 - `npm run https` — self-signed HTTPS on `:3443` — needed locally for secure-context browser APIs (camera/mic, FaceDetector)
 - Single integration test: `node --test --test-name-pattern "<name>" tests/integration/server.integration.test.js`
 - Single smoke test: `npm run test:smoke -- --project=chromium-desktop -g "<title>"`; omit the project option for all four projects. The harness uses isolated temporary state (`tests/helpers/test-env.js`).
-- Operator scripts: `npm run backup:state`, `npm run restore:state -- <artifact>` (dry-run), `npm run restore:state -- <artifact> --apply --writer-stopped` (single writer must be stopped), `npm run verify:deploy -- <url>`
+- Operator scripts: `npm run backup:state`, `npm run restore:state -- <artifact>` (dry-run), `npm run restore:state -- <artifact> --apply --writer-stopped` (single writer must be stopped), `npm run verify:deploy -- <url>`. Legacy room-file scripts remain: `npm run backup:rooms`, `npm run restore:rooms -- <path>` (app must be stopped). Platform database: `npm run platform:backup`, `platform:restore`, `platform:migrate`.
 - Production operator commands must load the protected service environment. Prefer `scripts/deploy/backup.sh` and `restore.sh`; use `verify:deploy -- <url> --env-file /var/lib/halastudy/.env` as `halastudy`. Node does not automatically load `.env`.
 
 ---
@@ -169,29 +174,43 @@ separate release gates even when CI passes.
 
 **No frontend build step.** Vanilla HTML/CSS/JavaScript pages use shared assets
 under `public/js/` (including `halastudy-core.js` and `ui.js`) and
-`design-system/`. In-room logic lives in `public/js/index-app.js` and
-`public/js/video/`; some other pages still have inline scripts.
-Arabic/RTL is the default; bilingual/theme consistency is a readiness task.
+`design-system/`; author HTML/CSS and `public/js` modules are served directly.
+Public locale routes, account pages, the platform workspace and room pages share
+design tokens from `design-system/colors_and_type.css`. In-room logic lives in
+`public/js/index-app.js` and `public/js/video/`; some other pages still have
+inline scripts. Arabic/RTL is the default; bilingual/theme consistency is a
+readiness task.
 
 - `landing.html` ← `/` (marketing)
 - `open.html` ← `/open` (room create/join)
 - `index.html` ← `/study`, `/workspace`, `/room` (the in-room app)
 - `account.html`, `lobby.html`, blog/article pages, legal pages, `404.html`, and the environment-gated admin page are additional surfaces
 
-**Backend is one factory.** `server.js` (HTTP) and `server-https.js` (HTTPS via `selfsigned`) are thin wrappers around `createCoStudyServer(options)` in `co-study-server.js`, which holds the entire backend: Express app, Socket.IO server, security headers, origin guard, session cookie, per-concern sliding-window rate limiters (create/join/lookup/password-failure/chat/board), and room lifecycle. It returns `{ app, server, io, config, roomStore, rooms, listen, evaluateReadiness }` — integration tests construct real servers through this factory with temp state files rather than mocking.
+**Backend entry is one factory.** `server.js` (HTTP) and `server-https.js` (HTTPS via `selfsigned`) wrap `createCoStudyServer(options)` in `co-study-server.js`. The factory composes Express, Socket.IO, guards, rate limiters and room lifecycle with the auth/platform/video/operations services. Integration helpers construct real servers with disposable files and databases; inspect their environment before running write tests.
 
 **Both HTTP and Socket.IO mutate state.** HTTP handles account/authentication,
-Google OAuth, admin operations, video lifecycle and signed provider webhooks.
-Socket.IO handles create/join, chat, board, presence and development mesh relays.
-Never assume an endpoint is read-only based on transport.
+Google OAuth, admin operations, platform focus/billing/circles/staff routes,
+private study tools, video lifecycle and signed provider webhooks. Inspect
+`services/auth`, `services/platform/routes.js`, `study-routes.js` and the
+conditional legacy admin router as well as the core factory. Socket.IO handles
+create/join, chat, board, camera/status, presence and development mesh relays;
+the server relays SDP/ICE rather than media. Never assume an endpoint is
+read-only based on transport.
 
-**Persistence** — sanitized room metadata, hashes, chat, board, schedule and
-durable pending work live in `ROOM_STATE_FILE`; production accounts use
-Supabase, with no local fallback. Video sessions and webhook acceptance have
-sidecars derived from the room path. Live room presence remains memory-only.
-Startup awaits hydration/drains before listening; persistence failures fail
-closed. Keep one PM2 writer and retain the state directory across code changes.
-Both distinct 32-byte session secrets and complete Supabase/RealtimeKit
+**Persistence** — Platform mode wraps account/room stores through
+`services/platform/record-store.js` and imports legacy JSON once into SQL.
+`services/platform/database.js` supports local PGlite or explicit managed
+PostgreSQL; schema is in `db/migrations`. Do not disable the platform as a
+rollback to stale JSON. Operations and restore instructions:
+`docs/implementation/2026-10-20-platform/OPERATIONS.md`. Outside platform mode,
+sanitized room metadata, hashes, chat, board, schedule and durable pending work
+live in `ROOM_STATE_FILE`; production accounts use Supabase (a compatibility
+path under the platform), with no local fallback. Video sessions and webhook
+acceptance have sidecars derived from the room path. Live room presence, socket
+IDs and camera state remain memory-only. Startup awaits hydration/drains before
+listening; persistence failures fail closed. Single-instance by design, enforced
+by runtime locks: keep one PM2 writer and retain the state directory across code
+changes. Both distinct 32-byte session secrets and complete Supabase/RealtimeKit
 configuration are required in production. See the deployment guide.
 
 **Recovery** — the encrypted schema-v2 artifact has six datasets, including

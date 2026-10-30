@@ -1,0 +1,6 @@
+﻿50158269273d27330012dc116685d6898a49ca6b fix(viber): recover account provider discovery after outages (V8-01)
+b0221861921f22bdf34782dafa0cc971afd18c95 fix(viber): release join and RTC setup after stalled requests (V3-01)
+1a12d3f03b8728f76737051476a3d7a9cb4bac0d fix(viber): retry private reminders after transient refresh failures (V5-03)
+b3bf055470782c84fe22b517f94d1bb1e2be3e35 fix(viber): localize account failures and retain retry details (V3-02)
+983c7b0c5be11141fbe644e39884d34d7acd8403 fix(viber): redact private Supabase response details from failures (V5-02)
+fe9818499161f2d6ea96e83444d0491ae4b7db70 fix(viber): bound Supabase response bodies by the request deadline (V5-01)

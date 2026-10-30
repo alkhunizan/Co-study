@@ -16,15 +16,20 @@ This release ships with:
 - Custom room names with shareable room codes
 - Optional password protection with PBKDF2 hashing
 - Optional accounts (email + password, no verification wall): synced focus minutes and day streaks, My Rooms with one-click rejoin, reserved nickname, avatar accent + bio. Instant rooms stay guest-open; scheduled rooms require an account
-- Self-serve, immediate delete-my-data flow on the account page (PDPL)
+- Self-serve, reauthenticated delete-my-data flow on the account page (PDPL), with durable failure handling and session revocation; shared content/backups are explained in the privacy policy
+- Member workspace at `/app`, private circles and assigned supervisors at `/supervisor`, and one VIP offer at `/plans`: USD 4.99/month
+- DigetPay hosted checkout adapter for sandbox testing, with server-verified payments and refund reconciliation; production charges and automatic renewal remain disabled. [Setup and limits](docs/payments/2026-10-20-digetpay/IMPLEMENTATION.md)
+- Named staff roles with authenticator MFA, recovery codes, audit events, moderation and operating controls; first-owner bootstrap retires shared-admin access
 - Hidden admin ops console at an env-secret path: live overview, room inspect/force-close/kick, runtime video kill-switch, user ban/unban, site-wide broadcast banner, backup-now, recent errors
+- Server-timed sessions, pause/resume, bounded heartbeat credit, deduplicated points and achievements
 - Cloudflare RealtimeKit video rooms with server-issued participant tokens; mesh is local-development-only
 - Live Socket.IO chat and room presence
 - Pomodoro timer with daily focus tracking
 - Shared room board, room status sharing, and ambient sounds
 - Reusable scheduled rooms with Riyadh-based cadence, countdowns, calendar export, and WhatsApp-ready invites
-- Disk-backed room persistence for chat history and board state
-- Local-development mesh/ICE diagnostics (disabled in production)
+- Transactional PostgreSQL-compatible account, room and platform storage; embedded PGlite for local development
+- Legacy disk-backed room persistence for chat history and board state (non-platform mode)
+- TURN-ready runtime ICE config; local-development mesh/ICE diagnostics (disabled in production)
 - Launch guardrails: 20 global active video participants, 20 per room, mic off by default, recording off
 - Development-mesh-only AI focus monitoring through the browser FaceDetector API
 - Health/readiness/metrics endpoints, abuse controls, automated + manual state backup/restore, bilingual 404, and a PWA manifest
@@ -44,6 +49,8 @@ npm start
 ```
 
 Open `http://localhost:3000`.
+
+For an isolated local platform review, run `npm run platform:preview` and open `http://127.0.0.1:3470/app`. See [platform operations and migration](docs/implementation/2026-10-20-platform/OPERATIONS.md) for test checkout, first-owner setup, storage, backups and remaining production integrations.
 
 ### Local Secure-Context Testing
 
@@ -79,6 +86,8 @@ Bash assignment prefix. Real-provider/device gates remain separate.
 npm run backup:state
 npm run restore:state -- /absolute/path/to/artifact.hsbackup
 npm run restore:state -- /absolute/path/to/artifact.hsbackup --apply --writer-stopped
+npm run platform:backup -- --directory /absolute/path/to/database --file /absolute/path/to/backups/platform.json
+npm run platform:restore -- --directory /absolute/path/to/empty-database --file /absolute/path/to/backups/platform.json
 npm run verify:deploy -- https://your-domain.com
 ```
 
@@ -86,6 +95,11 @@ Restore defaults to a checksum/schema/tombstone dry run. Applying is an offline
 operator action: stop the single app writer first, supply both apply flags, then
 start the app and run `verify:deploy`. See
 [`docs/BACKUP-RESTORE.md`](docs/BACKUP-RESTORE.md).
+
+Platform backup/restore also requires stopping the app. Platform restore targets
+an empty database and invalidates previous sessions. The named-staff console and
+scheduler can create snapshots while the app runs. `backup:rooms`/`restore:rooms`
+apply only to the legacy JSON mode.
 
 For production use the service-owned `scripts/deploy/backup.sh` and `restore.sh`
 wrappers. Run `verify:deploy -- <url> --env-file /var/lib/halastudy/.env` as
@@ -218,12 +232,12 @@ credentials. Occupancy and estimated USD use the same 70/85/100% bands. Exit 2
 is an early notice/warning and exit 1 is a critical threshold or invalid local
 evidence, which lets cron or the process monitor route alerts by severity.
 
-Room persistence stores room metadata, protected-room password hashes, chat history, shared board state, and scheduled-room metadata/attendance on disk. Live presence, socket IDs, camera state, and other transient participant state remain memory-only.
+Platform storage imports legacy JSON once into the `halastudy` SQL schema. In legacy (non-platform) mode, room persistence stores room metadata, protected-room password hashes, chat history, shared board state, and scheduled-room metadata/attendance on disk. Live presence, socket IDs, camera state, and other transient participant state remain memory-only. Supabase profile storage remains a compatibility path that needs its own account backup.
 
 Durable video lifecycle and webhook acceptance are separate sidecars derived
 from `ROOM_STATE_FILE`; preserve both across code deploys/rollbacks.
 
-This persistence layer is designed for a single app instance. Keep PM2 at one process, back up the state file, and do restores while the app is stopped.
+This persistence layer is designed for a single app instance. Keep PM2 at one process; runtime locks refuse concurrent instances. Back up the canonical database (or the state file in legacy mode) and do restores while the app is stopped. Disabling the platform after migration would read stale JSON and is not a safe rollback. See the [operations guide](docs/implementation/2026-10-20-platform/OPERATIONS.md).
 
 `VERSION=1.2.0.0` is the historical display label corresponding to npm `1.2.0`.
 Health reports the npm version; it is not evidence of the deployed Git SHA.

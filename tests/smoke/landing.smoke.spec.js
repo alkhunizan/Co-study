@@ -76,7 +76,7 @@ test('landing page renders the hero and routes to the create form', async ({ pag
     await expect(page.locator('.quiet-pill')).toBeVisible();
 
     await page.locator('.hero-actions a.btn-primary').click();
-    await expect(page).toHaveURL(/\/open\.html$/);
+    await expect(page).toHaveURL(/\/open(?:\.html)?$/);
     await expect(page.locator('#create-form')).toBeVisible();
 
     expect(errors).toEqual([]);
@@ -126,9 +126,10 @@ for (const slug of ['best-online-group-study-rooms-saudi', 'study-with-me-online
             answer: item.querySelector('p').textContent
         })));
         const structured = await page.locator('script[type="application/ld+json"]').evaluateAll(items => items.map(item => JSON.parse(item.textContent)));
-        expect(structured.find(item => item['@type'] === 'FAQPage').mainEntity.map(item => ({
-            question: item.name, answer: item.acceptedAnswer.text
-        }))).toEqual(faq);
+        // FAQ rich results were retired by Google (May 2026); the SEO renderer drops
+        // the FAQPage block and keeps the visible answers.
+        expect(structured.find(item => item['@type'] === 'FAQPage')).toBeUndefined();
+        expect(faq.length).toBeGreaterThan(0);
         await expect(page.locator('article')).not.toContainText(/خلفية افتراضية|الخلفية الافتراضية|تمويه/);
         await expect(page.locator('.entry-note')).toContainText('كضيف');
         await expect(page.locator('.entry-note')).toContainText('حساب');
@@ -247,9 +248,9 @@ test('the landing footer leads to a bilingual contact page', async ({ page }) =>
     if (await burger.isVisible()) await burger.click();
     await page.locator('.lang-switch button[data-lang-value="en"]').click();
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-    await expect(page.locator('h1')).toHaveText('Get in touch with Halastudy');
+    await expect(page.locator('h1')).toHaveText('Contact Halastudy');
     await expect(page.locator('footer a[href="/contact"]')).toHaveText('Contact');
-    await expect(page).toHaveTitle('Halastudy | Contact');
+    await expect(page).toHaveTitle('Contact Us | Halastudy');
     await expect(page.locator('.lang-switch')).toHaveAttribute('aria-label', 'Language');
 });
 

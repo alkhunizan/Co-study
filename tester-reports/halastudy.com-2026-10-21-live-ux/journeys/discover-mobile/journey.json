@@ -1,0 +1,79 @@
+{
+  "name": "Find people working now",
+  "viewport": "mobile",
+  "completed": true,
+  "failedAt": null,
+  "steps": 6,
+  "totalMs": 4117,
+  "slowSteps": [],
+  "errors": [],
+  "log": [
+    {
+      "n": 1,
+      "step": {
+        "goto": "https://halastudy.com/"
+      },
+      "ok": true,
+      "ms": 2785,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\discover-mobile\\step-01.png"
+    },
+    {
+      "n": 2,
+      "step": {
+        "scroll": 900
+      },
+      "ok": true,
+      "ms": 4,
+      "url": "https://halastudy.com/",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\discover-mobile\\step-02.png"
+    },
+    {
+      "n": 3,
+      "step": {
+        "click": "شوف اللي شغّال"
+      },
+      "ok": true,
+      "targetSize": "167x53",
+      "ms": 1309,
+      "url": "https://halastudy.com/open.html#join",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\discover-mobile\\step-03.png"
+    },
+    {
+      "n": 4,
+      "step": {
+        "expect": "الدخول إلى غرفة مذاكرة"
+      },
+      "ok": true,
+      "ms": 15,
+      "url": "https://halastudy.com/open.html#join",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\discover-mobile\\step-04.png"
+    },
+    {
+      "n": 5,
+      "step": {
+        "expect": "رمز الغرفة"
+      },
+      "ok": true,
+      "ms": 3,
+      "url": "https://halastudy.com/open.html#join",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\discover-mobile\\step-05.png"
+    },
+    {
+      "n": 6,
+      "step": {
+        "note": "The discovery CTA leads to a code-only join form. No public-room list is offered; the browsing goal is abandoned. Do not join a room."
+      },
+      "ok": true,
+      "ms": 1,
+      "url": "https://halastudy.com/open.html#join",
+      "newErrors": [],
+      "screenshot": "E:\\D-Backup\\OS\\Claude-Projects\\body_doubling_live_cam\\workspace\\Co-study\\tester-reports\\halastudy.com-2026-10-21-live-ux\\journeys\\discover-mobile\\step-06.png"
+    }
+  ]
+}

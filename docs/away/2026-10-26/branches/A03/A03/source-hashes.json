@@ -1,0 +1,10 @@
+﻿[
+    {
+        "path":  "public/js/platform.js",
+        "sha256":  "6409289a9cd70c8e3cac0b5680578a8274c0e721aab6dfdd6b681796925ef4f2"
+    },
+    {
+        "path":  "tests/smoke/workspace-away-refresh.smoke.spec.js",
+        "sha256":  "251c1501661ee8b762a879e9a1a0775982ab04878d9d68355b0fa67a84a2ffd9"
+    }
+]

@@ -1,0 +1,17 @@
+{
+  "links": 187,
+  "images": 176,
+  "missing": [],
+  "failedImages": [],
+  "errors": [],
+  "rows": [
+    {
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "overflow": false
+    }
+  ]
+}

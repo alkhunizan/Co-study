@@ -8,6 +8,7 @@
 //
 // When GOOGLE_* env is unset the router mounts nothing, so every /auth/google
 // path 404s exactly like an unknown URL.
+const crypto = require('node:crypto');
 const express = require('express');
 const { normalizeEmail, sanitizeUserText } = require('./index');
 const {
@@ -18,6 +19,7 @@ const {
 } = require('./oauth-security');
 const { verifyPassword } = require('./password');
 const { createUser } = require('../../user-store');
+const { COOKIE_NAME: REAUTH_COOKIE_NAME, TTL_MS: REAUTH_TTL_MS, issueReauth } = require('./reauth');
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -26,6 +28,11 @@ const STATE_COOKIE = 'hala_oauth';
 const LINK_PROOF_COOKIE = 'hala_google_link';
 const DISPLAY_NAME_MAX_LENGTH = 20;
 const GOOGLE_SUB_MAX_LENGTH = 255;
+const PENDING_VERIFIER_LIMIT = 1000;
+const PROVIDER_REQUEST_TIMEOUT_MS = 10000;
+// Legacy entry points used the branch-era `purpose` query parameter.
+const INTENT_BY_LEGACY_PURPOSE = { delete: 'reauth_delete', security: 'reauth_security' };
+const INTENTS = new Set(['signin', 'link', 'reauth_delete', 'reauth_security']);
 
 function createGoogleAuthRouter(deps = {}) {
     const {
@@ -47,6 +54,14 @@ function createGoogleAuthRouter(deps = {}) {
     } = deps;
 
     const router = express.Router();
+    // PKCE verifiers live only in this process, keyed by the browser-only state
+    // nonce, and expire with the signed state. A restart simply fails the flow.
+    const pendingVerifiers = new Map();
+    function prunePendingVerifiers(now = Date.now()) {
+        for (const [nonce, entry] of pendingVerifiers) {
+            if (entry.expires <= now) pendingVerifiers.delete(nonce);
+        }
+    }
     if (!config.enabled) {
         return router; // no handlers — all /auth/google/* fall through to 404
     }
@@ -147,8 +162,10 @@ function createGoogleAuthRouter(deps = {}) {
         const requestIp = getRequestIp(req);
         if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
 
-        const intent = req.query.intent === undefined ? 'signin' : req.query.intent;
-        if (intent !== 'signin' && intent !== 'link' && intent !== 'reauth_delete') {
+        const intent = req.query.intent === undefined
+            ? (INTENT_BY_LEGACY_PURPOSE[String(req.query.purpose)] || 'signin')
+            : req.query.intent;
+        if (!INTENTS.has(intent)) {
             res.status(400).json({ errorCode: 'OAUTH_INTENT_INVALID' });
             return;
         }
@@ -169,9 +186,9 @@ function createGoogleAuthRouter(deps = {}) {
                 return;
             }
             userId = req.user.id;
-        } else if (intent === 'reauth_delete') {
+        } else if (intent === 'reauth_delete' || intent === 'reauth_security') {
             if (!req.user?.googleSub) {
-                res.redirect('/account?auth=reauth_required');
+                res.redirect(intent === 'reauth_security' ? '/app?auth=reauth_required#security' : '/account?auth=reauth_required');
                 return;
             }
             userId = req.user.id;
@@ -179,11 +196,19 @@ function createGoogleAuthRouter(deps = {}) {
         const fallbackByIntent = {
             signin: '/account?auth=google',
             link: '/account?auth=google_linked',
-            reauth_delete: '/account?auth=delete_granted'
+            reauth_delete: '/account?auth=delete_granted',
+            reauth_security: '/app?security=verified#security'
         };
         const fallback = fallbackByIntent[intent];
         const next = normalizeLocalNext(req.query.next, fallback);
+        prunePendingVerifiers();
+        if (pendingVerifiers.size >= PENDING_VERIFIER_LIMIT) {
+            res.status(429).json({ errorCode: 'RATE_LIMITED' });
+            return;
+        }
         const state = oauthSecurity.issueState({ intent, next, userId });
+        const verifier = crypto.randomBytes(32).toString('base64url');
+        pendingVerifiers.set(state.nonce, { verifier, expires: Date.now() + OAUTH_STATE_MAX_AGE_MS });
         setStateCookie(req, res, state.nonce);
         const params = new URLSearchParams({
             client_id: config.clientId,
@@ -192,7 +217,10 @@ function createGoogleAuthRouter(deps = {}) {
             scope: 'openid email profile',
             state: state.token,
             access_type: 'online',
-            prompt: 'select_account'
+            // Reauthentication must not be satisfied by a cached consent.
+            prompt: intent === 'signin' || intent === 'link' ? 'select_account' : 'consent select_account',
+            code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'),
+            code_challenge_method: 'S256'
         });
         res.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`);
     });
@@ -218,9 +246,18 @@ function createGoogleAuthRouter(deps = {}) {
         if (!state) {
             return failRedirect('state_mismatch');
         }
+        prunePendingVerifiers();
+        const pendingVerifier = pendingVerifiers.get(cookies[STATE_COOKIE]);
+        pendingVerifiers.delete(cookies[STATE_COOKIE]);
+        if (!pendingVerifier) return failRedirect('state_expired');
         if (state.intent !== 'signin' && (!req.user || req.user.id !== state.userId)) {
             return failRedirect('identity_mismatch');
         }
+        // The signed-in actor must still be the same live account after the
+        // external exchange; a concurrent ban, logout or deletion wins.
+        const actor = req.user;
+        const actorEpoch = actor?.tokenEpoch;
+        const liveActor = () => actor && users.get(actor.id) === actor && actor.tokenEpoch === actorEpoch && !actor.banned;
         const code = typeof req.query.code === 'string' ? req.query.code : '';
         if (!code) return failRedirect(typeof req.query.error === 'string' ? req.query.error : 'missing_code');
 
@@ -233,14 +270,17 @@ function createGoogleAuthRouter(deps = {}) {
                     code,
                     client_id: config.clientId,
                     client_secret: config.clientSecret,
+                    code_verifier: pendingVerifier.verifier,
                     redirect_uri: config.redirectUri,
                     grant_type: 'authorization_code'
-                }).toString()
+                }).toString(),
+                signal: AbortSignal.timeout(PROVIDER_REQUEST_TIMEOUT_MS)
             });
             if (!tokenRes.ok) return failRedirect(`token_${tokenRes.status}`);
             const token = await tokenRes.json();
             const infoRes = await fetchImpl(GOOGLE_USERINFO_URL, {
-                headers: { Authorization: `Bearer ${token.access_token}` }
+                headers: { Authorization: `Bearer ${token.access_token}` },
+                signal: AbortSignal.timeout(PROVIDER_REQUEST_TIMEOUT_MS)
             });
             if (!infoRes.ok) return failRedirect(`userinfo_${infoRes.status}`);
             profile = await infoRes.json();
@@ -250,6 +290,7 @@ function createGoogleAuthRouter(deps = {}) {
         }
 
         const email = normalizeEmail(profile.email);
+        if (actor && !liveActor()) return failRedirect('session_changed');
         // Google's email_verified comes back as a boolean or the string "true".
         const emailVerified = profile.email_verified === true || profile.email_verified === 'true';
         const googleSub = typeof profile.sub === 'string'
@@ -276,6 +317,22 @@ function createGoogleAuthRouter(deps = {}) {
             const grant = oauthSecurity.issueProof({ purpose: 'delete_grant', userId: user.id });
             setDeletionGrantCookie(req, res, grant);
             logger.info({ event: 'google_delete_reauthenticated', userId: user.id });
+            return res.redirect(state.next);
+        }
+
+        if (state.intent === 'reauth_security') {
+            // Staff MFA enrolment on the platform requires a fresh Google
+            // reauthentication bound to this account session (see platform routes).
+            const user = req.user;
+            if (user.googleSub !== googleSub
+                || initialSubjectMatches.length !== 1
+                || initialSubjectMatches[0].id !== user.id) {
+                logger.warn({ event: 'google_security_reauth_mismatch', userId: user.id });
+                return res.redirect('/app?auth=google_reauth_failed#security');
+            }
+            const proof = issueReauth(user, cookies.coStudyAuth, sessionSecret, Date.now(), 'setup-mfa');
+            appendSetCookie(res, `${REAUTH_COOKIE_NAME}=${proof}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=${REAUTH_TTL_MS / 1000}${req.secure ? '; Secure' : ''}`);
+            logger.info({ event: 'google_security_reauthenticated', userId: user.id });
             return res.redirect(state.next);
         }
 

@@ -1,0 +1,530 @@
+diff --git a/.env.example b/.env.example
+index 7fb6c55..9058356 100644
+--- a/.env.example
++++ b/.env.example
+@@ -145,9 +145,23 @@ PLATFORM_ENABLED=true
+ # PLATFORM_DATA_DIR=/persistent/halastudy/platform
+ # Optional managed PostgreSQL. Run platform:migrate while the app is stopped.
+ # PLATFORM_DATABASE_URL=postgresql://...
+-# Development/test checkout only: VIP is exactly USD 4.99/month.
+-# Production always refuses simulated checkout. No payment provider selected.
++# VIP remains exactly USD 4.99/month. DigetPay is SANDBOX ONLY.
++# Missing configuration leaves checkout unavailable; production cannot charge.
++# Use BILLING_PROVIDER=simulator only for the local outcome simulator.
++BILLING_PROVIDER=digetpay
+ BILLING_MODE=test
++DIGETPAY_ENVIRONMENT=sandbox
++DIGETPAY_API_KEY=
++# Bare application origin; HTTPS except loopback local development.
++DIGETPAY_PUBLIC_ORIGIN=
++# Set true only once USD has been enabled for this sandbox merchant.
++DIGETPAY_USD_ENABLED=false
++# Confirm with DigetPay: session or transaction. Blank disables checkout.
++# Transaction mode requires status to return orderId/merchantOrderId + currency.
++DIGETPAY_STATUS_LOOKUP=
++# Register: <PUBLIC_ORIGIN>/api/platform/billing/digetpay/webhook
++# Turn OFF scheduled recurring payments in the DigetPay merchant dashboard.
++# This adapter grants one test month; it never schedules/initiates renewals.
+ # PLATFORM_ENABLED=false is a legacy compatibility switch, NOT a rollback:
+ # old JSON files are not updated after the one-time SQL import.
+ 
+diff --git a/README.md b/README.md
+index b97f306..2939c1c 100644
+--- a/README.md
++++ b/README.md
+@@ -18,7 +18,7 @@ This release ships with:
+ - Optional accounts (email + password, no verification wall): synced focus minutes and day streaks, My Rooms with one-click rejoin, reserved nickname, avatar accent + bio. Instant rooms stay guest-open; scheduled rooms require an account
+ - Reauthenticated account deletion with durable failure handling and session revocation; shared content/backups are explained in the privacy policy
+ - Member workspace at `/app`, private circles and assigned supervisors at `/supervisor`, and one VIP offer at `/plans`: USD 4.99/month
+-- Local test checkout only; production checkout stays unavailable until a payment provider is integrated
++- DigetPay hosted checkout adapter for sandbox testing, with server-verified payments and refund reconciliation; production charges and automatic renewal remain disabled. [Setup and limits](docs/payments/2026-10-20-digetpay/IMPLEMENTATION.md)
+ - Named staff roles with authenticator MFA, recovery codes, audit events, moderation and operating controls; first-owner bootstrap retires shared-admin access
+ - Server-timed sessions, pause/resume, bounded heartbeat credit, deduplicated points and achievements
+ - Cloudflare RealtimeKit video rooms with server-issued participant tokens, plus legacy mesh fallback
+diff --git a/README_AR.md b/README_AR.md
+index 4b2366d..7ab48d0 100644
+--- a/README_AR.md
++++ b/README_AR.md
+@@ -4,7 +4,7 @@
+ 
+ ## تحديث المنصة — أكتوبر 2026
+ 
+-أُضيفت مساحة الحساب والتقدّم `/app`، ومجموعات الدراسة الخاصة والمشرفون المعيّنون `/supervisor`، وعضوية VIP الوحيدة بسعر **4.99 دولار أمريكي شهريًا** في `/plans`. الدفع محاكاة محلية فقط؛ الدفع الحقيقي ينتظر اختيار المزوّد. تشمل الإدارة حسابات موظفين مسمّاة ومصادقة ثنائية وصلاحيات محددة وسجل إجراءات.
++أُضيفت مساحة الحساب والتقدّم `/app`، ومجموعات الدراسة الخاصة والمشرفون المعيّنون `/supervisor`، وعضوية VIP الوحيدة بسعر **4.99 دولار أمريكي شهريًا** في `/plans`. أُضيف تكامل DigetPay للدفع التجريبي، مع التحقق من الدفع على الخادم ومتابعة الاسترداد. الدفع الحقيقي والتجديد التلقائي غير مفعّلين. [الإعداد وحدود التكامل](docs/payments/2026-10-20-digetpay/IMPLEMENTATION.md). تشمل الإدارة حسابات موظفين مسمّاة ومصادقة ثنائية وصلاحيات محددة وسجل إجراءات.
+ 
+ للمراجعة المحلية المعزولة: `npm run platform:preview` ثم `http://127.0.0.1:3470/app`. التخزين الجديد قاعدة SQL مع PGlite محليًا أو PostgreSQL مُعدّ صراحةً، واستيراد JSON مرة واحدة. أوامر نسخ ملفات الغرف القديمة لا تكفي لنسخ المنصة الجديدة. راجع [دليل التشغيل والترحيل](docs/implementation/2026-10-20-platform/OPERATIONS.md) قبل النشر أو الاستعادة. لم تُنشر هذه التغييرات على الإنتاج.
+ 
+diff --git a/co-study-server.js b/co-study-server.js
+index fc9599c..cad2d73 100644
+--- a/co-study-server.js
++++ b/co-study-server.js
+@@ -1708,7 +1708,7 @@ function createCoStudyServer(options = {}) {
+             }
+         });
+         if (platform.enabled) {
+-            try { await platform.ready; await platform.db.close(); } catch (_error) {}
++            try { await platform.ready; await platform.billing.close?.(); await platform.db.close(); } catch (_error) {}
+         }
+         // Persist incidents emitted by every other component's final cleanup.
+         try { await operationalAlerts.close(); } catch (_error) {}
+diff --git a/platform.html b/platform.html
+index 4aa0fde..976b940 100644
+--- a/platform.html
++++ b/platform.html
+@@ -105,6 +105,17 @@
+           <article class="plan featured"><h2>VIP</h2><p class="price" dir="ltr">US$4.99 <small data-lang="monthly">شهريًا</small></p><ul><li data-lang="vipHistory">سجل جلسات موثّق لمدة سنة</li><li data-lang="vipExport">تصدير تقدّمك بصيغة CSV</li><li data-lang="vipCircles">إنشاء 3 مجموعات خاصة، حتى 12 عضوًا لكل مجموعة</li><li data-lang="vipSupervision">تعيين مشرفين للمجموعة وجدولة الجلسات ومتابعة الحضور</li></ul><button class="primary" id="checkout-start" data-lang="tryCheckout">جرّب الاشتراك</button><p id="plan-status" class="note"></p></article>
+         </div>
+         <div id="billing-management" class="detail" hidden><h2 data-lang="membership">عضويتك</h2><p id="billing-status"></p><button id="billing-cancel" data-lang="cancelRenewal">إلغاء التجديد</button></div>
++        <form id="digetpay-checkout" class="form-grid" hidden>
++          <h2 data-lang="digetpayTitle">الدفع التجريبي عبر DigetPay</h2>
++          <p class="note" data-lang="digetpayBody">تجربة عضوية لمدة شهر بسعر 4.99 دولار أمريكي. لا يُخصم مبلغ فعلي ولا يوجد تجديد تلقائي. استخدم بيانات الاختبار فقط.</p>
++          <label><span data-lang="paymentPhone">رقم جوال سعودي</span><input name="phone" type="tel" dir="ltr" autocomplete="tel" inputmode="tel" required maxlength="14" pattern="(0?5[0-9]{8}|\+9665[0-9]{8}|9665[0-9]{8})" placeholder="0501234567"></label>
++          <button class="primary" type="submit" data-lang="continueDigetpay">متابعة إلى DigetPay التجريبي</button>
++        </form>
++        <div id="payment-result" class="detail" hidden aria-live="polite">
++          <h2 data-lang="paymentResultTitle">حالة الدفع</h2>
++          <p id="payment-result-text"></p>
++          <button id="payment-verify" type="button" data-lang="verifyPayment">تحقق من حالة الدفع</button>
++        </div>
+         <div id="test-checkout" class="detail" hidden tabindex="-1"><h2 data-lang="checkoutTitle">محاكاة الدفع التجريبية</h2><p data-lang="checkoutBody">VIP — ‏4.99 دولار أمريكي شهريًا. اختر نتيجة اختبار. هذه المحاكاة لا تُنشئ دفعة أو تجديدًا فعليًا.</p><div class="actions"><button class="primary" data-checkout-outcome="success" data-lang="simulateSuccess">محاكاة نجاح الدفع</button><button data-checkout-outcome="declined" data-lang="simulateDecline">محاكاة رفض الدفع</button><button data-checkout-outcome="cancel" data-lang="cancel">إلغاء</button></div></div>
+       </section>
+       <section data-panel="security" hidden>
+diff --git a/project-knowledge/spike-log.md b/project-knowledge/spike-log.md
+index 7e57bf8..ad38d96 100644
+--- a/project-knowledge/spike-log.md
++++ b/project-knowledge/spike-log.md
+@@ -715,6 +715,28 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
+ **Open questions for Aziz:**
+ - Production mail provider, alert destination and hosting choices are still needed for live integration. Payment provider remains undecided; simulated purchases must stay disabled in production.
+ 
++## 2026-10-20 — DigetPay provider review
++
++**Goal for this session:** Assess DigetPay for the current VIP membership.
++
++**What worked:**
++- Reviewed public payment, recurring, onboarding, pricing, settlement and webhook documentation against local billing code.
++- Recurring payments are documented; recommendation is a conditional shortlist pending the commercial quote and demonstrated subscription lifecycle.
++
++**What broke:**
++- Documentation-index retrieval required PowerShell UseBasicParsing; the retry succeeded.
++- The attempted SAMA register fetch was unavailable; regulatory verification remains incomplete.
++
++**What I changed:**
++- Saved the review and draft provider questions in docs/payments/2026-10-20-digetpay/REVIEW.md, with resolved tooling errors in that folder's .learnings/ERRORS.md.
++- No runtime changes, provider selection, merchant registration, outgoing message, payment or deployment.
++
++**Next session starts with:**
++- Obtain DigetPay's quote and canonical hosted-recurring demonstration, including cancellation and payment-method eligibility.
++
++**Open questions for Aziz:**
++- No answer needed to complete the review; merchant-specific terms remain with the provider.
++
+ ## 2026-10-20 — SEO structure and crawlable public pages
+ 
+ **Goal for this session:** Audit the live SEO structure and implement verified local improvements without disrupting public article URLs or private workflows.
+@@ -738,3 +760,54 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
+ 
+ **Open questions for Aziz:**
+ - No input needed for these local SEO changes; production integrations from the earlier hardening handoff remain outstanding.
++
++## 2026-10-20 — DigetPay sandbox adaptation
++
++**Goal for this session:** Adapt the selected DigetPay provider to Halastudy's existing VIP flow.
++
++**What worked:**
++- Added hosted sandbox checkout, fixed USD 4.99 server pricing, account-bound verification, durable webhook work, reconciliation, duplicate protection and refund handling.
++- Added Arabic/English checkout and payment-status screens; mobile RTL, dark mode and accessibility checks passed.
++- Existing platform integration and member/staff browser journeys passed with the additive database migration.
++
++**What broke:**
++- Public status documentation conflicts on session versus transaction identifiers. Lookup is explicit configuration; missing transaction binding fails closed.
++- Playwright's bundled Chromium was unavailable; installed headless Chrome passed the browser tests.
++- Test-only type declarations needed correction; final checks are retained in the dedicated evidence directory.
++
++**What I changed:**
++- DigetPay client/billing modules, platform routes/configuration, database migration 002 and backup format v2 (with v1 restore support), checkout UI, provider tests and documentation.
++- Setup and limitations: docs/payments/2026-10-20-digetpay/IMPLEMENTATION.md. Evidence: VALIDATION.md and evidence/ in that folder.
++- No actual credentials, DigetPay API calls, recurring charge scheduler, live payment, remote migration, push or deployment. Unrelated contact-audit documentation preserved.
++
++**Next session starts with:**
++- Configure the merchant sandbox and confirm USD support plus the exact status lookup/binding contract; run real sandbox acceptance before adding automatic renewal or live support.
++
++**Open questions for Aziz:**
++- Merchant sandbox credentials and provider confirmation are needed for actual DigetPay testing. Secrets should be configured server-side, not committed.
++
++## 2026-10-20 — Full Viber gate after DigetPay adaptation
++
++**Goal for this session:** Run all nine Viber phases against the current candidate and record production readiness.
++
++**What worked:**
++- Final local candidate: 126 integration tests, 36 browser tests, real PostgreSQL 16 outage/restore scenario, syntax/types/lint/deadcode and zero-vulnerability production audit.
++- Real application HTTP payment flow with a fake external provider; scoped latest/verification, fixed price, duplicate protection and account isolation.
++- Explicit inventory and evidence for 84 of 103 API/socket surfaces (81.6%); 19 anonymous production GET/HEAD requests.
++
++**What broke:**
++- Twenty untrusted transaction hints created twenty durable verification jobs; a three-order delayed-approval timeline collided with the open-order uniqueness constraint.
++- Two older domain fixtures implicitly selected the new default provider and failed checkout setup. Explicit test/simulator configuration restores their unchanged assertions.
++- Payment worker errors were logged without operational alerts. The new alert rule passes its before/after regression.
++- A network-filesystem PostgreSQL run timed out; the unchanged local-disk run passed in 31.7 seconds.
++
++**What I changed:**
++- Local commits `31676dc` (payment worker alert) and `c1a29dd` (explicit simulator in two fixtures), on `viber/2026-10-20-digetpay-gate`.
++- Full report, coverage, reproductions and evidence: `docs/viber/2026-10-20-digetpay-gate/`.
++- No billing-rule changes, real charges, provider mutations, push or deployment. Earlier dirty work preserved.
++
++**Next session starts with:**
++- Address the two reproduced billing-state/queue defects and unresolved-order operations in a dedicated implementation pass, then assemble and validate the coherent payment release.
++
++**Open questions for Aziz:**
++- Production remains NO-GO until merchant acceptance, real recovery delivery, external monitoring/media acceptance and approved deployment are completed; the report contains the consolidated owner checklist.
+diff --git a/public/js/platform.js b/public/js/platform.js
+index f81c7ed..a535478 100644
+--- a/public/js/platform.js
++++ b/public/js/platform.js
+@@ -150,6 +150,41 @@
+     let circleRequest = 0;
+     let requestedCircleId = null;
+     let checkout = null;
++    let providerOrder = null;
++    Object.assign(ar, {
++        digetpayTitle: 'الدفع التجريبي عبر DigetPay',
++        digetpayBody: 'تجربة عضوية لمدة شهر بسعر 4.99 دولار أمريكي. لا يُخصم مبلغ فعلي ولا يوجد تجديد تلقائي. استخدم بيانات الاختبار فقط.',
++        digetpayNotice: 'وضع DigetPay التجريبي — استخدم بطاقات الاختبار فقط. لا يوجد خصم فعلي أو تجديد تلقائي.',
++        paymentPhone: 'رقم جوال سعودي', continueDigetpay: 'متابعة إلى DigetPay التجريبي',
++        paymentResultTitle: 'حالة الدفع', verifyPayment: 'تحقق من حالة الدفع', tryDigetpay: 'جرّب الدفع عبر DigetPay',
++        paymentPending: 'لم نتأكد من الدفع بعد. يمكنك إعادة التحقق هنا؛ لا تبدأ دفعة أخرى.',
++        paymentCompleted: 'تم التحقق من الدفع التجريبي. هذه الدفعة لعضوية لمدة شهر دون تجديد تلقائي.',
++        paymentRefunded: 'تم التحقق من استرداد المبلغ وإيقاف العضوية المرتبطة بهذه الدفعة.',
++        paymentReview: 'تحتاج محاولة الدفع إلى مراجعة. لم يتم إنشاء محاولة دفع أخرى.',
++        paymentExpired: 'انتهت مهلة صفحة الدفع. تحقق من الحالة قبل المحاولة مجددًا.',
++        PAYMENT_PHONE_INVALID: 'أدخل رقم جوال سعوديًا صحيحًا مثل 0501234567.',
++        PAYMENT_REVIEW_REQUIRED: 'تحتاج محاولة الدفع إلى مراجعة. تحقق من حالتها قبل المحاولة مجددًا.',
++        CHECKOUT_UNCONFIGURED: 'الدفع غير متاح حاليًا.',
++        BILLING_RENEWAL_UNAVAILABLE: 'التجديد التلقائي غير مفعّل.',
++        CHECKOUT_NOT_FOUND: 'لم نجد محاولة الدفع في حسابك.'
++    });
++    Object.assign(en, {
++        digetpayTitle: 'DigetPay sandbox checkout',
++        digetpayBody: 'Test one month of VIP for US$4.99. No real charge or automatic renewal. Use test payment details only.',
++        digetpayNotice: 'DigetPay sandbox — use test cards only. No real charge or automatic renewal.',
++        paymentPhone: 'Saudi mobile number', continueDigetpay: 'Continue to DigetPay sandbox',
++        paymentResultTitle: 'Payment status', verifyPayment: 'Check payment status', tryDigetpay: 'Try DigetPay checkout',
++        paymentPending: 'Payment is not verified yet. Check again here; do not start another payment.',
++        paymentCompleted: 'Test payment verified. This purchase covers one month with no automatic renewal.',
++        paymentRefunded: 'Refund verified. The membership linked to this payment has ended.',
++        paymentReview: 'This payment attempt needs review. Another payment attempt has not been created.',
++        paymentExpired: 'The checkout page has expired. Check its status before trying again.',
++        PAYMENT_PHONE_INVALID: 'Enter a valid Saudi mobile number, such as 0501234567.',
++        PAYMENT_REVIEW_REQUIRED: 'This payment attempt needs review. Check its status before trying again.',
++        CHECKOUT_UNCONFIGURED: 'Checkout is currently unavailable.',
++        BILLING_RENEWAL_UNAVAILABLE: 'Automatic renewal is not enabled.',
++        CHECKOUT_NOT_FOUND: 'This payment attempt was not found in your account.'
++    });
+     let enrolling = false;
+     let currentView = location.pathname === '/plans' ? 'vip' : location.hash.slice(1) || (location.pathname === '/supervisor' ? 'circles' : 'home');
+     const t = (key) => core.t(key) || en[key] || key;
+@@ -322,16 +357,29 @@
+     }
+     function renderBilling() {
+         const subscription = state?.benefits.subscription;
++        const billing = state?.billing;
++        const digetpay = billing?.provider === 'digetpay';
+         $('test-notice').hidden = state?.mode !== 'test';
++        $('test-notice').textContent = t(digetpay ? 'digetpayNotice' : 'testNotice');
+         $('checkout-start').hidden = !!subscription;
+-        $('checkout-start').disabled = !identityKnown || (!!user && state?.mode !== 'test');
+-        $('checkout-start').textContent = user ? t('tryCheckout') : t('signInForVip');
+-        $('plan-status').textContent = state?.mode !== 'test' && user ? t('checkoutUnavailable') : '';
++        $('checkout-start').disabled = !identityKnown || (!!user && !billing?.checkoutAvailable);
++        $('checkout-start').textContent = user ? t(digetpay ? 'tryDigetpay' : 'tryCheckout') : t('signInForVip');
++        $('plan-status').textContent = !billing?.checkoutAvailable && user ? t('checkoutUnavailable') : '';
++        if (!digetpay || subscription || !billing?.checkoutAvailable) $('digetpay-checkout').hidden = true;
+         $('billing-management').hidden = !subscription;
++        $('billing-cancel').hidden = digetpay || subscription?.provider === 'digetpay';
+         if (subscription) {
+             $('billing-status').textContent = `${t(subscription.cancel_at_period_end ? 'subscriptionCancels' : 'subscriptionActive')} ${date(subscription.period_end)}`;
+             $('billing-cancel').textContent = t(subscription.cancel_at_period_end ? 'keepMembership' : 'cancelRenewal');
+         }
++        $('payment-result').hidden = !providerOrder;
++        if (providerOrder) {
++            const key = providerOrder.verificationPending ? 'paymentPending' : ({
++                completed: 'paymentCompleted', refunded: 'paymentRefunded', expired: 'paymentExpired',
++                unknown: 'paymentReview', creating: 'paymentReview', review: 'paymentReview'
++            }[providerOrder.status] || 'paymentPending');
++            $('payment-result-text').textContent = t(key);
++        }
+     }
+     Object.assign(ar, {
+         archiveCircle: 'أرشفة المجموعة', leaveCircle: 'مغادرة المجموعة', upcoming: 'لم تبدأ الجلسة',
+@@ -563,9 +611,37 @@
+     });
+     $('checkout-start').addEventListener('click', () => void work($('checkout-start'), async () => {
+         if (!user) { location.assign('/account?next=%2Fplans'); return; }
++        if (state.billing?.provider === 'digetpay') {
++            $('digetpay-checkout').hidden = false;
++            $('digetpay-checkout').querySelector('input').focus();
++            return;
++        }
+         checkout = await api('POST', '/billing/checkout', {});
+         $('test-checkout').hidden = false; $('test-checkout').focus();
+     }));
++    bindForm('digetpay-checkout', async (data) => {
++        try {
++            providerOrder = await api('POST', '/billing/checkout', { phone: String(data.phone).trim() });
++            renderBilling();
++            if (providerOrder.redirectUrl) {
++                // Defense in depth: the backend also validates the exact origin,
++                // checkout path and session ID before persisting this URL.
++                const url = new URL(providerOrder.redirectUrl);
++                if (!['https://pay-staging.digetpay.com', 'https://fin-admin.digetpay.com'].includes(url.origin)
++                    || url.pathname !== '/pay/checkout') throw new Error('CHECKOUT_UNCONFIGURED');
++                location.assign(url.href);
++            }
++        } catch (error) {
++            ({ order: providerOrder } = await api('GET', '/billing/latest'));
++            renderBilling();
++            throw error;
++        }
++    });
++    $('payment-verify').addEventListener('click', () => void work($('payment-verify'), async () => {
++        if (!providerOrder) return;
++        providerOrder = await api('POST', `/billing/checkout/${encodeURIComponent(providerOrder.id)}/verify`, {});
++        await refresh();
++    }));
+     document.querySelectorAll('[data-checkout-outcome]').forEach((element) => { element.addEventListener('click', () => void work(element, async () => {
+         const outcome = element.getAttribute('data-checkout-outcome');
+         await api('POST', `/billing/checkout/${checkout.id}/complete`, { token: checkout.token, outcome });
+@@ -606,9 +682,19 @@
+             if (user) await refresh();
+             else {
+                 const catalog = await api('GET', '/catalog');
+-                state = { mode: catalog.mode, benefits: { plan: { id: 'free' }, features: {} } };
++                state = { mode: catalog.mode, billing: catalog, benefits: { plan: { id: 'free' }, features: {} } };
+                 render(); showView();
+             }
++            if (user && state.billing?.provider === 'digetpay') {
++                ({ order: providerOrder } = await api('GET', '/billing/latest'));
++                const returnedId = new URLSearchParams(location.search).get('checkout');
++                if (returnedId) {
++                    try { providerOrder = await api('POST', `/billing/checkout/${encodeURIComponent(returnedId)}/verify`, {}); }
++                    catch (error) { notice(errorText(error), true); }
++                    await refresh();
++                }
++                renderBilling();
++            }
+         } catch (error) {
+             notice(errorText(error), true);
+             core.showUnavailable(null, () => global.location.reload());
+diff --git a/scripts/check-platform.js b/scripts/check-platform.js
+index 7bdde4f..661e266 100644
+--- a/scripts/check-platform.js
++++ b/scripts/check-platform.js
+@@ -7,8 +7,8 @@ const files = [
+     'services/ops/alerts.js',
+     'services/seo/public-pages.js', 'public/js/marketing-copy.js',
+     'public/js/recovery.js', 'public/js/platform.js', 'public/js/focus-client.js', 'scripts/platform-maintenance.js', 'scripts/preview-platform.js',
+-    ...fs.readdirSync('tests/integration').filter((name) => name.startsWith('platform') || name.startsWith('foundations')).map((name) => path.join('tests/integration', name)),
+-    'tests/smoke/platform.smoke.spec.js'
++    ...fs.readdirSync('tests/integration').filter((name) => /^(platform|foundations|digetpay)/.test(name)).map((name) => path.join('tests/integration', name)),
++    'tests/helpers/digetpay-fixture.js', 'tests/smoke/platform.smoke.spec.js', 'tests/smoke/digetpay.smoke.spec.js'
+ ];
+ for (const file of files) new vm.Script(fs.readFileSync(file, 'utf8'), { filename: file });
+ let scripts = 0;
+diff --git a/scripts/preview-platform.js b/scripts/preview-platform.js
+index bd90d09..928272c 100644
+--- a/scripts/preview-platform.js
++++ b/scripts/preview-platform.js
+@@ -21,7 +21,7 @@ async function main() {
+         PLATFORM_ENABLED: 'true', PLATFORM_DATABASE_URL: '', PLATFORM_DATA_DIR: path.join(directory, 'database'),
+         ROOM_STATE_FILE: path.join(directory, 'rooms.json'), USER_STATE_FILE: path.join(directory, 'users.json'),
+         ROOM_STATE_BACKUP_DIR: path.join(directory, 'backups'),
+-        SESSION_SECRET: credentials.sessionSecret, BILLING_MODE: 'test',
++        SESSION_SECRET: credentials.sessionSecret, BILLING_MODE: 'test', BILLING_PROVIDER: 'simulator',
+         SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '',
+         VIDEO_PROVIDER: 'mesh', SFU_BASE_URL: '', CLOUDFLARE_REALTIMEKIT_API_TOKEN: '',
+         ADMIN_PATH: '/local-operator-bootstrap', ADMIN_PASSWORD_HASH: await hashPassword(credentials.operatorPassword),
+diff --git a/services/platform/billing.js b/services/platform/billing.js
+index 880ddd4..c2fa09a 100644
+--- a/services/platform/billing.js
++++ b/services/platform/billing.js
+@@ -69,4 +69,4 @@ function createBilling(db, mode, now = Date.now) {
+     return { checkout, complete, cancel };
+ }
+ 
+-module.exports = { createBilling };
++module.exports = { createBilling, nextMonth };
+diff --git a/services/platform/catalog.js b/services/platform/catalog.js
+index 13d5768..5d729aa 100644
+--- a/services/platform/catalog.js
++++ b/services/platform/catalog.js
+@@ -7,7 +7,9 @@ const FREE = Object.freeze({
+     features: { 'progress.export': false, 'progress.history_days': 30, 'circles.max_owned': 0, 'circles.max_members': 12 }
+ });
+ 
+-function createEntitlements(db, mode, now = Date.now) {
++function createEntitlements(db, mode, now = Date.now, billingInfo = () => ({
++    provider: 'simulator', environment: mode, checkoutAvailable: mode === 'test', automaticRenewal: false
++})) {
+     async function resolve(userId, tx = db) {
+         const result = await tx.query(`SELECT * FROM halastudy.subscriptions
+             WHERE user_id=$1 AND mode=$2 AND status='active' AND period_end>$3 ORDER BY created_at DESC LIMIT 1`,
+@@ -16,7 +18,7 @@ function createEntitlements(db, mode, now = Date.now) {
+         const plan = subscription ? VIP : FREE;
+         return { plan, subscription, features: { ...plan.features } };
+     }
+-    return { resolve, catalog: () => ({ plans: [FREE, VIP], mode, checkoutAvailable: mode === 'test' }) };
++    return { resolve, catalog: () => ({ plans: [FREE, VIP], mode, ...billingInfo() }) };
+ }
+ 
+ module.exports = { createEntitlements };
+diff --git a/services/platform/database.js b/services/platform/database.js
+index cc77396..e3f68fc 100644
+--- a/services/platform/database.js
++++ b/services/platform/database.js
+@@ -95,11 +95,13 @@ async function createDatabase({ url = '', directory, migrate = false, onFailure
+     }
+     try {
+         if (!url || migrate) {
+-            const migration = await fs.readFile(path.join(__dirname, '../../db/migrations/001-platform.sql'), 'utf8');
+-            if (url) await transaction((tx) => tx.query(migration));
+-            else await driver.exec(migration);
++            for (const name of ['001-platform.sql', '002-digetpay.sql']) {
++                const migration = await fs.readFile(path.join(__dirname, '../../db/migrations', name), 'utf8');
++                if (url) await transaction((tx) => tx.query(migration));
++                else await driver.exec(migration);
++            }
+         }
+-        const version = await query('SELECT version FROM halastudy.migrations WHERE version = 1');
++        const version = await query('SELECT version FROM halastudy.migrations WHERE version = 2');
+         if (!version.rows.length) throw new Error('PLATFORM_MIGRATION_REQUIRED');
+     } catch (error) {
+         await close();
+diff --git a/services/platform/index.js b/services/platform/index.js
+index ce9e1f1..ed8f14a 100644
+--- a/services/platform/index.js
++++ b/services/platform/index.js
+@@ -4,6 +4,8 @@ const { createDatabase } = require('./database');
+ const { createEntitlements } = require('./catalog');
+ const { createAccess } = require('./access');
+ const { createBilling } = require('./billing');
++const { createDigetPayClient } = require('./digetpay-client');
++const { createDigetPayBilling } = require('./digetpay-billing');
+ const { createProgress } = require('./progress');
+ const { createCohorts } = require('./cohorts');
+ const { requireCondition, audit } = require('./common');
+@@ -12,6 +14,7 @@ const { requireCondition, audit } = require('./common');
+ function createPlatform({ userStateFile, secret, env = process.env, logger = console }) {
+     const enabled = env.PLATFORM_ENABLED !== 'false' && (env.NODE_ENV !== 'test' || env.PLATFORM_ENABLED === 'true');
+     const mode = env.NODE_ENV === 'production' ? 'live' : env.BILLING_MODE === 'disabled' ? 'disabled' : 'test';
++    const provider = env.BILLING_PROVIDER || (env.NODE_ENV === 'test' ? 'simulator' : 'digetpay');
+     const platform = { enabled, ready: null, db: null, access: null, entitlements: null, billing: null, progress: null, cohorts: null, mode };
+     platform.ready = enabled ? (async () => {
+         platform.db = await createDatabase({
+@@ -20,10 +23,16 @@ function createPlatform({ userStateFile, secret, env = process.env, logger = con
+             directory: env.PLATFORM_DATA_DIR || path.join(path.dirname(userStateFile), `${path.basename(userStateFile)}.platform`)
+         });
+         platform.access = createAccess(platform.db, secret);
+-        platform.entitlements = createEntitlements(platform.db, mode);
+-        platform.billing = createBilling(platform.db, mode);
++        platform.billing = provider === 'digetpay'
++            ? createDigetPayBilling(platform.db, createDigetPayClient(env), Date.now, logger)
++            : createBilling(platform.db, provider === 'simulator' ? mode : 'disabled');
++        const billingInfo = () => platform.billing.describe?.() || {
++            provider, environment: mode, checkoutAvailable: provider === 'simulator' && mode === 'test', automaticRenewal: false
++        };
++        platform.entitlements = createEntitlements(platform.db, mode, Date.now, billingInfo);
+         platform.progress = createProgress(platform.db);
+         platform.cohorts = createCohorts(platform.db, platform.entitlements);
++        platform.billing.start?.();
+     })() : Promise.resolve();
+     void platform.ready.catch(() => logger.error({ event: 'platform_start_failed' }));
+ 
+diff --git a/services/platform/maintenance.js b/services/platform/maintenance.js
+index 02eecf4..061825a 100644
+--- a/services/platform/maintenance.js
++++ b/services/platform/maintenance.js
+@@ -6,7 +6,7 @@ const TABLES = [
+     'users', 'accounts', 'room_records', 'store_metadata', 'mfa', 'organizations',
+     'organization_members', 'role_assignments', 'cohorts', 'cohort_members', 'invitations',
+     'rooms', 'room_hosts', 'scheduled_sessions', 'attendance', 'subscriptions', 'checkout_sessions',
+-    'focus_sessions', 'xp_ledger', 'achievements', 'cases', 'audit_events', 'outbox'
++    'focus_sessions', 'xp_ledger', 'achievements', 'cases', 'audit_events', 'outbox', 'digetpay_orders'
+ ];
+ 
+ async function snapshotDatabase(db) {
+@@ -14,7 +14,7 @@ async function snapshotDatabase(db) {
+         await tx.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+         const tables = {};
+         for (const table of TABLES) tables[table] = (await tx.query(`SELECT * FROM halastudy.${table}`)).rows;
+-        return { format: 'halastudy-platform-v1', createdAt: new Date().toISOString(), checksum: hash(JSON.stringify(tables)), tables };
++        return { format: 'halastudy-platform-v2', createdAt: new Date().toISOString(), checksum: hash(JSON.stringify(tables)), tables };
+     });
+ }
+ 
+@@ -27,16 +27,17 @@ async function backupDatabase(db, destination) {
+ }
+ 
+ async function restoreDatabase(db, snapshot) {
+-    requireCondition(snapshot?.format === 'halastudy-platform-v1' && snapshot.tables
++    requireCondition(['halastudy-platform-v1', 'halastudy-platform-v2'].includes(snapshot?.format) && snapshot.tables
+         && snapshot.checksum === hash(JSON.stringify(snapshot.tables)), 'BACKUP_INVALID');
+-    requireCondition(Object.keys(snapshot.tables).length === TABLES.length
+-        && TABLES.every((table) => Array.isArray(snapshot.tables[table])), 'BACKUP_TABLES_INVALID');
++    const sourceTables = snapshot.format === 'halastudy-platform-v1' ? TABLES.filter((name) => name !== 'digetpay_orders') : TABLES;
++    requireCondition(Object.keys(snapshot.tables).length === sourceTables.length
++        && sourceTables.every((table) => Array.isArray(snapshot.tables[table])), 'BACKUP_TABLES_INVALID');
+     await db.transaction(async (tx) => {
+         for (const table of TABLES) {
+             requireCondition(!(await tx.query(`SELECT 1 FROM halastudy.${table} LIMIT 1`)).rows.length, 'RESTORE_REQUIRES_EMPTY_DATABASE', 409);
+         }
+         for (const table of TABLES) {
+-            for (const original of snapshot.tables[table]) {
++            for (const original of snapshot.tables[table] || []) {
+                 const row = structuredClone(original);
+                 if (table === 'accounts') row.payload.tokenEpoch = Number(row.payload.tokenEpoch || 1) + 1;
+                 const columns = Object.keys(row);
+diff --git a/services/platform/routes.js b/services/platform/routes.js
+index 16515e1..0225e5a 100644
+--- a/services/platform/routes.js
++++ b/services/platform/routes.js
+@@ -28,6 +28,13 @@ function createPlatformRouter(deps) {
+         await platform.ready;
+         res.json(platform.entitlements.catalog());
+     }));
++    router.post('/billing/digetpay/webhook', handle(async (req, res) => {
++        if (!applyHttpRateLimit(req, res, rateLimiters.platformMutation, `digetpay:${req.ip}`)) return;
++        await platform.ready;
++        requireCondition(platform.billing.notify, 'CHECKOUT_UNCONFIGURED', 503);
++        await platform.billing.notify(req.body);
++        res.json({ accepted: true });
++    }));
+     router.use(requireUser);
+     router.use(async (req, res, next) => {
+         try {
+@@ -51,7 +58,7 @@ function createPlatformRouter(deps) {
+         ]);
+         const cookies = parseCookies(req.headers.cookie || '');
+         res.json({
+-            benefits, roles, permissions, cohorts, mode: platform.mode,
++            benefits, roles, permissions, cohorts, mode: platform.mode, billing: platform.entitlements.catalog(),
+             mfaEnabled: mfa.rows[0]?.enabled || false,
+             staffVerified: await platform.access.verifyStaff(req.user.id, cookies.coStudyStaff, cookies.coStudyAuth),
+             bootstrapAvailable: !!config.admin.passwordHash && !(await platform.access.hasStaff())
+@@ -76,7 +83,16 @@ function createPlatformRouter(deps) {
+         res.setHeader('Content-Disposition', 'attachment; filename="halastudy-progress.csv"');
+         res.type('text/csv').send(csv);
+     }));
+-    router.post('/billing/checkout', handle(async (req, res) => res.json(await platform.billing.checkout(req.user.id))));
++    router.post('/billing/checkout', handle(async (req, res) => res.json(await platform.billing.checkout(req.user.id, {
++        phone: req.body?.phone, name: req.user.displayName, email: req.user.email
++    }))));
++    router.get('/billing/latest', handle(async (req, res) => res.json({
++        order: platform.billing.latest ? await platform.billing.latest(req.user.id) : null
++    })));
++    router.post('/billing/checkout/:id/verify', handle(async (req, res) => {
++        requireCondition(platform.billing.status, 'CHECKOUT_UNCONFIGURED', 503);
++        res.json(await platform.billing.status(req.user.id, req.params.id));
++    }));
+     router.post('/billing/checkout/:id/complete', handle(async (req, res) =>
+         res.json(await platform.billing.complete(req.user.id, req.params.id, req.body?.token, req.body?.outcome))));
+     router.post('/billing/cancellation', handle(async (req, res) => {

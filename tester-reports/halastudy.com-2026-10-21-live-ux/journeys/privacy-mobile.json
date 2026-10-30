@@ -1,0 +1,28 @@
+{
+  "name": "Read the camera privacy policy",
+  "viewport": "mobile",
+  "auditGoal": "Reach the privacy information from the footer before using a camera room.",
+  "auditOutcome": "completed",
+  "steps": [
+    {
+      "goto": "https://halastudy.com/"
+    },
+    {
+      "scroll": "bottom"
+    },
+    {
+      "click": "الخصوصية"
+    },
+    {
+      "expect": "سياسة الخصوصية"
+    },
+    {
+      "expect": "ماذا نخزّن على الخادم؟"
+    },
+    {
+      "note": "Public privacy information reached. This is navigation/content QA, not legal verification."
+    }
+  ],
+  "allowSubmit": false,
+  "stepDelay": 800
+}

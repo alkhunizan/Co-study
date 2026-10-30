@@ -91,7 +91,7 @@
 </head>
 <body data-public-page="privacy" data-legal-page>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="Halastudy home">
+    <a class="brand" href="/">
       <span>Hala<em>study</em><span class="dot">.</span></span>
       <span class="divider" aria-hidden="true"></span>
       <span class="ar" aria-hidden="true">هلا</span>
@@ -131,8 +131,9 @@
       <h2>كيف تُعالَج الكاميرا والمايك؟</h2>
       <ul>
         <li><strong>المسار الافتراضي:</strong> يرسل متصفحك مسارات الصوت والفيديو المباشرة إلى <strong>Cloudflare RealtimeKit</strong>، الذي يوجّهها إلى المشاركين عبر بنية <strong>SFU مُدارة</strong> على شبكة Cloudflare. لذلك قد تعالج Cloudflare عنوان IP، وبيانات الجلسة التقنية، ومسارات الوسائط المباشرة أثناء الجلسة.</li>
-        <li>خادم تطبيق هلاستدي لا يستقبل محتوى الصوت أو الفيديو ولا يسجله. لا نفعّل التسجيل أو النسخ النصي في Cloudflare RealtimeKit، ولا نحتفظ بصور أو تسجيلات صوتية من جلساتك.</li>
+        <li>خادم تطبيق هلاستدي لا يستقبل محتوى الصوت أو الفيديو ولا يسجله. لا نفعّل التسجيل أو النسخ النصي في Cloudflare RealtimeKit، ولا نحتفظ بصور أو تسجيلات صوتية من جلساتك. لا يوفّر التطبيق زرًا لتسجيل الجلسات، ويُمنع المشاركون من تسجيل الآخرين وفق شروط الاستخدام.</li>
         <li><strong>التطوير المحلي فقط:</strong> يمكن للمطورين تشغيل وضع mesh صراحةً للاختبار المحلي؛ وهو معطّل في الإنتاج ولا يُستخدم لمعالجة جلسات المستخدمين الحية.</li>
+        <li>حفظ التقدّم والنقاط لا يتطلب تشغيل الكاميرا.</li>
       </ul>
 
       <h2>التحليلات والقياس</h2>
@@ -140,18 +141,22 @@
 
       <h2>كم تبقى البيانات؟</h2>
       <ul>
-        <li>الغرف غير المجدولة تُحذف تلقائياً بعد نحو 30 دقيقة من مغادرة آخر مشارك، ومعها الدردشة واللوحة.</li>
+        <li>الغرف غير المجدولة تُحذف تلقائياً بعد نحو 30 دقيقة من مغادرة آخر مشارك، ومعها الدردشة واللوحة. الغرفة العامة وغرف المجموعات الخاصة مستثناة.</li>
         <li>الغرفة المجدولة لمرة واحدة تُحذف بعد نحو 30 دقيقة من إغلاق موعدها. الغرفة المتكررة مدتها الافتراضية 90 يوماً، ويمكن لمنشئها تحديد تاريخ انتهاء لا يتجاوز 365 يوماً؛ وقد يحذفها المالك أو المشرف قبل ذلك.</li>
+        <li>تبقى بيانات المجموعات والجلسات والحضور والتقدّم منفصلة عن عمر الغرفة، وتُستخدم لتقديم هذه الميزات. مدة عرض السجل حسب العضوية ليست موعدًا لحذف البيانات.</li>
         <li>يستخدم تطبيق هلاستدي عناوين IP في الذاكرة للحماية من الإساءة وحدود المعدل؛ وقد يحتفظ مزودو الحافة والوسائط وCDN بسجلات طلب تقنية وفق مددهم النظامية والأمنية.</li>
-        <li>النسخ الاحتياطية المشفّرة معزولة عن أنظمة التشغيل الحية، وتُحذف تلقائياً خلال مدة لا تتجاوز <strong>سبعة أيام</strong>.</li>
+        <li>النسخ الاحتياطية المشفّرة معزولة عن أنظمة التشغيل الحية، وتُحذف تلقائياً خلال مدة لا تتجاوز <strong>سبعة أيام</strong>. قد تبقى سجلات تشغيل وبلاغات بعد إزالة غرفة أو حساب؛ تواصل معنا لطلبات الوصول أو الحذف التي تشمل هذه السجلات.</li>
       </ul>
 
       <h2>الحسابات الاختيارية</h2>
       <ul>
-        <li>التسجيل اختياري — فتح الغرف الفورية والانضمام إليها لا يحتاج حساباً أبداً.</li>
-        <li>إذا أنشأت حساباً نخزّن: بريدك الإلكتروني، وكلمة مرورك بصيغة مشفّرة أحادية الاتجاه (PBKDF2)، واسمك، ودقائق تركيزك وسلسلة أيامك، وقائمة غرفك الأخيرة.</li>
+        <li>التسجيل اختياري — فتح الغرف الفورية والعامة والانضمام إليها لا يحتاج حساباً. يتطلب حفظ التقدّم والعضوية والدخول إلى المجموعات الخاصة حسابًا.</li>
+        <li>إذا أنشأت حساباً نخزّن: بريدك الإلكتروني واسمك وبيانات ملفك، وكلمة مرورك بصيغة مشفّرة أحادية الاتجاه (PBKDF2) أو معرّف Google المرتبط، ودقائق تركيزك وسلسلة أيامك والنقاط والإنجازات، وقائمة غرفك الأخيرة.</li>
+        <li>إذا استخدمت أدوات التخطيط، نخزّن مشاريعك ومهامك وخطواتها وملاحظاتك ومواعيدها وتكرارها وتقديرات الوقت، وربطها بجلسات التركيز وتأملاتك، وروتينك وأهدافك وغرفك المفضلة وتفضيلات التذكير. هذه البيانات خاصة بحسابك ولا يراها أعضاء الغرفة أو مشرفو المجموعة.</li>
+        <li>نخزّن عضوية المجموعات والصلاحيات والجلسات والحضور وحالة VIP. يرى مشرف المجموعة حضور أعضاء مجموعته، ولا تمنحه العضوية المدفوعة صلاحيات إدارية عامة.</li>
+        <li>تُحفظ ردود حضور المواعيد وروابط المصادر وملاحظاتها ضمن المجموعة. يرى الأعضاء الحاليون المصادر المشتركة وعدد من سيحضرون. الأرشفة تخفي العنصر دون حذف سجله. يحذف حذف الحساب بيانات التخطيط الخاصة من قاعدة البيانات النشطة؛ وقد تبقى المصادر المشتركة مع إزالة ارتباط منشئها بالحساب.</li>
         <li>رسائل الدردشة داخل الغرف غير مربوطة بحسابك — الغرف الفورية تُحذف بمحتواها تلقائياً.</li>
-        <li>يمكنك حذف بياناتك من <a href="/account.html#delete">صفحة الحساب</a>. نحذف البريد وملف الحساب ودقائق التركيز والسلسلة من <strong>أنظمة الإنتاج الحية فوراً</strong>. قد تبقى نسخة في النسخ الاحتياطية المشفّرة المعزولة حتى تنتهي دورتها، بحد أقصى سبعة أيام، ولا تُستخدم للتشغيل العادي.</li>
+        <li>يمكنك حذف بياناتك من <a href="/account.html#delete">صفحة الحساب</a> بعد التحقق. نحذف البريد وملف الحساب والتقدّم والعضوية ودقائق التركيز والسلسلة من <strong>أنظمة الإنتاج الحية فوراً</strong>. قد تبقى رسائلك ومهامك المشتركة لدى الغرفة وسجلات بلاغات منزوعة الارتباط، وقد تبقى نسخة في النسخ الاحتياطية المشفّرة المعزولة حتى تنتهي دورتها، بحد أقصى سبعة أيام، ولا تُستخدم للتشغيل العادي. يجب نقل مسؤولية آخر مسؤول رئيسي قبل حذف حسابه.</li>
       </ul>
 
       <h2>بيانات حساب Google</h2>
@@ -167,7 +172,9 @@
       <ul>
         <li>ملف تعريف جلسة وظيفي واحد (هوية عشوائية موقّعة تنتهي بانتهاء جلسة المتصفح) — لا ملفات تتبّع.</li>
         <li>ملف تعريف ثانٍ موقّع لتسجيل الدخول، فقط إذا أنشأت حساباً.</li>
+        <li>ملفات قصيرة الأجل لحماية تسجيل الدخول عبر Google وإعادة التحقق، وملف جلسة الموظفين لمدة 15 دقيقة بعد المصادقة الثنائية. نخزّن سر المصادقة مشفّرًا ورموز الاسترداد كتجزئات.</li>
         <li>تفضيلاتك (اللغة، السمة، الاسم المستعار) تبقى في متصفحك أنت، ولا تُرسل إلينا.</li>
+        <li>يُحفظ إرشاد الروتين واسمه وإعداداته، وعلامات تجاهل التذكيرات، في متصفحك. يمكنك مسحها من تخزين المتصفح، وتمسحها شاشة حذف الحساب للحساب الحالي في هذا المتصفح أيضًا. تحتاج التذكيرات إلى صفحة مفتوحة، وإشعارات المتصفح إلى إذنك. تصدير مواعيدك ملف تُنزّله بطلبك.</li>
       </ul>
 
       <h2>مزودو الخدمة ومعالجو البيانات</h2>
@@ -228,8 +235,9 @@
       <h2>How live camera and microphone media is handled</h2>
       <ul>
         <li><strong>Default path:</strong> your browser sends live audio and video tracks to <strong>Cloudflare RealtimeKit</strong>, which routes them to participants through a <strong>managed SFU</strong> on Cloudflare's network. Cloudflare may therefore process IP addresses, technical session metadata, and live media tracks while the session is active.</li>
-        <li>The Halastudy application server does not receive or record the content of those audio or video tracks. We do not enable RealtimeKit recording or transcription and do not keep images or audio recordings from your sessions.</li>
+        <li>The Halastudy application server does not receive or record the content of those audio or video tracks. We do not enable RealtimeKit recording or transcription and do not keep images or audio recordings from your sessions. The app provides no session-recording control, and our terms prohibit participants from recording others.</li>
         <li><strong>Local development only:</strong> developers may explicitly enable mesh mode for local testing. It is disabled in production and does not process live user sessions.</li>
+        <li>Progress and points do not require your camera.</li>
       </ul>
 
       <h2>Analytics and measurement</h2>
@@ -237,18 +245,22 @@
 
       <h2>How long data is kept</h2>
       <ul>
-        <li>Unscheduled rooms are deleted automatically about 30 minutes after the last participant leaves, along with their chat and board.</li>
+        <li>Unscheduled rooms are deleted automatically about 30 minutes after the last participant leaves, along with their chat and board. The public lobby and private-circle rooms are exempt.</li>
         <li>A one-time scheduled room is deleted about 30 minutes after its occurrence closes. A recurring room lasts 90 days by default and its creator may choose an end date up to 365 days; its owner or an administrator may delete it sooner.</li>
+        <li>Circle membership, sessions, attendance and progress are stored separately from a room's lifetime. The history visible under a membership is not a data-deletion deadline.</li>
         <li>The Halastudy application uses IP addresses in memory for abuse protection and rate limiting; edge, media, and CDN providers may retain technical request logs under their security and legal retention periods.</li>
-        <li>Encrypted backups are isolated from live production systems and automatically age out within no more than <strong>seven days</strong>.</li>
+        <li>Encrypted backups are isolated from live production systems and automatically age out within no more than <strong>seven days</strong>. Operational records and reports may remain after a room or account is removed; contact us for access or deletion requests involving these records.</li>
       </ul>
 
       <h2>Optional accounts</h2>
       <ul>
-        <li>Signing up is optional — opening and joining instant rooms never requires an account.</li>
-        <li>If you create one, we store: your email, your password as a one-way hash (PBKDF2), your name, your focus minutes and day streak, and your recent rooms list.</li>
+        <li>Signing up is optional — opening and joining instant and public rooms never requires an account. Saving progress, membership and private-circle access require one.</li>
+        <li>If you create one, we store: your email, name and profile, your password as a one-way hash (PBKDF2) or your linked Google identifier, your focus minutes, day streak, points and achievements, and your recent rooms list.</li>
+        <li>If you use planning tools, we store your projects, tasks, checklists, notes, due dates, recurrence and estimates, their focus-session links and reflections, routines, targets, favorite rooms and reminder preferences. These belong to your account and are not visible to room members or circle supervisors.</li>
+        <li>We also store circle membership, permissions, sessions, attendance and VIP status. Circle supervisors can see attendance in their assigned circles. Paid membership does not grant platform administration.</li>
+        <li>Appointment responses, resource links and their notes are stored within the circle. Current members can see shared resources and the count of people going. Archiving hides an item without deleting its record. Account deletion removes private planning data from the active database; shared resources may remain with their creator account link removed.</li>
         <li>Room chat is not linked to your account — instant rooms and their content are deleted automatically.</li>
-        <li>You can delete your data from the <a href="/account.html#delete">account page</a>. We remove your email, account profile, focus history, and streak from <strong>live production systems immediately</strong>. A copy may remain in isolated encrypted backups until they age out, for no more than seven days, and is not used for normal operation.</li>
+        <li>After verification, you can delete your data from the <a href="/account.html#delete">account page</a>. We remove your email, account profile, progress, membership, focus history, and streak from <strong>live production systems immediately</strong>. Shared room messages and tasks and reports with account links removed may remain, and a copy may remain in isolated encrypted backups until they age out, for no more than seven days; that copy is not used for normal operation. The last super admin must transfer responsibility before deleting their account.</li>
       </ul>
 
       <h2>Google user data</h2>
@@ -264,7 +276,9 @@
       <ul>
         <li>One functional session cookie (a signed random identity that ends with the browser session) — no tracking cookies.</li>
         <li>A second signed cookie for sign-in, only if you create an account.</li>
+        <li>Short-lived cookies protect Google sign-in and reauthentication. Staff verification uses a 15-minute cookie. Authenticator secrets are encrypted and recovery codes are stored as hashes.</li>
         <li>Your preferences (language, theme, nickname) stay in your own browser and are not sent to us.</li>
+        <li>Routine guidance, its name and settings, and reminder dismissal flags stay in this browser. You can clear browser storage; the account deletion screen also clears these for the current account in this browser. Reminders require an open page, and browser notifications require permission. Personal agenda export is a file downloaded at your request.</li>
       </ul>
 
       <h2>Service providers and data processors</h2>

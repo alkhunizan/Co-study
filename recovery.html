@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>أمان حسابك — Halastudy</title>
+  <link rel="icon" href="/images/icons/favicon.svg">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/css/platform.css">
+  <link rel="stylesheet" href="/css/recovery.css">
+  <script src="/js/halastudy-core.js"></script>
+  <script src="/js/recovery.js" defer></script>
+</head>
+<body>
+  <header class="platform-header">
+    <a class="brand" href="/" lang="en" dir="ltr">Halastudy</a>
+    <div class="header-actions">
+      <button type="button" data-lang-value="ar" lang="ar">عربي</button>
+      <button type="button" data-lang-value="en" lang="en">EN</button>
+      <button type="button" id="theme-toggle" data-lang="theme">المظهر</button>
+    </div>
+  </header>
+  <main id="main" class="recovery-shell">
+    <h1 data-lang="title">أمان حسابك</h1>
+    <p id="recovery-status" role="status" aria-live="polite" data-lang="loading">جارٍ التحميل…</p>
+    <form id="recovery-form" class="form-grid" hidden>
+      <label id="email-field"><span data-lang="email">البريد الإلكتروني</span>
+        <input id="recovery-email" type="email" dir="ltr" autocomplete="email" maxlength="254">
+      </label>
+      <label id="password-field" hidden><span data-lang="password">كلمة المرور الجديدة</span>
+        <input id="recovery-password" type="password" autocomplete="new-password" minlength="8" maxlength="64">
+      </label>
+      <label id="confirm-field" hidden><span data-lang="confirm">أعد كتابة كلمة المرور</span>
+        <input id="recovery-confirm" type="password" autocomplete="new-password" minlength="8" maxlength="64">
+      </label>
+      <button id="recovery-submit" class="primary" type="submit" data-lang="send">إرسال الرابط</button>
+    </form>
+    <button id="recovery-retry" type="button" hidden data-lang="retry">حاول مجددًا</button>
+    <a class="button" href="/account" data-lang="account">العودة إلى الحساب</a>
+  </main>
+</body>
+</html>

@@ -30,7 +30,7 @@
 </head>
 <body class="is-open-page" data-public-page="open">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="Halastudy home">
+    <a class="brand" href="/">
       <span>Hala<em>study</em><span class="dot">.</span></span>
       <span class="divider" aria-hidden="true"></span>
       <span class="ar" aria-hidden="true">هلا</span>
@@ -89,11 +89,11 @@
             <div class="input-group">
               <label data-lang="labelMediaMode">وضع وسائط الغرفة</label>
               <div class="mode-picker" id="media-mode-picker" role="radiogroup" aria-label="Room media mode">
-                <button type="button" class="mode-option active" data-media-mode="mesh" aria-checked="true">
+                <button type="button" class="mode-option active" role="radio" data-media-mode="mesh" aria-checked="true">
                   <span class="mode-option-title" data-lang="mediaModeMeshTitle">غرفة عادية</span>
                   <span class="mode-option-desc" id="media-mode-mesh-desc">غرف كاميرا المذاكرة تدعم حتى 20 شخصاً. المايك مقفل تلقائياً.</span>
                 </button>
-                <button type="button" class="mode-option" id="media-mode-sfu" data-media-mode="sfu" aria-checked="false" hidden>
+                <button type="button" class="mode-option" role="radio" id="media-mode-sfu" data-media-mode="sfu" aria-checked="false" hidden>
                   <span class="mode-option-title" data-lang="mediaModeSfuTitle">غرفة كبيرة</span>
                   <span class="mode-option-desc" data-lang="mediaModeSfuDesc">تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.</span>
                 </button>
@@ -155,6 +155,7 @@
               </div>
               </div>
             </div>
+            <p id="draft-restored" class="form-note" data-lang="draftRestored" hidden>رجعنا مسودتك. أدخل كلمة مرور الغرفة مجددًا إذا كنت فعّلتها.</p>
             <div class="form-actions">
               <button type="submit" class="btn btn-primary" data-lang="btnCreateRoom">افتح الغرفة</button>
             </div>
@@ -209,7 +210,7 @@
       <span data-lang="footerTag">هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.</span>
     </div>
     <div class="links">
-      <a href="/" aria-label="Halastudy home"><span class="back-arrow" aria-hidden="true">←</span> Halastudy</a>
+      <a href="/"><span class="back-arrow" aria-hidden="true">←</span> Halastudy</a>
       <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
       <a href="/terms" data-lang="footerTerms">الشروط</a>
       <a href="/contact" data-lang="footerContact">تواصل معنا</a>
@@ -235,6 +236,7 @@
                 joinTitle: 'Join a room',
                 joinDesc: 'Got a code from your study group? Drop it in.',
                 createFormTitle: 'New focus room',
+                draftRestored: 'Your draft is back. Re-enter the room password if you enabled it.',
                 labelRoomName: 'Room name',
                 placeholderRoomName: 'e.g. Deep work · 9pm crew',
                 labelMediaMode: 'Room media mode',
@@ -330,6 +332,7 @@
                 joinTitle: 'ادخل غرفة',
                 joinDesc: 'عندك رمز من مجموعتك؟ ادخله هنا.',
                 createFormTitle: 'غرفة تركيز جديدة',
+                draftRestored: 'رجعنا مسودتك. أدخل كلمة مرور الغرفة مجددًا إذا كنت فعّلتها.',
                 labelRoomName: 'اسم الغرفة',
                 placeholderRoomName: 'مثال: جلسة عمل عميق',
                 labelMediaMode: 'وضع وسائط الغرفة',
@@ -492,35 +495,49 @@
         const languageButtons = document.querySelectorAll('[data-lang-value]');
         const themeToggle = document.getElementById('theme-toggle');
 
-        const OPEN_DRAFT_KEY = 'halastudyOpenDraft';
+        const OPEN_DRAFT_KEY = 'halastudyRoomDraft:v1';
+        const DRAFT_TTL = 30 * 60 * 1000;
         const draftFields = ['room-name', 'require-password', 'room-password', 'enable-schedule',
             'schedule-date', 'schedule-time', 'schedule-cadence', 'schedule-focus', 'schedule-break',
             'schedule-goal-template', 'join-code', 'join-password'];
+        // Passwords never enter storage: a restored draft asks for them again.
+        const draftSecretFields = new Set(['room-password', 'join-password']);
         function saveDraft() {
             const values = {};
             draftFields.forEach(id => {
+                if (draftSecretFields.has(id)) return;
                 const input = document.getElementById(id);
                 values[id] = input.type === 'checkbox' ? input.checked : input.value;
             });
             try { sessionStorage.setItem(OPEN_DRAFT_KEY, JSON.stringify({
-                expires: Date.now() + 30 * 60 * 1000, values, mode: currentMode, mediaMode: selectedMediaMode
+                version: 1, expiresAt: Date.now() + DRAFT_TTL, values, mode: currentMode, mediaMode: selectedMediaMode
             })); } catch (_error) {}
+        }
+        function clearDraft() {
+            try { sessionStorage.removeItem(OPEN_DRAFT_KEY); } catch (_error) {}
+            document.getElementById('draft-restored').hidden = true;
         }
         function restoreDraft() {
             try {
                 const draft = JSON.parse(sessionStorage.getItem(OPEN_DRAFT_KEY) || 'null');
-                if (!draft || !Number.isFinite(draft.expires) || draft.expires < Date.now() || !draft.values) {
+                if (!draft || draft.version !== 1 || !Number.isFinite(draft.expiresAt) || draft.expiresAt <= Date.now()
+                    || draft.expiresAt > Date.now() + DRAFT_TTL || !draft.values || typeof draft.values !== 'object') {
                     sessionStorage.removeItem(OPEN_DRAFT_KEY);
                     return;
                 }
+                let restored = false;
                 draftFields.forEach(id => {
+                    if (draftSecretFields.has(id)) return;
                     const input = document.getElementById(id), value = draft.values[id];
                     if (input.type === 'checkbox') input.checked = value === true;
                     else if (typeof value === 'string') input.value = value.slice(0, input.maxLength > 0 ? input.maxLength : 80);
+                    else return;
+                    restored = true;
                 });
                 currentMode = draft.mode === 'join' ? 'join' : 'create';
                 selectedMediaMode = normalizeMediaMode(draft.mediaMode);
-            } catch (_error) {}
+                if (restored) document.getElementById('draft-restored').hidden = false;
+            } catch (_error) { try { sessionStorage.removeItem(OPEN_DRAFT_KEY); } catch (_ignored) {} }
         }
         function fieldError(input, message) {
             window.HalaUI?.setFieldError(input, message);
@@ -1604,7 +1621,7 @@
                     return;
                 }
 
-                try { sessionStorage.removeItem(OPEN_DRAFT_KEY); } catch (_error) {}
+                clearDraft();
                 createdRoomCode = response.room.roomId || response.room.code;
                 createdRoomPassword = requirePassword ? password : '';
                 createdRoomData = response.room || null;
