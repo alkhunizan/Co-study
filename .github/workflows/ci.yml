@@ -97,7 +97,9 @@ jobs:
 
   browser-smoke:
     runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium build for ubuntu-latest (26.04)
-    timeout-minutes: 25
+    # WebKit projects run ~200 tests on one worker in 20-25 min; at 25 they hit the limit and were
+    # cancelled mid-run (2026-10-30). 40 keeps headroom while still catching a hung job.
+    timeout-minutes: 40
 
     permissions:
       contents: read
