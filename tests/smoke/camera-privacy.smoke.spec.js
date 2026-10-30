@@ -5,6 +5,10 @@ let app;
 test.beforeAll(async () => { app = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } }); });
 test.afterAll(async () => { await app?.stop(); });
 
+// Canvas 2D context `filter` (the blur pipeline) is unsupported in WebKit/Safari, so the app
+// correctly degrades to camera-unavailable there. These tests exercise the blur path; skip on webkit.
+test.skip(({ browserName }) => browserName === 'webkit', 'Canvas 2D filter blur pipeline is chromium-only; app degrades to camera-unavailable on webkit.');
+
 async function enter(page, mode) {
     await page.addInitScript((failureMode) => {
         const w = /** @type {any} */ (window);

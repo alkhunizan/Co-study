@@ -760,6 +760,9 @@ test('scheduled rooms expose timer defaults and invite actions', async ({ browse
         });
         await expectJoined(owner.page);
 
+        // On mobile the room-tools <details> panels start collapsed (syncRoomTools gates `open`
+        // on min-width:1025px); expand the panel holding the schedule card as a user would.
+        await owner.page.evaluate(() => { const panel = document.getElementById('schedule-card')?.closest('details'); if (panel) panel.open = true; });
         await expect(owner.page.locator('#schedule-card')).toBeVisible();
         await expect(owner.page.locator('#schedule-meta')).toContainText(/timer/i);
         await expect(owner.page.locator('#cfg-f')).toHaveValue('50');
