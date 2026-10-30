@@ -26,7 +26,13 @@ test('member, VIP, supervisor and named staff journeys work in the browser', asy
         }
         const page = await context.newPage();
         page.setDefaultTimeout(15000);
-        page.on('pageerror', (error) => errors.push(error.message));
+        page.on('pageerror', (error) => {
+            // WebKit reports a same-origin request cut off by navigation (e.g. the reloads below while a
+            // view is still fetching) as "<url> due to access control checks." A same-origin request has
+            // no access-control check to fail, so only that message for this server is ignored.
+            if (error.message.endsWith('due to access control checks.') && error.message.includes(new URL(server.baseUrl).host)) return;
+            errors.push(error.message);
+        });
         await page.addInitScript(() => { if (!localStorage.getItem('halastudyLang')) localStorage.setItem('halastudyLang', 'en'); });
         return page;
     };
