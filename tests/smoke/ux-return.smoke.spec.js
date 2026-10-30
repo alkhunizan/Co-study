@@ -194,7 +194,10 @@ test('shared shell: localized legal sections, primary target sizes and accessibi
         const scan = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
         expect(scan.violations.filter((item) => ['critical', 'serious'].includes(item.impact) || item.id === 'target-size')).toEqual([]);
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-        await page.screenshot({ path: info.outputPath(`${language}-${name}.png`), fullPage: true });
+        // WebKit cannot capture images taller than 32767px; long legal pages at a 3x device scale
+        // exceed that, so keep this evidence screenshot to the viewport when the full page would not fit.
+        const fitsFullPage = await page.evaluate(() => document.documentElement.scrollHeight * devicePixelRatio <= 32767);
+        await page.screenshot({ path: info.outputPath(`${language}-${name}.png`), fullPage: fitsFullPage });
         if (await page.locator('#nav-burger').isVisible()) await page.locator('#nav-burger').click();
         // The chosen theme persists across pages, so each click flips it.
         const themeBefore = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
@@ -240,7 +243,9 @@ test.describe('online fonts diagnostic', () => {
     // Synthetic anti-rate-limit headers are local-only; never send them to font hosts.
     await page.setExtraHTTPHeaders({});
     const messages = []; const requests = [];
-    page.on('console', (message) => { if (/font|Content Security Policy|violat/i.test(message.text())) messages.push(message.text()); });
+    // WebKit (WPE, as on CI) logs "Successfully preconnected to https://fonts..." for each preconnect
+    // hint. That is a success notice, not a font or CSP problem, so it is the only message ignored.
+    page.on('console', (message) => { const text = message.text(); if (/font|Content Security Policy|violat/i.test(text) && !/^Successfully preconnected to /.test(text)) messages.push(text); });
     page.on('requestfailed', (request) => { if (/fonts\./.test(request.url())) requests.push({ url: request.url(), error: request.failure()?.errorText }); });
     await page.addInitScript(() => {
         const scope = /** @type {any} */ (window); scope.metrics = { cls: 0, lcp: 0 };

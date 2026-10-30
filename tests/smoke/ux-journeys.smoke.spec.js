@@ -7,9 +7,6 @@ const { signupUser } = require('../helpers/auth-helpers');
 let server;
 let client = 70;
 test.use({ actionTimeout: 15000 });
-// ux-journeys exercises the real room flow (no API mocking), which relies on the service
-// worker for asset caching; keep it enabled so the heavy in-room app loads within budget on WebKit.
-test.use({ serviceWorkers: 'allow' });
 test.beforeAll(async () => {
     const directory = path.resolve('docs/implementation/2026-10-20-deep-ux/evidence/state');
     require('node:fs').mkdirSync(directory, { recursive: true });
@@ -42,13 +39,19 @@ async function joinRoom(page) {
     await page.locator('#create-form button[type=submit]').click();
     await expect(page.locator('#create-result')).toBeVisible();
     await page.locator('#btn-enter-room').click();
-    await page.waitForLoadState('load');
-    if (await page.locator('#join-overlay').isVisible()) {
+    // "Enter room" navigates to /index.html?room=CODE. Wait for that page, then for either the join
+    // dialog or an auto-join (saved name); a single isVisible() probe after waitForLoadState('load')
+    // can run against the old /open page on WebKit, skip the join and leave chat disabled.
+    await waitForTestUrl(page, (url) => url.pathname === '/index.html' && url.searchParams.has('room'));
+    const overlay = page.locator('#join-overlay');
+    const chat = page.locator('#chat-input');
+    await expect.poll(async () => (await overlay.isVisible()) || (await chat.isEnabled())).toBe(true);
+    if (await overlay.isVisible()) {
         await page.locator('#join-name').fill('UX guest');
         await page.locator('#join-form button[type=submit]').click();
     }
-    await expect(page.locator('#join-overlay')).toBeHidden();
-    await expect(page.locator('#chat-input')).toBeEnabled();
+    await expect(overlay).toBeHidden();
+    await expect(chat).toBeEnabled();
 }
 
 test('join promise: correct invitation wording and deep-link handoff', async ({ page }) => {

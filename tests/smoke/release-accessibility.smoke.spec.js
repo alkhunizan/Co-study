@@ -32,8 +32,8 @@ test('release branding, active account headings and footer contact pass responsi
                         const r = el.getBoundingClientRect();
                         if (r.width === 0) continue;
                         if (r.right > vw + 1 || r.left < -1) {
-                            const cls = typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).join('.') : '';
-                            offenders.push({ sel: el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + cls, left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width) });
+                            const cls = typeof el.className === 'string' && el.className ? `.${el.className.trim().split(/\s+/).join('.')}` : '';
+                            offenders.push({ sel: `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}${cls}`, left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width) });
                         }
                     }
                     offenders.sort((a, b) => b.right - a.right);
