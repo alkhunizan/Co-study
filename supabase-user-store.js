@@ -9,19 +9,24 @@
 // boundary, so every loaded row runs through the shared sanitizeUser before
 // entering memory; provider/admin fields are re-attached afterward.
 
-const { sanitizeUser } = require('./user-store');
+const { sanitizeFocusStats, sanitizeStreak, sanitizeUser } = require('./user-store');
 
 const SAVE_DEBOUNCE_MS = 250;
+const HYDRATION_PAGE_SIZE = 1000;
+const TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const AUTH_PROVIDERS = new Set(['password', 'google']);
 
 /** DB row (snake_case) -> in-memory user (camelCase), sanitized. */
-function rowToUser(row) {
+function rowToUser(row, options = {}) {
     if (!row || typeof row !== 'object') return null;
     const createdAtMs = row.created_at ? Date.parse(row.created_at) : Date.now();
     const candidate = {
         id: row.id,
         email: row.email,
         passwordHash: row.password_hash,
+        passwordEnabled: typeof row.password_enabled === 'boolean' ? row.password_enabled : undefined,
+        googleSub: row.google_sub,
+        authProvider: row.auth_provider,
         displayName: row.display_name,
         avatarColor: row.avatar_color,
         bio: row.bio,
@@ -36,12 +41,10 @@ function rowToUser(row) {
         },
         myRooms: Array.isArray(row.my_rooms) ? row.my_rooms : []
     };
-    const user = sanitizeUser(candidate);
+    const user = sanitizeUser(candidate, options);
     if (!user) return null;
-    // Supabase-only fields the shared sanitizer doesn't carry.
+    // Supabase-only authorization field the shared sanitizer doesn't carry.
     user.isAdmin = !!row.is_admin;
-    user.authProvider = AUTH_PROVIDERS.has(row.auth_provider) ? row.auth_provider : 'password';
-    user.googleSub = typeof row.google_sub === 'string' && row.google_sub ? row.google_sub : null;
     return user;
 }
 
@@ -50,7 +53,8 @@ function userToRow(user) {
     return {
         id: user.id,
         email: user.email,
-        password_hash: user.passwordHash,
+        password_hash: user.passwordEnabled ? user.passwordHash : null,
+        password_enabled: !!user.passwordEnabled,
         display_name: user.displayName,
         avatar_color: user.avatarColor,
         bio: user.bio,
@@ -69,60 +73,146 @@ function userToRow(user) {
 }
 
 /**
- * @param {{ client?: any, logger?: any }} [options]
+ * @param {{ client?: any, logger?: any, now?: () => number, onLegacyAuthProvider?: (provider: string) => void }} [options]
  */
 function createSupabaseUserStore(options = {}) {
-    const { client, logger = console } = options;
+    const { client, logger = console, now = () => Date.now(), onLegacyAuthProvider } = options;
     if (!client) throw new Error('createSupabaseUserStore requires a Supabase client.');
 
     let knownIds = new Set();
-    let knownRows = new Map();
+    const tombstoneExpiryById = new Map();
+    const knownFingerprints = new Map();
     let hydrated = false;
     let saveTimer = null;
     let queuedMap = null;
-    let writePromise = Promise.resolve();
+    /** @type {Promise<any>} */
+    let mutationTail = Promise.resolve();
+    /** @type {Promise<any>} */
+    let lastAttempt = Promise.resolve();
 
     function warn(event, error) {
         const payload = { event, error: error?.message ? error.message : String(error || '') };
         (logger && typeof logger.warn === 'function' ? logger.warn : console.warn).call(logger || console, payload);
     }
 
+    function rowFingerprint(row) {
+        return JSON.stringify(row);
+    }
+
+    function isCurrentTombstone(userId) {
+        const expiresAt = tombstoneExpiryById.get(userId);
+        if (!Number.isFinite(expiresAt)) return false;
+        if (expiresAt > now()) return true;
+        tombstoneExpiryById.delete(userId);
+        return false;
+    }
+
+    async function deleteProfileWithTombstone(userId) {
+        if (typeof client.rpc !== 'function') {
+            throw new Error('Supabase account deletion requires the tombstone RPC.');
+        }
+        const deletedAt = now();
+        await client.rpc('delete_profile_with_tombstone', {
+            p_user_id: userId,
+            p_deleted_at: new Date(deletedAt).toISOString()
+        }, { idempotent: true });
+        tombstoneExpiryById.set(userId, deletedAt + TOMBSTONE_RETENTION_MS);
+        knownIds.delete(userId);
+        knownFingerprints.delete(userId);
+    }
+
     /** Load all profiles into memory. Called once at boot; the factory awaits it. */
     async function hydrate() {
         const rows = [];
-        // Advance by the actual page length so a server-side row cap cannot
-        // silently truncate hydration.
-        for (;;) {
-            const page = await client.select('profiles', `select=*&order=id.asc&limit=500&offset=${rows.length}`);
-            if (!Array.isArray(page)) throw new Error('Invalid profiles response.');
-            if (page.length === 0) break;
+        for (let offset = 0; ; offset += HYDRATION_PAGE_SIZE) {
+            const page = await client.select(
+                'profiles',
+                `select=*&order=id.asc&limit=${HYDRATION_PAGE_SIZE}&offset=${offset}`
+            );
+            if (!Array.isArray(page)) throw new Error('Invalid profiles response: expected an array.');
             rows.push(...page);
+            if (page.length < HYDRATION_PAGE_SIZE) break;
         }
-        const users = (Array.isArray(rows) ? rows : []).map(rowToUser).filter(Boolean);
-        if (users.length !== rows.length) throw new Error('Invalid profile rows; hydration refused.');
+        tombstoneExpiryById.clear();
+        const hydrationNow = now();
+        const currentIso = new Date(hydrationNow).toISOString();
+        for (let offset = 0; ; offset += HYDRATION_PAGE_SIZE) {
+            const page = await client.select(
+                'deletion_tombstones',
+                `select=user_id,expires_at&expires_at=gt.${encodeURIComponent(currentIso)}`
+                    + `&order=user_id.asc&limit=${HYDRATION_PAGE_SIZE}&offset=${offset}`
+            );
+            if (!Array.isArray(page)) throw new Error('Invalid deletion tombstones response: expected an array.');
+            for (const row of page) {
+                const expiresAt = Date.parse(row?.expires_at);
+                if (!row || typeof row !== 'object' || typeof row.user_id !== 'string' || !row.user_id.trim()
+                    || !Number.isFinite(expiresAt)) {
+                    throw new Error('Invalid deletion tombstones response: one or more rows failed validation.');
+                }
+                if (expiresAt > hydrationNow) tombstoneExpiryById.set(row.user_id, expiresAt);
+            }
+            if (page.length < HYDRATION_PAGE_SIZE) break;
+        }
+
+        const liveRows = rows.filter((row) => {
+            const tombstoned = isCurrentTombstone(row?.id);
+            if (tombstoned) warn('tombstoned_profile_ignored', new Error(`Profile ${row.id} is tombstoned.`));
+            return !tombstoned;
+        });
+        const users = liveRows.map((row) => rowToUser(row, { onLegacyAuthProvider }));
+        if (users.some((user) => !user)) throw new Error('Invalid profiles response: one or more rows failed validation.');
+        knownFingerprints.clear();
+        const ids = new Set();
+        const emails = new Set();
+        const googleSubjects = new Set();
+        for (const [index, user] of users.entries()) {
+            if (ids.has(user.id) || emails.has(user.email) || (user.googleSub && googleSubjects.has(user.googleSub))) {
+                throw new Error('Invalid profiles response: duplicate identity fields.');
+            }
+            ids.add(user.id);
+            emails.add(user.email);
+            if (user.googleSub) googleSubjects.add(user.googleSub);
+            // Preserve the provider row fingerprint so the first mutation can
+            // normalize legacy/defaulted columns instead of assuming the
+            // sanitized in-memory projection was already stored.
+            knownFingerprints.set(user.id, rowFingerprint(liveRows[index]));
+        }
         knownIds = new Set(users.map((u) => u.id));
-        knownRows = new Map(users.map((user) => [user.id, JSON.stringify(userToRow(user))]));
         hydrated = true;
         return users;
     }
 
-    async function persistDiff(snapshot) {
-        const currentIds = new Set(snapshot.map((row) => row.id));
-        const rows = snapshot.filter((row) => knownRows.get(row.id) !== JSON.stringify(row));
+    async function persistDiff(map) {
+        const liveUsers = Array.from(map.values()).filter((user) => !isCurrentTombstone(user.id));
+        const currentIds = new Set(liveUsers.map((user) => user.id));
+        const rows = liveUsers.map(userToRow);
         // Deletions only propagate once hydrated (before that, knownIds is empty
         // and an upsert-only pass can never wrongly delete a not-yet-loaded row).
         const toDelete = hydrated ? [...knownIds].filter((id) => !currentIds.has(id)) : [];
-        if (rows.length) await client.upsert('profiles', rows);
-        if (toDelete.length) await client.remove('profiles', 'id', toDelete);
+        for (const row of rows) {
+            const fingerprint = rowFingerprint(row);
+            if (knownFingerprints.get(row.id) === fingerprint) continue;
+            await client.upsert('profiles', [row]);
+            knownFingerprints.set(row.id, fingerprint);
+        }
+        for (const id of toDelete) {
+            await deleteProfileWithTombstone(id);
+        }
         knownIds = currentIds;
-        knownRows = new Map(snapshot.map((row) => [row.id, JSON.stringify(row)]));
     }
 
-    function enqueue(map) {
-        const snapshot = JSON.parse(JSON.stringify(Array.from(map.values()).map(userToRow)));
-        writePromise = writePromise.catch(() => {}).then(() => persistDiff(snapshot));
-        void writePromise.catch((error) => warn('user_persist_failed', error));
-        return writePromise;
+    /**
+     * @template T
+     * @param {() => T | Promise<T>} operation
+     * @param {string} [event]
+     * @returns {Promise<T>}
+     */
+    function enqueue(operation, event = 'user_persist_failed') {
+        const attempt = mutationTail.then(operation);
+        mutationTail = attempt.catch(() => {});
+        lastAttempt = attempt;
+        void attempt.catch((error) => warn(event, error));
+        return attempt;
     }
 
     function scheduleSave(map) {
@@ -132,9 +222,10 @@ function createSupabaseUserStore(options = {}) {
             const m = queuedMap;
             queuedMap = null;
             saveTimer = null;
-            if (m) void enqueue(m);
+            if (m) void enqueue(() => persistDiff(m));
         }, SAVE_DEBOUNCE_MS);
-        return writePromise;
+        saveTimer.unref?.();
+        return lastAttempt;
     }
 
     function flush(map) {
@@ -145,8 +236,88 @@ function createSupabaseUserStore(options = {}) {
         }
         const m = queuedMap;
         queuedMap = null;
-        if (!m) return writePromise;
-        return enqueue(m);
+        if (!m) return lastAttempt;
+        return enqueue(() => persistDiff(m));
+    }
+
+    function saveUser(user) {
+        const row = userToRow(user);
+        return enqueue(async () => {
+            if (isCurrentTombstone(user.id)) {
+                throw Object.assign(new Error(`Profile ${user.id} is tombstoned.`), {
+                    code: 'ACCOUNT_TOMBSTONED'
+                });
+            }
+            await client.upsert('profiles', [row]);
+            knownIds.add(user.id);
+            knownFingerprints.set(user.id, rowFingerprint(row));
+        });
+    }
+
+    function deleteUser(user) {
+        return enqueue(async () => {
+            await deleteProfileWithTombstone(user.id);
+        }, 'user_delete_failed');
+    }
+
+    function persistFocusCompletion(user, payload) {
+        const row = userToRow(user);
+        return enqueue(async () => {
+            if (isCurrentTombstone(user.id)) {
+                throw Object.assign(new Error(`Profile ${user.id} is tombstoned.`), {
+                    code: 'ACCOUNT_TOMBSTONED'
+                });
+            }
+            if (typeof client.rpc !== 'function') {
+                throw new Error('Supabase focus persistence requires the atomic focus RPC.');
+            }
+            const rpcResponse = await client.rpc('record_focus_completion_v2', {
+                p_user_id: user.id,
+                p_focus_stats: row.focus_stats,
+                p_current_streak: row.current_streak,
+                p_best_streak: row.best_streak,
+                p_last_active_day: row.last_active_day,
+                p_completion_id: payload.completionId,
+                p_minutes: payload.acceptedMinutes,
+                p_day_key: payload.dayKey
+            }, { idempotent: true });
+            const result = Array.isArray(rpcResponse) ? rpcResponse[0] : rpcResponse;
+            if (!result || typeof result.duplicate !== 'boolean'
+                || !Number.isInteger(result.accepted_minutes)
+                || result.accepted_minutes < 0
+                || result.accepted_minutes > 240
+                || typeof result.completion_day !== 'string'
+                || !/^\d{4}-\d{2}-\d{2}$/.test(result.completion_day)
+                || !result.persisted_focus_stats
+                || typeof result.persisted_focus_stats !== 'object'
+                || Array.isArray(result.persisted_focus_stats)
+                || !Number.isInteger(result.persisted_current_streak)
+                || result.persisted_current_streak < 0
+                || !Number.isInteger(result.persisted_best_streak)
+                || result.persisted_best_streak < result.persisted_current_streak
+                || (result.persisted_last_active_day !== null
+                    && (typeof result.persisted_last_active_day !== 'string'
+                        || !/^\d{4}-\d{2}-\d{2}$/.test(result.persisted_last_active_day)))) {
+                throw new Error('Invalid record_focus_completion_v2 response.');
+            }
+            const focusStats = sanitizeFocusStats(result.persisted_focus_stats);
+            const streak = sanitizeStreak({
+                current: result.persisted_current_streak,
+                best: result.persisted_best_streak,
+                lastActiveDay: result.persisted_last_active_day
+            }, focusStats);
+            if (!result.duplicate) {
+                knownIds.add(user.id);
+                knownFingerprints.set(user.id, rowFingerprint(row));
+            }
+            return {
+                duplicate: result.duplicate,
+                acceptedMinutes: result.accepted_minutes,
+                dayKey: result.completion_day,
+                focusStats,
+                streak
+            };
+        }, 'focus_session_persist_failed');
     }
 
     // Synchronous no-op: the file store loads from disk here, but Supabase
@@ -160,39 +331,73 @@ function createSupabaseUserStore(options = {}) {
      *  Drains the user-write queue first so the profile row (FK target) is
      *  guaranteed present — otherwise a brand-new user's first session can beat
      *  the debounced profile upsert and hit a foreign-key violation. */
-    async function logFocusSession({ userId, minutes, dayKey }) {
-        try {
-            await flush();
-            await client.insert('focus_sessions', [{ user_id: userId, minutes, day_key: dayKey }]);
-        } catch (error) {
-            warn('focus_session_log_failed', error);
-        }
+    async function logFocusSession({ userId, minutes, dayKey, completionId }) {
+        await flush();
+        await client.insert('focus_sessions', [{
+            user_id: userId,
+            minutes,
+            day_key: dayKey,
+            completion_id: completionId
+        }]);
     }
 
-    /** Fire-and-forget analytics event: room create/join/leave/close. user_id
-     *  may reference a profile, so drain the write queue first (same FK reason). */
-    async function logRoomEvent({ roomCode, userId = null, nickname = null, eventType }) {
-        try {
-            if (userId) await flush();
-            await client.insert('room_events', [{
+    /** Idempotent room-lifecycle sink. The room service owns a durable local
+     *  outbox, so provider failures must reject and leave that entry queued for
+     *  replay. Resolve profile FKs at execution time: an account deletion that
+     *  was ordered before this write removes the FK without poisoning the
+     *  outbox, while the event's non-identifying lifecycle metadata survives. */
+    function logRoomEvent({
+        eventId,
+        roomCode,
+        userId = null,
+        nickname = null,
+        eventType,
+        roomSchemaVersion,
+        ownerUserId = null,
+        roomExpiresAt = null,
+        occurrenceId = null,
+        lifecycleEpoch,
+        occurredAt
+    }) {
+        return enqueue(async () => {
+            const liveUserId = userId && knownIds.has(userId) && !isCurrentTombstone(userId)
+                ? userId
+                : null;
+            const liveOwnerUserId = ownerUserId
+                && knownIds.has(ownerUserId)
+                && !isCurrentTombstone(ownerUserId)
+                ? ownerUserId
+                : null;
+            await client.upsert('room_events', [{
+                event_id: eventId,
                 room_code: roomCode,
-                user_id: userId,
+                user_id: liveUserId,
                 nickname,
-                event_type: eventType
-            }]);
-        } catch (error) {
-            warn('room_event_log_failed', error);
-        }
+                event_type: eventType,
+                room_schema_version: roomSchemaVersion,
+                owner_user_id: liveOwnerUserId,
+                room_expires_at: roomExpiresAt,
+                occurrence_id: occurrenceId,
+                lifecycle_epoch: lifecycleEpoch,
+                occurred_at: occurredAt
+            }], { onConflict: 'event_id' });
+        }, 'room_event_log_failed');
     }
 
     return {
         isSupabase: true,
+        durability: 'immediate',
         loadUsers,
+        initialize: hydrate,
         hydrate,
         scheduleSave,
         flush,
+        saveUser,
+        deleteUser,
+        persistFocusCompletion,
         logFocusSession,
         logRoomEvent,
+        roomEventDurability: 'immediate',
         // Dashboard reads (service_role bypasses RLS on the views).
         readAdminOverview: () => client.select('admin_overview', 'select=*'),
         readUserStats: (query = 'select=*&order=total_focus_minutes.desc') => client.select('user_stats', query),

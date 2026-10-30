@@ -1,22 +1,23 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const AxeBuilder = require('@axe-core/playwright').default;
 
 test('public locale links work without JavaScript and retain English content despite Arabic preferences', async ({ browser, baseURL }, testInfo) => {
     test.setTimeout(90000);
-    const plain = await browser.newContext({ javaScriptEnabled: false, baseURL });
+    const plain = await createTestContext(browser, { javaScriptEnabled: false, baseURL });
     try {
         const page = await plain.newPage();
-        await page.goto('/en');
-        await expect(page.locator('h1')).toContainText('A quiet session.');
-        await page.locator('a[data-lang-value="ar"]').click();
+        await gotoTestPage(page, '/en');
+        await expect(page.locator('h1')).toContainText('Drop in.');
+        // Without JavaScript the shell's switch is inert; the footer carries the crawlable alternate link.
+        await page.locator('footer a.locale-alternate[lang="ar"]').click();
         await expect(page).toHaveURL(`${baseURL}/`);
-        await expect(page.locator('h1')).toContainText('جلسة هادئة.');
-        await page.goto('/en/blog');
+        await expect(page.locator('h1')).toContainText('ادخل.');
+        await gotoTestPage(page, '/en/blog');
         await expect(page.locator('h1')).toHaveText('From the Halastudy desk');
-        await page.goto('/en/contact');
+        await gotoTestPage(page, '/en/contact');
         await expect(page.locator('h1')).toHaveText('Contact Halastudy');
     } finally { await plain.close(); }
-    const context = await browser.newContext({ baseURL });
+    const context = await createTestContext(browser, { baseURL });
     try {
         await context.addInitScript(() => localStorage.setItem('halastudyLang', 'ar'));
         const page = await context.newPage();
@@ -31,7 +32,7 @@ test('public locale links work without JavaScript and retain English content des
         ];
         for (const [route, width, theme] of views) {
             await page.setViewportSize({ width, height: 1000 });
-            await page.goto(route);
+            await gotoTestPage(page, route);
             await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
             await expect(page.locator('html')).toHaveAttribute('lang', route.startsWith('/en') ? 'en' : 'ar');
             await expect(page.locator('a[data-lang-value][aria-pressed]')).toHaveCount(0);

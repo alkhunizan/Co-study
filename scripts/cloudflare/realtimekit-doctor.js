@@ -12,6 +12,12 @@ const {
     cfFetch,
     getRealtimeKitBaseUrl
 } = require('./realtimekit-common');
+const {
+    DEFAULT_VIEWER_PRESET_NAME,
+    PRESET_KINDS,
+    fetchPresetSummaries,
+    inspectPresetPolicy
+} = require('./realtimekit-setup');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -32,10 +38,6 @@ function parseIntOrDefault(value, fallback) {
 
 function hasId(list, id) {
     return Array.isArray(list) && list.some((item) => item && [item.id, item.app_id, item.appId, item.uuid].includes(id));
-}
-
-function hasPreset(list, name) {
-    return Array.isArray(list) && list.some((item) => item && (item.name === name || item.preset_name === name));
 }
 
 function git(args) {
@@ -64,13 +66,19 @@ async function checkRuntimeConfig(port) {
 }
 
 async function main() {
+    checks.length = 0;
     const env = loadCloudflareRealtimeKitEnv();
     const { apiBaseUrl } = getRealtimeKitBaseUrl();
+    const viewerName = String(process.env.VIDEO_VIEWER_PRESET_NAME || DEFAULT_VIEWER_PRESET_NAME).trim()
+        || DEFAULT_VIEWER_PRESET_NAME;
 
     // --- Env ---------------------------------------------------------------
     record('Env', 'Account ID present', env.accountId ? 'PASS' : 'FAIL', { blocker: !env.accountId });
     record('Env', 'App ID present', env.appId ? 'PASS' : 'FAIL', { blocker: !env.appId });
     record('Env', 'API token present (redacted)', env.apiToken ? 'PASS' : 'FAIL', { blocker: !env.apiToken });
+    record('Env', 'Student and viewer preset names are distinct', viewerName !== env.presetName ? 'PASS' : 'FAIL', {
+        blocker: viewerName === env.presetName
+    });
 
     // --- Cloudflare --------------------------------------------------------
     const haveCreds = env.accountId && env.appId && env.apiToken;
@@ -80,16 +88,39 @@ async function main() {
         const appExists = apps.ok && hasId(apps.result, env.appId);
         record('Cloudflare', 'App exists', appExists ? 'PASS' : 'FAIL', { blocker: !appExists, note: appExists ? '' : 'configured app id not found' });
         if (appExists) {
-            const presets = await cfFetch(`/${encodeURIComponent(env.appId)}/presets`);
-            const presetOk = presets.ok && hasPreset(presets.result, env.presetName);
-            record('Cloudflare', `Preset ${env.presetName} exists`, presetOk ? 'PASS' : 'FAIL', { blocker: !presetOk, note: presetOk ? '' : 'run cloudflare:setup or create it in the dashboard' });
+            const listed = await fetchPresetSummaries(cfFetch, env.appId);
+            for (const target of [
+                { name: env.presetName, kind: PRESET_KINDS.STUDENT },
+                { name: viewerName, kind: PRESET_KINDS.VIEWER }
+            ]) {
+                const policy = listed.ok
+                    ? await inspectPresetPolicy({
+                        request: cfFetch,
+                        appId: env.appId,
+                        name: target.name,
+                        kind: target.kind,
+                        summaries: listed.presets
+                    })
+                    : { ok: false, error: listed.error };
+                record(
+                    'Cloudflare',
+                    `Preset ${target.name} effective policy`,
+                    policy.ok ? 'PASS' : 'FAIL',
+                    {
+                        blocker: !policy.ok,
+                        note: policy.ok ? '' : `${policy.error}; run cloudflare:setup`
+                    }
+                );
+            }
         } else {
-            record('Cloudflare', `Preset ${env.presetName} exists`, 'FAIL', { blocker: true, note: 'app not verified' });
+            record('Cloudflare', `Preset ${env.presetName} effective policy`, 'FAIL', { blocker: true, note: 'app not verified' });
+            record('Cloudflare', `Preset ${viewerName} effective policy`, 'FAIL', { blocker: true, note: 'app not verified' });
         }
     } else {
         record('Cloudflare', 'API reachable', 'SKIP', { note: 'credentials missing' });
         record('Cloudflare', 'App exists', 'SKIP', { note: 'credentials missing' });
-        record('Cloudflare', `Preset ${env.presetName} exists`, 'FAIL', { blocker: true, note: 'cannot verify without credentials' });
+        record('Cloudflare', `Preset ${env.presetName} effective policy`, 'FAIL', { blocker: true, note: 'cannot verify without credentials' });
+        record('Cloudflare', `Preset ${viewerName} effective policy`, 'FAIL', { blocker: true, note: 'cannot verify without credentials' });
     }
 
     // --- Local safety ------------------------------------------------------
@@ -164,10 +195,19 @@ async function main() {
             console.log(`- ${blocker.label}${blocker.note ? `: ${blocker.note}` : ''}`);
         }
     }
-    process.exit(blockers.length ? 1 : 0);
+    return blockers.length ? 1 : 0;
 }
 
-main().catch((error) => {
-    console.error(`Doctor failed: ${error.message}`);
-    process.exit(1);
-});
+if (require.main === module) {
+    main()
+        .then((code) => { process.exitCode = code; })
+        .catch((error) => {
+            console.error(`Doctor failed: ${error.message}`);
+            process.exitCode = 1;
+        });
+}
+
+module.exports = {
+    checkRuntimeConfig,
+    main
+};

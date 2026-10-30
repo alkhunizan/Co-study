@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const AxeBuilder = require('@axe-core/playwright').default;
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
@@ -98,7 +98,7 @@ test('a routine closed before another surface pauses keeps its remaining time on
         });
         const returned = await context.newPage();
         await returned.clock.install({ time: new Date(Date.now() + 3600000) });
-        await returned.goto(`${server.baseUrl}/app#progress`);
+        await gotoTestPage(returned, `${server.baseUrl}/app#progress`);
         await expect(returned.locator('#study-guide [data-lang=routineResume]')).toBeVisible();
         await expect(returned.locator('#study-guide-clock')).not.toHaveText('00:00');
         expect(await returned.evaluate(() => /** @type {any} */ (window).HalaFocus.current().state)).toBe('paused');
@@ -111,7 +111,7 @@ const { connectSocket, emitAck, closeSocket } = require('../helpers/socket-clien
 
 async function fixture(browser, server, name = 'Planner') {
     const account = await signupUser(server, { displayName: name });
-    const context = await browser.newContext({
+    const context = await createTestContext(browser, {
         viewport: { width: 1440, height: 1000 },
     });
     await context.addCookies(
@@ -125,7 +125,7 @@ async function fixture(browser, server, name = 'Planner') {
     });
     const page = await context.newPage();
     page.setDefaultTimeout(15000);
-    await page.goto(`${server.baseUrl}/app#planner`);
+    await gotoTestPage(page, `${server.baseUrl}/app#planner`);
     await expect(page.locator('#study-task')).toBeVisible();
     await expect(page.locator('#study-status')).toBeEmpty();
     return { account, context, page };
@@ -143,7 +143,7 @@ test('F01-F14 private planning, lost response, routines, task-linked focus, refl
         env: {
             PLATFORM_ENABLED: 'true',
             PLATFORM_DATA_DIR: 'memory://',
-            VIDEO_PROVIDER: 'mesh',
+            VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true',
         },
     });
     let context;
@@ -228,7 +228,7 @@ test('F01-F14 private planning, lost response, routines, task-linked focus, refl
         await expect(page.locator('#study-reflection')).toBeVisible();
         await page.locator('#study-reflect-note').fill('Review the cell membrane');
         await page.locator('#study-reflect button[type=submit]').click();
-        await page.goto(`${server.baseUrl}/app#planner`);
+        await gotoTestPage(page, `${server.baseUrl}/app#planner`);
         await choose(page, 'insightsTab');
         await page.locator('#study-targets-daily_target').fill('30');
         await page.locator('#study-targets-weekly_target').fill('120');
@@ -282,7 +282,7 @@ test('F15-F20 favorite, RSVP, calendar, in-app reminder and private resource she
         env: {
             PLATFORM_ENABLED: 'true',
             PLATFORM_DATA_DIR: 'memory://',
-            VIDEO_PROVIDER: 'mesh',
+            VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true',
         },
     });
     const contexts = [],
@@ -343,13 +343,13 @@ test('F15-F20 favorite, RSVP, calendar, in-app reminder and private resource she
         stage = 'reminders';
         await b.page.locator('#study-reminders-reminders').check();
         await b.page.locator('#study-reminders button[type=submit]').click();
-        await b.page.goto(`${server.baseUrl}/app#progress`);
+        await gotoTestPage(b.page, `${server.baseUrl}/app#progress`);
         await expect(b.page.locator('#study-reminder-banner')).toContainText('Read together soon');
         await b.page.locator('#study-reminder-banner button').click();
         await b.page.reload();
         await expect(b.page.locator('#study-reminder-banner')).toBeHidden();
         stage = 'owner resources';
-        await a.page.goto(`${server.baseUrl}/app#circles`);
+        await gotoTestPage(a.page, `${server.baseUrl}/app#circles`);
         await a.page.locator('#circle-list button').click();
         await expect(a.page.locator('#study-resource')).toBeVisible();
         await a.page.locator('#study-resource-title').fill('Read chapter 3');
@@ -361,7 +361,7 @@ test('F15-F20 favorite, RSVP, calendar, in-app reminder and private resource she
         await a.page.locator('#study-resource button[type=submit]').click();
         await expect(a.page.locator('#study-resource-list')).toContainText('Read chapter 3');
         stage = 'member resources';
-        await b.page.goto(`${server.baseUrl}/app#circles`);
+        await gotoTestPage(b.page, `${server.baseUrl}/app#circles`);
         await b.page.locator('#circle-list button').click();
         await expect(b.page.locator('#study-resource-list')).toContainText('Our shared reading');
         await expect(b.page.locator('#study-resource')).toHaveCount(0);
@@ -386,7 +386,7 @@ test('F15-F20 favorite, RSVP, calendar, in-app reminder and private resource she
                 }
             };
         });
-        await b.page.goto(`${server.baseUrl}/app#planner`);
+        await gotoTestPage(b.page, `${server.baseUrl}/app#planner`);
         await b.page.clock.install();
         await b.page.reload();
         await expect(b.page.locator('#study-agenda')).toContainText('Private later appointment');
@@ -399,7 +399,7 @@ test('F15-F20 favorite, RSVP, calendar, in-app reminder and private resource she
         expect((await rechecked).status()).toBe(200);
         await expect(b.page.locator('#study-reminder-banner')).toBeHidden();
         expect(await b.page.evaluate(() => /** @type {any} */ (window).studyNotices)).toEqual([]);
-        await b.page.goto(`${server.baseUrl}/app#planner`);
+        await gotoTestPage(b.page, `${server.baseUrl}/app#planner`);
         await choose(b.page, 'libraryTab');
         await expect(b.page.locator('#study-favorites')).toContainText('Room unavailable');
         await expect(b.page.locator('#study-favorites a')).toHaveCount(0);
@@ -544,13 +544,13 @@ test('task attachment, routine pause across tabs and stale-account drafts keep t
                 requestId: require('node:crypto').randomUUID(),
             })
         ).body;
-        await page.goto(`${server.baseUrl}/app#planner`);
+        await gotoTestPage(page, `${server.baseUrl}/app#planner`);
         await choose(page, 'routinesTab');
         await page.locator('#study-routine-list [data-lang=useRoutine]').click();
         await page.locator('#study-guide [data-lang=routineBegin]').click();
         await expect(page.locator('#study-guide [data-lang=routinePause]')).toBeVisible();
         const second = await context.newPage();
-        await second.goto(`${server.baseUrl}/app#progress`);
+        await gotoTestPage(second, `${server.baseUrl}/app#progress`);
         await second.locator('#focus-pause').click();
         await expect(page.locator('#study-guide [data-lang=routineResume]')).toBeVisible();
         await page.reload();
@@ -573,9 +573,9 @@ test('task attachment, routine pause across tabs and stale-account drafts keep t
         ).toBe(replacement.id);
         expect(routine.id).toBeTruthy();
         await second.close();
-        await page.goto(`${server.baseUrl}/app#account`);
+        await gotoTestPage(page, `${server.baseUrl}/app#account`);
         await expect(page.locator('#insights-title')).toHaveText('Optional on-device usage counters');
-        await page.goto(`${server.baseUrl}/app#planner`);
+        await gotoTestPage(page, `${server.baseUrl}/app#planner`);
         await choose(page, 'tasksTab');
         await page.locator('#study-task-title').fill('A private draft');
         const b = await signupUser(server, { displayName: 'Different account' });

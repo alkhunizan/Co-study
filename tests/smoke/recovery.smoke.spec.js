@@ -1,20 +1,20 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const AxeBuilder = require('@axe-core/playwright').default;
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 
 test('recovery journey works in Arabic and English, clears the token URL and announces errors', async ({ browser }, testInfo) => {
     const server = await startServer({ env: { AUTH_MAIL_MODE: 'local' } });
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const context = await createTestContext(browser, { viewport: { width: 390, height: 844 } });
     await context.route('**/*', (route) => new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort());
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     try {
         const owner = await signupUser(server);
-        await page.goto(`${server.baseUrl}/recover`);
+        await gotoTestPage(page, `${server.baseUrl}/recover`);
         await expect(page.locator('#recovery-form')).toBeVisible();
         await page.locator('#recovery-email').fill(owner.user.email);
         await page.locator('#recovery-submit').click();
@@ -23,7 +23,7 @@ test('recovery journey works in Arabic and English, clears the token URL and ann
         await expect.poll(async () => (await fs.readdir(folder).catch(() => [])).length).toBe(1);
         const [name] = await fs.readdir(folder);
         const mail = JSON.parse(await fs.readFile(path.join(folder, name), 'utf8'));
-        await page.goto(`${server.baseUrl}/recover${new URL(mail.url).hash}`);
+        await gotoTestPage(page, `${server.baseUrl}/recover${new URL(mail.url).hash}`);
         await expect(page.locator('#password-field')).toBeVisible();
         expect(new URL(page.url()).hash).toBe('');
         await page.screenshot({ path: testInfo.outputPath('recovery-ar-mobile.png'), fullPage: true });

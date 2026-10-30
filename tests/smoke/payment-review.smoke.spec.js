@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const path = require('node:path');
 const OTPAuth = require('otpauth');
 const { startServer } = require('../helpers/server-control');
@@ -9,12 +9,12 @@ test('payment review requires staff MFA, preserves billing-reader scope and show
     test.setTimeout(180000);
     const preload = path.resolve(__dirname, '../helpers/payment-review-preload.js').replace(/\\/g, '/');
     const server = await startServer({ env: {
-        ...sandboxEnv, PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh',
+        ...sandboxEnv, PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true',
         ADMIN_PATH: '/ops-payment-review-test',
         PAYMENT_REVIEW_FIXTURE: '1', NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require="${preload}"`,
         ADMIN_PASSWORD_HASH: '5368261dff0e47c096a7f53dd6b12e59:3e6d92f21a9166c11cb9a46d04ac8043e67428d5b6c776128ac3c3d88db36bd6489cd46455dbcd57bc997587da6b36750cb995ae720b59a97f296dad71635e29'
     } });
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const context = await createTestContext(browser, { viewport: { width: 390, height: 844 } });
     const errors = [];
     try {
         const owner = await signupUser(server);
@@ -63,7 +63,7 @@ test('payment review requires staff MFA, preserves billing-reader scope and show
         const page = await context.newPage();
         page.on('pageerror', error => errors.push(error.message));
         await page.addInitScript(() => localStorage.setItem('halastudyLang', 'en'));
-        await page.goto(`${server.baseUrl}/app#staff`);
+        await gotoTestPage(page, `${server.baseUrl}/app#staff`);
         await expect(page.locator('#payment-orders')).toContainText(orderId);
         await page.getByRole('button', { name: 'Recheck payment', exact: true }).click();
         await page.getByRole('textbox', { name: 'Reason for this action', exact: true }).fill(action.reason);

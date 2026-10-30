@@ -121,6 +121,10 @@
     window.addEventListener('halaroomlanguage', render);
     setInterval(() => { if (member && !document.hidden) render(); }, 1000);
     global.HalaRoomFocus = { action };
-    void global.HalaAuth.getUser().then(async (user) => { member = !!user; if (member) await reconcile(); render(); })
+    // Validated focus needs the platform; a deployment without it keeps the
+    // local countdown and never calls platform routes.
+    void global.HalaCore.requestJson('GET', '/api/runtime-config')
+        .then((runtime) => (runtime?.platformEnabled === false ? null : global.HalaAuth.getUser()))
+        .then(async (user) => { member = !!user; if (member) await reconcile(); render(); })
         .catch(() => { unavailable = true; render(); });
 })();

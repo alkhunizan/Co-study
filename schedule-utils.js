@@ -5,6 +5,9 @@ const DEFAULT_BREAK_MINUTES = 5;
 const DEFAULT_JOIN_EARLY_WINDOW_MINUTES = 15;
 const DEFAULT_ON_TIME_GRACE_MINUTES = 10;
 const DEFAULT_MIN_SESSION_WINDOW_MINUTES = 30;
+const DEFAULT_RECURRING_DURATION_DAYS = 90;
+const MAX_RECURRING_DURATION_DAYS = 365;
+const SCHEDULE_EXPIRY_GRACE_MINUTES = 30;
 const MAX_ATTENDANCE_HISTORY = 180;
 
 const CADENCE_ONCE = 'once';
@@ -28,8 +31,8 @@ const ATTENDANCE_PRIORITY = {
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000;
 const MAX_OCCURRENCE_ITERATIONS = 5000;
+const zonedFormatterCache = new Map();
 
 function sanitizeText(value, maxLength, fallback = '') {
     if (typeof value !== 'string') {
@@ -82,12 +85,13 @@ function parseTimeString(value) {
     };
 }
 
-function normalizeCadence(value) {
+function normalizeCadence(value, strict = false) {
     if (typeof value !== 'string') {
         return DEFAULT_SCHEDULE_CADENCE;
     }
     const normalized = value.trim().toLowerCase();
-    return SUPPORTED_CADENCES.includes(normalized) ? normalized : DEFAULT_SCHEDULE_CADENCE;
+    if (SUPPORTED_CADENCES.includes(normalized)) return normalized;
+    return strict ? null : DEFAULT_SCHEDULE_CADENCE;
 }
 
 function normalizePositiveInteger(value, fallback, min = 1, max = 240) {
@@ -102,20 +106,57 @@ function isSaudiWeekday(dayOfWeek) {
     return dayOfWeek >= 0 && dayOfWeek <= 4;
 }
 
-function getRiyadhPartsFromTimestamp(timestamp) {
-    const date = new Date(timestamp + RIYADH_OFFSET_MS);
+function normalizeTimezone(value) {
+    const candidate = typeof value === 'string' && value.trim()
+        ? value.trim()
+        : DEFAULT_SCHEDULE_TIMEZONE;
+    if (candidate.length > 64) return null;
+    try {
+        return new Intl.DateTimeFormat('en-US', { timeZone: candidate }).resolvedOptions().timeZone;
+    } catch (_error) {
+        return null;
+    }
+}
+
+function getZonedFormatter(timezone) {
+    if (!zonedFormatterCache.has(timezone)) {
+        zonedFormatterCache.set(timezone, new Intl.DateTimeFormat('en-US-u-ca-gregory-nu-latn', {
+            timeZone: timezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23'
+        }));
+    }
+    return zonedFormatterCache.get(timezone);
+}
+
+function getZonedPartsFromTimestamp(timestamp, timezone) {
+    if (!Number.isFinite(timestamp) || !timezone) return null;
+    const values = {};
+    getZonedFormatter(timezone).formatToParts(new Date(timestamp)).forEach((part) => {
+        if (part.type !== 'literal') values[part.type] = Number.parseInt(part.value, 10);
+    });
+    if (![values.year, values.month, values.day, values.hour, values.minute, values.second].every(Number.isInteger)) {
+        return null;
+    }
     return {
-        year: date.getUTCFullYear(),
-        month: date.getUTCMonth() + 1,
-        day: date.getUTCDate(),
-        hour: date.getUTCHours(),
-        minute: date.getUTCMinutes(),
-        dayOfWeek: date.getUTCDay()
+        year: values.year,
+        month: values.month,
+        day: values.day,
+        hour: values.hour,
+        minute: values.minute,
+        second: values.second,
+        dayOfWeek: new Date(Date.UTC(values.year, values.month - 1, values.day)).getUTCDay()
     };
 }
 
-function getRiyadhDatePartsFromTimestamp(timestamp) {
-    const parts = getRiyadhPartsFromTimestamp(timestamp);
+function getZonedDatePartsFromTimestamp(timestamp, timezone) {
+    const parts = getZonedPartsFromTimestamp(timestamp, timezone);
+    if (!parts) return null;
     return {
         year: parts.year,
         month: parts.month,
@@ -124,11 +165,43 @@ function getRiyadhDatePartsFromTimestamp(timestamp) {
     };
 }
 
-function timestampFromRiyadhParts(parts) {
-    return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour - 3, parts.minute, 0, 0);
+function localPartsMatch(left, right) {
+    return left
+        && left.year === right.year
+        && left.month === right.month
+        && left.day === right.day
+        && left.hour === right.hour
+        && left.minute === right.minute;
 }
 
-function shiftRiyadhDate(parts, days) {
+function getTimezoneOffsetMs(timestamp, timezone) {
+    const roundedTimestamp = Math.floor(timestamp / 60000) * 60000;
+    const parts = getZonedPartsFromTimestamp(roundedTimestamp, timezone);
+    if (!parts) return null;
+    return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, 0, 0) - roundedTimestamp;
+}
+
+// Convert a wall-clock date/time to an instant. Returning null for zero or
+// multiple matches deliberately rejects DST gaps and repeated wall times.
+function timestampFromZonedParts(parts, timezone) {
+    const naiveTimestamp = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, 0, 0);
+    const offsets = new Set();
+    for (const probeHours of [-36, -12, 0, 12, 36]) {
+        const offset = getTimezoneOffsetMs(naiveTimestamp + (probeHours * 60 * 60 * 1000), timezone);
+        if (Number.isFinite(offset)) offsets.add(offset);
+    }
+
+    const matches = [];
+    offsets.forEach((offset) => {
+        const candidate = naiveTimestamp - offset;
+        if (localPartsMatch(getZonedPartsFromTimestamp(candidate, timezone), parts)) {
+            matches.push(candidate);
+        }
+    });
+    return matches.length === 1 ? matches[0] : null;
+}
+
+function shiftCalendarDate(parts, days) {
     const probe = new Date(Date.UTC(parts.year, parts.month - 1, parts.day) + (days * DAY_MS));
     return {
         year: probe.getUTCFullYear(),
@@ -138,22 +211,27 @@ function shiftRiyadhDate(parts, days) {
     };
 }
 
+function formatDateKey(parts) {
+    return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
+
 function formatOccurrenceId(timestamp) {
-    const parts = getRiyadhPartsFromTimestamp(timestamp);
-    return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}T${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`;
+    return new Date(timestamp).toISOString();
 }
 
 function getScheduleStartTimestamp(schedule) {
     const dateParts = parseDateString(schedule?.startDate);
     const timeParts = parseTimeString(schedule?.startTime);
     if (!dateParts || !timeParts) return null;
-    return timestampFromRiyadhParts({
+    const timezone = normalizeTimezone(schedule?.timezone);
+    if (!timezone) return null;
+    return timestampFromZonedParts({
         year: dateParts.year,
         month: dateParts.month,
         day: dateParts.day,
         hour: timeParts.hour,
         minute: timeParts.minute
-    });
+    }, timezone);
 }
 
 function getScheduleWindowMs(schedule) {
@@ -172,39 +250,31 @@ function nextOccurrenceTimestamp(schedule, currentTimestamp) {
         return null;
     }
 
-    const currentDate = getRiyadhDatePartsFromTimestamp(currentTimestamp);
+    const timezone = normalizeTimezone(schedule.timezone);
+    const currentDate = getZonedDatePartsFromTimestamp(currentTimestamp, timezone);
     const timeParts = parseTimeString(schedule.startTime);
-    if (!timeParts) {
+    if (!currentDate || !timeParts) {
         return null;
     }
 
+    let nextDate;
     if (cadence === CADENCE_DAILY) {
-        const nextDate = shiftRiyadhDate(currentDate, 1);
-        return timestampFromRiyadhParts({
-            ...nextDate,
-            hour: timeParts.hour,
-            minute: timeParts.minute
-        });
+        nextDate = shiftCalendarDate(currentDate, 1);
+    } else if (cadence === CADENCE_WEEKLY) {
+        nextDate = shiftCalendarDate(currentDate, 7);
+    } else {
+        nextDate = shiftCalendarDate(currentDate, 1);
+        while (!isSaudiWeekday(nextDate.dayOfWeek)) {
+            nextDate = shiftCalendarDate(nextDate, 1);
+        }
     }
 
-    if (cadence === CADENCE_WEEKLY) {
-        const nextDate = shiftRiyadhDate(currentDate, 7);
-        return timestampFromRiyadhParts({
-            ...nextDate,
-            hour: timeParts.hour,
-            minute: timeParts.minute
-        });
-    }
-
-    let nextDate = shiftRiyadhDate(currentDate, 1);
-    while (!isSaudiWeekday(nextDate.dayOfWeek)) {
-        nextDate = shiftRiyadhDate(nextDate, 1);
-    }
-    return timestampFromRiyadhParts({
+    if (schedule.endDate && formatDateKey(nextDate) > schedule.endDate) return null;
+    return timestampFromZonedParts({
         ...nextDate,
         hour: timeParts.hour,
         minute: timeParts.minute
-    });
+    }, timezone);
 }
 
 function normalizeAttendanceEntry(entry) {
@@ -212,20 +282,19 @@ function normalizeAttendanceEntry(entry) {
         return null;
     }
 
-    const occurrenceId = typeof entry.occurrenceId === 'string' && entry.occurrenceId.trim()
-        ? entry.occurrenceId.trim()
-        : null;
     const scheduledAt = typeof entry.scheduledAt === 'number' ? entry.scheduledAt : null;
     const status = typeof entry.status === 'string' && ATTENDANCE_PRIORITY[entry.status] !== undefined
         ? entry.status
         : null;
 
-    if (!occurrenceId || !scheduledAt || !status) {
+    if (!Number.isFinite(scheduledAt) || !status) {
         return null;
     }
 
     const normalized = {
-        occurrenceId,
+        // scheduledAt is the canonical source. Converting legacy local-time
+        // IDs here prevents duplicate attendance when a v1 room reconnects.
+        occurrenceId: formatOccurrenceId(scheduledAt),
         scheduledAt,
         status
     };
@@ -290,30 +359,81 @@ function normalizeSchedule(schedule = {}, options = {}) {
         return null;
     }
 
-    const cadence = normalizeCadence(schedule.cadence);
-    const startTimestamp = timestampFromRiyadhParts({
+    const cadence = normalizeCadence(schedule.cadence, strict);
+    const timezone = normalizeTimezone(schedule.timezone);
+    if (!cadence || !timezone) return null;
+
+    const startTimestamp = timestampFromZonedParts({
         year: dateParts.year,
         month: dateParts.month,
         day: dateParts.day,
         hour: timeParts.hour,
         minute: timeParts.minute
-    });
+    }, timezone);
+    if (startTimestamp === null) return null;
 
     if (strict && cadence === CADENCE_ONCE && startTimestamp < now) {
         return null;
     }
 
-    return {
-        timezone: DEFAULT_SCHEDULE_TIMEZONE,
+    let endDate;
+    if (cadence === CADENCE_ONCE) {
+        if (strict && schedule.endDate !== undefined && schedule.endDate !== dateParts.key) return null;
+        endDate = dateParts.key;
+    } else {
+        const explicitEndDate = schedule.endDate === undefined || schedule.endDate === null || schedule.endDate === ''
+            ? null
+            : parseDateString(schedule.endDate);
+        if (schedule.endDate && !explicitEndDate) return null;
+        const defaultEnd = shiftCalendarDate(dateParts, DEFAULT_RECURRING_DURATION_DAYS);
+        endDate = explicitEndDate?.key || formatDateKey(defaultEnd);
+        const endParts = explicitEndDate || defaultEnd;
+        const durationDays = Math.round(
+            (Date.UTC(endParts.year, endParts.month - 1, endParts.day)
+                - Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day)) / DAY_MS
+        );
+        if (durationDays < 0 || durationDays > MAX_RECURRING_DURATION_DAYS) return null;
+    }
+
+    const normalized = {
+        timezone,
         title: sanitizeText(schedule.title, titleMaxLength, titleFallback),
         startDate: dateParts.key,
         startTime: timeParts.key,
+        endDate,
         cadence,
         focusMinutes: normalizePositiveInteger(schedule.focusMinutes, DEFAULT_FOCUS_MINUTES),
         breakMinutes: normalizePositiveInteger(schedule.breakMinutes, DEFAULT_BREAK_MINUTES),
         boardGoalTemplate: sanitizeText(schedule.boardGoalTemplate, goalMaxLength),
         attendance: normalizeAttendanceHistory(schedule.attendance)
     };
+
+    // Validate every wall-clock occurrence in the bounded schedule. This is
+    // what turns invalid IANA zones, DST gaps and repeated local times into the
+    // public SCHEDULE_INVALID response instead of silently shifting a session.
+    let occurrence = startTimestamp;
+    let iterations = 0;
+    while (occurrence !== null && iterations < MAX_OCCURRENCE_ITERATIONS) {
+        const next = nextOccurrenceTimestamp(normalized, occurrence);
+        if (next === null) {
+            if (cadence === CADENCE_ONCE) break;
+            const occurrenceDate = getZonedDatePartsFromTimestamp(occurrence, timezone);
+            if (!occurrenceDate) return null;
+            let nextDate;
+            if (cadence === CADENCE_DAILY) nextDate = shiftCalendarDate(occurrenceDate, 1);
+            else if (cadence === CADENCE_WEEKLY) nextDate = shiftCalendarDate(occurrenceDate, 7);
+            else {
+                nextDate = shiftCalendarDate(occurrenceDate, 1);
+                while (!isSaudiWeekday(nextDate.dayOfWeek)) nextDate = shiftCalendarDate(nextDate, 1);
+            }
+            if (formatDateKey(nextDate) <= endDate) return null;
+            break;
+        }
+        occurrence = next;
+        iterations += 1;
+    }
+    if (iterations >= MAX_OCCURRENCE_ITERATIONS) return null;
+    return normalized;
 }
 
 function iterateOccurrences(schedule, callback, options = {}) {
@@ -350,7 +470,7 @@ function findOpenOccurrence(schedule, now = Date.now()) {
             return false;
         }
 
-        const closeAt = nextOccurrenceAt || (occurrenceAt + sessionWindowMs);
+        const closeAt = occurrenceAt + sessionWindowMs;
         if (result.currentOccurrenceAt === null && now >= occurrenceAt - earlyWindowMs && now < closeAt) {
             result = {
                 currentOccurrenceAt: occurrenceAt,
@@ -376,8 +496,8 @@ function rollScheduleAttendance(schedule, now = Date.now()) {
     const sessionWindowMs = getScheduleWindowMs(schedule);
     let changed = false;
 
-    iterateOccurrences(schedule, (occurrenceAt, nextOccurrenceAt) => {
-        const closeAt = nextOccurrenceAt || (occurrenceAt + sessionWindowMs);
+    iterateOccurrences(schedule, (occurrenceAt) => {
+        const closeAt = occurrenceAt + sessionWindowMs;
         if (closeAt > now) {
             return false;
         }
@@ -400,6 +520,19 @@ function rollScheduleAttendance(schedule, now = Date.now()) {
         schedule.attendance = normalizeAttendanceHistory(Array.from(historyMap.values()));
     }
     return changed;
+}
+
+function getScheduleExpiryAt(schedule) {
+    if (!schedule) return null;
+    let finalOccurrenceAt = null;
+    iterateOccurrences(schedule, (occurrenceAt) => {
+        finalOccurrenceAt = occurrenceAt;
+        return true;
+    });
+    if (finalOccurrenceAt === null) return null;
+    return /** @type {number} */ (finalOccurrenceAt)
+        + getScheduleWindowMs(schedule)
+        + (SCHEDULE_EXPIRY_GRACE_MINUTES * 60 * 1000);
 }
 
 function recordScheduleJoin(schedule, now = Date.now()) {
@@ -484,6 +617,7 @@ function buildScheduleSummary(schedule, now = Date.now()) {
         title: normalized.title,
         startDate: normalized.startDate,
         startTime: normalized.startTime,
+        endDate: normalized.endDate,
         cadence: normalized.cadence,
         focusMinutes: normalized.focusMinutes,
         breakMinutes: normalized.breakMinutes,
@@ -499,6 +633,8 @@ function buildScheduleSummary(schedule, now = Date.now()) {
 
 module.exports = {
     buildScheduleSummary,
+    findOpenOccurrence,
+    getScheduleExpiryAt,
     normalizeSchedule,
     recordScheduleJoin,
     rollScheduleAttendance

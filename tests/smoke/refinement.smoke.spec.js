@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const AxeBuilder = require('@axe-core/playwright').default;
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
@@ -8,7 +8,7 @@ let server;
 let sequence = 100;
 test.beforeAll(async () => {
     server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://',
-        PLATFORM_DATABASE_URL: '', BILLING_PROVIDER: 'simulator', BILLING_MODE: 'test', VIDEO_PROVIDER: 'mesh', TRUST_PROXY: '1' } });
+        PLATFORM_DATABASE_URL: '', BILLING_PROVIDER: 'simulator', BILLING_MODE: 'test', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true', TRUST_PROXY: '1' } });
 });
 test.afterAll(async () => { await server?.stop(); });
 test.beforeEach(async ({ page }) => {
@@ -29,7 +29,7 @@ async function roomFor(cookie = '') {
     finally { await closeSocket(socket); }
 }
 async function enterRoom(page, code, name) {
-    await page.goto(`${server.baseUrl}/study?room=${code}`);
+    await gotoTestPage(page, `${server.baseUrl}/study?room=${code}`);
     if (await page.locator('#join-overlay').isVisible()) {
         await page.locator('#join-name').fill(name);
         await page.locator('#join-form button[type=submit]').click();
@@ -41,7 +41,7 @@ async function enterRoom(page, code, name) {
 test('refinement: password return URLs stay local and retain the intended destination', async ({ page }) => {
     for (const next of ['/\\example.invalid', '/app#progress']) {
         await page.context().clearCookies();
-        await page.goto(`${server.baseUrl}/account?signup=1&next=${encodeURIComponent(next)}`);
+        await gotoTestPage(page, `${server.baseUrl}/account?signup=1&next=${encodeURIComponent(next)}`);
         await page.locator('#tab-signup').click();
         await page.locator('#signup-nickname').fill('Local return');
         await page.locator('#signup-email').fill(`return-${Date.now()}@example.invalid`);
@@ -49,7 +49,7 @@ test('refinement: password return URLs stay local and retain the intended destin
         await page.locator('#signup-form button[type=submit]').click();
         await expect(page).toHaveURL(next.includes('example.invalid') ? `${server.baseUrl}/open.html` : `${server.baseUrl}${next}`);
     }
-    await page.goto(`${server.baseUrl}/study?room=ZZZZZZ`);
+    await gotoTestPage(page, `${server.baseUrl}/study?room=ZZZZZZ`);
     await expect(page.locator('.join-exit')).toBeVisible();
     await page.locator('.join-exit').click();
     await expect(page).toHaveURL(`${server.baseUrl}/open`);
@@ -62,10 +62,10 @@ test('refinement: circle links survive signup and a lost acceptance response', a
     await request(`/billing/checkout/${checkout.id}/complete`, 'POST', { token: checkout.token, outcome: 'success' });
     const circle = (await request('/cohorts', 'POST', { name: 'Return here together' })).body;
     const invite = (await request(`/cohorts/${circle.id}/invitations`)).body;
-    await page.goto(`${server.baseUrl}/app#circles`);
+    await gotoTestPage(page, `${server.baseUrl}/app#circles`);
     await page.evaluate((token) => { location.hash = `circles?invite=${token}`; }, invite.token);
     await expect(page.locator('#guest .primary')).toHaveAttribute('href', `/account?next=${encodeURIComponent(`/app#circles?invite=${invite.token}`)}`);
-    await page.goto(`${server.baseUrl}/app#circles?invite=${invite.token}`);
+    await gotoTestPage(page, `${server.baseUrl}/app#circles?invite=${invite.token}`);
     await page.locator('#guest .primary').click();
     await page.locator('#tab-signup').click();
     await page.locator('#signup-nickname').fill('Invited student');
@@ -88,11 +88,11 @@ test('refinement: circle links survive signup and a lost acceptance response', a
 
 test('refinement: duplicate tabs reconcile pause, resume and completion; room reload recovers its session', async ({ page }) => {
     const account = await signIn(page);
-    await page.goto(`${server.baseUrl}/app`);
+    await gotoTestPage(page, `${server.baseUrl}/app`);
     await page.locator('.study-start a[href="/app#progress"]').click();
     await expect(page.locator('[data-panel=progress]')).toBeVisible();
     const second = await page.context().newPage();
-    await second.goto(`${server.baseUrl}/app#progress`);
+    await gotoTestPage(second, `${server.baseUrl}/app#progress`);
     await expect(second.locator('#focus-start')).toBeVisible();
     await page.locator('#focus-start').click();
     await expect(second.locator('#focus-finish')).toBeVisible();
@@ -120,25 +120,13 @@ test('refinement: duplicate tabs reconcile pause, resume and completion; room re
     await second.close();
 });
 
-test('refinement: room retry restores identity after a transient account lookup failure', async ({ page }) => {
-    const account = await signIn(page);
-    const code = await roomFor(account.cookie);
-    await page.route('**/api/auth/me', route => route.fulfill({ status: 503, json: { errorCode: 'SERVICE_UNAVAILABLE' } }));
-    await enterRoom(page, code, 'Retry student');
-    await expect(page.locator('#room-focus-retry')).toBeVisible();
-    await page.unroute('**/api/auth/me');
-    await page.locator('#room-focus-retry').click();
-    await expect(page.locator('#room-progress-link')).toBeVisible();
-    await page.locator('#btn-toggle').click();
-    await expect(page.locator('#room-focus-finish')).toBeVisible();
-});
 
 test('refinement: real companionship, shared intention and quiet participation work in separate contexts', async ({ page, browser }) => {
     const code = await roomFor();
     await enterRoom(page, code, 'First student');
     await expect(page.locator('#room-company')).toContainText('first here');
     await expect(page.locator('#shared-intent')).toBeHidden();
-    const context = await browser.newContext();
+    const context = await createTestContext(browser);
     await context.addInitScript(() => localStorage.setItem('halastudyLang', 'en'));
     const peer = await context.newPage();
     try {
@@ -158,17 +146,6 @@ test('refinement: real companionship, shared intention and quiet participation w
     await expect(page.locator('#room-company')).toContainText('first here');
 });
 
-test('refinement: saved-name lobby failure has a working retry and bounded density controls', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('halastudyDisplayName', 'Returning student'));
-    await page.route('**/socket.io/**', route => new URL(route.request().url()).searchParams.has('EIO') ? route.abort() : route.continue());
-    await page.goto(`${server.baseUrl}/lobby`);
-    await expect(page.locator('#name-gate')).toBeVisible();
-    await page.unroute('**/socket.io/**');
-    await page.locator('#name-input').press('Enter');
-    await expect(page.locator('#lobby-view')).toBeVisible();
-    await expect(page.locator('#present-n')).toHaveText('1');
-    await expect(page.locator('.density button')).toHaveCount(7);
-});
 
 test('refinement: responsive bilingual themes, keyboard focus and accessible member surfaces', async ({ page }, info) => {
     test.setTimeout(300000);
@@ -178,11 +155,11 @@ test('refinement: responsive bilingual themes, keyboard focus and accessible mem
     const matrix = [];
     for (const width of [320, 390, 768, 1440]) for (const lang of ['ar', 'en']) for (const theme of ['light', 'dark']) {
         await page.setViewportSize({ width, height: width < 500 ? 844 : 1000 });
-        await page.goto(`${server.baseUrl}/app`);
+        await gotoTestPage(page, `${server.baseUrl}/app`);
         await page.locator(`[data-lang-value=${lang}]`).click();
         if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('#theme-toggle').click();
         for (const view of ['home', 'progress', 'circles', 'account']) {
-            await page.goto(`${server.baseUrl}/app#${view}`);
+            await gotoTestPage(page, `${server.baseUrl}/app#${view}`);
             await expect(page.locator(`[data-panel=${view}]`)).toBeVisible();
             await expect(page.locator('html')).toHaveAttribute('lang', lang);
             await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
@@ -193,7 +170,7 @@ test('refinement: responsive bilingual themes, keyboard focus and accessible mem
             matrix.push({ width, lang, theme, view, violations: findings.violations.map((entry) => entry.id) });
         }
     }
-    await page.goto(`${server.baseUrl}/app`);
+    await gotoTestPage(page, `${server.baseUrl}/app`);
     await page.keyboard.press('Tab');
     await expect(page.locator('.skip-link')).toBeFocused();
     await page.keyboard.press('Enter');

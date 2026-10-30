@@ -4,6 +4,7 @@
     "co-study-server.js",
     "scripts/*.js",
     "scripts/cloudflare/*.js",
+    "public/js/**/*.js",
     "tests/integration/*.test.js",
     "tests/postgres/*.test.js",
     "tests/helpers/fake-sfu-fixture.js",
@@ -14,9 +15,11 @@
     "*.js",
     "services/**/*.js",
     "scripts/**/*.js",
+    "public/js/**/*.js",
     "tests/**/*.js"
   ],
   "ignore": [
-    "ecosystem.config.js"
+    "ecosystem.config.js",
+    "_archive/**"
   ]
 }

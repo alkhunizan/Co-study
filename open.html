@@ -21,14 +21,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/design-system/colors_and_type.css?v=20261021-refinement">
-  <link rel="stylesheet" href="/design-system/landing.css?v=20261021-refinement">
+  <link rel="stylesheet" href="/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="/design-system/landing.css">
   <script src="/js/halastudy-core.js"></script>
-  <script src="/js/ux-insights.js"></script>
-  <script src="/js/schedule-display.js"></script>
   <script src="/js/ui.js" defer></script>
+  <link rel="stylesheet" href="/design-system/public-shell.css">
+  <script src="/js/public-shell.js" defer></script>
 </head>
-<body class="is-open-page">
+<body class="is-open-page" data-public-page="open">
   <header class="topbar">
     <a class="brand" href="/">
       <span>Hala<em>study</em><span class="dot">.</span></span>
@@ -37,7 +37,7 @@
     </a>
     <div class="topbar-right">
       <a class="topbar-link" id="auth-entry" href="/account.html" data-lang="navSignIn">تسجيل الدخول</a>
-      <div class="lang-switch" role="group" aria-label="Language">
+      <div class="lang-switch" role="tablist" aria-label="Language">
         <button type="button" id="lang-en" data-lang-value="en">EN</button>
         <button type="button" id="lang-ar" data-lang-value="ar" class="is-on">ع</button>
       </div>
@@ -63,14 +63,14 @@
           </div>
           <div class="choice-stack">
             <button type="button" class="choice-card active" data-choice="create" aria-pressed="true">
-              <span class="choice-icon" aria-hidden="true">✦</span>
+              <span class="choice-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></span>
               <span class="choice-text">
                 <h3 data-lang="createTitle">افتح غرفة</h3>
                 <p data-lang="createDesc">اسم، وكلمة مرور اختيارية، وجدولة اختيارية.</p>
               </span>
             </button>
             <button type="button" class="choice-card" data-choice="join" aria-pressed="false">
-              <span class="choice-icon" aria-hidden="true">➤</span>
+              <span class="choice-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 4h6v16h-6M4 12h12m-5-5 5 5-5 5"/></svg></span>
               <span class="choice-text">
                 <h3 data-lang="joinTitle">ادخل غرفة</h3>
                 <p data-lang="joinDesc">عندك رمز من مجموعتك؟ ادخله هنا.</p>
@@ -86,16 +86,14 @@
               <label for="room-name" data-lang="labelRoomName">اسم الغرفة</label>
               <input type="text" id="room-name" name="roomName" maxlength="48" data-lang-placeholder="placeholderRoomName" placeholder="مثال: جلسة عمل عميق" autocomplete="organization" required>
             </div>
-            <details id="room-options" class="room-options">
-              <summary data-lang="roomOptions">إعدادات الغرفة والجدولة</summary>
             <div class="input-group">
-              <label data-lang="labelMediaMode">حجم الغرفة</label>
+              <label data-lang="labelMediaMode">وضع وسائط الغرفة</label>
               <div class="mode-picker" id="media-mode-picker" role="radiogroup" aria-label="Room media mode">
-                <button type="button" class="mode-option active" data-media-mode="mesh" role="radio" tabindex="0" aria-checked="true">
+                <button type="button" class="mode-option active" role="radio" data-media-mode="mesh" aria-checked="true">
                   <span class="mode-option-title" data-lang="mediaModeMeshTitle">غرفة عادية</span>
-                  <span class="mode-option-desc" id="media-mode-mesh-desc">موصى بها لما يصل إلى 4 أشخاص. تستخدم فيديو مباشرًا بين المتصفحات.</span>
+                  <span class="mode-option-desc" id="media-mode-mesh-desc">غرف كاميرا المذاكرة تدعم حتى 20 شخصاً. المايك مقفل تلقائياً.</span>
                 </button>
-                <button type="button" class="mode-option" id="media-mode-sfu" data-media-mode="sfu" role="radio" tabindex="-1" aria-checked="false" hidden>
+                <button type="button" class="mode-option" role="radio" id="media-mode-sfu" data-media-mode="sfu" aria-checked="false" hidden>
                   <span class="mode-option-title" data-lang="mediaModeSfuTitle">غرفة كبيرة</span>
                   <span class="mode-option-desc" data-lang="mediaModeSfuDesc">تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.</span>
                 </button>
@@ -103,16 +101,18 @@
             </div>
             <div class="checkbox-line">
               <input type="checkbox" id="require-password">
-              <label for="require-password" data-lang="labelRequirePassword">تفعيل كلمة مرور</label>
+              <label for="require-password"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 10V7a6 6 0 0 1 12 0v3M4 10h16v12H4z"/></svg><span data-lang="labelRequirePassword">تفعيل كلمة مرور</span></label>
             </div>
+            <div id="password-fields" hidden>
             <div class="input-group">
               <label for="room-password" data-lang="labelPassword">كلمة مرور الدخول</label>
               <input type="password" id="room-password" name="roomPassword" maxlength="64" data-lang-placeholder="placeholderPassword" placeholder="ضع كلمة مرور للغرفة" autocomplete="new-password" disabled>
             </div>
             <p class="form-note" data-lang="notePassword">لن يتمكن من دخول الغرفة إلا من يملك كلمة المرور.</p>
+            </div>
             <div class="checkbox-line">
               <input type="checkbox" id="enable-schedule">
-              <label for="enable-schedule" data-lang="labelEnableSchedule">اجعلها غرفة مجدولة</label>
+              <label for="enable-schedule"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 5h16v16H4zM4 10h16M8 2v6M16 2v6"/></svg><span data-lang="labelEnableSchedule">اجعلها غرفة مجدولة</span></label>
             </div>
             <div class="schedule-panel" id="schedule-fields" hidden>
               <div class="schedule-signin-gate" id="schedule-signin-gate" hidden>
@@ -121,7 +121,7 @@
                 <a class="btn btn-secondary" id="schedule-gate-cta" href="/account.html?signup=1&next=%2Fopen.html%3Fschedule%3D1" data-lang="scheduleGateCta">سجّل وارجع هنا</a>
               </div>
               <div id="schedule-fields-inner">
-              <p class="form-note schedule-note" data-lang="scheduleNote">تستخدم توقيت الرياض (Asia/Riyadh، UTC+03:00). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.</p>
+              <p class="form-note schedule-note" data-lang="scheduleNote">تستخدم توقيت الرياض (غرينتش+3). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.</p>
               <div class="schedule-grid">
                 <div class="input-group">
                   <label for="schedule-date" data-lang="labelScheduleDate">تاريخ أول جلسة</label>
@@ -155,12 +155,11 @@
               </div>
               </div>
             </div>
-            </details>
             <p id="draft-restored" class="form-note" data-lang="draftRestored" hidden>رجعنا مسودتك. أدخل كلمة مرور الغرفة مجددًا إذا كنت فعّلتها.</p>
             <div class="form-actions">
               <button type="submit" class="btn btn-primary" data-lang="btnCreateRoom">افتح الغرفة</button>
             </div>
-            <p class="form-feedback" id="create-feedback"></p>
+            <p class="form-feedback" id="create-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
             <div class="result-box" id="create-result" hidden>
               <div class="result-code" id="result-code" data-force-ltr role="button" tabindex="0" data-lang-title="codeCopyTitle" title="Copy room code"></div>
               <p data-lang="resultDesc">شارك هذا الرمز مع شركائك ليدخلوا إلى الغرفة مباشرة.</p>
@@ -199,7 +198,7 @@
             <div class="form-actions">
               <button type="submit" class="btn btn-primary" data-lang="btnJoinRoom">دخول الغرفة</button>
             </div>
-            <p class="form-feedback" id="join-feedback"></p>
+            <p class="form-feedback" id="join-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
           </form>
         </div>
       </main>
@@ -214,9 +213,8 @@
       <a href="/"><span class="back-arrow" aria-hidden="true">←</span> Halastudy</a>
       <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
       <a href="/terms" data-lang="footerTerms">الشروط</a>
+      <a href="/contact" data-lang="footerContact">تواصل معنا</a>
     </div>
-  
-    <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -237,19 +235,21 @@
                 createDesc: 'Set a name, optional password, optional schedule.',
                 joinTitle: 'Join a room',
                 joinDesc: 'Got a code from your study group? Drop it in.',
-                createFormTitle: 'New focus room', roomOptions: 'Room settings and schedule', draftRestored: 'Your draft is back. Re-enter the room password if you enabled it.',
+                createFormTitle: 'New focus room',
+                draftRestored: 'Your draft is back. Re-enter the room password if you enabled it.',
                 labelRoomName: 'Room name',
                 placeholderRoomName: 'e.g. Deep work · 9pm crew',
-                labelMediaMode: 'Room size',
+                labelMediaMode: 'Room media mode',
                 mediaModeMeshTitle: 'Standard room',
                 mediaModeMeshDesc: 'Camera study rooms support up to {limit} people. Mic stays off by default.',
                 mediaModeSfuTitle: 'Large room',
                 mediaModeSfuDesc: 'Uses the room media service for larger groups.',
-                mediaModeMeshBadge: 'Study room',
+                mediaModeMeshBadge: 'Mesh room',
                 mediaModeSfuBadge: 'Large room',
                 mediaModeRealtimeKitBadge: 'Study camera room',
                 roomAccessOpen: 'Open access',
                 roomAccessProtected: 'Password protected',
+                roomPreviewProtectedNote: 'Enter the room password to join. Session details appear after you enter.',
                 roomPreviewMeshNote: 'Camera room supports up to {limit} people. Mic stays off by default.',
                 roomPreviewRealtimeKitNote: 'Camera room supports up to {limit} people. Mic stays off by default.',
                 roomPreviewSfuNote: 'Media runs in the managed room session for larger groups.',
@@ -258,7 +258,7 @@
                 placeholderPassword: 'Set a room password',
                 notePassword: 'Only people with the password will be able to join this room.',
                 labelEnableSchedule: 'Make this a scheduled room',
-                scheduleNote: 'Uses Riyadh time (Asia/Riyadh, UTC+03:00). Weekdays follow the Saudi Sunday-Thursday workweek.',
+                scheduleNote: 'Uses Riyadh time (GMT+3). Weekdays follow the Saudi Sunday-Thursday workweek.',
                 labelScheduleDate: 'First session date',
                 labelScheduleTime: 'Start time',
                 labelScheduleCadence: 'Cadence',
@@ -275,7 +275,7 @@
                 btnWhatsappInvite: 'WhatsApp invite',
                 btnAddCalendar: 'Add to calendar',
                 btnEnterRoom: 'Enter room',
-                scheduleTimezoneLabel: 'Riyadh time (Asia/Riyadh, UTC+03:00)',
+                scheduleTimezoneLabel: 'Riyadh time',
                 scheduleNextLabel: 'Next session',
                 scheduleLiveLabel: 'Live now',
                 scheduleTimerPresetLabel: 'Timer',
@@ -314,10 +314,12 @@
                 successCreated: 'Room created successfully.',
                 codeCopied: 'Room code copied.',
                 codeCopyTitle: 'Copy room code',
+                codeCopyFallback: 'Copy this room code:',
                 redirecting: 'Redirecting...',
                 errorRoomCodeGeneration: 'Could not generate a room code. Please try again.',
                 rateLimited: 'Too many attempts. Slow down and try again in a moment.',
                 footerPrivacy: 'Privacy',
+                footerContact: 'Contact',
                 footerTerms: 'Terms'
             },
             ar: {
@@ -329,19 +331,21 @@
                 createDesc: 'اسم، وكلمة مرور اختيارية، وجدولة اختيارية.',
                 joinTitle: 'ادخل غرفة',
                 joinDesc: 'عندك رمز من مجموعتك؟ ادخله هنا.',
-                createFormTitle: 'غرفة تركيز جديدة', roomOptions: 'إعدادات الغرفة والجدولة', draftRestored: 'رجعنا مسودتك. أدخل كلمة مرور الغرفة مجددًا إذا كنت فعّلتها.',
+                createFormTitle: 'غرفة تركيز جديدة',
+                draftRestored: 'رجعنا مسودتك. أدخل كلمة مرور الغرفة مجددًا إذا كنت فعّلتها.',
                 labelRoomName: 'اسم الغرفة',
                 placeholderRoomName: 'مثال: جلسة عمل عميق',
-                labelMediaMode: 'حجم الغرفة',
+                labelMediaMode: 'وضع وسائط الغرفة',
                 mediaModeMeshTitle: 'غرفة عادية',
                 mediaModeMeshDesc: 'غرف كاميرا المذاكرة تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
                 mediaModeSfuTitle: 'غرفة كبيرة',
                 mediaModeSfuDesc: 'تستخدم خدمة وسائط الغرفة للمجموعات الأكبر.',
-                mediaModeMeshBadge: 'غرفة مذاكرة',
+                mediaModeMeshBadge: 'غرفة Mesh',
                 mediaModeSfuBadge: 'غرفة كبيرة',
                 mediaModeRealtimeKitBadge: 'غرفة كاميرا للمذاكرة',
                 roomAccessOpen: 'دخول مفتوح',
                 roomAccessProtected: 'محمية بكلمة مرور',
+                roomPreviewProtectedNote: 'أدخل كلمة مرور الغرفة للانضمام. تظهر تفاصيل الجلسة بعد الدخول.',
                 roomPreviewMeshNote: 'غرفة الكاميرا تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
                 roomPreviewRealtimeKitNote: 'غرفة الكاميرا تدعم حتى {limit} شخصاً. المايك مقفل تلقائياً.',
                 roomPreviewSfuNote: 'تعمل الوسائط داخل الجلسة المُدارة للغرفة للمجموعات الأكبر.',
@@ -350,7 +354,7 @@
                 placeholderPassword: 'ضع كلمة مرور للغرفة',
                 notePassword: 'لن يتمكن من دخول الغرفة إلا من يملك كلمة المرور.',
                 labelEnableSchedule: 'اجعلها غرفة مجدولة',
-                scheduleNote: 'تستخدم توقيت الرياض (Asia/Riyadh، UTC+03:00). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.',
+                scheduleNote: 'تستخدم توقيت الرياض (غرينتش+3). وضع أيام الأسبوع يتبع دوام السعودية من الأحد إلى الخميس.',
                 labelScheduleDate: 'تاريخ أول جلسة',
                 labelScheduleTime: 'وقت البداية',
                 labelScheduleCadence: 'التكرار',
@@ -367,7 +371,7 @@
                 btnWhatsappInvite: 'دعوة واتساب',
                 btnAddCalendar: 'أضف إلى التقويم',
                 btnEnterRoom: 'الدخول إلى الغرفة',
-                scheduleTimezoneLabel: 'توقيت الرياض (Asia/Riyadh، UTC+03:00)',
+                scheduleTimezoneLabel: 'توقيت الرياض',
                 scheduleNextLabel: 'الجلسة القادمة',
                 scheduleLiveLabel: 'الجلسة جارية الآن',
                 scheduleTimerPresetLabel: 'المؤقت',
@@ -406,16 +410,17 @@
                 successCreated: 'تم إنشاء الغرفة بنجاح.',
                 codeCopied: 'تم نسخ رمز الغرفة.',
                 codeCopyTitle: 'انسخ رمز الغرفة',
+                codeCopyFallback: 'انسخ رمز الغرفة:',
                 redirecting: 'جارٍ التحويل...',
                 errorRoomCodeGeneration: 'تعذر إنشاء رمز الغرفة. حاول مرة أخرى.',
                 rateLimited: 'تم تنفيذ محاولات كثيرة. تمهّل وحاول مرة أخرى بعد قليل.',
                 footerPrivacy: 'الخصوصية',
+                footerContact: 'تواصل معنا',
                 footerTerms: 'الشروط'
             }
         };
         const errorKeyMap = {
             ROOM_NAME_REQUIRED: 'errorNoName',
-            ROOM_PASSWORD_REQUIRED: 'errorPasswordRequired',
             ROOM_CODE_GENERATION_FAILED: 'errorRoomCodeGeneration',
             PASSWORD_HASH_FAILED: 'errorCreateFailed',
             ROOM_MEDIA_MODE_INVALID: 'errorMediaModeInvalid',
@@ -448,10 +453,13 @@
             sfuAvailable: false,
             supportedMediaModes: [MEDIA_MODE_MESH],
             meshParticipantLimit: DEFAULT_MESH_PARTICIPANT_LIMIT,
-            videoProvider: VIDEO_PROVIDER_MESH,
+            videoProvider: VIDEO_PROVIDER_REALTIMEKIT,
+            devMeshEnabled: false,
             videoPolicy: null
         };
         let joinPreviewRoom = null;
+        let joinPreviewGeneration = 0;
+        let joinPreviewController = null;
         let landingScheduleRefreshTimer = null;
         let isDark = false;
         try { isDark = localStorage.getItem('halastudyTheme') === 'dark'; document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } catch (e) {}
@@ -469,47 +477,6 @@
         const scheduleFocusInput = document.getElementById('schedule-focus');
         const scheduleBreakInput = document.getElementById('schedule-break');
         const scheduleGoalTemplateInput = document.getElementById('schedule-goal-template');
-        const ROOM_DRAFT_KEY = 'halastudyRoomDraft:v1';
-        const DRAFT_TTL = 30 * 60 * 1000;
-        let roomDraftMediaMode = null;
-        function saveRoomDraft() {
-            const fields = ['room-name', 'schedule-date', 'schedule-time', 'schedule-cadence', 'schedule-focus', 'schedule-break', 'schedule-goal-template'];
-            const values = Object.fromEntries(fields.map((id) => [id, document.getElementById(id).value.slice(0, id === 'schedule-goal-template' ? 80 : 48)]));
-            values.requirePassword = requirePasswordCheckbox.checked;
-            values.scheduleEnabled = enableScheduleCheckbox.checked;
-            values.mediaMode = selectedMediaMode;
-            try { sessionStorage.setItem(ROOM_DRAFT_KEY, JSON.stringify({ version: 1, expiresAt: Date.now() + DRAFT_TTL, values })); } catch (_error) { /* A draft is optional. */ }
-        }
-        function restoreRoomDraft() {
-            try {
-                const draft = JSON.parse(sessionStorage.getItem(ROOM_DRAFT_KEY) || 'null');
-                if (!draft || draft.version !== 1 || !Number.isFinite(draft.expiresAt) || draft.expiresAt <= Date.now() || draft.expiresAt > Date.now() + DRAFT_TTL || !draft.values || typeof draft.values !== 'object') {
-                    sessionStorage.removeItem(ROOM_DRAFT_KEY); return;
-                }
-                const values = draft.values;
-                const restore = (id, check, max) => {
-                    const value = values[id];
-                    if (typeof value === 'string' && value.length <= max && check(value)) document.getElementById(id).value = value;
-                };
-                restore('room-name', () => true, 48);
-                restore('schedule-goal-template', () => true, 80);
-                restore('schedule-date', (v) => /^\d{4}-\d{2}-\d{2}$/.test(v), 10);
-                restore('schedule-time', (v) => /^\d{2}:\d{2}$/.test(v), 5);
-                restore('schedule-cadence', (v) => ['once','weekdays','daily','weekly'].includes(v), 8);
-                restore('schedule-focus', (v) => /^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 240, 3);
-                restore('schedule-break', (v) => /^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 120, 3);
-                requirePasswordCheckbox.checked = values.requirePassword === true;
-                roomPasswordInput.disabled = !requirePasswordCheckbox.checked;
-                roomPasswordInput.value = '';
-                enableScheduleCheckbox.checked = values.scheduleEnabled === true;
-                roomDraftMediaMode = normalizeMediaMode(values.mediaMode);
-                document.getElementById('room-options').open = true;
-                document.getElementById('draft-restored').hidden = false;
-            } catch (_error) { try { sessionStorage.removeItem(ROOM_DRAFT_KEY); } catch (_ignored) {} }
-        }
-        createForm.addEventListener('input', saveRoomDraft);
-        createForm.addEventListener('change', saveRoomDraft);
-        document.getElementById('schedule-gate-cta').addEventListener('click', saveRoomDraft);
         const joinCodeInput = document.getElementById('join-code');
         const mediaModeButtons = document.querySelectorAll('[data-media-mode]');
         const mediaModeMeshDesc = document.getElementById('media-mode-mesh-desc');
@@ -528,6 +495,60 @@
         const languageButtons = document.querySelectorAll('[data-lang-value]');
         const themeToggle = document.getElementById('theme-toggle');
 
+        const OPEN_DRAFT_KEY = 'halastudyRoomDraft:v1';
+        const DRAFT_TTL = 30 * 60 * 1000;
+        const draftFields = ['room-name', 'require-password', 'room-password', 'enable-schedule',
+            'schedule-date', 'schedule-time', 'schedule-cadence', 'schedule-focus', 'schedule-break',
+            'schedule-goal-template', 'join-code', 'join-password'];
+        // Passwords never enter storage: a restored draft asks for them again.
+        const draftSecretFields = new Set(['room-password', 'join-password']);
+        function saveDraft() {
+            const values = {};
+            draftFields.forEach(id => {
+                if (draftSecretFields.has(id)) return;
+                const input = document.getElementById(id);
+                values[id] = input.type === 'checkbox' ? input.checked : input.value;
+            });
+            try { sessionStorage.setItem(OPEN_DRAFT_KEY, JSON.stringify({
+                version: 1, expiresAt: Date.now() + DRAFT_TTL, values, mode: currentMode, mediaMode: selectedMediaMode
+            })); } catch (_error) {}
+        }
+        function clearDraft() {
+            try { sessionStorage.removeItem(OPEN_DRAFT_KEY); } catch (_error) {}
+            document.getElementById('draft-restored').hidden = true;
+        }
+        function restoreDraft() {
+            try {
+                const draft = JSON.parse(sessionStorage.getItem(OPEN_DRAFT_KEY) || 'null');
+                if (!draft || draft.version !== 1 || !Number.isFinite(draft.expiresAt) || draft.expiresAt <= Date.now()
+                    || draft.expiresAt > Date.now() + DRAFT_TTL || !draft.values || typeof draft.values !== 'object') {
+                    sessionStorage.removeItem(OPEN_DRAFT_KEY);
+                    return;
+                }
+                let restored = false;
+                draftFields.forEach(id => {
+                    if (draftSecretFields.has(id)) return;
+                    const input = document.getElementById(id), value = draft.values[id];
+                    if (input.type === 'checkbox') input.checked = value === true;
+                    else if (typeof value === 'string') input.value = value.slice(0, input.maxLength > 0 ? input.maxLength : 80);
+                    else return;
+                    restored = true;
+                });
+                currentMode = draft.mode === 'join' ? 'join' : 'create';
+                selectedMediaMode = normalizeMediaMode(draft.mediaMode);
+                if (restored) document.getElementById('draft-restored').hidden = false;
+            } catch (_error) { try { sessionStorage.removeItem(OPEN_DRAFT_KEY); } catch (_ignored) {} }
+        }
+        function fieldError(input, message) {
+            window.HalaUI?.setFieldError(input, message);
+        }
+        function togglePasswordFields() {
+            const enabled = requirePasswordCheckbox.checked;
+            document.getElementById('password-fields').hidden = !enabled;
+            roomPasswordInput.disabled = !enabled;
+        }
+        let creatingRoom = false;
+        let joiningRoom = false;
         let socket = null;
         if (window.io) {
             socket = io();
@@ -562,7 +583,7 @@
         }
 
         function normalizeVideoProvider(provider) {
-            return provider === VIDEO_PROVIDER_REALTIMEKIT ? VIDEO_PROVIDER_REALTIMEKIT : VIDEO_PROVIDER_MESH;
+            return provider === VIDEO_PROVIDER_MESH ? VIDEO_PROVIDER_MESH : VIDEO_PROVIDER_REALTIMEKIT;
         }
 
         function getMeshParticipantLimit() {
@@ -659,7 +680,6 @@
                 return;
             }
             scheduleFields.hidden = !enableScheduleCheckbox.checked;
-            if (enableScheduleCheckbox.checked) document.getElementById('room-options').open = true;
             // Guests see the sign-in gate where the schedule fields would be.
             const gate = document.getElementById('schedule-signin-gate');
             const inner = document.getElementById('schedule-fields-inner');
@@ -714,11 +734,10 @@
                 if (new URLSearchParams(window.location.search).get('schedule') === '1'
                     && enableScheduleCheckbox && !enableScheduleCheckbox.checked) {
                     enableScheduleCheckbox.checked = true;
-                    setDefaultScheduleFields();
                     toggleScheduleFields();
                     if (scheduleDateInput) scheduleDateInput.focus();
                 }
-            }).catch(() => window.HalaCore.showUnavailable());
+            });
         }
 
         function formatScheduleCadenceLabel(cadence) {
@@ -732,7 +751,11 @@
         function formatRiyadhDateTime(timestamp) {
             if (!timestamp) return '';
             try {
-                return window.HalaSchedule.format(timestamp, currentLang, DEFAULT_SCHEDULE_TIMEZONE);
+                return new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-SA', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                    timeZone: DEFAULT_SCHEDULE_TIMEZONE
+                }).format(new Date(timestamp));
             } catch (_error) {
                 return new Date(timestamp).toISOString();
             }
@@ -1154,10 +1177,11 @@
                 const active = mode === selectedMediaMode;
                 button.classList.toggle('active', active);
                 button.setAttribute('aria-checked', active ? 'true' : 'false');
-                button.tabIndex = active ? 0 : -1;
             });
             if (mediaModeSfuButton) {
-                mediaModeSfuButton.hidden = runtimeConfig.videoProvider !== VIDEO_PROVIDER_MESH || !runtimeConfig.sfuAvailable;
+                mediaModeSfuButton.hidden = runtimeConfig.devMeshEnabled !== true
+                    || runtimeConfig.videoProvider !== VIDEO_PROVIDER_MESH
+                    || !runtimeConfig.sfuAvailable;
             }
             if (mediaModeMeshDesc) {
                 mediaModeMeshDesc.textContent = interpolate(copy().mediaModeMeshDesc, {
@@ -1171,6 +1195,7 @@
         function setSelectedMediaMode(mode) {
             const nextMode = normalizeMediaMode(mode);
             selectedMediaMode = nextMode === MEDIA_MODE_SFU
+                && runtimeConfig.devMeshEnabled === true
                 && runtimeConfig.videoProvider === VIDEO_PROVIDER_MESH
                 && runtimeConfig.sfuAvailable
                 ? MEDIA_MODE_SFU
@@ -1178,7 +1203,16 @@
             syncMediaModeUi();
         }
 
-        function clearJoinPreview() {
+        function invalidateJoinPreviewRequest() {
+            joinPreviewGeneration += 1;
+            if (joinPreviewController) {
+                joinPreviewController.abort();
+                joinPreviewController = null;
+            }
+        }
+
+        function clearJoinPreview({ invalidateRequest = true } = {}) {
+            if (invalidateRequest) invalidateJoinPreviewRequest();
             joinPreviewRoom = null;
             if (joinRoomPreview) {
                 joinRoomPreview.hidden = true;
@@ -1193,6 +1227,18 @@
                 return;
             }
 
+            joinRoomPreviewMode.hidden = !!room.protectedPreview;
+            joinRoomPreviewCount.hidden = !!room.protectedPreview;
+            if (room.protectedPreview) {
+                joinRoomPreview.hidden = false;
+                joinRoomPreviewName.textContent = room.name || room.roomId;
+                joinRoomPreviewAccess.textContent = copy().roomAccessProtected;
+                joinRoomPreviewNote.textContent = copy().roomPreviewProtectedNote;
+                joinRoomPreviewWarning.textContent = '';
+                syncLandingScheduleRefreshTimer();
+                return;
+            }
+
             const mode = normalizeMediaMode(room.mediaMode);
             const provider = normalizeVideoProvider(room.videoProvider || runtimeConfig.videoProvider);
             const limit = provider === VIDEO_PROVIDER_REALTIMEKIT
@@ -1204,7 +1250,9 @@
             const activeVideoCount = Number.isInteger(room.activeVideoParticipantCount) ? room.activeVideoParticipantCount : count;
             const isFullMeshRoom = provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_MESH && limit !== null && count >= limit;
             const isFullRealtimeKitRoom = provider === VIDEO_PROVIDER_REALTIMEKIT && limit !== null && activeVideoCount >= limit;
-            const largeRoomUnavailable = provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable;
+            const legacyMediaUnavailable = provider === VIDEO_PROVIDER_MESH && runtimeConfig.devMeshEnabled !== true;
+            const largeRoomUnavailable = legacyMediaUnavailable
+                || (provider === VIDEO_PROVIDER_MESH && mode === MEDIA_MODE_SFU && !runtimeConfig.sfuAvailable);
 
             joinRoomPreview.hidden = false;
             joinRoomPreviewName.textContent = room.name || room.roomId || joinCodeInput.value.trim().toUpperCase();
@@ -1235,11 +1283,12 @@
                     : [MEDIA_MODE_MESH],
                 meshParticipantLimit,
                 videoProvider: normalizeVideoProvider(payload.videoProvider),
+                devMeshEnabled: payload.devMeshEnabled === true,
                 videoPolicy: payload.videoPolicy || null
             };
             if (!runtimeConfig.sfuAvailable) {
                 selectedMediaMode = MEDIA_MODE_MESH;
-            } else if (roomDraftMediaMode) { selectedMediaMode = roomDraftMediaMode; }
+            }
             syncMediaModeUi();
             if (joinPreviewRoom) {
                 renderJoinPreview(joinPreviewRoom);
@@ -1257,7 +1306,6 @@
 
             try {
                 const response = await fetch('/api/runtime-config', {
-                    signal: AbortSignal.timeout(15000),
                     headers: { Accept: 'application/json' }
                 });
                 if (!response.ok) {
@@ -1271,13 +1319,24 @@
         }
 
         async function fetchRoomDetails(code) {
+            invalidateJoinPreviewRequest();
+            const generation = joinPreviewGeneration;
+            const controller = new AbortController();
+            joinPreviewController = controller;
+            let timedOut = false;
+            const deadline = setTimeout(() => { timedOut = true; controller.abort(); }, 8000);
+            const isCurrentRequest = () => generation === joinPreviewGeneration
+                && joinPreviewController === controller
+                && !controller.signal.aborted;
+
             try {
                 const response = await fetch(`/api/rooms/${encodeURIComponent(code)}`, {
-                    signal: AbortSignal.timeout(15000),
-                    headers: { Accept: 'application/json' }
+                    headers: { Accept: 'application/json' },
+                    signal: controller.signal
                 });
+                if (!isCurrentRequest()) return { status: 'stale' };
                 if (response.status === 404) {
-                    clearJoinPreview();
+                    clearJoinPreview({ invalidateRequest: false });
                     return { status: 'not_found' };
                 }
                 if (response.status === 429) {
@@ -1286,11 +1345,26 @@
                 if (!response.ok) {
                     return { status: 'error' };
                 }
-                const room = await response.json();
+                const payload = await response.json();
+                if (!isCurrentRequest()) return { status: 'stale' };
+                // Protected previews deliberately omit provider/session details.
+                const room = payload?.ok && payload.room?.protected
+                    ? { ...payload.room, requirePassword: payload.room.requiresPassword === true, protectedPreview: true }
+                    : payload;
+                if (!room || typeof room.roomId !== 'string') return { status: 'error' };
                 renderJoinPreview(room);
                 return { status: 'ok', room };
-            } catch (_error) {
+            } catch (error) {
+                if (timedOut) return { status: 'error' };
+                if (error?.name === 'AbortError' || !isCurrentRequest()) {
+                    return { status: 'stale' };
+                }
                 return { status: 'error' };
+            } finally {
+                clearTimeout(deadline);
+                if (joinPreviewController === controller) {
+                    joinPreviewController = null;
+                }
             }
         }
 
@@ -1303,7 +1377,6 @@
 
             languageButtons.forEach((button) => {
                 button.classList.toggle('is-on', button.dataset.langValue === currentLang);
-                button.setAttribute('aria-pressed', String(button.dataset.langValue === currentLang));
             });
 
             document.querySelectorAll('[data-lang]').forEach((element) => {
@@ -1361,6 +1434,8 @@
                 if (code) {
                     void fetchRoomDetails(code);
                 }
+            } else {
+                clearJoinPreview();
             }
             // Desktop only — focusing on touch devices pops the keyboard over the form.
             if (window.matchMedia('(pointer: fine)').matches) {
@@ -1375,7 +1450,6 @@
             if (roomCode) {
                 joinCodeInput.value = roomCode.toUpperCase();
                 setMode('join');
-                void fetchRoomDetails(joinCodeInput.value);
             }
         }
 
@@ -1386,16 +1460,6 @@
         mediaModeButtons.forEach((button) => {
             button.addEventListener('click', () => {
                 setSelectedMediaMode(button.dataset.mediaMode);
-            });
-            button.addEventListener('keydown', (event) => {
-                if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
-                event.preventDefault();
-                const choices = [...mediaModeButtons].filter((control) => !control.hidden);
-                const direction = document.documentElement.dir === 'rtl' ? -1 : 1;
-                const delta = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : event.key === 'ArrowRight' ? direction : -direction;
-                const index = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : (choices.indexOf(button) + delta + choices.length) % choices.length;
-                const next = choices[index];
-                if (next) { setSelectedMediaMode(next.dataset.mediaMode); next.focus(); }
             });
         });
 
@@ -1416,16 +1480,14 @@
         });
 
         requirePasswordCheckbox.addEventListener('change', () => {
-            const enabled = requirePasswordCheckbox.checked;
-            roomPasswordInput.disabled = !enabled;
-            if (!enabled) roomPasswordInput.value = '';
+            togglePasswordFields();
+            if (!requirePasswordCheckbox.checked) roomPasswordInput.value = '';
+            fieldError(roomPasswordInput, '');
         });
 
         if (enableScheduleCheckbox) {
             enableScheduleCheckbox.addEventListener('change', () => {
-                if (enableScheduleCheckbox.checked) {
-                    setDefaultScheduleFields();
-                }
+                if (enableScheduleCheckbox.checked && !scheduleDateInput.value) setDefaultScheduleFields();
                 toggleScheduleFields();
             });
         }
@@ -1455,11 +1517,18 @@
             // Codes are 6 chars — preview the room as soon as one is typed/pasted.
             const code = joinCodeInput.value;
             if (code.length >= 6) {
-                joinLookupTimer = setTimeout(() => { void fetchRoomDetails(code); }, 350);
+                joinLookupTimer = setTimeout(() => {
+                    joinLookupTimer = null;
+                    void fetchRoomDetails(code);
+                }, 350);
             }
         });
 
         joinCodeInput.addEventListener('blur', () => {
+            if (joinLookupTimer) {
+                clearTimeout(joinLookupTimer);
+                joinLookupTimer = null;
+            }
             const code = joinCodeInput.value.trim().toUpperCase();
             if (!code) {
                 clearJoinPreview();
@@ -1470,7 +1539,9 @@
 
         createForm.addEventListener('submit', (event) => {
             event.preventDefault();
+            if (creatingRoom) return;
             const feedback = document.getElementById('create-feedback');
+            createForm.querySelectorAll('input').forEach(input => fieldError(input, ''));
             const result = document.getElementById('create-result');
             const roomNameInput = document.getElementById('room-name');
             const roomName = roomNameInput.value.trim();
@@ -1484,6 +1555,7 @@
             if (!roomName) {
                 feedback.textContent = copy().errorNoName;
                 feedback.className = 'form-feedback error';
+                fieldError(roomNameInput, copy().errorNoName);
                 roomNameInput.focus();
                 return;
             }
@@ -1491,12 +1563,20 @@
             if (requirePassword && !password) {
                 feedback.textContent = copy().errorPasswordRequired;
                 feedback.className = 'form-feedback error';
+                fieldError(roomPasswordInput, copy().errorPasswordRequired);
                 roomPasswordInput.focus();
+                return;
+            }
+            if (enableScheduleCheckbox.checked && !signedInUser) {
+                feedback.textContent = copy().errorScheduleNeedsAccount;
+                feedback.className = 'form-feedback error';
+                document.getElementById('schedule-gate-cta').focus();
                 return;
             }
             if (schedulePayload.error) {
                 feedback.textContent = schedulePayload.error;
                 feedback.className = 'form-feedback error';
+                fieldError(!scheduleDateInput.value ? scheduleDateInput : scheduleTimeInput, schedulePayload.error);
                 if (scheduleDateInput && !scheduleDateInput.value) {
                     scheduleDateInput.focus();
                 } else if (scheduleTimeInput && !scheduleTimeInput.value) {
@@ -1515,6 +1595,8 @@
             }
 
             const createSubmitBtn = createForm.querySelector('button[type="submit"]');
+            creatingRoom = true;
+            createForm.setAttribute('aria-busy', 'true');
             if (createSubmitBtn) createSubmitBtn.disabled = true;
 
             socket.timeout(8000).emit('create-room', {
@@ -1524,6 +1606,8 @@
                 mediaMode: selectedMediaMode,
                 schedule: schedulePayload.schedule
             }, (timeoutError, response = {}) => {
+                creatingRoom = false;
+                createForm.setAttribute('aria-busy', 'false');
                 if (createSubmitBtn) createSubmitBtn.disabled = false;
                 if (timeoutError) {
                     feedback.textContent = copy().errorCreateTimeout;
@@ -1531,12 +1615,13 @@
                     return;
                 }
 
-                if (!response.ok) {
+                if (!response.ok || !response.room || !(response.room.roomId || response.room.code)) {
                     feedback.textContent = getErrorMessage(response.errorCode, 'errorCreateFailed');
                     feedback.className = 'form-feedback error';
                     return;
                 }
 
+                clearDraft();
                 createdRoomCode = response.room.roomId || response.room.code;
                 createdRoomPassword = requirePassword ? password : '';
                 createdRoomData = response.room || null;
@@ -1547,8 +1632,7 @@
                 document.getElementById('result-code').textContent = createdRoomCode;
                 renderCreatedSchedule(createdRoomData);
                 result.hidden = false;
-                try { sessionStorage.removeItem(ROOM_DRAFT_KEY); } catch (_error) {}
-                document.getElementById('draft-restored').hidden = true;
+                document.getElementById('btn-enter-room').focus();
             });
         });
 
@@ -1556,10 +1640,8 @@
             const codeEl = document.getElementById('result-code');
             if (!codeEl) return;
             function copyCreatedCode() {
-                if (!createdRoomCode || !navigator.clipboard || !navigator.clipboard.writeText) return;
-                navigator.clipboard.writeText(createdRoomCode).then(() => {
-                    if (window.HalaUI) window.HalaUI.toast(copy().codeCopied, { kind: 'success' });
-                }).catch(() => {});
+                if (!createdRoomCode) return;
+                void window.HalaUI.copyText(createdRoomCode, copy().codeCopied, copy().codeCopyFallback);
             }
             codeEl.addEventListener('click', copyCreatedCode);
             codeEl.addEventListener('keydown', (event) => {
@@ -1575,15 +1657,18 @@
             sessionStorage.setItem('halastudyRoomCode', createdRoomCode);
             if (createdRoomPassword) {
                 sessionStorage.setItem('halastudyRoomPassword', createdRoomPassword);
+                sessionStorage.setItem('halastudyRoomPasswordCode', createdRoomCode);
             } else {
                 sessionStorage.removeItem('halastudyRoomPassword');
+                sessionStorage.removeItem('halastudyRoomPasswordCode');
             }
             window.location.href = `/index.html?room=${encodeURIComponent(createdRoomCode)}`;
         });
 
         joinForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-
+            if (joiningRoom) return;
+            joinForm.querySelectorAll('input').forEach(input => fieldError(input, ''));
             const feedback = document.getElementById('join-feedback');
             const code = joinCodeInput.value.trim().toUpperCase();
             const password = document.getElementById('join-password').value.trim();
@@ -1592,6 +1677,7 @@
             if (!code) {
                 feedback.textContent = copy().errorNoCode;
                 feedback.className = 'form-feedback error';
+                fieldError(joinCodeInput, feedback.textContent);
                 joinCodeInput.focus();
                 return;
             }
@@ -1600,12 +1686,23 @@
             feedback.className = 'form-feedback';
 
             const joinSubmitBtn = joinForm.querySelector('button[type="submit"]');
+            joiningRoom = true;
+            joinForm.setAttribute('aria-busy', 'true');
+            if (joinLookupTimer) { clearTimeout(joinLookupTimer); joinLookupTimer = null; }
             if (joinSubmitBtn) joinSubmitBtn.disabled = true;
             try {
                 const lookup = await fetchRoomDetails(code);
+                if (lookup.status === 'stale') {
+                    if (joinCodeInput.value.trim().toUpperCase() !== code) {
+                        feedback.textContent = '';
+                        feedback.className = 'form-feedback';
+                    }
+                    return;
+                }
                 if (lookup.status === 'not_found') {
                     feedback.textContent = copy().errorRoomNotFound;
                     feedback.className = 'form-feedback error';
+                    fieldError(joinCodeInput, feedback.textContent);
                     joinCodeInput.focus();
                     return;
                 }
@@ -1622,6 +1719,8 @@
                 room = lookup.room;
             } finally {
                 // Re-enable once the async lookup settles; the remaining checks are synchronous.
+                joiningRoom = false;
+                joinForm.setAttribute('aria-busy', 'false');
                 if (joinSubmitBtn) joinSubmitBtn.disabled = false;
             }
 
@@ -1639,6 +1738,7 @@
             if (room && room.requirePassword && !password) {
                 feedback.textContent = copy().errorPasswordRequired;
                 feedback.className = 'form-feedback error';
+                fieldError(document.getElementById('join-password'), copy().errorPasswordRequired);
                 document.getElementById('join-password').focus();
                 return;
             }
@@ -1646,8 +1746,10 @@
             sessionStorage.setItem('halastudyRoomCode', code);
             if (password) {
                 sessionStorage.setItem('halastudyRoomPassword', password);
+                sessionStorage.setItem('halastudyRoomPasswordCode', code);
             } else {
                 sessionStorage.removeItem('halastudyRoomPassword');
+                sessionStorage.removeItem('halastudyRoomPasswordCode');
             }
 
             feedback.textContent = copy().redirecting;
@@ -1657,8 +1759,16 @@
 
         void loadRuntimeConfig();
         setDefaultScheduleFields();
-        restoreRoomDraft();
+        restoreDraft();
+        togglePasswordFields();
         toggleScheduleFields();
+        draftFields.forEach(id => {
+            const input = document.getElementById(id);
+            fieldError(input, '');
+            input.addEventListener('input', () => { fieldError(input, ''); saveDraft(); });
+            input.addEventListener('change', saveDraft);
+        });
+        document.getElementById('schedule-gate-cta').addEventListener('click', saveDraft);
         initAccountFeatures();
         applyLanguage();
         // Patched 2026-05-17: honor /open.html#join from landing's secondary CTA — open the join form on load.

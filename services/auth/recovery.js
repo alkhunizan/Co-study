@@ -64,7 +64,7 @@ function registerRecoveryRoutes(router, deps, mutateAccount) {
             })().catch(() => logger.error({ event: 'account_recovery_delivery_failed' })).finally(() => { jobs--; });
         });
     }
-    async function accept(req, res, email, purpose, user) {
+    async function accept(res, email, purpose, user) {
         if (queue) {
             try {
                 await mail.accept(user, email, purpose, queue.size);
@@ -79,13 +79,13 @@ function registerRecoveryRoutes(router, deps, mutateAccount) {
         const email = normalizeEmail(req.body?.email);
         if (limited(req, res, email || 'invalid')) return;
         if (jobs + (queue?.size() || 0) >= 100) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });
-        return accept(req, res, email, 'reset', users.get(usersByEmail.get(email)));
+        return accept(res, email, 'reset', users.get(usersByEmail.get(email)));
     });
     router.post('/me/email-verification', requireUser, (req, res) => {
         if (!available) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });
         if (limited(req, res, req.user.email)) return;
         if (jobs + (queue?.size() || 0) >= 100) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });
-        return accept(req, res, req.user.email, 'verify', req.user);
+        return accept(res, req.user.email, 'verify', req.user);
     });
     router.post('/auth/recovery/complete', async (req, res) => {
         if (!available) return res.status(503).json({ errorCode: 'RECOVERY_UNAVAILABLE' });

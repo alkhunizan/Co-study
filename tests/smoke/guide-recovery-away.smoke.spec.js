@@ -1,10 +1,10 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const { randomUUID } = require('node:crypto');
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 
 async function guideFixture(browser, language, width) {
-    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh' } });
+    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     const account = await signupUser(server, { displayName: 'Synthetic guide recovery' });
     const request = (path, method = 'GET', body = undefined) => server.request(`/api/platform${path}`, {
         method, body, headers: { Cookie: account.cookie },
@@ -18,7 +18,7 @@ async function guideFixture(browser, language, width) {
         cycles: 2, long_every: 2, requestId: randomUUID(),
     });
     expect(routine.status).toBe(200);
-    const context = await browser.newContext({ viewport: { width, height: 960 } });
+    const context = await createTestContext(browser, { viewport: { width, height: 960 } });
     await context.addCookies(account.cookie.split(';').map((part) => {
         const [name, ...value] = part.trim().split('=');
         return { name, value: value.join('='), url: server.baseUrl };
@@ -26,7 +26,7 @@ async function guideFixture(browser, language, width) {
     await context.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language);
     const page = await context.newPage();
     await page.clock.install();
-    await page.goto(`${server.baseUrl}/app#planner`);
+    await gotoTestPage(page, `${server.baseUrl}/app#planner`);
     await expect(page.locator('#study-task-list .row')).toHaveCount(1);
     await page.locator('.study-tabs [data-lang=routinesTab]').click();
     await page.locator('#study-routine-list [data-lang=useRoutine]').click();

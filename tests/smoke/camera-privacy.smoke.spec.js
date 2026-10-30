@@ -1,8 +1,8 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage } = require('../helpers/playwright-test');
 const { startServer } = require('../helpers/server-control');
 
 let app;
-test.beforeAll(async () => { app = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } }); });
+test.beforeAll(async () => { app = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } }); });
 test.afterAll(async () => { await app?.stop(); });
 
 async function enter(page, mode) {
@@ -41,7 +41,7 @@ async function enter(page, mode) {
             };
         }
     }, mode);
-    await page.goto(app.baseUrl + '/open');
+    await gotoTestPage(page, `${app.baseUrl}/open`);
     await page.fill('#room-name', 'Privacy regression');
     await page.click('#create-form button[type=submit]');
     await page.locator('#create-result').waitFor({ state: 'visible' });

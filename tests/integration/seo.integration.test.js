@@ -89,8 +89,10 @@ test('locale pages render translated content and reciprocal alternatives before 
         for (const html of [ar, en]) {
             assert.ok(html.includes(`hreflang="ar" href="https://halastudy.com${arabic}"`));
             assert.ok(html.includes(`hreflang="en" href="https://halastudy.com${english}"`));
-            assert.ok(html.includes(`href="${arabic}" lang="ar"`));
-            assert.ok(html.includes(`href="${english}" lang="en"`));
+            // The other language is a crawlable link; the current language stays a plain control.
+            const [currentPath, otherPath, otherLang] = html === ar ? [arabic, english, 'en'] : [english, arabic, 'ar'];
+            assert.ok(html.includes(`href="${otherPath}" lang="${otherLang}"`), `${currentPath} links its ${otherLang} alternate`);
+            assert.ok(!html.includes(`href="${currentPath}" lang="`), `${currentPath} never links itself as a language switch`);
             // Bilingual routes are an explicit choice that app pages must inherit.
             assert.match(html, /<html [^>]*data-route-lang="(ar|en)" data-route-lang-persist>/);
         }
@@ -98,7 +100,7 @@ test('locale pages render translated content and reciprocal alternatives before 
     // Arabic-only articles must not overwrite an English preference.
     assert.doesNotMatch((await server.request('/blog/study-with-me-online-arabic')).body, /data-route-lang-persist/);
     const englishHome = (await server.request('/en')).body;
-    assert.match(englishHome, /data-i18n="heroTitle1">A quiet session\.</);
+    assert.match(englishHome, /data-i18n="heroTitle1">Drop in\.</);
     assert.match((await server.request('/en/blog')).body, /<h1 data-lang="blogTitle">From the Halastudy desk<\/h1>/);
     assert.match((await server.request('/en/contact')).body, /<h1 data-lang="heading">Contact Halastudy<\/h1>/);
     assert.match((await server.request('/contact')).body, /href="https:\/\/wa.me\/966599161315"/);

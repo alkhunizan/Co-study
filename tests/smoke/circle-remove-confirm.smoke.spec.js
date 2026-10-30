@@ -1,11 +1,11 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 
 test('removing a circle member asks for confirmation and cancel keeps the member', async ({ browser }) => {
     test.setTimeout(120000);
-    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh' } });
-    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
+    const context = await createTestContext(browser, { viewport: { width: 1280, height: 900 } });
     try {
         const owner = await signupUser(server, { displayName: 'Circle owner' });
         await context.addCookies(owner.cookie.split(';').map((part) => {
@@ -14,7 +14,7 @@ test('removing a circle member asks for confirmation and cancel keeps the member
         }));
         const page = await context.newPage();
         await page.addInitScript(() => { if (!localStorage.getItem('halastudyLang')) localStorage.setItem('halastudyLang', 'en'); });
-        await page.goto(`${server.baseUrl}/plans`);
+        await gotoTestPage(page, `${server.baseUrl}/plans`);
         await page.locator('#checkout-start').click();
         await page.locator('[data-checkout-outcome="success"]').click();
         await expect(page.locator('#billing-management')).toBeVisible();
@@ -28,7 +28,7 @@ test('removing a circle member asks for confirmation and cancel keeps the member
         const accepted = await server.request('/api/platform/cohorts/accept', { method: 'POST', headers: { Cookie: member.cookie }, body: { token } });
         expect(accepted.status).toBe(200);
 
-        await page.goto(`${server.baseUrl}/supervisor`);
+        await gotoTestPage(page, `${server.baseUrl}/supervisor`);
         await page.locator('#circle-list button').click();
         const memberRow = page.locator('#circle-members .row').filter({ hasText: 'Removable member' });
         await expect(memberRow).toBeVisible();

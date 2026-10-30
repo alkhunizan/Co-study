@@ -20,22 +20,26 @@
 
 - أسماء غرف مخصصة مع رموز مشاركة سريعة
 - حماية اختيارية بكلمة مرور مع تشفير PBKDF2
-- فيديو جماعي عبر WebRTC ودردشة مباشرة عبر Socket.IO
+- فيديو مُدار عبر Cloudflare RealtimeKit في الإنتاج، ودردشة مباشرة عبر Socket.IO
 - مؤقت بومودورو مع إحصاءات تركيز يومية
 - لوحة غرفة مشتركة، ومشاركة الحالة، والأصوات المحيطة
 - غرف مجدولة قابلة لإعادة الاستخدام مع توقيت الرياض، وعدّ تنازلي، وتصدير تقويم، ودعوات جاهزة لواتساب
 - حفظ حالة الغرف على القرص للدردشة واللوحة المشتركة
-- إعداد TURN جاهز عبر `ICE_SERVERS_JSON`
-- أوضاع وسائط مُدارة: غرف Mesh حتى 4 أشخاص، وغرف كبيرة عبر SFU عندما يتم ضبط `SFU_BASE_URL`
+- اختبار Mesh/TURN محلي فقط عبر `ICE_SERVERS_JSON` مع بوابة تطوير صريحة
+- وضع Mesh حتى 4 أشخاص متاح محلياً للحسابات المسجلة فقط؛ الإنتاج لا يمرر إشاراته
 - نقاط فحص `health` و`ready` مع حدود إساءة استخدام خفيفة
-- نسخ احتياطي واستعادة يدوية لملف حالة الغرف
+- حسابات اختيارية مع حفظ إحصاءات التركيز والغرف؛ الغرف المجدولة تتطلب حساباً
+- نسخ احتياطي مشفّر يشمل الغرف وبيانات Supabase وسجلات حذف الحسابات
 
 ## التشغيل المحلي
+
+استخدم Node 22. التطبيق يقرأ متغيرات العملية ولا يحمّل `.env` تلقائياً؛ لا
+تستخدم بيانات اعتماد الإنتاج في التطوير أو الاختبارات.
 
 ```bash
 git clone https://github.com/alkhunizan/Co-study.git
 cd Co-study
-npm install
+npm ci
 npm start
 ```
 
@@ -58,16 +62,23 @@ npm run https
 ## أوامر التشغيل والصيانة
 
 ```bash
-npm run check
-npm run audit:prod
-npm run test:integration
+NODE_ENV=test npm run test:ci:quality
+NODE_ENV=test npm run test:ci:infra
 npm run test:smoke
-npm run backup:rooms
-npm run restore:rooms -- /absolute/path/to/backup.json
+npm run backup:state
+npm run restore:state -- /absolute/path/to/artifact.hsbackup
+npm run restore:state -- /absolute/path/to/artifact.hsbackup --apply --writer-stopped
 npm run verify:deploy -- https://your-domain.com
 ```
 
-الاستعادة عملية تشغيلية يدوية. أوقف التطبيق أولاً ثم استعد النسخة ثم أعد التشغيل وبعدها شغّل `verify:deploy`.
+الاستعادة تكون فحصاً جافاً افتراضياً للتحقق من التشفير والمخطط والبصمات وسجلات الحذف. عند التطبيق، أوقف كاتب التطبيق الوحيد أولاً، واستخدم رايتي التطبيق الصريحتين، ثم أعد التشغيل وشغّل `verify:deploy`. راجع [دليل النسخ الاحتياطي والاستعادة المشفّر](./docs/BACKUP-RESTORE.md).
+
+في PowerShell اضبط `$env:NODE_ENV='test'` ثم شغّل أوامر npm دون بادئة Bash.
+تتطلب بوابة البنية التحتية Linux وDocker وtar وShellCheck (أو بديله داخل
+Docker)، مع ملفات shell بنهايات LF. تطبّق الترحيلات الثلاثة مرتين على
+PostgreSQL مؤقت وتفحص صورة Docker وإعداد Nginx. اختبارات المتصفح تشمل
+Chromium وWebKit على سطح المكتب والجوال. ينفّذ `test:ci` المجموعات الثلاث؛
+تشغّلها GitHub Actions في وظائف منفصلة. فحص الأجهزة والمزوّد الحقيقي مستقل.
 
 ## النشر
 
@@ -77,12 +88,38 @@ npm run verify:deploy -- https://your-domain.com
 - `server.js` يعمل على HTTP محلي
 - Nginx ينهي TLS العام
 - `server-https.js` يبقى فقط للاختبار المحلي
+- كاتب PM2 واحد باسم مستخدم الخدمة `halastudy`، والحالة خارج مجلد المصدر
+- مفتاحا `SESSION_SECRET` و`ADMIN_SESSION_SECRET` مطلوبان ومختلفان، كل منهما
+  يمثل 32 بايت عشوائية؛ استخدم `npm run secret:gen`
+- إعداد Supabase كامل وإعداد RealtimeKit كامل مطلوبان؛ لا بديل محلي للحسابات
+- `start.sh` يحمّل ملف الخدمة المحمي؛ ينتظر التشغيل اكتمال تحميل الحالة
+  والعمل المعلّق ومطابقة حالة المزوّد قبل الاستماع للاتصالات
+
+اتبع [تسلسل الترحيل والتراجع](docs/ROLLOUT-COMPATIBILITY.md) قبل تشغيل النسخة.
+الترحيلات بالترتيب: `20260715000000_secure_baseline.sql` ثم
+`20260715010000_account_resurrection_focus_idempotency.sql` ثم
+`20260715020000_room_event_idempotency.sql`. الفحص المحلي لا يطبّقها على الإنتاج.
+
+النسخة المشفّرة الكاملة تشمل `profiles` و`deletion_tombstones` و
+`focus_completion_claims` و`focus_sessions` و`room_events` و`rooms`.
+استخدم `backup.sh` و`restore.sh` باسم مستخدم الخدمة. اكتب سجلات الحذف الواقية
+قبل بقية البيانات عند الاستعادة؛ تُرفض النسخ المستقبلية أو بعمر 30 يوماً
+فأكثر إذا احتوت بيانات حسابات أو غرفاً مملوكة، حتى النسخ المثبّتة.
+ملفا حالة الفيديو واستلام webhooks المشتقان من `ROOM_STATE_FILE` والأسرار
+خارج هذه النسخة؛ احتفظ بها عبر النشر والتراجع وخطّط لاستعادتها بشكل مستقل.
+عطّل المجدول النصّي بـ`BACKUP_INTERVAL_MINUTES=0` وشغّل مؤقت النسخ المشفّر.
+يتطلب رفع R2 تفعيل `BACKUP_R2_ENABLED=true` والإعدادات الأربعة، لا المفاتيح فقط.
+
+بعد إنشاء نسخة يومية كاملة وحديثة، شغّل `verify:deploy` باسم `halastudy` مع
+`--env-file /var/lib/halastudy/.env`. رقم `VERSION` التاريخي `1.2.0.0` يقابل
+رقم npm `1.2.0`؛ فحص الصحة يعرض رقم npm ولا يثبت SHA المصدر المنشور.
+رقم الإصدار القادم لم يُحدّد بعد.
 
 ## التقنيات
 
 - الواجهة الأمامية: JavaScript و HTML و CSS بدون إطار عمل
 - الواجهة الخلفية: Node.js و Express و Socket.IO
-- الاتصال المرئي المباشر: WebRTC
+- الاتصال المرئي: Cloudflare RealtimeKit في الإنتاج وMesh للتطوير فقط
 - الحماية: PBKDF2 مع تحقق آمن زمنياً
 - HTTPS المحلي: عبر `selfsigned`
 - الإنتاج: Nginx HTTPS -> تطبيق HTTP محلي
@@ -94,8 +131,9 @@ npm run verify:deploy -- https://your-domain.com
 - `HTTPS_PORT`: منفذ `server-https.js` المحلي، والافتراضي `3443`
 - `TRUST_PROXY`: استخدم `1` خلف Nginx
 - `ALLOWED_ORIGINS`: قائمة Origins مسموح بها مفصولة بفواصل، وإذا تُركت فارغة يعمل التطبيق بنفس الأصل فقط
-- `ICE_SERVERS_JSON`: إعداد STUN/TURN اختياري
+- `ICE_SERVERS_JSON`: إعداد STUN/TURN لاختبارات التطوير فقط؛ يرفضه تشغيل الإنتاج
 - `MESH_PARTICIPANT_LIMIT`: الحد الأقصى لغرف Mesh، والافتراضي `4`
+- `ENABLE_DEV_MESH`: يجب ضبطه على `true` مع `VIDEO_PROVIDER=mesh` في التطوير/الاختبار، وهو ممنوع في الإنتاج
 - `ROOM_STATE_FILE`: مسار ملف حالة الغرف، والافتراضي `./data/rooms.json`
 - `ROOM_STATE_BACKUP_DIR`: مجلد النسخ الاحتياطية، والافتراضي `./data/backups`
 - `SFU_BASE_URL`: رابط أساسي مطلق `http(s)` لتكامل SFU المضمن
@@ -105,24 +143,27 @@ npm run verify:deploy -- https://your-domain.com
 - الغرف المجدولة تعيد استخدام نفس رمز الغرفة بدل أن تنتهي كغرف مؤقتة عادية.
 - التكرار يدعم `once` و`daily` و`weekdays` و`weekly`، و`weekdays` يتبع أيام العمل السعودية من الأحد إلى الخميس.
 - إعدادات المؤقت وهدف اللوحة عند البداية يتم حفظها مع جدولة الغرفة.
-- الحضور في هذه النسخة على مستوى الغرفة نفسها: عدد الدخول في الوقت، وعدد الجلسات المفوّتة، والسلسلة الحالية.
+- رصيد الالتزام مرتبط بمالك الغرفة المسجّل وبموعد الجلسة؛ إعادة الاتصال أو دخول مشارك آخر لا يغيّران سلسلة المالك.
 
 ## ملاحظات الوسائط
 
-- وضع `mesh` هو الوضع الافتراضي للغرف، ويطبّق الحد الموجود في `MESH_PARTICIPANT_LIMIT`
+- يستخدم الإنتاج `VIDEO_PROVIDER=realtimekit` ولا يعود تلقائياً إلى Mesh حتى للغرف القديمة
+- يتطلب Mesh المحلي `VIDEO_PROVIDER=mesh` و`ENABLE_DEV_MESH=true`، ولا يمرر الكاميرا أو RTC إلا بين مقابس حسابات مسجلة
 - غرف `sfu` لا تظهر إلا عند ضبط `SFU_BASE_URL`
 - الغرفة لا تغيّر وضع الوسائط بعد إنشائها
 - مراقبة التركيز بالذكاء الاصطناعي متاحة في غرف Mesh فقط
 
 ## فحص وسائط يدوي قبل الإطلاق
 
-- غرفة Mesh لشخصين مع تشغيل الكاميرا على الطرفين
-- غرفة Mesh بأربعة أشخاص عند الحد الأقصى
-- التأكد من منع المشارك الخامس من دخول غرفة Mesh ممتلئة
-- إنشاء غرفة SFU والتأكد من تحميل الجلسة المضمنة
-- اختبار كلمة المرور في وضعي Mesh وSFU
+- غرفة RealtimeKit لشخصين بالكاميرا، مع بقاء المايك مغلقاً
+- السماح بالسعة المضبوطة حتى 20 مشاركاً ومنع المشارك التالي قبل إصدار رمز
+- التحقق من كلمة مرور الغرفة قبل إصدار رمز الفيديو
+- التحقق من تعطيل التسجيل ومشاركة الشاشة ودردشة المزوّد
+- تسجيل webhook للأحداث `meeting.participantJoined` و`meeting.participantLeft`
+  و`meeting.ended` عند `/api/webhooks/realtimekit`؛ أمر إعداد presets لا يسجّله
+- رفض التوقيعات المزورة وإثبات وصول الأحداث الموقّعة وتحمّل تكرارها
 - فصل الاتصال ثم إعادة الدخول أثناء الجلسة
-- تجربة شبكات تحتاج TURN
+- اختبار شبكتين خلويتين سعوديتين وWi-Fi ضعيف وجلسة لمدة 60 دقيقة
 - Chrome على سطح المكتب وChrome على أندرويد وSafari على iPhone
 
 ## هيكل المشروع
@@ -131,6 +172,11 @@ npm run verify:deploy -- https://your-domain.com
 Co-study/
 ├── landing.html
 ├── index.html
+├── open.html / account.html / lobby.html
+├── blog*.html / privacy.html / terms.html / 404.html / admin.html
+├── public/js/            # المنطق المشترك وindex-app.js وعملاء الفيديو
+├── services/
+├── supabase/migrations/
 ├── server.js
 ├── server-https.js
 ├── co-study-server.js

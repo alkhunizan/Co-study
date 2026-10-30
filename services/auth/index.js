@@ -1,13 +1,18 @@
 // Pure auth primitives: HMAC session tokens + input validators. No I/O.
 //
-// Token format (stateless, node:crypto only):
+// Token formats (stateless, node:crypto only):
 //   v1.<userId>.<tokenEpoch>.<issuedAtMs>.<base64url HMAC-SHA256 signature>
+//   v2.<userId>.<tokenEpoch>.<issuedAtMs>.<base64url sessionId>.<signature>
+// v1 remains for purpose-separated admin cookies. User cookies are v2 and
+// verify only alongside the exact signed anonymous browser session they were
+// issued into.
 // Revocation is per-user via tokenEpoch: ban/delete/password-change bumps the
 // epoch and every outstanding cookie stops verifying. Rotating SESSION_SECRET
 // signs everyone out.
 const crypto = require('node:crypto');
 
 const TOKEN_VERSION = 'v1';
+const SESSION_BOUND_TOKEN_VERSION = 'v2';
 // Anonymous (guest) session tokens: a signed wrapper around a random session
 // id so an unauthenticated `coStudySessionId` cookie cannot be forged or
 // picked by the client. No epoch/expiry — the cookie Max-Age bounds lifetime.
@@ -50,37 +55,61 @@ function signPayload(payload, secret) {
     return crypto.createHmac('sha256', secret).update(payload).digest('base64url');
 }
 
-/** @param {{ userId: string, tokenEpoch: number, secret: string, now?: number }} options */
-function createSessionToken({ userId, tokenEpoch, secret, now = Date.now() }) {
+function sessionBinding(sessionId) {
+    return Buffer.from(sessionId, 'utf8').toString('base64url');
+}
+
+/** @param {{ userId: string, tokenEpoch: number, secret: string, sessionId?: string, now?: number }} options */
+function createSessionToken({ userId, tokenEpoch, secret, sessionId, now = Date.now() }) {
     if (!userId || !Number.isInteger(tokenEpoch) || !secret) {
         throw new Error('createSessionToken requires userId, tokenEpoch, and secret.');
     }
-    const payload = `${TOKEN_VERSION}.${userId}.${tokenEpoch}.${now}`;
+    if (sessionId !== undefined && (typeof sessionId !== 'string' || !sessionId)) {
+        throw new Error('createSessionToken sessionId must be a non-empty string.');
+    }
+    const payload = sessionId === undefined
+        ? `${TOKEN_VERSION}.${userId}.${tokenEpoch}.${now}`
+        : `${SESSION_BOUND_TOKEN_VERSION}.${userId}.${tokenEpoch}.${now}.${sessionBinding(sessionId)}`;
     return `${payload}.${signPayload(payload, secret)}`;
 }
 
 /**
  * @param {string} token
- * @param {{ secret: string, maxAgeMs?: number, now?: number }} options
+ * @param {{ secret: string, sessionId?: string, maxAgeMs?: number, now?: number }} options
  */
-function verifySessionToken(token, { secret, maxAgeMs, now = Date.now() } = /** @type {any} */ ({})) {
+function verifySessionToken(token, { secret, sessionId, maxAgeMs, now = Date.now() } = /** @type {any} */ ({})) {
     if (typeof token !== 'string' || !secret) return null;
     const parts = token.split('.');
-    if (parts.length !== 5 || parts[0] !== TOKEN_VERSION) return null;
-    const [version, userId, rawEpoch, rawIssuedAt, signature] = parts;
+    const version = parts[0];
+    const isBound = version === SESSION_BOUND_TOKEN_VERSION;
+    if ((!isBound && (version !== TOKEN_VERSION || parts.length !== 5)) || (isBound && parts.length !== 6)) {
+        return null;
+    }
+    // A caller that supplies a browser session is asking for a user token and
+    // must never silently accept an unbound legacy/admin token. Conversely, a
+    // bound user token is unusable without its exact companion session.
+    if (isBound !== (typeof sessionId === 'string' && !!sessionId)) return null;
+
+    const [, userId, rawEpoch, rawIssuedAt] = parts;
+    const rawSessionBinding = isBound ? parts[4] : null;
+    const signature = parts.at(-1);
     const tokenEpoch = Number.parseInt(rawEpoch, 10);
     const issuedAt = Number.parseInt(rawIssuedAt, 10);
-    if (!userId || !Number.isInteger(tokenEpoch) || !Number.isFinite(issuedAt)) return null;
+    if (!userId || !signature || !Number.isInteger(tokenEpoch) || !Number.isFinite(issuedAt)) return null;
     if (Number.isFinite(maxAgeMs) && now - issuedAt > maxAgeMs) return null;
     if (issuedAt > now + 60 * 1000) return null;
 
-    const expected = signPayload(`${version}.${userId}.${rawEpoch}.${rawIssuedAt}`, secret);
+    const payload = parts.slice(0, -1).join('.');
+    const expected = signPayload(payload, secret);
     const expectedBuffer = Buffer.from(expected);
     const actualBuffer = Buffer.from(signature);
     if (expectedBuffer.length !== actualBuffer.length) return null;
     if (!crypto.timingSafeEqual(expectedBuffer, actualBuffer)) return null;
+    if (isBound && rawSessionBinding !== sessionBinding(sessionId)) return null;
 
-    return { userId, tokenEpoch, issuedAt };
+    return isBound
+        ? { userId, tokenEpoch, issuedAt, sessionId }
+        : { userId, tokenEpoch, issuedAt };
 }
 
 /**

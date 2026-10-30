@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Halastudy Ops console. Operator tool for the founder — deliberately
-     English-only (DESIGN.md governs product surfaces; this is not one).
-     Everything is inlined: this page must not leak its existence through
-     public asset paths. Served only when ADMIN_PATH + ADMIN_PASSWORD_HASH
-     are configured. -->
+<!-- Halastudy Ops console. Operator tool for the founder, laid out like the
+     Ops workspace: section sidebar, AR/EN shell copy and the shared design
+     tokens. Everything else is inlined: this page must not leak its
+     existence through public asset paths. Served only when ADMIN_PATH +
+     ADMIN_PASSWORD_HASH are configured. -->
 <html lang="en" dir="ltr" data-theme="dark">
 <head>
   <meta charset="UTF-8">
@@ -20,10 +20,33 @@
       font: 400 var(--t-body-sm)/1.5 var(--font-body);
       min-height: 100vh;
     }
-    .shell { max-width: 1080px; margin-inline: auto; padding: 24px 20px 80px; }
-    .ops-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
-    .ops-header h1 { font: 600 var(--t-h3)/1.2 var(--font-body); margin: 0; }
-    .ops-header .spacer { flex: 1; }
+    html[lang="ar"] body { font-family: var(--font-body-ar); }
+    .skip-link { position: absolute; inset-inline-start: 12px; inset-block-start: -60px; padding: 10px 16px; border-radius: 999px; background: var(--card); color: var(--ink); z-index: 10; }
+    .skip-link:focus { inset-block-start: 12px; outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+    .ops-topbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 24px; border-block-end: 1px solid var(--line); background: var(--paper); }
+    .brand { font: 600 var(--t-h4)/1 var(--font-display); color: var(--ink); text-decoration: none; display: inline-flex; gap: 8px; align-items: baseline; }
+    .brand [lang="ar"] { font-family: var(--font-display-ar); color: var(--accent-3); }
+    .ops-topbar .spacer { flex: 1; }
+    .lang-switch { display: inline-flex; gap: 4px; }
+    .lang-switch .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--line-strong); }
+    .ops-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-inline-size: 1440px; margin-inline: auto; min-block-size: calc(100vh - 70px); }
+    .ops-sidebar { padding: 32px 18px; border-inline-end: 1px solid var(--line); min-inline-size: 0; }
+    .eyebrow { margin: 0 0 18px; color: var(--ink-2); font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+    html[lang="ar"] .eyebrow { letter-spacing: 0; text-transform: none; font-size: var(--t-caption); }
+    #ops-nav { display: grid; gap: 4px; }
+    #ops-nav a { display: flex; align-items: center; min-block-size: 44px; padding: 10px 16px; border-radius: 16px; color: var(--ink-2); text-decoration: none; font-weight: 600; }
+    #ops-nav a:hover { color: var(--ink); background: var(--inset); }
+    #ops-nav a:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+    #ops-nav a[aria-current="page"] { color: var(--ink); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--line); }
+    .ops-mobile-nav { display: none; }
+    .ops-main { padding: 32px 28px 80px; min-inline-size: 0; }
+    .ops-main:focus { outline: none; }
+    .ops-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-block-end: 20px; }
+    .ops-heading h1 { font: 500 clamp(28px, 3.4vw, 40px)/1.15 var(--font-display); margin: 0 0 6px; }
+    html[lang="ar"] .ops-heading h1 { font-family: var(--font-display-ar); }
+    .ops-heading p { margin: 0; color: var(--ink-2); font-size: var(--t-body); }
+    .ops-heading .btn { flex-shrink: 0; }
+    .ops-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-block-end: 18px; }
     .chip {
       font-family: var(--font-mono);
       font-size: var(--t-caption);
@@ -32,20 +55,8 @@
       border-radius: 999px;
       padding: 6px 14px;
       font-variant-numeric: tabular-nums;
+      letter-spacing: 0.06em;
     }
-    .tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
-    .tabs button {
-      border: 1px solid var(--line);
-      background: var(--card);
-      color: var(--ink-2);
-      font: 600 var(--t-caption)/1 var(--font-body);
-      padding: 10px 18px;
-      border-radius: 999px;
-      cursor: pointer;
-      min-height: 36px;
-    }
-    .tabs button.is-on { background: var(--inset); color: var(--ink); border-color: var(--line-strong); }
-    .tabs button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
     .panel { display: none; }
     .panel.is-on { display: block; }
     .card {
@@ -53,16 +64,19 @@
       border: 1px solid var(--line);
       border-radius: 16px;
       padding: 20px;
-      margin-bottom: 16px;
+      margin-block-end: 16px;
+      overflow-x: auto;
     }
     .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-    .tile { background: var(--inset); border: 1px solid var(--line-2); border-radius: var(--r-xl); padding: 14px; }
+    .tile { background: var(--inset); border: 1px solid var(--line-2); border-radius: 12px; padding: 14px; }
     .tile strong { display: block; font-size: var(--t-h3); font-variant-numeric: tabular-nums; }
     .tile span { color: var(--ink-2); font-size: var(--t-micro); text-transform: uppercase; letter-spacing: 0.08em; }
     table { width: 100%; border-collapse: collapse; font-size: var(--t-caption); }
-    th, td { text-align: start; padding: 8px 10px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
-    th { color: var(--ink-3); font-weight: 600; text-transform: uppercase; font-size: var(--t-micro); letter-spacing: 0.06em; }
-    td.mono, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    th, td { text-align: start; padding: 8px 10px; border-block-end: 1px solid var(--line-2); vertical-align: top; }
+    th { color: var(--ink-2); font-weight: 600; text-transform: uppercase; font-size: var(--t-micro); letter-spacing: 0.06em; }
+    /* Uppercase and tracking break joined Arabic letters. */
+    html[lang="ar"] th, html[lang="ar"] .tile span { letter-spacing: 0; text-transform: none; font-size: var(--t-caption); }
+    td.mono, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
     .btn {
       border: 1px solid var(--line);
       background: var(--card);
@@ -71,18 +85,20 @@
       padding: 8px 16px;
       border-radius: 999px;
       cursor: pointer;
-      min-height: 32px;
+      min-height: 36px;
     }
     .btn:hover { border-color: var(--line-strong); }
     .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
-    .btn.danger { border-color: var(--danger); color: var(--danger); }
+    .btn.danger { border-color: var(--danger); color: color-mix(in srgb, var(--danger) 78%, var(--ink)); }
     .btn.danger:hover { background: var(--danger-soft); }
-    .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+    /* Deliberate fixed ink (DESIGN.md §12): --ink turns light in dark mode and
+       would fail contrast on the amber fill, which stays amber in both themes. */
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #2D3436; }
     .btn[disabled] { opacity: 0.45; cursor: default; }
     input[type="password"], input[type="text"], input[type="search"], textarea, select {
       width: 100%;
-      padding: 10px 14px;
-      border-radius: 12px;
+      padding: 12px 16px;
+      border-radius: 16px;
       border: 1px solid var(--line);
       background: var(--inset);
       color: var(--ink);
@@ -91,31 +107,53 @@
     input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); border-color: var(--accent); }
     label { display: block; font-weight: 600; font-size: var(--t-caption); margin: 14px 0 6px; }
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .feedback { color: var(--danger); font-size: var(--t-caption); min-height: 18px; margin-top: 8px; }
+    .feedback { color: var(--danger); font-size: var(--t-caption); min-height: 18px; margin-block-start: 8px; }
     .feedback.ok { color: var(--success); }
-    .muted { color: var(--ink-3); font-size: var(--t-caption); }
-    .login-shell { max-width: 380px; margin: 15vh auto 0; padding-inline: 20px; }
+    .muted { color: var(--ink-2); font-size: var(--t-caption); }
+    .login-shell { max-inline-size: 380px; margin: 15vh auto 0; padding-inline: 20px; }
     .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-inline-end: 6px; }
     .status-dot.on { background: var(--success); }
     .status-dot.off { background: var(--danger); }
     pre { background: var(--inset); border-radius: 10px; padding: 10px; overflow-x: auto; font-size: 11px; margin: 6px 0 0; }
-    dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--ink); padding: 24px; max-width: 420px; }
+    /* Scrollable blocks are keyboard-focusable in Chrome. */
+    pre:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+    dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--ink); padding: 24px; max-inline-size: 420px; }
     dialog::backdrop { background: var(--overlay); }
     dialog h3 { margin: 0 0 10px; }
     dialog input { margin: 14px 0; }
+    dialog textarea { display: block; margin: 6px 0 14px; }
     .hidden { display: none !important; }
+    /* Layout overrides last so they win over the base rules above. */
+    @media (max-width: 850px) {
+      .ops-layout { grid-template-columns: minmax(0, 1fr); align-content: start; }
+      .ops-sidebar { padding: 16px 20px; border-inline-end: none; border-block-end: 1px solid var(--line); }
+      .ops-sidebar .eyebrow, #ops-nav { display: none; }
+      .ops-mobile-nav { display: grid; gap: 6px; margin: 0; }
+      .ops-main { padding: 24px 20px 64px; }
+      .ops-topbar { padding: 12px 20px; }
+      .btn, .skip-link { min-height: 44px; }
+    }
+    @media (max-width: 540px) {
+      .ops-heading { flex-wrap: wrap; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    }
   </style>
 </head>
 <body>
   <!-- Login -->
   <div class="login-shell" id="login-view">
     <div class="card">
-      <h1 style="font-size:18px;margin:0 0 14px;">Halastudy Ops</h1>
+      <div class="row">
+        <h1 style="font-size:18px;margin:0;flex:1;" data-i18n="loginTitle">Halastudy Ops</h1>
+        <div class="lang-switch" data-lang-switch></div>
+      </div>
       <form id="login-form">
-        <label for="admin-password">Password</label>
-        <input type="password" id="admin-password" autocomplete="current-password" required>
-        <div class="row" style="margin-top:16px;">
-          <button type="submit" class="btn primary">Sign in</button>
+        <label for="admin-password" data-i18n="password">Password</label>
+        <input type="password" id="admin-password" autocomplete="current-password" required dir="ltr">
+        <div class="row" style="margin-block-start:16px;">
+          <button type="submit" class="btn primary" data-i18n="signIn">Sign in</button>
         </div>
         <p class="feedback" id="login-feedback"></p>
       </form>
@@ -123,29 +161,44 @@
   </div>
 
   <!-- Shell -->
-  <div class="shell hidden" id="ops-shell">
-    <div class="ops-header">
-      <h1>Halastudy Ops</h1>
-      <span class="chip" id="uptime-chip">up —</span>
-      <span class="chip" id="memory-chip">rss —</span>
+  <div class="hidden" id="ops-shell">
+    <a class="skip-link" href="#main" data-i18n="skip">Skip to content</a>
+    <header class="ops-topbar">
+      <span class="brand"><span lang="en" dir="ltr">Halastudy</span><span lang="ar">هلا</span></span>
       <div class="spacer"></div>
-      <button type="button" class="btn" id="btn-refresh">Refresh</button>
-      <button type="button" class="btn" id="btn-admin-signout">Sign out</button>
-    </div>
-    <p id="signout-feedback" class="feedback" role="alert"></p>
-    <p id="request-feedback" class="feedback" role="alert"></p>
+      <div class="lang-switch" data-lang-switch></div>
+      <button type="button" class="btn" id="btn-theme" data-i18n="theme">Theme</button>
+      <button type="button" class="btn" id="btn-admin-signout" data-i18n="signOut">Sign out</button>
+    </header>
+    <div class="ops-layout">
+      <aside class="ops-sidebar">
+        <p class="eyebrow" data-i18n="workspace">Platform administration</p>
+        <nav id="ops-nav" aria-label="Platform administration" data-i18n-aria="workspace">
+          <a href="#overview" data-section="overview" data-i18n="overview">Overview</a>
+          <a href="#rooms" data-section="rooms" data-i18n="rooms">Rooms</a>
+          <a href="#users" data-section="users" data-i18n="users">Users</a>
+          <a href="#reports" data-section="reports" data-i18n="reports">Reports &amp; Support</a>
+          <a href="#audit" data-section="audit" data-i18n="audit">Audit</a>
+          <a href="#system" data-section="system" data-i18n="system">System</a>
+        </nav>
+        <label class="ops-mobile-nav"><span data-i18n="navigate">Go to section</span>
+          <select id="ops-section-select"></select>
+        </label>
+      </aside>
+      <main class="ops-main" id="main" tabindex="-1">
+        <div class="ops-heading">
+          <div>
+            <h1 id="ops-title" tabindex="-1">Overview</h1>
+            <p id="ops-description"></p>
+          </div>
+          <button type="button" class="btn" id="btn-refresh" data-i18n="refresh">Refresh</button>
+        </div>
 
-    <div class="tabs" id="tabs">
-      <button data-panel="overview" class="is-on">Overview</button>
-      <button data-panel="rooms">Rooms</button>
-      <button data-panel="users">Users</button>
-      <button data-panel="reports">Reports</button>
-      <button data-panel="video">Video</button>
-      <button data-panel="announce">Announce</button>
-      <button data-panel="system">System</button>
-    </div>
-
-    <section class="panel is-on" id="panel-overview">
+    <section class="panel" id="panel-overview">
+      <div class="ops-chips">
+        <span class="chip" id="uptime-chip" dir="auto">up —</span>
+        <span class="chip" id="memory-chip" dir="auto">rss —</span>
+      </div>
       <div class="card">
         <div class="tiles" id="overview-tiles"></div>
         <p class="muted" id="overview-updated" style="margin:12px 0 0;"></p>
@@ -155,19 +208,25 @@
     <section class="panel" id="panel-rooms">
       <div class="card">
         <table>
-          <thead><tr><th>Code</th><th>Name</th><th>People</th><th>Mode</th><th>Video</th><th>Locked</th><th></th></tr></thead>
+          <thead><tr>
+            <th data-i18n="colCode">Code</th><th data-i18n="colName">Name</th><th data-i18n="colPeople">People</th>
+            <th data-i18n="colMode">Mode</th><th data-i18n="colVideo">Video</th><th data-i18n="colLocked">Locked</th><th></th>
+          </tr></thead>
           <tbody id="rooms-tbody"></tbody>
         </table>
-        <p class="muted" id="rooms-empty" hidden>No live rooms.</p>
+        <p class="muted" id="rooms-empty" data-i18n="noRooms" hidden>No live rooms.</p>
       </div>
       <div class="card hidden" id="room-inspect">
         <div class="row">
           <h3 style="margin:0;flex:1;" id="inspect-title">Room</h3>
-          <button type="button" class="btn" id="inspect-close-view">Close view</button>
-          <button type="button" class="btn danger" id="inspect-force-close">Force close room</button>
+          <button type="button" class="btn" id="inspect-close-view" data-i18n="closeView">Close view</button>
+          <button type="button" class="btn danger" id="inspect-force-close" data-i18n="forceClose">Force close room</button>
         </div>
-        <table style="margin-top:12px;">
-          <thead><tr><th>Name</th><th>Session</th><th>Camera</th><th>Joined</th><th></th></tr></thead>
+        <table style="margin-block-start:12px;">
+          <thead><tr>
+            <th data-i18n="colName">Name</th><th data-i18n="colSession">Session</th><th data-i18n="colCamera">Camera</th>
+            <th data-i18n="colJoined">Joined</th><th></th>
+          </tr></thead>
           <tbody id="inspect-participants"></tbody>
         </table>
         <p class="muted" id="inspect-meta" style="margin:10px 0 0;"></p>
@@ -177,12 +236,15 @@
     <section class="panel" id="panel-users">
       <div class="card">
         <div class="row">
-          <input type="search" id="user-search" placeholder="Search email or name" style="max-width:320px;">
-          <button type="button" class="btn" id="user-search-btn">Search</button>
+          <input type="search" id="user-search" data-i18n-placeholder="searchUsers" placeholder="Search email or name" style="max-width:320px;">
+          <button type="button" class="btn" id="user-search-btn" data-i18n="search">Search</button>
           <span class="muted" id="users-total"></span>
         </div>
-        <table style="margin-top:14px;">
-          <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Streak</th><th>Focus min</th><th>Status</th><th></th></tr></thead>
+        <table style="margin-block-start:14px;">
+          <thead><tr>
+            <th data-i18n="colName">Name</th><th data-i18n="colEmail">Email</th><th data-i18n="colJoined">Joined</th>
+            <th data-i18n="colStreak">Streak</th><th data-i18n="colFocus">Focus min</th><th data-i18n="colStatus">Status</th><th></th>
+          </tr></thead>
           <tbody id="users-tbody"></tbody>
         </table>
       </div>
@@ -191,76 +253,100 @@
     <section class="panel" id="panel-reports">
       <div class="card">
         <div class="row">
-          <h3 style="margin:0;flex:1;">User reports</h3>
+          <h3 style="margin:0;flex:1;" data-i18n="reportsHeading">User reports</h3>
           <span class="muted" id="reports-total"></span>
         </div>
-        <table style="margin-top:14px;">
-          <thead><tr><th>Room</th><th>Target</th><th>Reporter</th><th>Reason</th><th>When</th><th>Status</th><th></th></tr></thead>
+        <table style="margin-block-start:14px;">
+          <thead><tr>
+            <th data-i18n="colRoom">Room</th><th data-i18n="colTarget">Target</th><th data-i18n="colReporter">Reporter</th>
+            <th data-i18n="colReason">Reason</th><th data-i18n="colWhen">When</th><th data-i18n="colStatus">Status</th><th></th>
+          </tr></thead>
           <tbody id="reports-tbody"></tbody>
         </table>
-        <p class="muted" id="reports-empty" hidden>No reports.</p>
+        <p class="muted" id="reports-empty" data-i18n="noReports" hidden>No reports.</p>
       </div>
     </section>
 
-    <section class="panel" id="panel-video">
+    <section class="panel" id="panel-audit">
       <div class="card">
-        <h3 style="margin:0 0 10px;">Video join kill-switch</h3>
-        <p class="muted">Runtime override only — a server restart falls back to the env default. Flipping this to ON blocks all new video tokens immediately.</p>
-        <div class="row" style="margin-top:12px;">
-          <span id="kill-switch-state"><span class="status-dot on"></span>video joins allowed</span>
-          <button type="button" class="btn danger" id="kill-switch-toggle">Disable video joins</button>
+        <div class="row">
+          <label for="audit-action" style="margin:0;" data-i18n="auditFilter">Action</label>
+          <select id="audit-action" style="max-width:260px;"></select>
+          <span class="muted" id="audit-total"></span>
         </div>
-        <p class="muted" id="video-counts" style="margin-top:12px;"></p>
-      </div>
-    </section>
-
-    <section class="panel" id="panel-announce">
-      <div class="card">
-        <h3 style="margin:0 0 10px;">Broadcast banner</h3>
-        <p class="muted">Shown on every page and pushed to every open room. Leave a field empty to skip that language.</p>
-        <label for="announce-ar">Arabic message</label>
-        <textarea id="announce-ar" rows="2" maxlength="200" dir="rtl"></textarea>
-        <label for="announce-en">English message</label>
-        <textarea id="announce-en" rows="2" maxlength="200"></textarea>
-        <label for="announce-duration">Duration</label>
-        <select id="announce-duration">
-          <option value="30">30 minutes</option>
-          <option value="60" selected>1 hour</option>
-          <option value="240">4 hours</option>
-          <option value="1440">24 hours</option>
-          <option value="0">Until cleared</option>
-        </select>
-        <div class="row" style="margin-top:14px;">
-          <button type="button" class="btn primary" id="announce-publish">Publish</button>
-          <button type="button" class="btn" id="announce-clear">Clear active</button>
-          <span class="muted" id="announce-active"></span>
+        <table style="margin-block-start:14px;">
+          <thead><tr>
+            <th data-i18n="colWhen">When</th><th data-i18n="colAction">Action</th><th data-i18n="colTarget">Target</th>
+            <th data-i18n="colReason">Reason</th><th data-i18n="colIp">IP</th>
+          </tr></thead>
+          <tbody id="audit-tbody"></tbody>
+        </table>
+        <p class="muted" id="audit-empty" data-i18n="noAudit" hidden>Admin actions will appear here.</p>
+        <div class="row" style="margin-block-start:12px;">
+          <button type="button" class="btn" id="audit-more" data-i18n="loadMore" hidden>Load more</button>
         </div>
-        <p class="feedback" id="announce-feedback"></p>
       </div>
     </section>
 
     <section class="panel" id="panel-system">
       <div class="card">
-        <h3 style="margin:0 0 10px;">Backups</h3>
+        <h3 style="margin:0 0 10px;" data-i18n="killSwitchTitle">Video join kill-switch</h3>
+        <p class="muted" data-i18n="killSwitchBody">Runtime override only — a server restart falls back to the env default. Flipping this to ON blocks all new video tokens immediately.</p>
+        <div class="row" style="margin-block-start:12px;">
+          <span id="kill-switch-state"><span class="status-dot on"></span><span id="kill-switch-label" data-i18n="videoAllowed">video joins allowed</span></span>
+          <button type="button" class="btn danger" id="kill-switch-toggle" data-i18n="disableVideo">Disable video joins</button>
+        </div>
+        <p class="muted" id="video-counts" style="margin-block-start:12px;"></p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 10px;" data-i18n="announceTitle">Broadcast banner</h3>
+        <p class="muted" data-i18n="announceBody">Shown on every page and pushed to every open room. Leave a field empty to skip that language.</p>
+        <label for="announce-ar" data-i18n="announceAr">Arabic message</label>
+        <textarea id="announce-ar" rows="2" maxlength="200" dir="rtl"></textarea>
+        <label for="announce-en" data-i18n="announceEn">English message</label>
+        <textarea id="announce-en" rows="2" maxlength="200" dir="ltr"></textarea>
+        <label for="announce-duration" data-i18n="announceDuration">Duration</label>
+        <select id="announce-duration">
+          <option value="30" data-i18n="dur30">30 minutes</option>
+          <option value="60" data-i18n="dur60" selected>1 hour</option>
+          <option value="240" data-i18n="dur240">4 hours</option>
+          <option value="1440" data-i18n="dur1440">24 hours</option>
+          <option value="0" data-i18n="durUntilCleared">Until cleared</option>
+        </select>
+        <div class="row" style="margin-block-start:14px;">
+          <button type="button" class="btn primary" id="announce-publish" data-i18n="publish">Publish</button>
+          <button type="button" class="btn" id="announce-clear" data-i18n="clearActive">Clear active</button>
+          <span class="muted" id="announce-active"></span>
+        </div>
+        <p class="feedback" id="announce-feedback"></p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 10px;" data-i18n="backupsTitle">Backups</h3>
         <div class="row">
-          <button type="button" class="btn" id="backup-now">Run backup now</button>
+          <button type="button" class="btn" id="backup-now" data-i18n="backupNow">Run backup now</button>
           <span class="muted" id="backup-status"></span>
         </div>
       </div>
       <div class="card">
-        <h3 style="margin:0 0 10px;">Recent warnings &amp; errors</h3>
-        <div id="errors-list" class="muted">Loading…</div>
+        <h3 style="margin:0 0 10px;" data-i18n="errorsTitle">Recent warnings &amp; errors</h3>
+        <div id="errors-list" class="muted" data-i18n="loading">Loading…</div>
       </div>
     </section>
+      </main>
+    </div>
   </div>
 
   <dialog id="confirm-dialog">
     <h3 id="confirm-title">Confirm</h3>
     <p class="muted" id="confirm-body"></p>
-    <input type="text" id="confirm-input" autocomplete="off">
+    <input type="text" id="confirm-input" autocomplete="off" dir="auto">
+    <label class="muted" for="confirm-reason" id="confirm-reason-label" data-i18n="reasonLabel">Reason (kept in the audit log)</label>
+    <textarea id="confirm-reason" rows="2" maxlength="300"></textarea>
     <div class="row">
-      <button type="button" class="btn danger" id="confirm-yes" disabled>Confirm</button>
-      <button type="button" class="btn" id="confirm-no">Cancel</button>
+      <button type="button" class="btn danger" id="confirm-yes" data-i18n="confirm" disabled>Confirm</button>
+      <button type="button" class="btn" id="confirm-no" data-i18n="cancel">Cancel</button>
     </div>
   </dialog>
 
@@ -276,23 +362,179 @@
           options.headers['Content-Type'] = 'application/json';
           options.body = JSON.stringify(body);
         }
-        const controller = new AbortController();
-        options.signal = controller.signal;
-        const deadline = setTimeout(() => controller.abort(), 15000);
-        try {
-          const response = await fetch(`${BASE}/api${apiPath}`, options);
-          const payload = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            const error = new Error(payload.errorCode || `HTTP ${response.status}`);
-            error.code = payload.errorCode;
-            error.status = response.status;
-            throw error;
-          }
-          return payload;
-        } finally {
-          clearTimeout(deadline);
+        const response = await fetch(`${BASE}/api${apiPath}`, options);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const error = new Error(payload.errorCode || `HTTP ${response.status}`);
+          error.code = payload.errorCode;
+          error.status = response.status;
+          throw error;
         }
+        return payload;
       }
+
+      /* ---------- copy (AR/EN) ---------- */
+      // Strings with {name} placeholders are filled by t(key, values).
+      const COPY = {
+        en: {
+          loginTitle: 'Halastudy Ops', password: 'Password', signIn: 'Sign in', skip: 'Skip to content',
+          wrongPassword: 'Wrong password.', lockedOut: 'Locked out — wait a few minutes.',
+          theme: 'Theme', signOut: 'Sign out', workspace: 'Platform administration', navigate: 'Go to section',
+          refresh: 'Refresh', overview: 'Overview', rooms: 'Rooms', users: 'Users',
+          reports: 'Reports & Support', audit: 'Audit', system: 'System',
+          overviewBody: 'See how the platform is doing. Start with what needs attention.',
+          roomsBody: 'Current rooms, participants and session controls.',
+          usersBody: 'Find an account and review its status before taking action.',
+          reportsBody: 'Review reports from rooms and act on them.',
+          auditBody: 'Every admin action, who took it from where, its target and the reason given.',
+          systemBody: 'Monitor operations. Manage video entry, announcements and backups.',
+          loading: 'Loading…', confirm: 'Confirm', cancel: 'Cancel', typeToConfirm: 'Type "{value}"',
+          reasonLabel: 'Reason (kept in the audit log)',
+          tileRooms: 'Live rooms', tileParticipants: 'Participants', tileVideoNow: 'Video now',
+          tileAccounts: 'Accounts', tileBanned: 'Banned', tileVideoJoins: 'Video joins', on: 'ON', off: 'OFF',
+          updatedAt: 'Updated {time}',
+          colCode: 'Code', colName: 'Name', colPeople: 'People', colMode: 'Mode', colVideo: 'Video',
+          colLocked: 'Locked', colSession: 'Session', colCamera: 'Camera', colJoined: 'Joined',
+          colEmail: 'Email', colStreak: 'Streak', colFocus: 'Focus min', colStatus: 'Status', colRoom: 'Room',
+          colTarget: 'Target', colReporter: 'Reporter', colReason: 'Reason', colWhen: 'When',
+          colAction: 'Action', colIp: 'IP',
+          yes: 'yes', cameraOn: 'on', cameraOff: 'off', noRooms: 'No live rooms.', inspect: 'Inspect',
+          kick: 'Kick', closeView: 'Close view', forceClose: 'Force close room',
+          inspectMeta: 'Created {created} · {messages} chat messages · board goal: {goal}',
+          kickTitle: 'Kick {name}?', kickBody: 'They are disconnected immediately but can rejoin with the room code.',
+          kickReportedBody: 'Reported for "{reason}". They are disconnected immediately but can rejoin with the room code.',
+          closeTitle: 'Force close this room?',
+          closeBody: 'Everyone inside is disconnected and the room is deleted, including its board and chat history. This cannot be undone.',
+          searchUsers: 'Search email or name', search: 'Search', accountsTotal: '{count} accounts',
+          statusBanned: 'banned', statusActive: 'active', ban: 'Ban', unban: 'Unban',
+          banTitle: 'Ban {name}?', banBody: 'They are signed out everywhere immediately and cannot sign back in until unbanned.',
+          unbanTitle: 'Unban {name}?', unbanBody: 'They can sign in again immediately.',
+          reportsHeading: 'User reports', reportsTotal: '{total} total · {open} open', noReports: 'No reports.',
+          reportOpen: 'open', reportResolved: 'resolved', resolve: 'Resolve', targetLeft: 'left',
+          auditFilter: 'Action', auditAll: 'All actions', auditTotal: '{count} entries',
+          noAudit: 'Admin actions will appear here.', loadMore: 'Load more',
+          act_login: 'Signed in', act_login_failed: 'Failed sign-in', act_logout: 'Signed out',
+          act_room_close: 'Closed room', act_participant_kick: 'Kicked participant',
+          act_report_resolve: 'Resolved report', act_video_disable: 'Disabled video joins',
+          act_video_enable: 'Re-enabled video joins', act_user_ban: 'Banned user', act_user_unban: 'Unbanned user',
+          act_announcement_set: 'Published announcement', act_announcement_clear: 'Cleared announcement',
+          act_backup_run: 'Ran backup',
+          reason_spam: 'spam', reason_harassment: 'harassment', reason_inappropriate: 'inappropriate', reason_other: 'other',
+          uptime: 'up {value}', memory: 'rss {value}', hours: 'h', minutes: 'm',
+          killSwitchTitle: 'Video join kill-switch',
+          killSwitchBody: 'Runtime override only — a server restart falls back to the env default. Flipping this to ON blocks all new video tokens immediately.',
+          videoAllowed: 'video joins allowed', videoDisabled: 'video joins DISABLED',
+          disableVideo: 'Disable video joins', enableVideo: 'Re-enable video joins',
+          disableVideoTitle: 'Disable ALL video joins?',
+          disableVideoBody: 'Every new video join is rejected until re-enabled (existing calls continue). Restart resets to the env default.',
+          enableVideoTitle: 'Re-enable video joins?', enableVideoBody: 'New video tokens will be issued again immediately.',
+          videoCounts: 'Active video participants: {active} of {max} global cap.',
+          announceTitle: 'Broadcast banner',
+          announceBody: 'Shown on every page and pushed to every open room. Leave a field empty to skip that language.',
+          announceAr: 'Arabic message', announceEn: 'English message', announceDuration: 'Duration',
+          dur30: '30 minutes', dur60: '1 hour', dur240: '4 hours', dur1440: '24 hours', durUntilCleared: 'Until cleared',
+          publish: 'Publish', clearActive: 'Clear active', published: 'Published.', cleared: 'Cleared.',
+          announceInvalid: 'Add at least one message (max 200 chars).', publishFailed: 'Publish failed.',
+          announceActive: 'Active: "{message}"', announceNone: 'No active announcement.',
+          backupsTitle: 'Backups', backupNow: 'Run backup now',
+          backupDone: 'Backed up {entries} entries → {files}', backupFailed: 'Backup failed — check the errors panel.',
+          lastBackup: 'Last backup {time}', lastBackupError: ' — last error: {error}',
+          noBackupYet: 'No backup yet this session.', backupsOff: 'Automated backups are off (BACKUP_INTERVAL_MINUTES=0).',
+          errorsTitle: 'Recent warnings & errors', noErrors: 'No warnings or errors since startup.',
+          actionFailed: 'That action failed ({code}). Refresh and try again.'
+        },
+        ar: {
+          loginTitle: 'لوحة تشغيل Halastudy', password: 'كلمة المرور', signIn: 'تسجيل الدخول', skip: 'انتقل إلى المحتوى',
+          wrongPassword: 'كلمة المرور غير صحيحة.', lockedOut: 'تم إيقاف الدخول مؤقتًا. انتظر بضع دقائق.',
+          theme: 'المظهر', signOut: 'تسجيل الخروج', workspace: 'إدارة المنصة', navigate: 'انتقل إلى قسم',
+          refresh: 'تحديث', overview: 'نظرة عامة', rooms: 'الغرف', users: 'المستخدمون',
+          reports: 'البلاغات والدعم', audit: 'سجل الإجراءات', system: 'النظام',
+          overviewBody: 'تابع حالة المنصة، وابدأ بما يحتاج إلى انتباهك.',
+          roomsBody: 'الغرف الحالية والمشاركون وأدوات إدارة الجلسات.',
+          usersBody: 'اعثر على حساب وراجع حالته قبل اتخاذ إجراء.',
+          reportsBody: 'راجع بلاغات الغرف واتخذ الإجراء المناسب.',
+          auditBody: 'كل إجراء إداري: من نفّذه ومن أين، وعلى ماذا، والسبب المسجّل.',
+          systemBody: 'راقب التشغيل، وأدر دخول الفيديو والإعلانات والنسخ الاحتياطية.',
+          loading: 'جارٍ التحميل…', confirm: 'تأكيد', cancel: 'إلغاء', typeToConfirm: 'اكتب «{value}»',
+          reasonLabel: 'السبب (يُحفظ في سجل الإجراءات)',
+          tileRooms: 'غرف نشطة', tileParticipants: 'المشاركون', tileVideoNow: 'الفيديو الآن',
+          tileAccounts: 'الحسابات', tileBanned: 'محظورون', tileVideoJoins: 'دخول الفيديو', on: 'متاح', off: 'متوقف',
+          updatedAt: 'آخر تحديث {time}',
+          colCode: 'الرمز', colName: 'الاسم', colPeople: 'الأشخاص', colMode: 'النمط', colVideo: 'الفيديو',
+          colLocked: 'محمية', colSession: 'الجلسة', colCamera: 'الكاميرا', colJoined: 'الانضمام',
+          colEmail: 'البريد', colStreak: 'السلسلة', colFocus: 'دقائق التركيز', colStatus: 'الحالة', colRoom: 'الغرفة',
+          colTarget: 'المستهدف', colReporter: 'المُبلِّغ', colReason: 'السبب', colWhen: 'الوقت',
+          colAction: 'الإجراء', colIp: 'عنوان IP',
+          yes: 'نعم', cameraOn: 'تعمل', cameraOff: 'متوقفة', noRooms: 'لا توجد غرف نشطة.', inspect: 'عرض',
+          kick: 'إخراج', closeView: 'إغلاق العرض', forceClose: 'إغلاق الغرفة نهائيًا',
+          inspectMeta: 'أُنشئت {created} · الرسائل: {messages} · هدف اللوحة: {goal}',
+          kickTitle: 'إخراج {name}؟', kickBody: 'يُفصل فورًا، ويمكنه العودة برمز الغرفة.',
+          kickReportedBody: 'سبب البلاغ: «{reason}». يُفصل فورًا، ويمكنه العودة برمز الغرفة.',
+          closeTitle: 'إغلاق هذه الغرفة؟',
+          closeBody: 'يُفصل كل من في الغرفة وتُحذف مع لوحتها وسجل محادثتها. لا يمكن التراجع.',
+          searchUsers: 'ابحث بالبريد أو الاسم', search: 'بحث', accountsTotal: 'الحسابات: {count}',
+          statusBanned: 'محظور', statusActive: 'نشط', ban: 'حظر', unban: 'رفع الحظر',
+          banTitle: 'حظر {name}؟', banBody: 'يُسجَّل خروجه من كل الأجهزة فورًا، ولا يستطيع الدخول حتى يُرفع الحظر.',
+          unbanTitle: 'رفع الحظر عن {name}؟', unbanBody: 'يستطيع الدخول مجددًا فورًا.',
+          reportsHeading: 'بلاغات المستخدمين', reportsTotal: 'البلاغات: {total} · المفتوحة: {open}', noReports: 'لا توجد بلاغات.',
+          reportOpen: 'مفتوح', reportResolved: 'محلول', resolve: 'حلّ البلاغ', targetLeft: 'غادر',
+          auditFilter: 'الإجراء', auditAll: 'كل الإجراءات', auditTotal: 'الإجراءات: {count}',
+          noAudit: 'ستظهر الإجراءات الإدارية هنا.', loadMore: 'عرض المزيد',
+          act_login: 'تسجيل دخول', act_login_failed: 'محاولة دخول فاشلة', act_logout: 'تسجيل خروج',
+          act_room_close: 'إغلاق غرفة', act_participant_kick: 'إخراج مشارك',
+          act_report_resolve: 'حلّ بلاغ', act_video_disable: 'إيقاف دخول الفيديو',
+          act_video_enable: 'إعادة دخول الفيديو', act_user_ban: 'حظر مستخدم', act_user_unban: 'رفع حظر مستخدم',
+          act_announcement_set: 'نشر إعلان', act_announcement_clear: 'إزالة إعلان',
+          act_backup_run: 'تشغيل نسخ احتياطي',
+          reason_spam: 'رسائل مزعجة', reason_harassment: 'مضايقة', reason_inappropriate: 'محتوى غير لائق', reason_other: 'سبب آخر',
+          uptime: 'مدة التشغيل {value}', memory: 'الذاكرة {value}', hours: 'س', minutes: 'د',
+          killSwitchTitle: 'إيقاف دخول الفيديو',
+          killSwitchBody: 'إعداد مؤقت فقط: إعادة تشغيل الخادم تعيده إلى الإعداد الافتراضي. الإيقاف يمنع أي دخول جديد للفيديو فورًا.',
+          videoAllowed: 'دخول الفيديو متاح', videoDisabled: 'دخول الفيديو متوقف',
+          disableVideo: 'إيقاف دخول الفيديو', enableVideo: 'إعادة دخول الفيديو',
+          disableVideoTitle: 'إيقاف كل دخول جديد للفيديو؟',
+          disableVideoBody: 'يُرفض كل دخول جديد حتى تعيد تفعيله (المكالمات الحالية تستمر). إعادة التشغيل تعيد الإعداد الافتراضي.',
+          enableVideoTitle: 'إعادة دخول الفيديو؟', enableVideoBody: 'سيُسمح بدخول الفيديو مجددًا فورًا.',
+          videoCounts: 'المشاركون في الفيديو الآن: {active} من {max} كحد أقصى.',
+          announceTitle: 'إعلان المنصة',
+          announceBody: 'يظهر في كل الصفحات ويصل إلى كل غرفة مفتوحة. اترك أي حقل فارغًا لتخطي تلك اللغة.',
+          announceAr: 'الإعلان بالعربية', announceEn: 'الإعلان بالإنجليزية', announceDuration: 'مدة الظهور',
+          dur30: '30 دقيقة', dur60: 'ساعة', dur240: '4 ساعات', dur1440: '24 ساعة', durUntilCleared: 'حتى الإزالة',
+          publish: 'نشر', clearActive: 'إزالة الإعلان الحالي', published: 'تم النشر.', cleared: 'تمت الإزالة.',
+          announceInvalid: 'أضف رسالة واحدة على الأقل (حتى 200 حرف).', publishFailed: 'تعذّر النشر.',
+          announceActive: 'الإعلان الحالي: «{message}»', announceNone: 'لا يوجد إعلان حالي.',
+          backupsTitle: 'النسخ الاحتياطية', backupNow: 'إنشاء نسخة احتياطية الآن',
+          backupDone: 'العناصر المنسوخة: {entries} ← {files}', backupFailed: 'تعذّر النسخ الاحتياطي. راجع قائمة الأخطاء.',
+          lastBackup: 'آخر نسخة {time}', lastBackupError: ' — آخر خطأ: {error}',
+          noBackupYet: 'لا توجد نسخة احتياطية في هذه الجلسة بعد.', backupsOff: 'النسخ التلقائي متوقف (BACKUP_INTERVAL_MINUTES=0).',
+          errorsTitle: 'آخر التحذيرات والأخطاء', noErrors: 'لا تحذيرات أو أخطاء منذ التشغيل.',
+          actionFailed: 'تعذّر تنفيذ الإجراء ({code}). حدّث الصفحة وحاول مجددًا.'
+        }
+      };
+      const SECTIONS = ['overview', 'rooms', 'users', 'reports', 'audit', 'system'];
+      const AUDIT_ACTIONS = [
+        'login', 'login_failed', 'logout', 'room_close', 'participant_kick', 'report_resolve',
+        'video_disable', 'video_enable', 'user_ban', 'user_unban', 'announcement_set',
+        'announcement_clear', 'backup_run'
+      ];
+      const LANG_KEY = 'halastudyOpsLang';
+      const THEME_KEY = 'halastudyOpsTheme';
+      const readPref = (key) => { try { return localStorage.getItem(key); } catch (_e) { return null; } };
+      const writePref = (key, value) => { try { localStorage.setItem(key, value); } catch (_e) { /* private mode */ } };
+      let lang = readPref(LANG_KEY) === 'ar' ? 'ar' : 'en';
+      function t(key, values = {}) {
+        const template = COPY[lang][key] || COPY.en[key] || key;
+        return template.replace(/\{(\w+)\}/g, (match, name) => (name in values ? String(values[name]) : match));
+      }
+      // Western digits in both languages: these are transactional times (DESIGN.md §5).
+      const locale = () => (lang === 'ar' ? 'ar-u-nu-latn' : 'en');
+      const formatDateTime = (ms) => new Date(ms).toLocaleString(locale());
+      const formatDate = (ms) => new Date(ms).toLocaleDateString(locale());
+      const formatTime = (ms) => new Date(ms).toLocaleTimeString(locale());
+
+      // First-strong isolates keep codes, ids and paths left-to-right inside
+      // Arabic text (textContent cannot carry <bdi>).
+      const isolate = (value) => `\u2068${value}\u2069`;
 
       function toastNote(el, message, ok) {
         el.textContent = message;
@@ -300,41 +542,66 @@
         setTimeout(() => { el.textContent = ''; }, 4000);
       }
 
-      function showRequestError(error) {
-        if (error.status === 401) { window.location.reload(); return; }
-        $('request-feedback').textContent = 'Could not complete this request. Refresh to check its status, then retry.';
+      // A failed action is reported in place of the section description so
+      // it is seen without a modal; Refresh or changing section clears it.
+      function reportActionError(error) {
+        $('ops-description').textContent = t('actionFailed', { code: error.code || error.message });
       }
 
-      function onAction(element, eventName, action) {
-        element.addEventListener(eventName, async (event) => {
-          try { if (await action(event) !== false) $('request-feedback').textContent = ''; }
-          catch (error) { showRequestError(error); }
-        });
-      }
-
-      /* Typed confirmation for irreversible actions. */
-      function confirmTyped({ title, body, expected }) {
+      /* Typed confirmation for irreversible actions. With requireReason it
+         resolves to the trimmed reason (or null when cancelled), because the
+         server rejects destructive actions without one. */
+      const REASON_MIN_LENGTH = 3;
+      function confirmTyped({ title, body, expected, requireReason = false }) {
         return new Promise((resolve) => {
           const dialog = $('confirm-dialog');
           $('confirm-title').textContent = title;
           $('confirm-body').textContent = body;
           const input = $('confirm-input');
+          const reason = $('confirm-reason');
           const yes = $('confirm-yes');
           input.value = '';
-          input.placeholder = expected ? `Type "${expected}"` : '';
+          reason.value = '';
+          input.placeholder = expected ? t('typeToConfirm', { value: expected }) : '';
           input.hidden = !expected;
-          yes.disabled = !!expected;
-          input.oninput = () => { yes.disabled = input.value.trim() !== expected; };
-          function close(result) {
+          reason.hidden = !requireReason;
+          $('confirm-reason-label').hidden = !requireReason;
+          const ready = () => (!expected || input.value.trim() === expected)
+            && (!requireReason || reason.value.trim().length >= REASON_MIN_LENGTH);
+          yes.disabled = !ready();
+          input.oninput = () => { yes.disabled = !ready(); };
+          reason.oninput = () => { yes.disabled = !ready(); };
+          function close(confirmed) {
             dialog.close();
-            resolve(result);
+            if (!requireReason) resolve(confirmed);
+            else resolve(confirmed ? reason.value.trim() : null);
           }
           yes.onclick = () => close(true);
           $('confirm-no').onclick = () => close(false);
-          dialog.oncancel = () => resolve(false);
+          dialog.oncancel = () => resolve(requireReason ? null : false);
           dialog.showModal();
-          if (expected) input.focus();
+          (expected ? input : reason).focus();
         });
+      }
+
+      function textCell(tr, index, text) {
+        tr.children[index].textContent = text;
+      }
+
+      function actionButton(label, className, onClick) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = className;
+        button.textContent = label;
+        button.addEventListener('click', async () => {
+          try {
+            await onClick();
+          } catch (error) {
+            if (error.status === 401) window.location.reload();
+            else reportActionError(error);
+          }
+        });
+        return button;
       }
 
       /* ---------- auth ---------- */
@@ -344,74 +611,169 @@
           await api('POST', '/login', { password: $('admin-password').value });
           enterShell();
         } catch (error) {
-          $('login-feedback').textContent = error.code === 'RATE_LIMITED'
-            ? 'Locked out — wait a few minutes.'
-            : 'Wrong password.';
+          $('login-feedback').textContent = error.code === 'RATE_LIMITED' ? t('lockedOut') : t('wrongPassword');
         }
       });
 
       $('btn-admin-signout').addEventListener('click', async () => {
-        $('btn-admin-signout').disabled = true;
-        $('signout-feedback').textContent = '';
-        try {
-          await api('POST', '/logout');
-          window.location.reload();
-        } catch (_error) {
-          $('signout-feedback').textContent = 'Could not sign out. You are still signed in. Please retry.';
-        } finally {
-          $('btn-admin-signout').disabled = false;
-        }
+        try { await api('POST', '/logout'); } catch (_e) {}
+        window.location.reload();
       });
 
-      /* ---------- tabs ---------- */
-      document.querySelectorAll('#tabs button').forEach((button) => {
-        button.addEventListener('click', () => {
-          document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('is-on', b === button));
-          document.querySelectorAll('.panel').forEach((panel) => {
-            panel.classList.toggle('is-on', panel.id === `panel-${button.dataset.panel}`);
+      /* ---------- language + theme ---------- */
+      function shellVisible() {
+        return !$('ops-shell').classList.contains('hidden');
+      }
+
+      function applyLanguage() {
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+        document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+        document.querySelectorAll('[data-lang-switch] .btn').forEach((button) => {
+          button.setAttribute('aria-pressed', String(button.dataset.lang === lang));
+        });
+        const select = $('ops-section-select');
+        select.innerHTML = '';
+        SECTIONS.forEach((section) => select.add(new Option(t(section), section)));
+        const auditSelect = $('audit-action');
+        const chosen = auditSelect.value;
+        auditSelect.innerHTML = '';
+        auditSelect.add(new Option(t('auditAll'), ''));
+        AUDIT_ACTIONS.forEach((action) => auditSelect.add(new Option(t(`act_${action}`), action)));
+        auditSelect.value = chosen;
+        renderHeading();
+        // Dynamic rows are rebuilt in the new language.
+        if (shellVisible()) void refreshActive();
+      }
+
+      document.querySelectorAll('[data-lang-switch]').forEach((holder) => {
+        [['ar', 'عربي'], ['en', 'EN']].forEach(([code, label]) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'btn';
+          button.lang = code;
+          button.dataset.lang = code;
+          button.textContent = label;
+          button.addEventListener('click', () => {
+            lang = code;
+            writePref(LANG_KEY, code);
+            applyLanguage();
           });
-          refreshActive();
+          holder.appendChild(button);
         });
       });
 
-      function activePanel() {
-        const active = document.querySelector('#tabs button.is-on');
-        return active ? active.dataset.panel : 'overview';
+      function applyTheme(theme) {
+        document.documentElement.dataset.theme = theme;
       }
+      applyTheme(readPref(THEME_KEY) === 'light' ? 'light' : 'dark');
+      $('btn-theme').addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        writePref(THEME_KEY, next);
+        applyTheme(next);
+      });
+
+      /* ---------- section navigation (#hash deep links) ---------- */
+      // Section hashes pick the panel and an empty fragment means Overview
+      // (so browser Back to the bare URL restores it); any other fragment,
+      // such as the skip link's #main, keeps the section the operator is on.
+      let currentSection = 'overview';
+      function routedSection() {
+        const requested = window.location.hash.replace('#', '');
+        if (requested === '') return 'overview';
+        return SECTIONS.includes(requested) ? requested : null;
+      }
+      function activePanel() {
+        const routed = routedSection();
+        if (routed) currentSection = routed;
+        return currentSection;
+      }
+
+      function renderHeading() {
+        const section = activePanel();
+        $('ops-title').textContent = t(section);
+        $('ops-description').textContent = t(`${section}Body`);
+        document.title = `${t(section)} — ${t('loginTitle')}`;
+        document.querySelectorAll('#ops-nav a').forEach((link) => {
+          if (link.dataset.section === section) link.setAttribute('aria-current', 'page');
+          else link.removeAttribute('aria-current');
+        });
+        $('ops-section-select').value = section;
+      }
+
+      function showSection({ focus = false } = {}) {
+        const section = activePanel();
+        document.querySelectorAll('.panel').forEach((panel) => {
+          panel.classList.toggle('is-on', panel.id === `panel-${section}`);
+        });
+        renderHeading();
+        if (focus) $('ops-title').focus();
+        void refreshActive();
+      }
+
+      window.addEventListener('hashchange', () => {
+        if (routedSection()) showSection({ focus: true });
+      });
+      // The skip link moves focus without touching the hash or the section.
+      document.querySelector('.skip-link').addEventListener('click', (event) => {
+        event.preventDefault();
+        $('main').focus();
+      });
+      $('ops-section-select').addEventListener('change', (event) => {
+        window.location.hash = event.target.value;
+      });
 
       /* ---------- overview ---------- */
       function tile(label, value) {
-        return `<div class="tile"><strong class="mono">${value}</strong><span>${label}</span></div>`;
+        const element = document.createElement('div');
+        element.className = 'tile';
+        const strong = document.createElement('strong');
+        strong.className = 'mono';
+        strong.textContent = value;
+        const caption = document.createElement('span');
+        caption.textContent = label;
+        element.append(strong, caption);
+        return element;
       }
       function formatUptime(seconds) {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
-        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+        return h > 0 ? `${h}${t('hours')} ${m}${t('minutes')}` : `${m}${t('minutes')}`;
       }
 
       let lastOverview = null;
       async function loadOverview() {
         const data = await api('GET', '/overview');
         lastOverview = data;
-        $('uptime-chip').textContent = `up ${formatUptime(data.uptimeSeconds)}`;
-        $('memory-chip').textContent = `rss ${data.memory.rssMb}MB`;
-        $('overview-tiles').innerHTML = [
-          tile('Live rooms', data.roomCount),
-          tile('Participants', data.participantCount),
-          tile('Video now', `${data.activeGlobalVideoParticipants}/${data.maxGlobalVideoParticipants}`),
-          tile('Accounts', data.userCount),
-          tile('Banned', data.bannedCount),
-          tile('Video joins', data.videoJoinDisabled ? 'OFF' : 'ON')
-        ].join('');
-        $('overview-updated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        $('uptime-chip').textContent = t('uptime', { value: isolate(formatUptime(data.uptimeSeconds)) });
+        $('memory-chip').textContent = t('memory', { value: isolate(`${data.memory.rssMb}MB`) });
+        $('overview-tiles').replaceChildren(
+          tile(t('tileRooms'), data.roomCount),
+          tile(t('tileParticipants'), data.participantCount),
+          tile(t('tileVideoNow'), `${data.activeGlobalVideoParticipants}/${data.maxGlobalVideoParticipants}`),
+          tile(t('tileAccounts'), data.userCount),
+          tile(t('tileBanned'), data.bannedCount),
+          tile(t('tileVideoJoins'), data.videoJoinDisabled ? t('off') : t('on'))
+        );
+        $('overview-updated').textContent = t('updatedAt', { time: formatTime(Date.now()) });
         renderKillSwitch(data.videoJoinDisabled);
-        $('video-counts').textContent = `Active video participants: ${data.activeGlobalVideoParticipants} of ${data.maxGlobalVideoParticipants} global cap.`;
+        $('video-counts').textContent = t('videoCounts', {
+          active: data.activeGlobalVideoParticipants,
+          max: data.maxGlobalVideoParticipants
+        });
         $('announce-active').textContent = data.announcement
-          ? `Active: "${data.announcement.messageEn || data.announcement.messageAr}"`
-          : 'No active announcement.';
-        $('backup-status').textContent = data.backup.lastRunAt
-          ? `Last backup ${new Date(data.backup.lastRunAt).toLocaleString()}${data.backup.lastError ? ` — last error: ${data.backup.lastError}` : ''}`
-          : (data.backup.intervalMinutes ? 'No backup yet this session.' : 'Automated backups are off (BACKUP_INTERVAL_MINUTES=0).');
+          ? t('announceActive', { message: lang === 'ar'
+            ? (data.announcement.messageAr || data.announcement.messageEn)
+            : (data.announcement.messageEn || data.announcement.messageAr) })
+          : t('announceNone');
+        if (data.backup.lastRunAt) {
+          $('backup-status').textContent = t('lastBackup', { time: formatDateTime(data.backup.lastRunAt) })
+            + (data.backup.lastError ? t('lastBackupError', { error: data.backup.lastError }) : '');
+        } else {
+          $('backup-status').textContent = data.backup.intervalMinutes ? t('noBackupYet') : t('backupsOff');
+        }
       }
 
       /* ---------- rooms ---------- */
@@ -419,24 +781,18 @@
       async function loadRooms() {
         const data = await api('GET', '/rooms');
         const tbody = $('rooms-tbody');
-        tbody.innerHTML = '';
+        tbody.replaceChildren();
         $('rooms-empty').hidden = data.rooms.length > 0;
         data.rooms.forEach((room) => {
           const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td class="mono">${room.roomId}</td>
-            <td></td>
-            <td class="mono">${room.participantCount}</td>
-            <td>${room.mediaMode}</td>
-            <td class="mono">${room.activeVideoParticipants}</td>
-            <td>${room.requirePassword ? 'yes' : ''}</td>
-            <td></td>`;
-          tr.children[1].textContent = room.name;
-          const inspectBtn = document.createElement('button');
-          inspectBtn.className = 'btn';
-          inspectBtn.textContent = 'Inspect';
-          onAction(inspectBtn, 'click', () => inspectRoom(room.roomId));
-          tr.lastElementChild.appendChild(inspectBtn);
+          tr.innerHTML = '<td class="mono" dir="ltr"></td><td></td><td class="mono"></td><td></td><td class="mono"></td><td></td><td></td>';
+          textCell(tr, 0, room.roomId);
+          textCell(tr, 1, room.name);
+          textCell(tr, 2, room.participantCount);
+          textCell(tr, 3, room.mediaMode);
+          textCell(tr, 4, room.activeVideoParticipants);
+          textCell(tr, 5, room.requirePassword ? t('yes') : '');
+          tr.lastElementChild.appendChild(actionButton(t('inspect'), 'btn', () => inspectRoom(room.roomId)));
           tbody.appendChild(tr);
         });
       }
@@ -444,34 +800,36 @@
       async function inspectRoom(roomId) {
         const data = await api('GET', `/rooms/${encodeURIComponent(roomId)}`);
         inspectedRoomId = roomId;
-        $('inspect-title').textContent = `${data.room.name} — ${roomId}`;
-        $('inspect-meta').textContent = `Created ${new Date(data.room.createdAt).toLocaleString()} · ${data.room.messageCount} chat messages · board goal: ${data.room.board && data.room.board.goal ? data.room.board.goal : '—'}`;
+        const code = document.createElement('bdi');
+        code.dir = 'ltr';
+        code.textContent = roomId;
+        $('inspect-title').replaceChildren(document.createTextNode(`${data.room.name} — `), code);
+        $('inspect-meta').textContent = t('inspectMeta', {
+          created: formatDateTime(data.room.createdAt),
+          messages: data.room.messageCount,
+          goal: data.room.board && data.room.board.goal ? data.room.board.goal : '—'
+        });
         const tbody = $('inspect-participants');
-        tbody.innerHTML = '';
+        tbody.replaceChildren();
         data.room.participants.forEach((participant) => {
           const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td></td>
-            <td class="mono">${participant.sessionIdPrefix}…</td>
-            <td>${participant.cameraOn ? 'on' : 'off'}</td>
-            <td class="mono">${new Date(participant.joinedAt).toLocaleTimeString()}</td>
-            <td></td>`;
-          tr.children[0].textContent = participant.name;
-          const kickBtn = document.createElement('button');
-          kickBtn.className = 'btn danger';
-          kickBtn.textContent = 'Kick';
-          onAction(kickBtn, 'click', async () => {
-            const yes = await confirmTyped({
-              title: `Kick ${participant.name}?`,
-              body: 'They are disconnected immediately but can rejoin with the room code.',
-              expected: ''
+          tr.innerHTML = '<td></td><td class="mono" dir="ltr"></td><td></td><td class="mono"></td><td></td>';
+          textCell(tr, 0, participant.name);
+          textCell(tr, 1, `${participant.sessionIdPrefix}…`);
+          textCell(tr, 2, participant.cameraOn ? t('cameraOn') : t('cameraOff'));
+          textCell(tr, 3, formatTime(participant.joinedAt));
+          tr.lastElementChild.appendChild(actionButton(t('kick'), 'btn danger', async () => {
+            const reason = await confirmTyped({
+              title: t('kickTitle', { name: participant.name }),
+              body: t('kickBody'),
+              expected: '',
+              requireReason: true
             });
-            if (!yes) return false;
-            await api('POST', `/rooms/${encodeURIComponent(roomId)}/kick`, { socketId: participant.socketId });
+            if (reason === null) return;
+            await api('POST', `/rooms/${encodeURIComponent(roomId)}/kick`, { socketId: participant.socketId, reason });
             await inspectRoom(roomId);
             await loadRooms();
-          });
-          tr.lastElementChild.appendChild(kickBtn);
+          }));
           tbody.appendChild(tr);
         });
         $('room-inspect').classList.remove('hidden');
@@ -482,15 +840,21 @@
         inspectedRoomId = null;
       });
 
-      onAction($('inspect-force-close'), 'click', async () => {
+      $('inspect-force-close').addEventListener('click', async () => {
         if (!inspectedRoomId) return;
-        const yes = await confirmTyped({
-          title: 'Force close this room?',
-          body: 'Everyone inside is disconnected and the room is deleted, including its board and chat history. This cannot be undone.',
-          expected: inspectedRoomId
+        const reason = await confirmTyped({
+          title: t('closeTitle'),
+          body: t('closeBody'),
+          expected: inspectedRoomId,
+          requireReason: true
         });
-        if (!yes) return false;
-        await api('POST', `/rooms/${encodeURIComponent(inspectedRoomId)}/close`);
+        if (reason === null) return;
+        try {
+          await api('POST', `/rooms/${encodeURIComponent(inspectedRoomId)}/close`, { reason });
+        } catch (error) {
+          reportActionError(error);
+          return;
+        }
         $('room-inspect').classList.add('hidden');
         inspectedRoomId = null;
         await loadRooms();
@@ -500,120 +864,198 @@
       async function loadUsers() {
         const query = $('user-search').value.trim();
         const data = await api('GET', `/users?query=${encodeURIComponent(query)}`);
-        $('users-total').textContent = `${data.total} account${data.total === 1 ? '' : 's'}`;
+        $('users-total').textContent = t('accountsTotal', { count: data.total });
         const tbody = $('users-tbody');
-        tbody.innerHTML = '';
+        tbody.replaceChildren();
         data.users.forEach((user) => {
           const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td></td>
-            <td class="mono"></td>
-            <td class="mono">${new Date(user.createdAt).toLocaleDateString()}</td>
-            <td class="mono">${user.streakCurrent}</td>
-            <td class="mono">${user.totalFocusMinutes}</td>
-            <td>${user.banned ? 'banned' : 'active'}</td>
-            <td></td>`;
-          tr.children[0].textContent = user.displayName;
-          tr.children[1].textContent = user.email;
-          const actionBtn = document.createElement('button');
-          actionBtn.className = user.banned ? 'btn' : 'btn danger';
-          actionBtn.textContent = user.banned ? 'Unban' : 'Ban';
-          onAction(actionBtn, 'click', async () => {
-            if (!user.banned) {
-              const yes = await confirmTyped({
-                title: `Ban ${user.displayName}?`,
-                body: 'They are signed out everywhere immediately and cannot sign back in until unbanned.',
-                expected: user.displayName
-              });
-              if (!yes) return false;
-              await api('POST', `/users/${encodeURIComponent(user.id)}/ban`);
-            } else {
-              await api('POST', `/users/${encodeURIComponent(user.id)}/unban`);
+          tr.innerHTML = '<td></td><td class="mono" dir="ltr"></td><td class="mono"></td><td class="mono"></td><td class="mono"></td><td></td><td></td>';
+          textCell(tr, 0, user.displayName);
+          textCell(tr, 1, user.email);
+          textCell(tr, 2, formatDate(user.createdAt));
+          textCell(tr, 3, user.streakCurrent);
+          textCell(tr, 4, user.totalFocusMinutes);
+          textCell(tr, 5, user.banned ? t('statusBanned') : t('statusActive'));
+          tr.lastElementChild.appendChild(actionButton(
+            user.banned ? t('unban') : t('ban'),
+            user.banned ? 'btn' : 'btn danger',
+            async () => {
+              const reason = await confirmTyped(user.banned
+                ? { title: t('unbanTitle', { name: user.displayName }), body: t('unbanBody'), expected: '', requireReason: true }
+                : { title: t('banTitle', { name: user.displayName }), body: t('banBody'), expected: user.displayName, requireReason: true });
+              if (reason === null) return;
+              await api('POST', `/users/${encodeURIComponent(user.id)}/${user.banned ? 'unban' : 'ban'}`, { reason });
+              await loadUsers();
             }
-            await loadUsers();
-          });
-          tr.lastElementChild.appendChild(actionBtn);
+          ));
           tbody.appendChild(tr);
         });
       }
-      onAction($('user-search-btn'), 'click', loadUsers);
-      onAction($('user-search'), 'keydown', (event) => {
-        if (event.key === 'Enter') { event.preventDefault(); return loadUsers(); }
-        return false;
+      $('user-search-btn').addEventListener('click', () => { void loadUsers(); });
+      $('user-search').addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') { event.preventDefault(); void loadUsers(); }
       });
 
       /* ---------- user reports ---------- */
       async function loadReports() {
         const data = await api('GET', '/reports');
         const open = data.reports.filter((report) => report.status === 'open').length;
-        $('reports-total').textContent = `${data.reports.length} total · ${open} open`;
+        $('reports-total').textContent = t('reportsTotal', { total: data.reports.length, open });
         const tbody = $('reports-tbody');
-        tbody.innerHTML = '';
+        tbody.replaceChildren();
         $('reports-empty').hidden = data.reports.length > 0;
         data.reports.forEach((report) => {
           const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td class="mono"></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td class="mono">${new Date(report.createdAt).toLocaleString()}</td>
-            <td></td>
-            <td></td>`;
-          tr.children[0].textContent = report.roomId;
-          tr.children[1].textContent = `${report.targetName} (${report.targetSessionIdPrefix || '—'})${report.targetStillConnected ? '' : ' · left'}`;
-          tr.children[2].textContent = report.reporterName;
-          tr.children[3].textContent = report.detail ? `${report.reason}: ${report.detail}` : report.reason;
-          tr.children[5].textContent = report.status;
+          tr.innerHTML = '<td class="mono" dir="ltr"></td><td></td><td></td><td></td><td class="mono"></td><td></td><td></td>';
+          textCell(tr, 0, report.roomId);
+          textCell(tr, 1, `${report.targetName} (${isolate(report.targetSessionIdPrefix || '—')})${report.targetStillConnected ? '' : ` · ${t('targetLeft')}`}`);
+          textCell(tr, 2, report.reporterName);
+          const reasonLabel = t(`reason_${report.reason}`);
+          textCell(tr, 3, report.detail ? `${reasonLabel}: ${report.detail}` : reasonLabel);
+          textCell(tr, 4, formatDateTime(report.createdAt));
+          textCell(tr, 5, report.status === 'open' ? t('reportOpen') : t('reportResolved'));
           const actions = tr.lastElementChild;
           if (report.status === 'open') {
-            const resolveBtn = document.createElement('button');
-            resolveBtn.className = 'btn';
-            resolveBtn.textContent = 'Resolve';
-            onAction(resolveBtn, 'click', async () => {
+            actions.appendChild(actionButton(t('resolve'), 'btn', async () => {
               await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/reports/${encodeURIComponent(report.id)}/resolve`);
               await loadReports();
-            });
-            actions.appendChild(resolveBtn);
+            }));
           }
           if (report.targetStillConnected) {
-            const kickBtn = document.createElement('button');
-            kickBtn.className = 'btn danger';
-            kickBtn.textContent = 'Kick';
-            kickBtn.style.marginInlineStart = '6px';
-            onAction(kickBtn, 'click', async () => {
-              await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/kick`, { socketId: report.targetSocketId });
+            const kickBtn = actionButton(t('kick'), 'btn danger', async () => {
+              const reason = await confirmTyped({
+                title: t('kickTitle', { name: report.targetName }),
+                body: t('kickReportedBody', { reason: t(`reason_${report.reason}`) }),
+                expected: '',
+                requireReason: true
+              });
+              if (reason === null) return;
+              await api('POST', `/rooms/${encodeURIComponent(report.roomId)}/kick`, { socketId: report.targetSocketId, reason });
               await loadReports();
             });
+            kickBtn.style.marginInlineStart = '6px';
             actions.appendChild(kickBtn);
           }
           tbody.appendChild(tr);
         });
       }
 
+      /* ---------- audit ---------- */
+      let auditEntries = [];
+      let auditTotal = 0;
+      function renderAudit() {
+        $('audit-total').textContent = t('auditTotal', { count: auditTotal });
+        $('audit-empty').hidden = auditEntries.length > 0;
+        $('audit-more').hidden = auditEntries.length >= auditTotal;
+        const tbody = $('audit-tbody');
+        tbody.replaceChildren();
+        auditEntries.forEach((entry) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td class="mono"></td><td></td><td></td><td></td><td class="mono" dir="ltr"></td>';
+          textCell(tr, 0, formatDateTime(entry.at));
+          textCell(tr, 1, t(`act_${entry.action}`));
+          const target = entry.target
+            ? [entry.target.label, entry.target.id && isolate(entry.target.id)].filter(Boolean).join(' · ')
+            : '';
+          textCell(tr, 2, target);
+          textCell(tr, 3, entry.reason || '—');
+          textCell(tr, 4, entry.ip || '—');
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function fetchAudit(offset) {
+        const action = $('audit-action').value;
+        return api('GET', `/audit?offset=${offset}${action ? `&action=${encodeURIComponent(action)}` : ''}`);
+      }
+
+      // Every reload of the first page bumps the generation, so a "Load more"
+      // response that started before it (or before a filter change) is
+      // dropped instead of being appended to the wrong list.
+      let auditGeneration = 0;
+      let auditMorePending = false;
+      let auditFirstPagePending = false;
+
+      // Polling refreshes the first page only while no older pages are
+      // loaded, so "Load more" results are not yanked away every 5 seconds.
+      // Loaded history is still re-rendered, e.g. after a language switch.
+      // While the first page loads, Load more is blocked: its offset must
+      // come from the list that page belongs to.
+      async function loadAudit({ force = false } = {}) {
+        if (!force && auditEntries.length > 50) {
+          renderAudit();
+          return;
+        }
+        const generation = ++auditGeneration;
+        auditFirstPagePending = true;
+        $('audit-more').disabled = true;
+        try {
+          const page = await fetchAudit(0);
+          if (generation !== auditGeneration) return;
+          auditEntries = page.entries;
+          auditTotal = page.total;
+          renderAudit();
+        } finally {
+          if (generation === auditGeneration) {
+            auditFirstPagePending = false;
+            $('audit-more').disabled = auditMorePending;
+          }
+        }
+      }
+
+      $('audit-action').addEventListener('change', () => {
+        // Drop the old filter's rows at once so none of its offsets survive.
+        auditEntries = [];
+        auditTotal = 0;
+        renderAudit();
+        void loadAudit({ force: true }).catch(reportActionError);
+      });
+      $('audit-more').addEventListener('click', async () => {
+        // One page request at a time, and never during a first-page reload:
+        // either would compute the offset from the wrong list.
+        if (auditMorePending || auditFirstPagePending) return;
+        auditMorePending = true;
+        const button = $('audit-more');
+        button.disabled = true;
+        const generation = auditGeneration;
+        try {
+          const page = await fetchAudit(auditEntries.length);
+          if (generation !== auditGeneration) return;
+          auditEntries = auditEntries.concat(page.entries);
+          auditTotal = page.total;
+          renderAudit();
+        } catch (error) {
+          reportActionError(error);
+        } finally {
+          auditMorePending = false;
+          button.disabled = auditFirstPagePending;
+        }
+      });
+
       /* ---------- video kill-switch ---------- */
       function renderKillSwitch(disabled) {
-        $('kill-switch-state').innerHTML = disabled
-          ? '<span class="status-dot off"></span>video joins DISABLED'
-          : '<span class="status-dot on"></span>video joins allowed';
+        $('kill-switch-state').querySelector('.status-dot').className = `status-dot ${disabled ? 'off' : 'on'}`;
+        $('kill-switch-label').textContent = disabled ? t('videoDisabled') : t('videoAllowed');
         const toggle = $('kill-switch-toggle');
-        toggle.textContent = disabled ? 'Re-enable video joins' : 'Disable video joins';
+        toggle.textContent = disabled ? t('enableVideo') : t('disableVideo');
         toggle.className = disabled ? 'btn' : 'btn danger';
       }
 
-      onAction($('kill-switch-toggle'), 'click', async () => {
+      $('kill-switch-toggle').addEventListener('click', async () => {
         const currentlyDisabled = lastOverview ? lastOverview.videoJoinDisabled : false;
         const yes = await confirmTyped({
-          title: currentlyDisabled ? 'Re-enable video joins?' : 'Disable ALL video joins?',
-          body: currentlyDisabled
-            ? 'New video tokens will be issued again immediately.'
-            : 'Every new video join is rejected until re-enabled (existing calls continue). Restart resets to the env default.',
+          title: currentlyDisabled ? t('enableVideoTitle') : t('disableVideoTitle'),
+          body: currentlyDisabled ? t('enableVideoBody') : t('disableVideoBody'),
           expected: ''
         });
-        if (!yes) return false;
-        const result = await api('POST', '/video-kill-switch', { disabled: !currentlyDisabled });
-        renderKillSwitch(result.disabled);
-        await loadOverview();
+        if (!yes) return;
+        try {
+          const result = await api('POST', '/video-kill-switch', { disabled: !currentlyDisabled });
+          renderKillSwitch(result.disabled);
+          await loadOverview();
+        } catch (error) {
+          reportActionError(error);
+        }
       });
 
       /* ---------- announce ---------- */
@@ -624,19 +1066,21 @@
             messageEn: $('announce-en').value,
             durationMinutes: Number($('announce-duration').value)
           });
-          toastNote($('announce-feedback'), 'Published.', true);
+          toastNote($('announce-feedback'), t('published'), true);
           await loadOverview();
         } catch (error) {
-          toastNote($('announce-feedback'), error.code === 'ANNOUNCEMENT_INVALID'
-            ? 'Add at least one message (max 200 chars).'
-            : 'Publish failed.');
+          toastNote($('announce-feedback'), error.code === 'ANNOUNCEMENT_INVALID' ? t('announceInvalid') : t('publishFailed'));
         }
       });
 
-      onAction($('announce-clear'), 'click', async () => {
-        await api('DELETE', '/broadcast');
-        toastNote($('announce-feedback'), 'Cleared.', true);
-        await loadOverview();
+      $('announce-clear').addEventListener('click', async () => {
+        try {
+          await api('DELETE', '/broadcast');
+          toastNote($('announce-feedback'), t('cleared'), true);
+          await loadOverview();
+        } catch (error) {
+          reportActionError(error);
+        }
       });
 
       /* ---------- system ---------- */
@@ -645,9 +1089,9 @@
         button.disabled = true;
         try {
           const result = await api('POST', '/backup');
-          $('backup-status').textContent = `Backed up ${result.entries} entries → ${result.files.join(', ')}`;
+          $('backup-status').textContent = t('backupDone', { entries: result.entries, files: isolate(result.files.join(', ')) });
         } catch (_error) {
-          $('backup-status').textContent = 'Backup failed — check the errors panel.';
+          $('backup-status').textContent = t('backupFailed');
         } finally {
           button.disabled = false;
         }
@@ -657,12 +1101,13 @@
         const data = await api('GET', '/errors');
         const list = $('errors-list');
         if (!data.errors.length) {
-          list.textContent = 'No warnings or errors since startup.';
+          list.textContent = t('noErrors');
           return;
         }
-        list.innerHTML = '';
+        list.replaceChildren();
         data.errors.slice(0, 50).forEach((entry) => {
           const pre = document.createElement('pre');
+          pre.dir = 'ltr';
           pre.textContent = JSON.stringify(entry);
           list.appendChild(pre);
         });
@@ -673,22 +1118,33 @@
       async function refreshActive() {
         try {
           const panel = activePanel();
-          if (panel === 'overview' || panel === 'video' || panel === 'announce') await loadOverview();
+          if (panel === 'overview') await loadOverview();
           if (panel === 'rooms') { await loadRooms(); if (inspectedRoomId) await inspectRoom(inspectedRoomId); }
           if (panel === 'users') await loadUsers();
           if (panel === 'reports') await loadReports();
+          if (panel === 'audit') await loadAudit();
           if (panel === 'system') { await loadOverview(); await loadErrors(); }
         } catch (error) {
-          showRequestError(error);
-          return false;
+          if (error.status === 401) window.location.reload();
         }
       }
-      onAction($('btn-refresh'), 'click', refreshActive);
+
+      $('btn-refresh').addEventListener('click', async () => {
+        const button = $('btn-refresh');
+        button.disabled = true;
+        try {
+          renderHeading();
+          if (activePanel() === 'audit') await loadAudit({ force: true });
+          else await refreshActive();
+        } finally {
+          button.disabled = false;
+        }
+      });
 
       function enterShell() {
         $('login-view').classList.add('hidden');
         $('ops-shell').classList.remove('hidden');
-        void refreshActive();
+        showSection();
         pollTimer = setInterval(() => {
           // Pause while hidden or while a confirm dialog is open (avoid
           // yanking focus mid-decision).
@@ -697,6 +1153,8 @@
         }, 5000);
         void pollTimer;
       }
+
+      applyLanguage();
 
       /* Boot: if the cookie is still valid, skip the login form. */
       api('GET', '/overview')

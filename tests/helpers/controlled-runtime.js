@@ -19,7 +19,8 @@ async function controlledRuntime() {
     const ownProcess = Object.create(process); ownProcess.once = () => ownProcess;
     vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
         module: holder, exports: holder.exports, __dirname: root, Buffer, URL, URLSearchParams,
-        TextEncoder, TextDecoder, AbortController, fetch, console, process: ownProcess,
+        TextEncoder, TextDecoder, AbortController, AbortSignal, fetch, console, process: ownProcess,
+        structuredClone, queueMicrotask, setImmediate, clearImmediate, performance, crypto: require('node:crypto').webcrypto,
         setTimeout(fn, ms, ...args) { const timer = setTimeout(fn, ms, ...args); timers.add(timer); return timer; },
         clearTimeout, clearInterval,
         setInterval(fn, ms, ...args) { const timer = setInterval(fn, ms, ...args); timers.add(timer); return timer; },
@@ -32,10 +33,12 @@ async function controlledRuntime() {
     const app = /** @type {any} */ (holder.exports).createCoStudyServer({ mode: 'http', createServer: handler => http.createServer(handler), env: {
         NODE_ENV: 'test', SESSION_SECRET: 'controlled-runtime-only-0123456789abcdef',
         PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', PLATFORM_DATABASE_URL: '',
-        VIDEO_PROVIDER: 'mesh', BILLING_MODE: 'test', BILLING_PROVIDER: 'simulator',
+        VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true', BILLING_MODE: 'test', BILLING_PROVIDER: 'simulator',
         ROOM_STATE_FILE: path.join(directory, 'rooms.json'), USER_STATE_FILE: path.join(directory, 'users.json'), BACKUP_INTERVAL_MINUTES: '0'
     } });
     if (!platform) throw new Error('CONTROLLED_PLATFORM_NOT_CAPTURED');
+    // Hydration is explicit on main: the HTTP entry points await it before listening.
+    await app.initialize();
     await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
     const baseUrl = `http://127.0.0.1:${app.server.address().port}`;
     for (let attempt = 0; attempt < 200 && !app.evaluateReadiness().ready; attempt++) await delay(25);

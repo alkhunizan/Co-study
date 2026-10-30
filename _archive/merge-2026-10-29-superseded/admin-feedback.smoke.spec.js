@@ -1,8 +1,8 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage } = require('../helpers/playwright-test');
 
 test('admin request failures are visible and search can be retried by click or Enter', async ({ page }) => {
     const errors = []; page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto('/ops-smoke-test-1234');
+    await gotoTestPage(page, '/ops-smoke-test-1234');
     await page.fill('#admin-password', 'smoke-admin-password');
     await page.click('#login-form button[type="submit"]');
     await expect(page.locator('#ops-shell')).toBeVisible();

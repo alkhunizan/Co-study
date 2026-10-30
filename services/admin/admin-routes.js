@@ -17,6 +17,9 @@ const ADMIN_TOKEN_USER_ID = 'admin';
 const ANNOUNCEMENT_MAX_LENGTH = 200;
 const ANNOUNCEMENT_MAX_MINUTES = 1440;
 const USERS_PAGE_SIZE = 50;
+const AUDIT_PAGE_SIZE = 50;
+const AUDIT_REASON_MAX_LENGTH = 300;
+const REASON_MIN_LENGTH = 3;
 
 function createAdminRouter(deps) {
     const {
@@ -35,10 +38,13 @@ function createAdminRouter(deps) {
         videoSessionRegistry,
         announcementState,
         buildScheduleSummary,
-        deleteRoom,
-        persistUsersSoon,
+        closeRoom,
+        revokeSocketVideoSessions,
+        persistUser,
+        runUserMutation,
         persistRoomsSoon,
         dashboard,
+        auditLog,
         logger
     } = deps;
 
@@ -48,7 +54,7 @@ function createAdminRouter(deps) {
         const token = createSessionToken({
             userId: ADMIN_TOKEN_USER_ID,
             tokenEpoch: 1,
-            secret: config.sessionSecret
+            secret: config.adminSessionSecret
         });
         const cookieParts = [
             `${ADMIN_COOKIE_NAME}=${token}`,
@@ -81,7 +87,7 @@ function createAdminRouter(deps) {
         }
         const token = parseCookies(req.headers.cookie || '')[ADMIN_COOKIE_NAME];
         const verified = verifySessionToken(token, {
-            secret: config.sessionSecret,
+            secret: config.adminSessionSecret,
             maxAgeMs: ADMIN_SESSION_TTL_MS
         });
         if (!verified || verified.userId !== ADMIN_TOKEN_USER_ID) {
@@ -89,6 +95,29 @@ function createAdminRouter(deps) {
             return;
         }
         next();
+    }
+
+    // Records a completed admin action. The optional free-text reason comes
+    // from the request body so every mutation can carry one.
+    function audit(req, action, target = null, details = null) {
+        auditLog.record({
+            action,
+            target,
+            reason: sanitizeUserText(req.body?.reason, AUDIT_REASON_MAX_LENGTH),
+            ip: getRequestIp(req),
+            details
+        });
+    }
+
+    // Destructive actions (close, kick, ban, unban) must say why. Checked
+    // after the target is found and before anything changes.
+    function requireReason(req, res) {
+        const reason = sanitizeUserText(req.body?.reason, AUDIT_REASON_MAX_LENGTH);
+        if (Array.from(reason).length < REASON_MIN_LENGTH) {
+            res.status(400).json({ errorCode: 'REASON_REQUIRED' });
+            return false;
+        }
+        return true;
     }
 
     function activeAnnouncement(now = Date.now()) {
@@ -129,6 +158,7 @@ function createAdminRouter(deps) {
         const valid = password ? await verifyPassword(password, config.admin.passwordHash) : false;
         if (!valid) {
             logger.warn({ event: 'admin_login_failed', ip: requestIp });
+            audit(req, 'login_failed');
             res.status(401).json({ errorCode: 'ADMIN_INVALID' });
             return;
         }
@@ -136,11 +166,13 @@ function createAdminRouter(deps) {
         rateLimiters.adminLogin.reset('global');
         setAdminCookie(req, res);
         logger.info({ event: 'admin_login', ip: requestIp });
+        audit(req, 'login');
         res.json({ ok: true });
     });
 
-    router.post('/api/logout', requireAdmin, (_req, res) => {
+    router.post('/api/logout', requireAdmin, (req, res) => {
         clearAdminCookie(res);
+        audit(req, 'logout');
         res.json({ ok: true });
     });
 
@@ -254,25 +286,32 @@ function createAdminRouter(deps) {
         });
     });
 
-    router.post('/api/rooms/:roomId/close', requireAdmin, (req, res) => {
+    router.post('/api/rooms/:roomId/close', requireAdmin, async (req, res) => {
         const roomId = (req.params.roomId || '').trim().toUpperCase();
         const room = rooms.get(roomId);
         if (!room) {
             res.status(404).json({ errorCode: 'ROOM_NOT_FOUND' });
             return;
         }
-        io.to(roomId).emit('room-closed', { reason: 'admin' });
-        const memberSocketIds = Array.from(room.users ? room.users.keys() : []);
-        for (const socketId of memberSocketIds) {
-            const socket = io.sockets.sockets.get(socketId);
-            if (socket) socket.disconnect(true);
+        if (!requireReason(req, res)) return;
+        try {
+            const result = await closeRoom(roomId, { reason: 'admin' });
+            logger.warn({ event: 'admin_room_closed', roomId, kicked: result?.kicked || 0 });
+            if (result?.ok !== false) {
+                audit(req, 'room_close', { type: 'room', id: roomId, label: room.name }, { kicked: result?.kicked || 0 });
+            }
+            res.json(result || { ok: false, errorCode: 'ROOM_NOT_FOUND' });
+        } catch (error) {
+            if (error?.code === 'PERSISTENCE_UNAVAILABLE') {
+                res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+                return;
+            }
+            logger.error({ event: 'admin_room_close_failed', roomId, error: error?.message });
+            res.status(500).json({ errorCode: 'ROOM_CLOSE_FAILED' });
         }
-        deleteRoom(roomId);
-        logger.warn({ event: 'admin_room_closed', roomId, kicked: memberSocketIds.length });
-        res.json({ ok: true, kicked: memberSocketIds.length });
     });
 
-    router.post('/api/rooms/:roomId/kick', requireAdmin, (req, res) => {
+    router.post('/api/rooms/:roomId/kick', requireAdmin, async (req, res) => {
         const roomId = (req.params.roomId || '').trim().toUpperCase();
         const room = rooms.get(roomId);
         if (!room) {
@@ -284,6 +323,17 @@ function createAdminRouter(deps) {
             res.status(404).json({ errorCode: 'PARTICIPANT_NOT_FOUND' });
             return;
         }
+        if (!requireReason(req, res)) return;
+        const participantName = room.users.get(socketId)?.name || '';
+        const revocation = await revokeSocketVideoSessions(socketId, 'admin_kick');
+        if (revocation.persistenceUnavailable) {
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
+        if (!revocation.providerIdentityRevoked) {
+            res.status(503).json({ errorCode: 'VIDEO_PROVIDER_UNAVAILABLE' });
+            return;
+        }
         const socket = io.sockets.sockets.get(socketId);
         if (socket) {
             socket.emit('kicked', { reason: 'admin' });
@@ -293,6 +343,7 @@ function createAdminRouter(deps) {
             room.users.delete(socketId);
         }
         logger.warn({ event: 'admin_participant_kicked', roomId, socketId });
+        audit(req, 'participant_kick', { type: 'participant', id: socketId, label: participantName }, { roomId });
         res.json({ ok: true });
     });
 
@@ -332,6 +383,7 @@ function createAdminRouter(deps) {
         report.status = 'resolved';
         if (typeof persistRoomsSoon === 'function') persistRoomsSoon();
         logger.warn({ event: 'admin_report_resolved', roomId, reportId: report.id });
+        audit(req, 'report_resolve', { type: 'report', id: report.id, label: room.name }, { roomId });
         res.json({ ok: true });
     });
 
@@ -354,6 +406,7 @@ function createAdminRouter(deps) {
         }
         runtimeFlags.videoJoinDisabled = disabled;
         logger.warn({ event: 'admin_video_kill_switch', disabled });
+        audit(req, disabled ? 'video_disable' : 'video_enable', { type: 'system', id: 'video', label: '' });
         res.json({ ok: true, disabled: isVideoJoinDisabled() });
     });
 
@@ -380,16 +433,37 @@ function createAdminRouter(deps) {
         res.json({ ok: true, total: list.length, offset, users: page });
     });
 
-    function setBanned(req, res, banned) {
+    async function setBanned(req, res, banned) {
         const user = users.get(req.params.userId);
         if (!user) {
             res.status(404).json({ errorCode: 'USER_NOT_FOUND' });
             return;
         }
-        user.banned = banned;
-        // Epoch bump kills every outstanding cookie for this user immediately.
-        user.tokenEpoch += 1;
-        persistUsersSoon();
+        if (!requireReason(req, res)) return;
+        try {
+            await runUserMutation(user, async () => {
+                const previousBanned = user.banned;
+                const previousTokenEpoch = user.tokenEpoch;
+                user.banned = banned;
+                // Epoch bump kills every outstanding cookie for this user immediately.
+                user.tokenEpoch += 1;
+                try {
+                    await persistUser(user);
+                } catch (error) {
+                    user.banned = previousBanned;
+                    user.tokenEpoch = previousTokenEpoch;
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(404).json({ errorCode: 'USER_NOT_FOUND' });
+                return;
+            }
+            logger.error({ event: 'admin_user_persist_failed', userId: user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
         if (banned) {
             for (const socket of io.sockets.sockets.values()) {
                 if (socket.data && socket.data.userId === user.id) {
@@ -398,6 +472,7 @@ function createAdminRouter(deps) {
             }
         }
         logger.warn({ event: banned ? 'admin_user_banned' : 'admin_user_unbanned', userId: user.id });
+        audit(req, banned ? 'user_ban' : 'user_unban', { type: 'user', id: user.id, label: user.displayName });
         res.json({ ok: true, banned });
     }
 
@@ -427,23 +502,26 @@ function createAdminRouter(deps) {
         announcementState.current = announcement;
         io.emit('announcement', announcement);
         logger.info({ event: 'admin_broadcast', id: announcement.id, durationMinutes });
+        audit(req, 'announcement_set', { type: 'announcement', id: announcement.id, label: messageEn || messageAr }, { durationMinutes });
         res.json({ ok: true, announcement });
     });
 
-    router.delete('/api/broadcast', requireAdmin, (_req, res) => {
+    router.delete('/api/broadcast', requireAdmin, (req, res) => {
         const current = announcementState.current;
         announcementState.current = null;
         if (current) {
             io.emit('announcement-clear', { id: current.id });
+            audit(req, 'announcement_clear', { type: 'announcement', id: current.id, label: current.messageEn || current.messageAr });
         }
         res.json({ ok: true });
     });
 
     // ---- system ----
 
-    router.post('/api/backup', requireAdmin, async (_req, res) => {
+    router.post('/api/backup', requireAdmin, async (req, res) => {
         try {
             const result = await backupScheduler.runBackup();
+            audit(req, 'backup_run', { type: 'system', id: 'backup', label: '' }, { files: result.files.length });
             res.json({ ok: true, files: result.files.map((file) => path.basename(file)), entries: result.entries });
         } catch (error) {
             res.status(500).json({ errorCode: 'BACKUP_FAILED', message: error.message });
@@ -452,6 +530,13 @@ function createAdminRouter(deps) {
 
     router.get('/api/errors', requireAdmin, (_req, res) => {
         res.json({ ok: true, errors: errorBuffer.list() });
+    });
+
+    router.get('/api/audit', requireAdmin, (req, res) => {
+        const offset = Math.max(0, Number.parseInt(String(req.query.offset || '0'), 10) || 0);
+        const action = typeof req.query.action === 'string' ? req.query.action.trim() : '';
+        const page = auditLog.list({ offset, limit: AUDIT_PAGE_SIZE, action });
+        res.json({ ok: true, total: page.total, offset, entries: page.entries });
     });
 
     router.get('/api/video-sessions', requireAdmin, (_req, res) => {

@@ -1,0 +1,66 @@
+/* Shared public chrome, opt-in only: study-room controls remain independent. */
+[data-public-page] .topbar {
+  box-sizing: border-box;
+  block-size: 76px;
+  padding-block: 12px;
+  gap: 20px;
+}
+[data-public-page] .brand { flex-shrink: 0; }
+[data-public-page] .public-nav { gap: 20px; }
+[data-public-page] .public-nav a[aria-current="page"],
+[data-public-page] .mobile-menu a[aria-current="page"] {
+  color: var(--accent-3);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+[data-public-page] .topbar a,
+[data-public-page] .topbar button,
+[data-public-page] footer a,
+[data-public-page] .mobile-menu button {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+[data-public-page] .icon-btn { border-radius: 999px; justify-content: center; }
+[data-public-page] .lang-switch button { justify-content: center; }
+[data-public-page] .mobile-menu { inset-block-start: 76px; max-block-size: calc(100dvh - 76px); }
+[data-public-page] .mobile-menu a { padding-inline: 10px; }
+[data-public-page] footer a:focus-visible,
+[data-public-page] main a:focus-visible,
+[data-public-page] main button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-radius: 6px;
+}
+[data-public-page] footer .links,
+[data-public-page] .footer-contact { display: inline-flex; flex-wrap: wrap; gap: 8px 20px; }
+@media (max-width: 1099px) {
+  [data-public-page] .public-nav { display: none; }
+  [data-public-page] .nav-burger { display: inline-flex; }
+  [data-public-page] .mobile-menu:not([hidden]) { display: flex !important; }
+  [data-public-page] .topbar-right .btn--compact { display: none; }
+}
+@media (min-width: 1100px) {
+  [data-public-page] .public-nav { display: flex; }
+  [data-public-page] .nav-burger,
+  [data-public-page] .mobile-menu { display: none !important; }
+}
+[data-legal-page] { margin: 0; background: var(--paper); color: var(--ink); }
+[data-legal-page] main {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding-block-start: 112px;
+  overflow-wrap: anywhere;
+}
+/* Both complete translations remain readable and retain their own direction.
+   Put the selected language first without replacing text or removing anchors. */
+html[lang="en"] [data-legal-page] main section[lang="en"],
+html[lang="ar"] [data-legal-page] main section[lang="ar"] { order: -1; }
+[data-legal-page] .lang-divider { inline-size: 100%; }
+[data-legal-page] .legal-footer { padding-inline: 20px; }
+[data-public-page] .nf-shell { padding-block-start: 100px; }
+@media (prefers-reduced-motion: reduce) {
+  [data-public-page] .mobile-menu { transition: none; }
+}

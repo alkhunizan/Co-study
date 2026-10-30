@@ -1,15 +1,15 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage } = require('../helpers/playwright-test');
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 
 test('an old page cannot start focus for a different cookie account', async ({ page }) => {
-    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', BILLING_MODE: 'test' } });
+    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true', BILLING_MODE: 'test' } });
     try {
         const alice = await signupUser(server, { displayName: 'AliceLocal' });
         const bob = await signupUser(server, { displayName: 'BobLocal' });
         await page.addInitScript(() => localStorage.setItem('halastudyLang', 'en'));
         await page.request.post(`${server.baseUrl}/api/auth/login`, { data: alice.credentials });
-        await page.goto(`${server.baseUrl}/app#progress`);
+        await gotoTestPage(page, `${server.baseUrl}/app#progress`);
         await expect(page.locator('#greeting')).toContainText('AliceLocal');
         await page.request.post(`${server.baseUrl}/api/auth/login`, { data: bob.credentials });
         const [denied] = await Promise.all([

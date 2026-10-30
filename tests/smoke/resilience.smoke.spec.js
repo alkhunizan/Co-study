@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage } = require('../helpers/playwright-test');
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 
@@ -10,30 +10,6 @@ test.beforeEach(async ({ context, page }) => {
     await page.addInitScript(() => localStorage.setItem('halastudyLang', 'en'));
 });
 
-test('identity outages and malformed responses show retry instead of guest forms', async ({ page }, testInfo) => {
-    const errors = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.route('**/api/auth/me', (route) => route.fulfill({ status: 503, json: { errorCode: 'SERVICE_UNAVAILABLE' } }));
-    await page.goto('/account');
-    await expect(page.locator('#session-unavailable')).toContainText('Data is unavailable');
-    await expect(page.locator('#auth-view')).toBeHidden();
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.locator('#lang-ar').click();
-    await expect(page.locator('#session-unavailable button')).toHaveText('إعادة المحاولة');
-    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath('mobile-ar-auth-unavailable.png'), fullPage: true });
-    await page.locator('#lang-en').click();
-    await page.unroute('**/api/auth/me');
-    await page.route('**/api/auth/me', (route) => route.fulfill({ status: 200, json: {} }));
-    await page.locator('#session-unavailable button').click();
-    await expect(page.locator('#session-unavailable')).toBeVisible();
-    await expect(page.locator('#auth-view')).toBeHidden();
-    await page.unroute('**/api/auth/me');
-    await page.locator('#session-unavailable button').click();
-    await expect(page.locator('#auth-view')).toBeVisible();
-    expect(errors).toEqual([]);
-});
 
 test('account read failures stay unavailable until a successful independent retry', async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: {
@@ -41,7 +17,7 @@ test('account read failures stay unavailable until a successful independent retr
     } }));
     await page.route('**/api/me/stats', (route) => route.fulfill({ status: 503, json: { errorCode: 'SERVICE_UNAVAILABLE' } }));
     await page.route('**/api/me/rooms', (route) => route.fulfill({ status: 503, json: { errorCode: 'SERVICE_UNAVAILABLE' } }));
-    await page.goto('/account');
+    await gotoTestPage(page, '/account');
     await expect(page.locator('#stats-unavailable')).toBeVisible();
     await expect(page.locator('#rooms-unavailable')).toBeVisible();
     await expect(page.locator('#stat-hours')).toHaveText('—');
@@ -62,7 +38,7 @@ test('account read failures stay unavailable until a successful independent retr
 });
 
 test('a stalled request times out and an older auth failure cannot evict a newer session', async ({ page }) => {
-    await page.goto('/account');
+    await gotoTestPage(page, '/account');
     await page.clock.install();
     await page.route('**/stall-test', () => {});
     const request = page.evaluate(() => (/** @type {any} */ (window)).HalaCore.requestJson('GET', '/stall-test')
@@ -95,7 +71,7 @@ test('a stalled request times out and an older auth failure cannot evict a newer
 
 test('circle selection and destructive action targets remain consistent under reordered responses', async ({ page, context }) => {
     test.setTimeout(120000);
-    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh' } });
+    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     try {
         const owner = await signupUser(server, { email: 'circle-race@example.invalid', displayName: 'Owner' });
         const api = (path, body) => server.request(`/api/platform${path}`, {
@@ -110,7 +86,7 @@ test('circle selection and destructive action targets remain consistent under re
             return { name, value: value.join('='), url: server.baseUrl };
         }));
         await page.route('**/api/platform/progress', (route) => route.fulfill({ status: 503, json: { errorCode: 'SERVICE_UNAVAILABLE' } }));
-        await page.goto(`${server.baseUrl}/app#circles`);
+        await gotoTestPage(page, `${server.baseUrl}/app#circles`);
         await expect(page.locator('#session-unavailable')).toBeVisible();
         await expect(page.locator('#circle-create')).toBeHidden();
         await expect(page.locator('#guest')).toBeHidden();

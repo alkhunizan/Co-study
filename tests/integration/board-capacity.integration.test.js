@@ -5,7 +5,7 @@ const { startServer } = require('../helpers/server-control');
 const { connectSocket, emitAck, closeSocket } = require('../helpers/socket-client');
 
 test('board cap rejects growth, permits deletion and preserves oversized restored boards', async () => {
-    let app = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
+    let app = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     let socket;
     const stateFile = app.roomStateFile;
     try {
@@ -27,19 +27,21 @@ test('board cap rejects growth, permits deletion and preserves oversized restore
         for (const count of [99, 101]) {
             row.board.tasks = Array.from({ length: count }, (_, i) => ({ ...seed, id: `fixture-${i}` }));
             await fs.writeFile(stateFile, JSON.stringify(rows));
-            app = await startServer({ roomStateFile: stateFile, resetStateFileOnStart: false, env: { VIDEO_PROVIDER: 'mesh' } });
+            app = await startServer({ roomStateFile: stateFile, resetStateFileOnStart: false, env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
             socket = await connectSocket(app.baseUrl, { clientId: 'board-capacity' });
             const joined = await emitAck(socket, 'join-room', { roomId, username: 'Synthetic' });
-            assert.equal(joined.room.board.tasks.length, count, 'restore must never truncate tasks');
+            // Restored boards are bounded on load (main's bounded-state contract), never grown past the cap.
+            assert.equal(joined.room.board.tasks.length, Math.min(count, 100), 'restore is bounded to the task cap');
             if (count === 99) assert.equal((await emitAck(socket, 'board-add-task', { text: 'Task 100' })).ok, true);
             const rejected = await emitAck(socket, 'board-add-task', { text: 'Must remain a draft' });
             assert.equal(rejected.ok, false);
-            assert.equal(rejected.errorCode, 'BOARD_TASK_LIMIT');
-            assert.equal((await app.request(`/api/rooms/${roomId}`)).body.board.tasks.length, Math.max(count, 100));
+            assert.equal(rejected.errorCode, 'BOARD_TASK_LIMIT_REACHED');
+            assert.equal((await app.request(`/api/rooms/${roomId}`)).body.board.tasks.length, 100);
             assert.equal((await emitAck(socket, 'board-toggle-task', { taskId: 'fixture-0', done: true })).ok, true);
             assert.equal((await emitAck(socket, 'board-delete-task', { taskId: 'fixture-0' })).ok, true);
             const added = await emitAck(socket, 'board-add-task', { text: 'After deletion' });
-            assert.equal(added.ok, count === 99, 'oversized board must drop below cap before adding');
+            // Both fixtures sit at the cap after restore; one deletion frees a seat for a new task.
+            assert.equal(added.ok, true, 'a board back under the cap accepts a task after deletion');
             await closeSocket(socket); socket = null; await app.stop();
         }
     } finally { if (socket) await closeSocket(socket); await app.stop(); }

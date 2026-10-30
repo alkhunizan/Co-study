@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const { randomUUID } = require('node:crypto');
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
@@ -8,7 +8,7 @@ const { connectSocket, emitAck, closeSocket } = require('../helpers/socket-clien
 
 async function fixture(browser, server) {
     const account = await signupUser(server, { displayName: 'Audit planner' });
-    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const context = await createTestContext(browser, { viewport: { width: 1440, height: 1000 } });
     await context.addCookies(
         account.cookie.split(';').map((s) => {
             const [name, ...value] = s.trim().split('=');
@@ -25,7 +25,7 @@ async function fixture(browser, server) {
     return { account, context, page, call };
 }
 async function open(page, server) {
-    await page.goto(`${server.baseUrl}/app#planner`);
+    await gotoTestPage(page, `${server.baseUrl}/app#planner`);
     await expect(page.locator('#study-task')).toBeVisible();
     await expect(page.locator('#study-status')).toBeEmpty();
 }
@@ -41,7 +41,7 @@ const task = (title, steps = []) => ({
 });
 async function boot(browser) {
     const server = await startServer({
-        env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh' },
+        env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' },
     });
     const f = await fixture(browser, server);
     return { server, ...f };

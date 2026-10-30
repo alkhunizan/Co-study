@@ -81,18 +81,33 @@
     .legal-footer a { color: var(--ink-2); text-decoration: none; }
     .legal-footer a:hover { color: var(--ink); }
     .legal-footer a[aria-current="page"] { color: var(--ink); font-weight: 600; }
+    /* DESIGN.md §11: every focus uses the accent glow, never the browser outline. */
+    a:focus-visible { outline: none; box-shadow: var(--sh-focus); border-radius: 6px; }
   </style>
+  <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <link rel="stylesheet" href="/design-system/public-shell.css">
+  <script src="/js/public-shell.js" defer></script>
 </head>
-<body>
+<body data-public-page="terms" data-legal-page>
   <header class="topbar">
-    <a href="/">هلاستدي · <bdi>Halastudy</bdi></a>
-    <a href="/open">افتح غرفة · <bdi>Open a room</bdi></a>
+    <a class="brand" href="/">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <div class="topbar-right">
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang-value="en">EN</button>
+        <button type="button" data-lang-value="ar">ع</button>
+      </div>
+    </div>
   </header>
 
   <main>
     <section lang="ar" dir="rtl">
       <h1>شروط الاستخدام</h1>
-      <p class="updated">آخر تحديث: 20 أكتوبر 2026</p>
+      <p class="updated">آخر تحديث: 20 أكتوبر 2026 · تاريخ السريان: 20 أكتوبر 2026</p>
 
       <p>مرحباً بك في هلاستدي. باستخدامك للخدمة فإنك توافق على هذه الشروط. اقرأها مع <a href="/privacy">سياسة الخصوصية</a>، فهي جزء لا يتجزأ من هذه الشروط.</p>
 
@@ -103,7 +118,7 @@
       <p>هلاستدي مخصّصة لمن أعمارهم <strong>18 سنة فأكثر</strong>، ولأن الكاميرا تعمل داخل الغرف لا يجوز استخدامها لمن هم دون هذا السن. باستخدامك للخدمة فإنك تؤكد أنك بلغت هذا السن وأن لديك الأهلية النظامية للموافقة على هذه الشروط.</p>
 
       <h2>3. وصف الخدمة</h2>
-      <p>هلاستدي مساحة للمذاكرة الهادئة والمرافقة بالوجود. تختلف طريقة نقل الفيديو حسب وضع الغرفة، والتسجيل معطّل في إعدادات الخدمة. تتاح غرف وتقدّم أساسي مجانًا، ولا يتطلب احتساب النقاط تشغيل الكاميرا.</p>
+      <p>هلاستدي غرفة مذاكرة هادئة تعتمد على "المرافقة بالوجود" (body-doubling): الكاميرا تعمل والمايك مقفول، فتذاكر بجانب غيرك دون كلام. في الإنتاج توجّه <strong>Cloudflare RealtimeKit</strong> الوسائط المباشرة عبر بنية SFU مُدارة؛ وضع mesh مخصص للتطوير المحلي ومعطّل في الإنتاج. لا يفعّل هلاستدي تسجيل الجلسات. تتاح غرف وتقدّم أساسي مجانًا في مرحلة التجربة وقد تتغيّر ملامح الخدمة في أي وقت، ولا يتطلب احتساب النقاط تشغيل الكاميرا.</p>
       <p>VIP هي العضوية المدفوعة الوحيدة بسعر 4.99 دولار أمريكي شهريًا. المحاكاة التجريبية المحلية لا تجمع بيانات دفع ولا تخصم أموالًا ولا تنشئ تجديدًا فعليًا. الدفع الحقيقي غير متاح حتى اختيار مزوّده وإظهار شروط الدفع والتجديد والإلغاء قبل الشراء. لا تغيّر العضوية نقاط التركيز أو تمنح صلاحيات إدارة المنصة.</p>
 
       <h2>4. الحساب</h2>
@@ -129,6 +144,7 @@
 
       <h2>7. المحتوى الذي تنشره</h2>
       <p>تبقى ملكية ما تكتبه (اسمك المستعار، رسائل الدردشة، مهام اللوحة) لك، وتمنحنا إذناً محدوداً بعرضه للمشاركين داخل الغرفة لتشغيل الخدمة فقط. أنت وحدك المسؤول عن محتواك، وتقرّ بأنه لا يخالف هذه الشروط ولا حقوق الغير.</p>
+      <p>محتوى الغرف الفورية يُحذف بعد خلو الغرفة وفق مدة الاحتفاظ الموضحة في سياسة الخصوصية. تُحذف الغرف المجدولة لمرة واحدة بعد نحو 30 دقيقة من إغلاق الموعد، وتبقى الغرف المتكررة 90 يوماً افتراضياً أو حتى تاريخ يحدده المنشئ بحد أقصى 365 يوماً. لا تضع معلومات حساسة أو سرية في أي غرفة.</p>
 
       <h2>8. الإشراف والإنفاذ</h2>
       <p>لحماية سلامة المستخدمين، يحق لنا — دون إشعار مسبق ووفق تقديرنا — إنهاء أي غرفة، أو إزالة أي محتوى، أو تعليق أو حظر أي مستخدم يخالف هذه الشروط أو يهدد سلامة الآخرين.</p>
@@ -137,7 +153,7 @@
       <p>اسم هلاستدي وشعارها وتصميم الخدمة مملوكة لنا. تعتمد الخدمة جزئياً على برمجيات مفتوحة المصدر تخضع لتراخيصها الخاصة، وهذا لا يمنحك أي حق في علامات هلاستدي. لا يجوز نسخ الخدمة أو إعادة بيعها أو تقليدها دون إذن.</p>
 
       <h2>10. خدمات الطرف الثالث</h2>
-      <p>تعتمد الخدمة على مزوّدين خارجيين (استضافة، وخوادم ترحيل الوسائط). لا نتحمّل مسؤولية أعطال أو ممارسات هذه الأطراف الخارجة عن سيطرتنا.</p>
+      <p>تعتمد الخدمة على <strong>Google</strong> لتسجيل الدخول الاختياري والخطوط، و<strong>Supabase</strong> لبيانات الحساب والإحصاءات، و<strong>Cloudflare</strong> للحافة وCloudflare RealtimeKit وR2، و<strong>jsDelivr</strong> لتقديم ملفات RealtimeKit البرمجية، إضافة إلى AWS للاستضافة. يخضع استخدامك للأجزاء التي تقدمها هذه الجهات لشروطها وسياساتها، وقد تتأثر الخدمة بأعطال أو تغييرات خارجة عن سيطرتنا. تشرح <a href="/privacy">سياسة الخصوصية</a> أدوار المعالجة والبيانات المنقولة.</p>
 
       <h2>11. الخدمة "كما هي"</h2>
       <p>هلاستدي في مرحلة تجريبية وتُقدَّم "كما هي" و"حسب توفّرها"، دون أي ضمانات صريحة أو ضمنية. لا نضمن أن تكون الخدمة متواصلة أو خالية من الأخطاء أو أن تناسب غرضاً معيّناً.</p>
@@ -149,7 +165,7 @@
       <p>توافق على تعويضنا عن أي مطالبات أو أضرار تنشأ عن مخالفتك لهذه الشروط أو للأنظمة أو لحقوق الغير.</p>
 
       <h2>14. الإنهاء</h2>
-      <p>يمكنك التوقّف عن استخدام الخدمة وحذف حسابك في أي وقت. ويحق لنا تعليق أو إنهاء وصولك إذا خالفت هذه الشروط.</p>
+      <p>يمكنك التوقّف عن استخدام الخدمة وحذف حسابك في أي وقت. يُزال حسابك من أنظمة الإنتاج الحية فوراً، وقد تبقى نسخة معزولة في نسخ احتياطية مشفّرة لمدة لا تتجاوز سبعة أيام وفق <a href="/privacy">سياسة الخصوصية</a>. حذف الحساب لا يحذف تلقائياً محتوى غرفة مجدولة غير مربوط بالحساب؛ لطلب ذلك تواصل معنا برمز الغرفة. ويحق لنا تعليق أو إنهاء وصولك إذا خالفت هذه الشروط.</p>
 
       <h2>15. تغييرات على الشروط</h2>
       <p>قد نحدّث هذه الشروط من وقت لآخر. ننشر النسخة المحدّثة هنا مع تعديل التاريخ، واستمرارك في استخدام الخدمة بعد ذلك يعني موافقتك على النسخة الجديدة.</p>
@@ -165,7 +181,7 @@
 
     <section lang="en" dir="ltr">
       <h1>Terms of Service</h1>
-      <p class="updated">Last updated: October 20, 2026</p>
+      <p class="updated">Last updated: October 20, 2026 · Effective date: October 20, 2026</p>
 
       <p>Welcome to Halastudy. By using the service you agree to these Terms. Read them together with our <a href="/privacy">Privacy Policy</a>, which forms part of these Terms.</p>
 
@@ -176,7 +192,7 @@
       <p>Halastudy is for people aged <strong>18 and over</strong>, and because the camera is on inside rooms it may not be used by anyone younger. By using the service you confirm that you meet this age requirement and have the legal capacity to accept these Terms.</p>
 
       <h2>3. What the service is</h2>
-      <p>Halastudy provides quiet study spaces and body doubling. Media routing depends on the room mode, and recording is disabled in the service configuration. Study rooms and basic progress remain free; earning focus points does not require a camera.</p>
+      <p>Halastudy is a quiet study room based on body-doubling: camera on, mic off, so you work alongside others without talking. In production, <strong>Cloudflare RealtimeKit</strong> routes live media through a managed SFU; mesh mode is local-development-only and disabled in production. Halastudy does not enable session recording. Study rooms and basic progress are free during beta and the service's features may change at any time; earning focus points does not require a camera.</p>
       <p>VIP is the only paid membership, priced at US$4.99 per month. The local test checkout collects no payment details, charges no money and creates no real renewals. Real checkout remains unavailable until a provider is chosen and payment, renewal and cancellation terms are shown before purchase. Membership does not change focus points or grant platform administration.</p>
 
       <h2>4. Your account</h2>
@@ -202,6 +218,7 @@
 
       <h2>7. Your content</h2>
       <p>You keep ownership of what you write (your nickname, chat messages, board tasks) and grant us a limited permission to display it to participants inside the room, solely to run the service. You are solely responsible for your content and confirm it does not break these Terms or anyone's rights.</p>
+      <p>Instant-room content is removed after the room becomes empty under the retention period in the Privacy Policy. One-time scheduled rooms are deleted about 30 minutes after their occurrence closes; recurring rooms last 90 days by default or until a creator-selected end date of no more than 365 days. Do not place sensitive or confidential information in any room.</p>
 
       <h2>8. Moderation and enforcement</h2>
       <p>To protect user safety, we may — without prior notice and at our discretion — end any room, remove any content, or suspend or ban any user who breaks these Terms or threatens the safety of others.</p>
@@ -210,7 +227,7 @@
       <p>The Halastudy name, logo, and service design belong to us. The service is built in part on open-source software provided under its own licenses, which grants you no rights in the Halastudy marks. You may not copy, resell, or clone the service without permission.</p>
 
       <h2>10. Third-party services</h2>
-      <p>The service relies on external providers (hosting and media relay servers). We are not responsible for failures or practices of these third parties that are outside our control.</p>
+      <p>The service relies on <strong>Google</strong> for optional sign-in and fonts, <strong>Supabase</strong> for account data and statistics, <strong>Cloudflare</strong> for edge services, Cloudflare RealtimeKit, and R2, and <strong>jsDelivr</strong> to deliver the RealtimeKit browser software, as well as AWS for hosting. Your use of provider-supplied parts is subject to their terms and policies, and the service may be affected by outages or changes outside our control. Our <a href="/privacy">Privacy Policy</a> explains their processing roles and the data transferred.</p>
 
       <h2>11. Service provided "as is"</h2>
       <p>Halastudy is in beta and is provided "as is" and "as available," without warranties of any kind, express or implied. We do not guarantee that the service will be uninterrupted, error-free, or fit for a particular purpose.</p>
@@ -222,7 +239,7 @@
       <p>You agree to indemnify us against any claims or damages arising from your breach of these Terms, of the law, or of anyone's rights.</p>
 
       <h2>14. Termination</h2>
-      <p>You may stop using the service and delete your account at any time. We may suspend or end your access if you break these Terms.</p>
+      <p>You may stop using the service and delete your account at any time. Account data is removed from live production systems immediately, while an isolated copy may remain in encrypted backups for no more than seven days as described in the <a href="/privacy">Privacy Policy</a>. Account deletion does not automatically delete scheduled-room content that is not linked to the account; contact us with the room code to request that deletion. We may suspend or end your access if you break these Terms.</p>
 
       <h2>15. Changes to these terms</h2>
       <p>We may update these Terms from time to time. We post the updated version here with a revised date, and your continued use after that means you accept the new version.</p>
@@ -238,8 +255,7 @@
   <footer class="legal-footer">
     <a href="/privacy">الخصوصية · Privacy</a>
     <a href="/terms" aria-current="page">الشروط · Terms</a>
-  
-    <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
+    <a href="/contact">تواصل · Contact</a>
   </footer>
 </body>
 </html>

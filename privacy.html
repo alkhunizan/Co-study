@@ -81,18 +81,33 @@
     .legal-footer a { color: var(--ink-2); text-decoration: none; }
     .legal-footer a:hover { color: var(--ink); }
     .legal-footer a[aria-current="page"] { color: var(--ink); font-weight: 600; }
+    /* DESIGN.md §11: every focus uses the accent glow, never the browser outline. */
+    a:focus-visible { outline: none; box-shadow: var(--sh-focus); border-radius: 6px; }
   </style>
+  <link rel="stylesheet" href="/design-system/landing.css">
+  <script src="/js/halastudy-core.js"></script>
+  <link rel="stylesheet" href="/design-system/public-shell.css">
+  <script src="/js/public-shell.js" defer></script>
 </head>
-<body>
+<body data-public-page="privacy" data-legal-page>
   <header class="topbar">
-    <a href="/">هلاستدي · <bdi>Halastudy</bdi></a>
-    <a href="/open">افتح غرفة · <bdi>Open a room</bdi></a>
+    <a class="brand" href="/">
+      <span>Hala<em>study</em><span class="dot">.</span></span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="ar" aria-hidden="true">هلا</span>
+    </a>
+    <div class="topbar-right">
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang-value="en">EN</button>
+        <button type="button" data-lang-value="ar">ع</button>
+      </div>
+    </div>
   </header>
 
   <main>
     <section lang="ar" dir="rtl">
       <h1>سياسة الخصوصية</h1>
-      <p class="updated">آخر تحديث: 20 أكتوبر 2026</p>
+      <p class="updated">آخر تحديث: 28 أكتوبر 2026</p>
 
       <p>هلاستدي غرفة مذاكرة هادئة. نجمع أقل قدر ممكن من البيانات لتشغيل الغرف — الحساب اختياري تماماً، بدون رقم جوال، وبدون أدوات تتبّع إعلانية.</p>
 
@@ -113,50 +128,71 @@
         <li>الاسم المستعار الذي تدخله عند الانضمام، وعدّادات الحضور للغرف المجدولة.</li>
       </ul>
 
-      <h2>كيف تعمل الوسائط؟</h2>
+      <h2>كيف تُعالَج الكاميرا والمايك؟</h2>
       <ul>
-        <li>بحسب وضع الغرفة، تُنقل الوسائط عبر Cloudflare RealtimeKit أو باتصال نظير إلى نظير مع خادم ترحيل عند الحاجة. لذلك لا نفترض أن الوسائط تبقى دائمًا بين أجهزة المشاركين فقط.</li>
-        <li>التسجيل معطّل في إعدادات الخدمة. لا يوفّر التطبيق زرًا لتسجيل الجلسات، ويُمنع المشاركون من تسجيل الآخرين وفق شروط الاستخدام.</li>
+        <li><strong>المسار الافتراضي:</strong> يرسل متصفحك مسارات الصوت والفيديو المباشرة إلى <strong>Cloudflare RealtimeKit</strong>، الذي يوجّهها إلى المشاركين عبر بنية <strong>SFU مُدارة</strong> على شبكة Cloudflare. لذلك قد تعالج Cloudflare عنوان IP، وبيانات الجلسة التقنية، ومسارات الوسائط المباشرة أثناء الجلسة.</li>
+        <li>خادم تطبيق هلاستدي لا يستقبل محتوى الصوت أو الفيديو ولا يسجله. لا نفعّل التسجيل أو النسخ النصي في Cloudflare RealtimeKit، ولا نحتفظ بصور أو تسجيلات صوتية من جلساتك. لا يوفّر التطبيق زرًا لتسجيل الجلسات، ويُمنع المشاركون من تسجيل الآخرين وفق شروط الاستخدام.</li>
+        <li><strong>التطوير المحلي فقط:</strong> يمكن للمطورين تشغيل وضع mesh صراحةً للاختبار المحلي؛ وهو معطّل في الإنتاج ولا يُستخدم لمعالجة جلسات المستخدمين الحية.</li>
         <li>حفظ التقدّم والنقاط لا يتطلب تشغيل الكاميرا.</li>
       </ul>
 
       <h2>التحليلات والقياس</h2>
-      <p>لا نستخدم تحليلات طرف ثالث ولا ملفات تعريف إعلانية. إن استخدمنا مستقبلاً أدوات قياس، فستكون <strong>صديقة للخصوصية وبلا تتبّع للأفراد</strong> (إحصاءات مجمّعة فقط)، وسنحدّث هذه السياسة قبل تفعيلها.</p>
+      <p>لا نضيف أدوات تحليلات سلوكية أو ملفات تعريف إعلانية، ولا نبيع بياناتك. قد يسجّل مزودو البنية التحتية وCDN بيانات الطلب التقنية مثل عنوان IP ونوع المتصفح لأغراض التسليم والأمان ومنع الإساءة وفق سياساتهم.</p>
 
       <h2>كم تبقى البيانات؟</h2>
       <ul>
-        <li>تُزال الغرف الفورية العادية من الحالة النشطة بعد نحو 30 دقيقة من خلوّها. الغرفة العامة والغرف المجدولة وغرف المجموعات الخاصة مستثناة.</li>
+        <li>الغرف غير المجدولة تُحذف تلقائياً بعد نحو 30 دقيقة من مغادرة آخر مشارك، ومعها الدردشة واللوحة. الغرفة العامة وغرف المجموعات الخاصة مستثناة.</li>
+        <li>الغرفة المجدولة لمرة واحدة تُحذف بعد نحو 30 دقيقة من إغلاق موعدها. الغرفة المتكررة مدتها الافتراضية 90 يوماً، ويمكن لمنشئها تحديد تاريخ انتهاء لا يتجاوز 365 يوماً؛ وقد يحذفها المالك أو المشرف قبل ذلك.</li>
         <li>تبقى بيانات المجموعات والجلسات والحضور والتقدّم منفصلة عن عمر الغرفة، وتُستخدم لتقديم هذه الميزات. مدة عرض السجل حسب العضوية ليست موعدًا لحذف البيانات.</li>
-        <li>قد تبقى نسخ احتياطية وسجلات تشغيل وبلاغات بعد إزالة غرفة أو حساب. تواصل معنا لطلبات الوصول أو الحذف التي تشمل هذه السجلات.</li>
+        <li>يستخدم تطبيق هلاستدي عناوين IP في الذاكرة للحماية من الإساءة وحدود المعدل؛ وقد يحتفظ مزودو الحافة والوسائط وCDN بسجلات طلب تقنية وفق مددهم النظامية والأمنية.</li>
+        <li>النسخ الاحتياطية المشفّرة معزولة عن أنظمة التشغيل الحية، وتُحذف تلقائياً خلال مدة لا تتجاوز <strong>سبعة أيام</strong>. قد تبقى سجلات تشغيل وبلاغات بعد إزالة غرفة أو حساب؛ تواصل معنا لطلبات الوصول أو الحذف التي تشمل هذه السجلات.</li>
       </ul>
 
       <h2>الحسابات الاختيارية</h2>
       <ul>
-        <li>يمكن استخدام الغرف العامة كضيف. يتطلب حفظ التقدّم والعضوية والدخول إلى المجموعات الخاصة حسابًا.</li>
-        <li>نخزّن البريد والاسم وبيانات الملف، وتجزئة كلمة المرور أو معرّف Google المرتبط، والتقدّم والنقاط والإنجازات وقائمة الغرف.</li>
+        <li>التسجيل اختياري — فتح الغرف الفورية والعامة والانضمام إليها لا يحتاج حساباً. يتطلب حفظ التقدّم والعضوية والدخول إلى المجموعات الخاصة حسابًا.</li>
+        <li>إذا أنشأت حساباً نخزّن: بريدك الإلكتروني واسمك وبيانات ملفك، وكلمة مرورك بصيغة مشفّرة أحادية الاتجاه (PBKDF2) أو معرّف Google المرتبط، ودقائق تركيزك وسلسلة أيامك والنقاط والإنجازات، وقائمة غرفك الأخيرة.</li>
         <li>إذا استخدمت أدوات التخطيط، نخزّن مشاريعك ومهامك وخطواتها وملاحظاتك ومواعيدها وتكرارها وتقديرات الوقت، وربطها بجلسات التركيز وتأملاتك، وروتينك وأهدافك وغرفك المفضلة وتفضيلات التذكير. هذه البيانات خاصة بحسابك ولا يراها أعضاء الغرفة أو مشرفو المجموعة.</li>
         <li>نخزّن عضوية المجموعات والصلاحيات والجلسات والحضور وحالة VIP. يرى مشرف المجموعة حضور أعضاء مجموعته، ولا تمنحه العضوية المدفوعة صلاحيات إدارية عامة.</li>
         <li>تُحفظ ردود حضور المواعيد وروابط المصادر وملاحظاتها ضمن المجموعة. يرى الأعضاء الحاليون المصادر المشتركة وعدد من سيحضرون. الأرشفة تخفي العنصر دون حذف سجله. يحذف حذف الحساب بيانات التخطيط الخاصة من قاعدة البيانات النشطة؛ وقد تبقى المصادر المشتركة مع إزالة ارتباط منشئها بالحساب.</li>
-        <li>يحذف إجراء <a href="/account.html#delete">حذف الحساب</a> سجلك الشخصي والتقدّم والعضوية من قاعدة البيانات النشطة بعد التحقق. قد تبقى رسائلك ومهامك المشتركة لدى الغرفة وسجلات بلاغات منزوعة الارتباط والنسخ الاحتياطية. يجب نقل مسؤولية آخر مسؤول رئيسي قبل حذف حسابه.</li>
+        <li>رسائل الدردشة داخل الغرف غير مربوطة بحسابك — الغرف الفورية تُحذف بمحتواها تلقائياً.</li>
+        <li>يمكنك حذف بياناتك من <a href="/account.html#delete">صفحة الحساب</a> بعد التحقق. نحذف البريد وملف الحساب والتقدّم والعضوية ودقائق التركيز والسلسلة من <strong>أنظمة الإنتاج الحية فوراً</strong>. قد تبقى رسائلك ومهامك المشتركة لدى الغرفة وسجلات بلاغات منزوعة الارتباط، وقد تبقى نسخة في النسخ الاحتياطية المشفّرة المعزولة حتى تنتهي دورتها، بحد أقصى سبعة أيام، ولا تُستخدم للتشغيل العادي. يجب نقل مسؤولية آخر مسؤول رئيسي قبل حذف حسابه.</li>
+      </ul>
+
+      <h2>بيانات حساب Google</h2>
+      <ul>
+        <li>عند تسجيل الدخول بحساب Google نطلب فقط الصلاحيات الأساسية: <span dir="ltr">openid</span> و<span dir="ltr">email</span> و<span dir="ltr">profile</span>.</li>
+        <li>نستخدم اسمك وبريدك الإلكتروني (الموثّق) ومعرّف حساب Google فقط لإنشاء حسابك وتسجيل دخولك وربطه بحسابك الحالي إن وُجد بنفس البريد. لا نحفظ صورة حسابك.</li>
+        <li>لا نصل إلى Gmail أو Drive أو التقويم أو أي بيانات أخرى في حسابك على Google.</li>
+        <li>لا نبيع بيانات Google ولا نستخدمها للإعلانات ولا نشاركها مع أي طرف ثالث، إلا مزودي الاستضافة الملتزمين بالسرية أو إذا طلب النظام ذلك.</li>
+        <li>تقدر تحذف حسابك وبياناتك في أي وقت من <a href="/account.html#delete">صفحة الحساب</a> أو بمراسلتنا على <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>.</li>
       </ul>
 
       <h2>ملفات تعريف الارتباط والتخزين المحلي</h2>
       <ul>
-        <li>ملف تعريف جلسة وظيفي واحد (معرّف عشوائي، صلاحيته 30 يوماً) — لا ملفات تتبّع.</li>
+        <li>ملف تعريف جلسة وظيفي واحد (هوية عشوائية موقّعة تنتهي بانتهاء جلسة المتصفح) — لا ملفات تتبّع.</li>
         <li>ملف تعريف ثانٍ موقّع لتسجيل الدخول، فقط إذا أنشأت حساباً.</li>
         <li>ملفات قصيرة الأجل لحماية تسجيل الدخول عبر Google وإعادة التحقق، وملف جلسة الموظفين لمدة 15 دقيقة بعد المصادقة الثنائية. نخزّن سر المصادقة مشفّرًا ورموز الاسترداد كتجزئات.</li>
         <li>تفضيلاتك (اللغة، السمة، الاسم المستعار) تبقى في متصفحك أنت، ولا تُرسل إلينا.</li>
         <li>يُحفظ إرشاد الروتين واسمه وإعداداته، وعلامات تجاهل التذكيرات، في متصفحك. يمكنك مسحها من تخزين المتصفح، وتمسحها شاشة حذف الحساب للحساب الحالي في هذا المتصفح أيضًا. تحتاج التذكيرات إلى صفحة مفتوحة، وإشعارات المتصفح إلى إذنك. تصدير مواعيدك ملف تُنزّله بطلبك.</li>
       </ul>
 
-      <h2>مزودو الخدمة</h2>
-      <p>نستعين بمزودي خدمة موثوقين لتشغيل هلاستدي: <strong>الاستضافة السحابية (AWS)</strong>، و<strong>مزوّد خدمة ترحيل الوسائط (TURN)</strong>. يعالج هؤلاء البيانات نيابة عنا وفق تعليماتنا فقط، ولا يُسمح لهم باستخدامها لأي غرض آخر.</p>
+      <h2>مزودو الخدمة ومعالجو البيانات</h2>
+      <p>نستعين بمزودي خدمة ومعالجي بيانات لمعالجة البيانات اللازمة لتشغيل هلاستدي:</p>
+      <ul>
+        <li><strong>Google:</strong> تسجيل الدخول الاختياري عبر OAuth وتقديم خطوط الويب؛ قد تتلقى Google بيانات الهوية التي تختار مشاركتها وبيانات طلب الخطوط.</li>
+        <li><strong>Supabase:</strong> استضافة ملفات الحسابات وإحصاءات التركيز وسجلات التشغيل المرتبطة بالحساب.</li>
+        <li><strong>Cloudflare:</strong> حماية وتسليم الحافة، وCloudflare RealtimeKit لتوجيه الوسائط المباشرة، وR2 للنسخ الاحتياطية المشفّرة.</li>
+        <li><strong>jsDelivr:</strong> تقديم ملفات JavaScript الخاصة بـCloudflare RealtimeKit إلى متصفحك؛ وقد يتلقى عنوان IP وبيانات الطلب التقنية.</li>
+        <li><strong>AWS:</strong> استضافة خادم التطبيق وبيانات الغرف الحية.</li>
+      </ul>
+      <p>يعالج هؤلاء البيانات لتقديم خدماتهم لنا وبموجب شروطهم واتفاقيات معالجة البيانات الخاصة بهم. يمكنك مراجعة سياسات <a href="https://policies.google.com/privacy" rel="noopener">Google</a> و<a href="https://supabase.com/privacy" rel="noopener">Supabase</a> و<a href="https://www.cloudflare.com/privacypolicy/" rel="noopener">Cloudflare</a> و<a href="https://www.jsdelivr.com/terms/privacy-policy" rel="noopener">jsDelivr</a>.</p>
 
       <h2>نقل البيانات خارج المملكة</h2>
-      <p>قد تُعالَج بعض البيانات على بنية تحتية سحابية خارج المملكة العربية السعودية (حالياً خوادم AWS في مومباي، الهند). عند حدوث ذلك، نطبّق الضمانات التي يشترطها نظام حماية البيانات الشخصية لحماية بياناتك أثناء النقل.</p>
+      <p>قد تُعالَج البيانات خارج المملكة العربية السعودية، بما في ذلك في مناطق استضافة AWS وSupabase وعلى الشبكات العالمية التي تديرها Google وCloudflare وjsDelivr. عند حدوث ذلك، نطبّق الضمانات التي يشترطها نظام حماية البيانات الشخصية لحماية البيانات المنقولة.</p>
 
       <h2>كيف نحمي بياناتك</h2>
-      <p>نطبّق تدابير تقنية وتنظيمية معقولة: تشفير كلمات المرور (PBKDF2)، ونقل الوسائط نظير إلى نظير، وتقليل البيانات إلى أدنى حد، وحذفها تلقائياً. لا توجد وسيلة نقل عبر الإنترنت آمنة بنسبة 100%، لكننا نلتزم بحماية بياناتك بأفضل الممارسات.</p>
+      <p>نطبّق تدابير تقنية وتنظيمية معقولة: تجزئة كلمات المرور (PBKDF2)، والتشفير أثناء النقل، وضوابط الوصول إلى المزودين، وتقليل البيانات، والنسخ الاحتياطية المشفّرة محدودة العمر، والحذف التلقائي. لا توجد وسيلة نقل أو تخزين آمنة بنسبة 100%، لكننا نلتزم بحماية بياناتك بأفضل الممارسات.</p>
 
       <h2>حقوقك</h2>
       <p>بموجب نظام حماية البيانات الشخصية، لك الحق في: <strong>العلم</strong> بكيفية معالجة بياناتك، و<strong>الوصول</strong> إليها، و<strong>تصحيحها</strong>، و<strong>حذفها</strong>، و<strong>سحب موافقتك</strong>. لممارسة أي من هذه الحقوق راسلنا على <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>. إذا رأيت أننا لم نعالج طلبك بشكل صحيح، يحق لك التقدّم بشكوى إلى <strong>الجهة المختصة (الهيئة السعودية للبيانات والذكاء الاصطناعي — سدايا)</strong>.</p>
@@ -175,7 +211,7 @@
 
     <section lang="en" dir="ltr">
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated: October 20, 2026</p>
+      <p class="updated">Last updated: October 28, 2026</p>
 
       <p>Halastudy is a quiet study room. We collect the minimum needed to run rooms — accounts are entirely optional, no phone number, and no advertising trackers.</p>
 
@@ -196,50 +232,71 @@
         <li>The nickname you enter when joining, and attendance counters for scheduled rooms.</li>
       </ul>
 
-      <h2>How media works</h2>
+      <h2>How live camera and microphone media is handled</h2>
       <ul>
-        <li>Depending on the room mode, media uses Cloudflare RealtimeKit or peer-to-peer connections with a relay when needed. Media is not necessarily confined to participants' devices.</li>
-        <li>Recording is disabled in the service configuration. The app provides no session-recording control, and our terms prohibit participants from recording others.</li>
+        <li><strong>Default path:</strong> your browser sends live audio and video tracks to <strong>Cloudflare RealtimeKit</strong>, which routes them to participants through a <strong>managed SFU</strong> on Cloudflare's network. Cloudflare may therefore process IP addresses, technical session metadata, and live media tracks while the session is active.</li>
+        <li>The Halastudy application server does not receive or record the content of those audio or video tracks. We do not enable RealtimeKit recording or transcription and do not keep images or audio recordings from your sessions. The app provides no session-recording control, and our terms prohibit participants from recording others.</li>
+        <li><strong>Local development only:</strong> developers may explicitly enable mesh mode for local testing. It is disabled in production and does not process live user sessions.</li>
         <li>Progress and points do not require your camera.</li>
       </ul>
 
       <h2>Analytics and measurement</h2>
-      <p>We use no third-party analytics and no advertising profiles. If we ever add measurement tools, they will be <strong>privacy-friendly and non-tracking</strong> (aggregate counts only), and we will update this policy before turning them on.</p>
+      <p>We do not add behavioral analytics tools, build advertising profiles, or sell your data. Infrastructure and CDN providers may log technical request data such as IP address and browser type for delivery, security, and abuse prevention under their own policies.</p>
 
       <h2>How long data is kept</h2>
       <ul>
-        <li>Ordinary instant rooms leave active storage about 30 minutes after becoming empty. The public lobby, scheduled rooms and private-circle rooms are exempt.</li>
+        <li>Unscheduled rooms are deleted automatically about 30 minutes after the last participant leaves, along with their chat and board. The public lobby and private-circle rooms are exempt.</li>
+        <li>A one-time scheduled room is deleted about 30 minutes after its occurrence closes. A recurring room lasts 90 days by default and its creator may choose an end date up to 365 days; its owner or an administrator may delete it sooner.</li>
         <li>Circle membership, sessions, attendance and progress are stored separately from a room's lifetime. The history visible under a membership is not a data-deletion deadline.</li>
-        <li>Backups, operational records and reports may remain after a room or account is removed. Contact us for access or deletion requests involving these records.</li>
+        <li>The Halastudy application uses IP addresses in memory for abuse protection and rate limiting; edge, media, and CDN providers may retain technical request logs under their security and legal retention periods.</li>
+        <li>Encrypted backups are isolated from live production systems and automatically age out within no more than <strong>seven days</strong>. Operational records and reports may remain after a room or account is removed; contact us for access or deletion requests involving these records.</li>
       </ul>
 
       <h2>Optional accounts</h2>
       <ul>
-        <li>Public rooms allow guests. Saving progress, membership and private-circle access require an account.</li>
-        <li>We store your email, name and profile, password hash or linked Google identifier, progress, points, achievements and recent rooms.</li>
+        <li>Signing up is optional — opening and joining instant and public rooms never requires an account. Saving progress, membership and private-circle access require one.</li>
+        <li>If you create one, we store: your email, name and profile, your password as a one-way hash (PBKDF2) or your linked Google identifier, your focus minutes, day streak, points and achievements, and your recent rooms list.</li>
         <li>If you use planning tools, we store your projects, tasks, checklists, notes, due dates, recurrence and estimates, their focus-session links and reflections, routines, targets, favorite rooms and reminder preferences. These belong to your account and are not visible to room members or circle supervisors.</li>
         <li>We also store circle membership, permissions, sessions, attendance and VIP status. Circle supervisors can see attendance in their assigned circles. Paid membership does not grant platform administration.</li>
         <li>Appointment responses, resource links and their notes are stored within the circle. Current members can see shared resources and the count of people going. Archiving hides an item without deleting its record. Account deletion removes private planning data from the active database; shared resources may remain with their creator account link removed.</li>
-        <li>After verification, <a href="/account.html#delete">account deletion</a> removes your account, progress and membership from the active database. Shared room messages and tasks, reports with account links removed, and backups may remain. The last super admin must transfer responsibility before deleting their account.</li>
+        <li>Room chat is not linked to your account — instant rooms and their content are deleted automatically.</li>
+        <li>After verification, you can delete your data from the <a href="/account.html#delete">account page</a>. We remove your email, account profile, progress, membership, focus history, and streak from <strong>live production systems immediately</strong>. Shared room messages and tasks and reports with account links removed may remain, and a copy may remain in isolated encrypted backups until they age out, for no more than seven days; that copy is not used for normal operation. The last super admin must transfer responsibility before deleting their account.</li>
+      </ul>
+
+      <h2>Google user data</h2>
+      <ul>
+        <li>If you sign in with Google, Halastudy requests only the basic scopes <code>openid</code>, <code>email</code> and <code>profile</code>.</li>
+        <li>We use your name, verified email address and Google account ID only to create your account, sign you in, and link it to an existing account with the same email. We do not store your profile picture.</li>
+        <li>We do not access Gmail, Drive, Calendar or any other Google data.</li>
+        <li>We do not sell Google user data, use it for advertising, or share it with third parties, except hosting providers bound by confidentiality or when required by law.</li>
+        <li>You can delete your account and data at any time from the <a href="/account.html#delete">account page</a> or by emailing <a href="mailto:info@halastudy.com">info@halastudy.com</a>.</li>
       </ul>
 
       <h2>Cookies and local storage</h2>
       <ul>
-        <li>One functional session cookie (a random identifier, 30-day lifetime) — no tracking cookies.</li>
+        <li>One functional session cookie (a signed random identity that ends with the browser session) — no tracking cookies.</li>
         <li>A second signed cookie for sign-in, only if you create an account.</li>
         <li>Short-lived cookies protect Google sign-in and reauthentication. Staff verification uses a 15-minute cookie. Authenticator secrets are encrypted and recovery codes are stored as hashes.</li>
         <li>Your preferences (language, theme, nickname) stay in your own browser and are not sent to us.</li>
         <li>Routine guidance, its name and settings, and reminder dismissal flags stay in this browser. You can clear browser storage; the account deletion screen also clears these for the current account in this browser. Reminders require an open page, and browser notifications require permission. Personal agenda export is a file downloaded at your request.</li>
       </ul>
 
-      <h2>Service providers</h2>
-      <p>We rely on trusted providers to run Halastudy: <strong>cloud hosting (AWS)</strong> and a <strong>media relay (TURN) provider</strong>. They process data on our behalf, only on our instructions, and may not use it for any other purpose.</p>
+      <h2>Service providers and data processors</h2>
+      <p>We use service providers and data processors to process the data needed to operate Halastudy:</p>
+      <ul>
+        <li><strong>Google:</strong> optional OAuth sign-in and web-font delivery; Google may receive the identity data you choose to share and font-request metadata.</li>
+        <li><strong>Supabase:</strong> hosted account profiles, focus statistics, and account-linked operational records.</li>
+        <li><strong>Cloudflare:</strong> edge delivery and protection, Cloudflare RealtimeKit for live-media routing, and R2 for encrypted backups.</li>
+        <li><strong>jsDelivr:</strong> delivery of Cloudflare RealtimeKit JavaScript to your browser; it may receive IP address and technical request metadata.</li>
+        <li><strong>AWS:</strong> hosting for the application server and live room data.</li>
+      </ul>
+      <p>These providers process data to supply their services to us under their terms and data-processing commitments. You can review the policies of <a href="https://policies.google.com/privacy" rel="noopener">Google</a>, <a href="https://supabase.com/privacy" rel="noopener">Supabase</a>, <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener">Cloudflare</a>, and <a href="https://www.jsdelivr.com/terms/privacy-policy" rel="noopener">jsDelivr</a>.</p>
 
       <h2>International data transfers</h2>
-      <p>Some data may be processed on cloud infrastructure outside Saudi Arabia (currently AWS servers in Mumbai, India). Where this happens, we apply the safeguards required by the PDPL to protect your data in transit.</p>
+      <p>Data may be processed outside Saudi Arabia, including in AWS and Supabase hosting regions and across the global networks operated by Google, Cloudflare, and jsDelivr. Where this happens, we apply the safeguards required by the PDPL for transferred data.</p>
 
       <h2>How we protect your data</h2>
-      <p>We apply reasonable technical and organizational measures: password hashing (PBKDF2), peer-to-peer media, data minimization, and automatic deletion. No method of internet transmission is 100% secure, but we are committed to protecting your data using best practices.</p>
+      <p>We apply reasonable technical and organizational measures: password hashing (PBKDF2), encryption in transit, provider access controls, data minimization, encrypted short-lived backups, and automatic deletion. No method of transmission or storage is 100% secure, but we are committed to protecting your data using best practices.</p>
 
       <h2>Your rights</h2>
       <p>Under the PDPL you have the right to: <strong>be informed</strong> about how your data is processed, <strong>access</strong> it, <strong>correct</strong> it, <strong>delete</strong> it, and <strong>withdraw consent</strong>. To exercise any of these, email <a href="mailto:info@halastudy.com">info@halastudy.com</a>. If you believe we have not handled your request properly, you have the right to file a complaint with the <strong>competent authority (Saudi Data &amp; AI Authority — SDAIA)</strong>.</p>
@@ -258,8 +315,7 @@
   <footer class="legal-footer">
     <a href="/privacy" aria-current="page">الخصوصية · Privacy</a>
     <a href="/terms">الشروط · Terms</a>
-  
-    <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
+    <a href="/contact">تواصل · Contact</a>
   </footer>
 </body>
 </html>

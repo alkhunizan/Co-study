@@ -65,7 +65,8 @@ test('failed reset persistence restores password, keeps epoch revoked and never 
         rateLimiters: {}, applyHttpRateLimit: () => true, getRequestIp: () => 'local',
         requireUser: (_req, _res, next) => next(), logger: { info() {}, error() {} },
         disconnectUser() {}, clearAuthCookie() {},
-        async flushUsers() { if (fail) throw new Error('disk unavailable'); }
+        runUserMutation: (_user, operation) => operation(),
+        async persistUser() { if (fail) throw new Error('disk unavailable'); }
     }));
     const http = app.listen(0, '127.0.0.1');
     await new Promise((resolve) => http.once('listening', resolve));

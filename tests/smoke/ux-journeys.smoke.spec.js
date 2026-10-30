@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, waitForTestUrl } = require('../helpers/playwright-test');
 const AxeBuilder = require('@axe-core/playwright').default;
 const path = require('node:path');
 const { startServer } = require('../helpers/server-control');
@@ -12,7 +12,7 @@ test.beforeAll(async () => {
     require('node:fs').mkdirSync(directory, { recursive: true });
     server = await startServer({
         roomStateFile: path.join(directory, 'rooms.json'), userStateFile: path.join(directory, 'users.json'),
-        env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', BILLING_PROVIDER: 'digetpay', DIGETPAY_API_KEY: '', VIDEO_PROVIDER: 'mesh', TRUST_PROXY: '1', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '' }
+        env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', BILLING_PROVIDER: 'digetpay', DIGETPAY_API_KEY: '', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true', TRUST_PROXY: '1', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '' }
     });
 });
 test.afterAll(async () => { if (server) await server.stop(); });
@@ -34,7 +34,7 @@ async function signIn(page) {
     return account;
 }
 async function joinRoom(page) {
-    await page.goto(`${server.baseUrl}/open`);
+    await gotoTestPage(page, `${server.baseUrl}/open`);
     await page.locator('#room-name').fill('UX focus room');
     await page.locator('#create-form button[type=submit]').click();
     await expect(page.locator('#create-result')).toBeVisible();
@@ -49,15 +49,16 @@ async function joinRoom(page) {
 }
 
 test('join promise: correct invitation wording and deep-link handoff', async ({ page }) => {
-    for (const [language, label] of [['ar', 'عندي رمز غرفة'], ['en', 'Join with a code']]) {
-        await page.goto(`${server.baseUrl}/${language === 'en' ? 'en' : ''}`);
+    for (const [language, label] of [['ar', 'شوف اللوبي'], ['en', 'Visit the lobby']]) {
+        await page.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language); // canonical route follows the saved language
+        await gotoTestPage(page, `${server.baseUrl}/${language === 'en' ? 'en' : ''}`);
         const join = page.locator('.hero-actions .btn-secondary');
         await expect(join).toHaveText(label);
         await join.click();
-        await expect(page.locator('#join-form')).toBeVisible();
-        await expect(page.locator('#create-form')).toBeHidden();
+        // The secondary call to action opens the shared Lobby.
+        await expect(page).toHaveURL(/\/lobby$/);
     }
-    await page.goto(`${server.baseUrl}/open?room=ABC123`);
+    await gotoTestPage(page, `${server.baseUrl}/open?room=ABC123`);
     await expect(page.locator('#join-code')).toHaveValue('ABC123');
 });
 
@@ -75,7 +76,7 @@ test('join focus: closed dialog is absent from focus and keyboard paths', async 
         expect(await page.evaluate(() => !!document.activeElement.closest('#join-overlay'))).toBe(false);
     }
     expect(await page.locator('#join-overlay').ariaSnapshot()).toBe('');
-    await page.goto(`${server.baseUrl}/study?room=ZZZZZZ`);
+    await gotoTestPage(page, `${server.baseUrl}/study?room=ZZZZZZ`);
     await expect(page.locator('#join-overlay')).toBeVisible();
     await page.locator('#join-name').fill('Retry guest');
     await page.locator('#join-form button[type=submit]').click();
@@ -85,7 +86,7 @@ test('join focus: closed dialog is absent from focus and keyboard paths', async 
 
 test('feedback scope: invitation errors translate and clear when leaving', async ({ page }) => {
     await signIn(page);
-    await page.goto(`${server.baseUrl}/app#circles`);
+    await gotoTestPage(page, `${server.baseUrl}/app#circles`);
     await page.locator('#invite-token').fill('UX-INVALID');
     await page.locator('#invite-accept button').click();
     await expect(page.locator('#feedback')).toContainText('invalid or expired');
@@ -100,7 +101,7 @@ test('feedback scope: invitation errors translate and clear when leaving', async
 
 test('workspace history: Back and Forward restore visited sections', async ({ page }) => {
     await signIn(page);
-    await page.goto(`${server.baseUrl}/account`);
+    await gotoTestPage(page, `${server.baseUrl}/account`);
     await page.locator('a[href="/app"]').click();
     await page.locator('[data-view=progress]').click();
     await page.locator('[data-view=circles]').click();
@@ -121,11 +122,11 @@ test('accessible controls: key entry and room states in both languages and theme
         for (const theme of ['light', 'dark']) {
             for (const route of [language === 'en' ? '/en' : '/', '/open', '/account', '/blog/best-online-group-study-rooms-saudi']) {
                 console.log(`Accessibility review: ${language} ${theme} ${route}`);
-                await page.goto(`${server.baseUrl}${route}`);
+                await gotoTestPage(page, `${server.baseUrl}${route}`);
                 await page.evaluate(({ language, theme }) => { localStorage.setItem('halastudyLang', language); localStorage.setItem('halastudyTheme', theme); }, { language, theme });
                 await page.reload();
                 await expect(page.locator('html')).toHaveAttribute('lang', route.startsWith('/blog/') ? 'ar' : language);
-                if (route === '/open') await page.locator('#room-options').evaluate((element) => { /** @type {HTMLDetailsElement} */ (element).open = true; });
+                if (route === '/open' && await page.locator('#room-options').count()) await page.locator('#room-options').evaluate((element) => { /** @type {HTMLDetailsElement} */ (element).open = true; });
                 const scan = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
                 expect.soft(scan.violations.filter((v) => ['serious', 'critical'].includes(v.impact)).map((v) => ({ id: v.id, nodes: v.nodes.map((n) => ({ target: n.target, summary: n.failureSummary })) })), `${language} ${theme} ${route}`).toEqual([]);
             }
@@ -144,7 +145,8 @@ test('mobile first action: heading and study CTA fit the first screen', async ({
     for (const language of ['ar', 'en']) {
         for (const height of [664, 844]) {
             await page.setViewportSize({ width: 390, height });
-            await page.goto(`${server.baseUrl}/${language === 'en' ? 'en' : ''}`);
+        await page.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language); // canonical route follows the saved language
+            await gotoTestPage(page, `${server.baseUrl}/${language === 'en' ? 'en' : ''}`);
             await expect(page.locator('.nav-links')).toBeHidden();
             for (const selector of ['h1', '.hero-actions .btn-primary']) {
                 const box = await page.locator(selector).boundingBox();
@@ -161,9 +163,10 @@ test('mobile first action: heading and study CTA fit the first screen', async ({
 
 test('honest presence: illustrative scenes never present simulated attendance', async ({ page }) => {
     for (const language of ['ar', 'en']) {
-        await page.goto(`${server.baseUrl}/${language === 'en' ? 'en' : ''}`);
+        await page.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language); // canonical route follows the saved language
+        await gotoTestPage(page, `${server.baseUrl}/${language === 'en' ? 'en' : ''}`);
         await expect(page.locator('#live-count, #stat-live, .tile-chip .live-dot')).toHaveCount(0);
-        await expect(page.locator('.study-tile--featured .tile-chip')).toHaveText(language === 'ar' ? 'معاينة توضيحية' : 'Illustrative preview');
+        await expect(page.locator('.study-tile--featured .tile-chip')).toHaveText(language === 'ar' ? 'معاينة الغرفة' : 'Room preview');
         expect((await page.request.get(page.url()).then((r) => r.text()))).not.toMatch(/tickLive|17264|17,264|>LIVE</);
     }
 });
@@ -197,9 +200,8 @@ test('room shell: primary study controls stay visible and tools remain available
 
 test('room draft: signup preserves choices, excludes passwords and expires safely', async ({ page }) => {
     test.setTimeout(90000);
-    await page.goto(`${server.baseUrl}/open`);
+    await gotoTestPage(page, `${server.baseUrl}/open`);
     await page.locator('#room-name').fill('My preserved room');
-    await page.locator('#room-options > summary').click();
     await page.locator('#require-password').check();
     await page.locator('#room-password').fill('room-private-123');
     await page.locator('#enable-schedule').check();
@@ -211,7 +213,7 @@ test('room draft: signup preserves choices, excludes passwords and expires safel
     await page.locator('#signup-email').fill(`draft-${Date.now()}@example.com`);
     await page.locator('#signup-password').fill('local-draft-account-123');
     await page.locator('#signup-form button[type=submit]').click();
-    await page.waitForURL('**/open.html?schedule=1');
+    await waitForTestUrl(page, '**/open.html?schedule=1');
     await expect(page.locator('#room-name')).toHaveValue('My preserved room');
     await expect(page.locator('#require-password')).toBeChecked();
     await expect(page.locator('#room-password')).toHaveValue('');
@@ -281,7 +283,8 @@ test('stable hero: layout remains stable through ten seconds of idle', async ({ 
     for (const language of ['ar', 'en']) {
         for (const reducedMotion of ['reduce', 'no-preference']) {
             await page.emulateMedia({ reducedMotion: /** @type {'reduce' | 'no-preference'} */ (reducedMotion) });
-            await page.goto(`${server.baseUrl}/${language === 'en' ? 'en' : ''}`);
+        await page.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language); // canonical route follows the saved language
+            await gotoTestPage(page, `${server.baseUrl}/${language === 'en' ? 'en' : ''}`);
             await page.waitForTimeout(10000);
             const metrics = await page.evaluate(() => (/** @type {any} */ (window)).uxMetrics);
             measurements.push({ language, reducedMotion, ...metrics, environment: 'local unthrottled Chromium; external fonts blocked' });

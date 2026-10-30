@@ -140,7 +140,7 @@ function createPlatformRouter(deps) {
         for (const room of rooms.values()) {
             if (room.cohortId !== req.params.id) continue;
             for (const socketId of room.users.keys()) io.sockets.sockets.get(socketId)?.disconnect(true);
-            deleteRoom(room.id);
+            await deleteRoom(room.id);
         }
         await flushRooms();
         res.json({ ok: true });
@@ -324,7 +324,7 @@ function createPlatformRouter(deps) {
             socket?.emit(action === 'close' ? 'room-closed' : 'kicked', { reason: 'admin' });
             socket?.disconnect(true);
         }
-        if (action === 'close') { deleteRoom(room.id); await flushRooms(); }
+        if (action === 'close') { await deleteRoom(room.id); await flushRooms(); }
         res.json({ ok: true });
     }));
     router.get('/staff/operations', handle(async (req, res) => {

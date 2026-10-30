@@ -5,29 +5,12 @@ const test = require('node:test');
 const { spawnSync } = require('node:child_process');
 
 const { repoRoot, resetStateFile, makeTempStateFile } = require('../helpers/test-env');
-const { delay, startServer } = require('../helpers/server-control');
-const { closeSocket, connectSocket: connectRawSocket, emitAck } = require('../helpers/socket-client');
-const { extractCookies } = require('../helpers/auth-helpers');
+const { buildTestEnvironment, delay, startServer } = require('../helpers/server-control');
+const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
 const { signupUser } = require('../helpers/auth-helpers');
+const { version: APP_VERSION } = require('../../package.json');
 
-const DEFAULT_ICE_SERVERS = [
-    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
-];
-const videoCookies = new Map();
-async function connectSocket(baseUrl, options = {}) {
-    if (options.clientId && options.extraHeaders?.Cookie) {
-        videoCookies.set(`${baseUrl}:${options.clientId}`, options.extraHeaders.Cookie);
-    }
-    if (options.clientId && !options.extraHeaders?.Cookie) {
-        const key = `${baseUrl}:${options.clientId}`;
-        if (!videoCookies.has(key)) {
-            const response = await fetch(`${baseUrl}/api/runtime-config`);
-            videoCookies.set(key, extractCookies(response.headers.getSetCookie()));
-        }
-        options = { ...options, extraHeaders: { ...options.extraHeaders, Cookie: videoCookies.get(key) } };
-    }
-    return connectRawSocket(baseUrl, options);
-}
+const TEST_BACKUP_ENCRYPTION_KEY = Buffer.alloc(32, 11).toString('base64');
 
 function buildFutureRiyadhSchedule(options = {}) {
     const minutesFromNow = Number.isInteger(options.minutesFromNow) ? options.minutesFromNow : 5;
@@ -63,10 +46,7 @@ function runNodeScript(scriptRelativePath, args = [], options = {}) {
     const result = spawnSync(process.execPath, [path.join(repoRoot, scriptRelativePath), ...args], {
         cwd: repoRoot,
         encoding: 'utf8',
-        env: {
-            ...process.env,
-            ...options.env
-        }
+        env: buildTestEnvironment({ overrides: options.env })
     });
 
     return {
@@ -89,11 +69,47 @@ async function expectStartFailure(startOptions, pattern) {
 }
 
 async function issueVideoToken(server, roomId, body, headers = {}) {
+    const { membershipToken, ...requestBody } = body;
     return server.request(`/api/rooms/${roomId}/video-token`, {
         method: 'POST',
-        body,
-        headers: { Cookie: videoCookies.get(`${server.baseUrl}:${body.clientSessionId}`) || '', ...headers }
+        body: requestBody,
+        headers: membershipToken
+            ? { ...headers, 'X-Halastudy-Membership': membershipToken }
+            : headers
     });
+}
+
+async function deliverRealtimeKitWebhook(server, event, uuid) {
+    const signed = await server.signRealtimeKitWebhook(event, uuid);
+    return server.request('/api/webhooks/realtimekit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'rtk-signature': signed.signature,
+            'rtk-uuid': signed.uuid
+        },
+        body: signed.raw
+    });
+}
+
+async function waitForRealtimeKitMeeting(server, timeoutMs = 2000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const state = await server.realtimeKitState();
+        if (state.meetings.length > 0) return state.meetings[0];
+        await delay(20);
+    }
+    throw new Error('Timed out waiting for the fake RealtimeKit meeting.');
+}
+
+async function waitForRealtimeKitMeetingRequest(server, timeoutMs = 2000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const state = await server.realtimeKitState();
+        if (state.meetingRequests > 0) return;
+        await delay(20);
+    }
+    throw new Error('Timed out waiting for the fake RealtimeKit meeting request.');
 }
 
 test('health and readiness endpoints report a healthy HTTP app', async (t) => {
@@ -106,6 +122,7 @@ test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     assert.equal(health.status, 200);
     assert.equal(health.body.status, 'ok');
     assert.equal(health.body.mode, 'http');
+    assert.equal(health.body.version, APP_VERSION);
     assert.equal(typeof health.body.uptimeSeconds, 'number');
 
     assert.equal(ready.status, 200);
@@ -113,6 +130,7 @@ test('health and readiness endpoints report a healthy HTTP app', async (t) => {
     assert.deepEqual(ready.body.checks, {
         roomStore: true,
         userStore: true,
+        videoSessionStore: true,
         socket: true,
         config: true
     });
@@ -181,18 +199,24 @@ test('security headers allow-list the SFU origin when SFU_BASE_URL is configured
     );
 });
 
-test('runtime config falls back to the default ICE servers', async (t) => {
+test('RealtimeKit runtime does not expose legacy mesh ICE configuration', async (t) => {
     const server = await startServer();
     await cleanupServer(t, server);
 
     const response = await server.request('/api/runtime-config');
 
     assert.equal(response.status, 200);
-    assert.deepEqual(response.body.iceServers, DEFAULT_ICE_SERVERS);
+    assert.deepEqual(response.body.iceServers, []);
     assert.equal(response.body.sfuBaseUrl, '');
     assert.equal(response.body.sfuAvailable, false);
     assert.deepEqual(response.body.supportedMediaModes, ['mesh']);
     assert.equal(response.body.meshParticipantLimit, 4);
+    assert.equal(response.body.devMeshEnabled, false);
+    assert.equal(response.body.maxGlobalVideoParticipants, 20);
+    assert.equal(response.body.videoPolicy.maxGlobalParticipants, 20);
+    assert.equal(response.body.videoPolicy.maxRoomParticipants, 20);
+    assert.equal(response.body.videoPolicy.screenshareEnabled, false);
+    assert.equal(response.body.videoPolicy.chatEnabled, false);
     assert.doesNotMatch(JSON.stringify(response.body), /CLOUDFLARE|fake-secret-token|apiToken/);
 });
 
@@ -355,6 +379,14 @@ test('scheduled rooms validate create payloads and expose schedule summaries', a
     assert.equal(guestScheduleCreate.ok, false);
     assert.equal(guestScheduleCreate.errorCode, 'AUTH_REQUIRED_FOR_SCHEDULED');
 
+    // Anonymous traffic is rejected before the expensive schedule validation.
+    const guestInvalidScheduleCreate = await emitAck(guestSocket, 'create-room', {
+        roomName: 'Guest Broken Schedule Room',
+        schedule: { startDate: '2026-02-31', startTime: '25:99', cadence: 'weekdays' }
+    });
+    assert.equal(guestInvalidScheduleCreate.ok, false);
+    assert.equal(guestInvalidScheduleCreate.errorCode, 'AUTH_REQUIRED_FOR_SCHEDULED');
+
     const invalidScheduleCreate = await emitAck(ownerSocket, 'create-room', {
         roomName: 'Broken Schedule Room',
         schedule: {
@@ -396,6 +428,98 @@ test('scheduled rooms validate create payloads and expose schedule summaries', a
     assert.equal(snapshot.body.schedule.breakMinutes, 15);
 });
 
+test('only the authenticated room owner receives commitment credit and may delete the room', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+    const owner = await signupUser(server, { displayName: 'Commitment Owner' });
+    const peer = await signupUser(server, { displayName: 'Commitment Peer' });
+    const ownerSocket = await connectSocket(server.baseUrl, {
+        extraHeaders: { Cookie: owner.cookie }
+    });
+    const peerSocket = await connectSocket(server.baseUrl, {
+        extraHeaders: { Cookie: peer.cookie }
+    });
+    t.after(async () => {
+        await closeSocket(ownerSocket);
+        await closeSocket(peerSocket);
+    });
+
+    const created = await emitAck(ownerSocket, 'create-room', {
+        roomName: 'Owned Commitment',
+        schedule: buildFutureRiyadhSchedule()
+    });
+    assert.equal(created.ok, true);
+    assert.equal(JSON.stringify(created.room).includes('ownerUserId'), false);
+    const roomId = created.room.roomId;
+
+    const peerJoin = await emitAck(peerSocket, 'join-room', {
+        roomId,
+        username: 'Commitment Peer'
+    });
+    assert.equal(peerJoin.ok, true);
+    assert.equal(peerJoin.room.schedule.attendance.totalSessions, 0);
+
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Commitment Owner'
+    });
+    assert.equal(ownerJoin.ok, true);
+    assert.equal(ownerJoin.room.schedule.attendance.joinedOnTimeCount, 1);
+    const reconnect = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: 'Commitment Owner'
+    });
+    assert.equal(reconnect.room.schedule.attendance.totalSessions, 1);
+
+    const forbidden = await server.request(`/api/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { Cookie: peer.cookie }
+    });
+    assert.equal(forbidden.status, 403);
+    assert.equal(forbidden.body.errorCode, 'ROOM_OWNER_REQUIRED');
+
+    const deleted = await server.request(`/api/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { Cookie: owner.cookie }
+    });
+    assert.equal(deleted.status, 200);
+    assert.equal(deleted.body.ok, true);
+    assert.equal(deleted.body.cleanupPending, false);
+    assert.equal((await server.request(`/api/rooms/${roomId}`)).status, 404);
+});
+
+test('board task count and UTF-8 byte limits reject oversized mutations', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-board-limits');
+    const tasks = Array.from({ length: 100 }, (_, index) => ({
+        id: `task-${index}`,
+        text: `Task ${index}`,
+        priority: 2,
+        done: false
+    }));
+    fs.writeFileSync(roomStateFile, `${JSON.stringify([{
+        schemaVersion: 2,
+        id: 'LIM123',
+        name: 'Board Limits',
+        board: { goal: '', tasks }
+    }])}\n`);
+    const server = await startServer({ roomStateFile, resetStateFileOnStart: false });
+    await cleanupServer(t, server);
+    const socket = await connectSocket(server.baseUrl);
+    t.after(async () => closeSocket(socket));
+    assert.equal((await emitAck(socket, 'join-room', {
+        roomId: 'LIM123',
+        username: 'Limiter'
+    })).ok, true);
+
+    const countRejected = await emitAck(socket, 'board-add-task', { text: 'Task 101' });
+    assert.equal(countRejected.ok, false);
+    assert.equal(countRejected.errorCode, 'BOARD_TASK_LIMIT_REACHED');
+
+    const oversized = await emitAck(socket, 'board-add-task', { text: '🙂'.repeat(126) });
+    assert.equal(oversized.ok, false);
+    assert.equal(oversized.errorCode, 'REQUEST_INVALID');
+});
+
 test('media mode validation persists and SFU rooms fail clearly if the deployment loses SFU support', async (t) => {
     const roomStateFile = makeTempStateFile('co-study-media-mode');
     let server = await startServer({
@@ -421,7 +545,7 @@ test('media mode validation persists and SFU rooms fail clearly if the deploymen
         mediaMode: 'big-room'
     });
     assert.equal(invalidCreate.ok, false);
-    assert.equal(invalidCreate.errorCode, 'ROOM_MEDIA_MODE_INVALID');
+    assert.equal(invalidCreate.errorCode, 'REQUEST_INVALID');
 
     const sfuCreate = await emitAck(ownerSocket, 'create-room', {
         roomName: 'Large Room',
@@ -495,7 +619,7 @@ test('startup fails fast for malformed room state and invalid env config', async
                 CLOUDFLARE_REALTIMEKIT_APP_ID: '',
                 CLOUDFLARE_REALTIMEKIT_API_TOKEN: ''
             }
-        }, /RealtimeKit is selected/);
+        }, /NODE_ENV is fixed to test/);
 
         const badParent = makeTempStateFile('co-study-state-parent');
         fs.writeFileSync(badParent, 'file-not-dir', 'utf8');
@@ -536,7 +660,8 @@ test('RealtimeKit video token endpoint issues safe participant tokens after room
     const token = await issueVideoToken(server, createRoom.room.roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: joinOwner.membershipToken
     });
 
     assert.equal(token.status, 200);
@@ -551,7 +676,47 @@ test('RealtimeKit video token endpoint issues safe participant tokens after room
     assert.equal(fakeState.meetings.length, 1);
     assert.equal(fakeState.participants.length, 1);
     assert.equal(fakeState.participants[0].body.preset_name, 'halastudy_student');
-    assert.equal(fakeState.participants[0].body.custom_participant_id, 'rtk-owner');
+    assert.equal(fakeState.participants[0].body.custom_participant_id, token.body.videoSessionId);
+
+    const unboundLegacyHeartbeat = await server.request(
+        `/api/rooms/${createRoom.room.roomId}/video-heartbeat`,
+        {
+            method: 'POST',
+            body: { displayName: 'Owner', clientSessionId: 'rtk-owner' }
+        }
+    );
+    assert.equal(unboundLegacyHeartbeat.status, 403);
+
+    // The old body remains accepted for 14 days, but its caller-selected
+    // values are ignored. The membership-bound socket and identity select the
+    // server-generated video session.
+    const legacyHeartbeat = await server.request(
+        `/api/rooms/${createRoom.room.roomId}/video-heartbeat`,
+        {
+            method: 'POST',
+            headers: { 'X-Halastudy-Membership': joinOwner.membershipToken },
+            body: { displayName: 'Caller value is ignored', clientSessionId: 'forged-caller-id' }
+        }
+    );
+    assert.equal(legacyHeartbeat.status, 200);
+
+    let metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.compatibilityTelemetry.signals.video_token_client_session_id.count, 1);
+    assert.equal(metrics.body.compatibilityTelemetry.signals.video_token_student_role.count, 1);
+    assert.equal(metrics.body.compatibilityTelemetry.signals.video_heartbeat_legacy_shape.count, 1);
+
+    const legacyLeave = await server.request(`/api/rooms/${createRoom.room.roomId}/video-leave`, {
+        method: 'POST',
+        headers: { 'X-Halastudy-Membership': joinOwner.membershipToken },
+        body: { displayName: 'Another ignored value', clientSessionId: 'another-forged-id' }
+    });
+    assert.equal(legacyLeave.status, 200);
+    metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.compatibilityTelemetry.signals.video_leave_legacy_shape.count, 1);
+    const compatibilityLogs = `${server.logs().stdout}\n${server.logs().stderr}`;
+    assert.match(compatibilityLogs, /"event":"compatibility_path_used"/);
+    assert.match(compatibilityLogs, /"signal":"video_leave_legacy_shape"/);
+    assert.doesNotMatch(compatibilityLogs, /forged-caller-id|Caller value is ignored|Another ignored value/);
 });
 
 test('the Lobby issues viewer tokens to guests but gates camera (publisher) behind an account', async (t) => {
@@ -570,7 +735,8 @@ test('the Lobby issues viewer tokens to guests but gates camera (publisher) behi
 
     // Guest -> viewer token: allowed, uses the viewer preset, no account needed.
     const viewerToken = await issueVideoToken(server, 'LOBBY', {
-        displayName: 'Guest', clientSessionId: 'lobby-guest', role: 'viewer'
+        displayName: 'Guest', clientSessionId: 'lobby-guest', role: 'viewer',
+        membershipToken: guestJoin.membershipToken
     });
     assert.equal(viewerToken.status, 200);
     assert.equal(viewerToken.body.ok, true);
@@ -578,7 +744,8 @@ test('the Lobby issues viewer tokens to guests but gates camera (publisher) behi
 
     // Guest -> publisher: rejected. Turning on camera in the Lobby needs an account.
     const guestPublish = await issueVideoToken(server, 'LOBBY', {
-        displayName: 'Guest', clientSessionId: 'lobby-guest', role: 'publisher'
+        displayName: 'Guest', clientSessionId: 'lobby-guest', role: 'publisher',
+        membershipToken: guestJoin.membershipToken
     });
     assert.equal(guestPublish.status, 403);
     assert.equal(guestPublish.body.errorCode, 'AUTH_REQUIRED');
@@ -607,7 +774,8 @@ test('the Lobby issues a publisher token to a signed-in account', async (t) => {
 
     // Same request, now with the auth cookie -> publisher token with the student preset.
     const publish = await issueVideoToken(server, 'LOBBY', {
-        displayName: 'Member', clientSessionId: 'lobby-member', role: 'publisher'
+        displayName: 'Member', clientSessionId: 'lobby-member', role: 'publisher',
+        membershipToken: join.membershipToken
     }, { Cookie: account.cookie });
     assert.equal(publish.status, 200);
     assert.equal(publish.body.ok, true);
@@ -646,7 +814,7 @@ test('RealtimeKit video token endpoint rejects invalid or unauthorized requests 
         role: 'student'
     });
     assert.equal(notJoined.status, 403);
-    assert.equal(notJoined.body.errorCode, 'ROOM_NOT_JOINED');
+    assert.equal(notJoined.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
 
     const joinOwner = await emitAck(ownerSocket, 'join-room', {
         roomId,
@@ -658,7 +826,8 @@ test('RealtimeKit video token endpoint rejects invalid or unauthorized requests 
     const invalidRole = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-auth-owner',
-        role: 'host'
+        role: 'host',
+        membershipToken: joinOwner.membershipToken
     });
     assert.equal(invalidRole.status, 400);
     assert.equal(invalidRole.body.errorCode, 'VIDEO_REQUEST_INVALID');
@@ -707,14 +876,16 @@ test('RealtimeKit caps reject before provider participant creation', async (t) =
     const firstToken = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-cap-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: ownerJoin.membershipToken
     });
     assert.equal(firstToken.status, 200);
 
     const blockedToken = await issueVideoToken(server, roomId, {
         displayName: 'Peer',
         clientSessionId: 'rtk-cap-peer',
-        role: 'student'
+        role: 'student',
+        membershipToken: peerJoin.membershipToken
     });
     assert.equal(blockedToken.status, 409);
     assert.equal(blockedToken.body.errorCode, 'GLOBAL_VIDEO_LIMIT_REACHED');
@@ -745,12 +916,12 @@ test('RealtimeKit room cap rejects before provider participant creation', async 
         roomName: 'RealtimeKit Room Cap'
     });
     const roomId = createRoom.room.roomId;
-    await emitAck(ownerSocket, 'join-room', {
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
         roomId,
         username: 'Owner',
         clientId: 'rtk-room-cap-owner'
     });
-    await emitAck(peerSocket, 'join-room', {
+    const peerJoin = await emitAck(peerSocket, 'join-room', {
         roomId,
         username: 'Peer',
         clientId: 'rtk-room-cap-peer'
@@ -759,14 +930,16 @@ test('RealtimeKit room cap rejects before provider participant creation', async 
     const firstToken = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-room-cap-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: ownerJoin.membershipToken
     });
     assert.equal(firstToken.status, 200);
 
     const blockedToken = await issueVideoToken(server, roomId, {
         displayName: 'Peer',
         clientSessionId: 'rtk-room-cap-peer',
-        role: 'student'
+        role: 'student',
+        membershipToken: peerJoin.membershipToken
     });
     assert.equal(blockedToken.status, 409);
     assert.equal(blockedToken.body.errorCode, 'ROOM_FULL');
@@ -774,6 +947,48 @@ test('RealtimeKit room cap rejects before provider participant creation', async 
     const fakeState = await server.realtimeKitState();
     assert.equal(fakeState.meetings.length, 1);
     assert.equal(fakeState.participants.length, 1);
+});
+
+test('RealtimeKit reserves at most three pending or active sessions per IP', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+    const sockets = [];
+    t.after(async () => {
+        await Promise.all(sockets.map((socket) => closeSocket(socket)));
+    });
+
+    for (let index = 0; index < 4; index += 1) {
+        sockets.push(await connectSocket(server.baseUrl, { clientId: `rtk-ip-${index}` }));
+    }
+    const created = await emitAck(sockets[0], 'create-room', { roomName: 'RealtimeKit IP Cap' });
+    const roomId = created.room.roomId;
+    const joins = [];
+    for (let index = 0; index < sockets.length; index += 1) {
+        joins.push(await emitAck(sockets[index], 'join-room', {
+            roomId,
+            username: `Student${index}`,
+            clientId: `rtk-ip-${index}`
+        }));
+    }
+
+    for (let index = 0; index < 3; index += 1) {
+        const token = await issueVideoToken(server, roomId, {
+            displayName: `Student${index}`,
+            role: 'student',
+            membershipToken: joins[index].membershipToken
+        });
+        assert.equal(token.status, 200);
+    }
+    const blocked = await issueVideoToken(server, roomId, {
+        displayName: 'Student3',
+        role: 'student',
+        membershipToken: joins[3].membershipToken
+    });
+    assert.equal(blocked.status, 409);
+    assert.equal(blocked.body.errorCode, 'IP_VIDEO_LIMIT_REACHED');
+
+    const fakeState = await server.realtimeKitState();
+    assert.equal(fakeState.participants.length, 3);
 });
 
 test('RealtimeKit provider failures release capacity and hide provider internals', async (t) => {
@@ -792,7 +1007,7 @@ test('RealtimeKit provider failures release capacity and hide provider internals
         roomName: 'RealtimeKit Failure Room'
     });
     const roomId = createRoom.room.roomId;
-    await emitAck(ownerSocket, 'join-room', {
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
         roomId,
         username: 'Owner',
         clientId: 'rtk-fail-owner'
@@ -801,7 +1016,8 @@ test('RealtimeKit provider failures release capacity and hide provider internals
     const failed = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-fail-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: ownerJoin.membershipToken
     });
     assert.equal(failed.status, 502);
     assert.equal(failed.body.errorCode, 'VIDEO_PROVIDER_UNAVAILABLE');
@@ -835,7 +1051,7 @@ test('RealtimeKit meeting metadata persists and is reused after restart', async 
         roomName: 'RealtimeKit Persist Room'
     });
     const roomId = createRoom.room.roomId;
-    await emitAck(ownerSocket, 'join-room', {
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
         roomId,
         username: 'Owner',
         clientId: 'rtk-persist-owner'
@@ -843,15 +1059,21 @@ test('RealtimeKit meeting metadata persists and is reused after restart', async 
     const firstToken = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-persist-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: ownerJoin.membershipToken
     });
     assert.equal(firstToken.status, 200);
     assert.equal(firstToken.body.meetingId, 'meeting_1');
+    const durableSessions = JSON.parse(fs.readFileSync(`${roomStateFile}.video-sessions.json`, 'utf8'));
+    assert.equal(durableSessions.sessions.length, 1);
+    assert.equal(durableSessions.sessions[0].videoSessionId, firstToken.body.videoSessionId);
+    assert.equal(durableSessions.sessions[0].providerParticipantId, firstToken.body.participantId);
 
-    await delay(400);
-    await closeSocket(ownerSocket);
+    // Simulate a process crash: no disconnect handler or final flush gets a
+    // chance to revoke the acknowledged pending credential.
+    await server.crash();
     ownerSocket = null;
-    await server.stop();
+    server = null;
 
     server = await startServer({
         roomStateFile,
@@ -870,7 +1092,8 @@ test('RealtimeKit meeting metadata persists and is reused after restart', async 
     const secondToken = await issueVideoToken(server, roomId, {
         displayName: 'Verifier',
         clientSessionId: 'rtk-persist-verifier',
-        role: 'student'
+        role: 'student',
+        membershipToken: verifierJoin.membershipToken
     });
     assert.equal(secondToken.status, 200);
     assert.equal(secondToken.body.meetingId, 'meeting_1');
@@ -878,6 +1101,246 @@ test('RealtimeKit meeting metadata persists and is reused after restart', async 
     const fakeState = await server.realtimeKitState();
     assert.equal(fakeState.meetings.length, 0);
     assert.equal(fakeState.participants.length, 1);
+});
+
+test('RealtimeKit startup reconciliation restores provider occupancy before readiness', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-rtk-reconcile');
+    const roomId = 'REC001';
+    const meetingId = 'meeting-existing';
+    fs.writeFileSync(roomStateFile, `${JSON.stringify([{
+        schemaVersion: 2,
+        id: roomId,
+        name: 'Reconciled Room',
+        ownerUserId: null,
+        requirePassword: false,
+        mediaMode: 'mesh',
+        videoProvider: 'realtimekit',
+        videoProviderMeetingId: meetingId,
+        videoProviderMeetingCreatedAt: Date.now(),
+        videoProviderStatus: 'active',
+        createdAt: Date.now(),
+        messages: [],
+        board: { goal: '', tasks: [] },
+        schedule: null
+    }], null, 2)}\n`, 'utf8');
+
+    const server = await startServer({
+        roomStateFile,
+        resetStateFileOnStart: false,
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: {
+            activeSessions: {
+                [meetingId]: {
+                    id: 'provider-session-existing',
+                    status: 'LIVE',
+                    participants: [{
+                        id: 'provider-peer-existing',
+                        custom_participant_id: 'restored-video-session-id-000000000001',
+                        display_name: 'Restored participant',
+                        joined_at: new Date().toISOString(),
+                        left_at: null
+                    }]
+                }
+            }
+        }
+    });
+    await cleanupServer(t, server);
+
+    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(snapshot.status, 200);
+    assert.equal(snapshot.body.activeVideoParticipantCount, 1);
+    const metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.activeVideoParticipants, 1);
+});
+
+test('RealtimeKit reconciliation failure keeps readiness live but fails closed for new tokens', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-rtk-reconcile-failure');
+    const roomId = 'REC002';
+    fs.writeFileSync(roomStateFile, `${JSON.stringify([{
+        schemaVersion: 2,
+        id: roomId,
+        name: 'Unavailable Provider Room',
+        ownerUserId: null,
+        requirePassword: false,
+        mediaMode: 'mesh',
+        videoProvider: 'realtimekit',
+        videoProviderMeetingId: 'meeting-unavailable',
+        videoProviderMeetingCreatedAt: Date.now(),
+        videoProviderStatus: 'active',
+        createdAt: Date.now(),
+        messages: [],
+        board: { goal: '', tasks: [] },
+        schedule: null
+    }], null, 2)}\n`, 'utf8');
+    const server = await startServer({
+        roomStateFile,
+        resetStateFileOnStart: false,
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { failReconciliation: true }
+    });
+    await cleanupServer(t, server);
+
+    const ready = await server.request('/api/ready');
+    assert.equal(ready.status, 200);
+    const socket = await connectSocket(server.baseUrl, { clientId: 'rtk-unavailable' });
+    t.after(async () => closeSocket(socket));
+    const joined = await emitAck(socket, 'join-room', {
+        roomId,
+        username: 'Unavailable',
+        clientId: 'rtk-unavailable'
+    });
+    assert.equal(joined.ok, true);
+    const token = await issueVideoToken(server, roomId, {
+        displayName: 'Unavailable',
+        role: 'student',
+        membershipToken: joined.membershipToken
+    });
+    assert.equal(token.status, 503);
+    assert.equal(token.body.errorCode, 'VIDEO_PROVIDER_UNAVAILABLE');
+});
+
+test('room closure during in-flight RealtimeKit token issuance rejects the token and cleans the late identity', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { participantDelayMs: 250 }
+    });
+    await cleanupServer(t, server);
+    const account = await signupUser(server, { displayName: 'Race owner' });
+    const socket = await connectSocket(server.baseUrl, {
+        clientId: 'rtk-close-race',
+        extraHeaders: { Cookie: account.cookie }
+    });
+    t.after(async () => closeSocket(socket));
+
+    const created = await emitAck(socket, 'create-room', { roomName: 'Close Race Room' });
+    const roomId = created.room.roomId;
+    const joined = await emitAck(socket, 'join-room', {
+        roomId,
+        username: 'Race owner',
+        clientId: 'rtk-close-race'
+    });
+    const tokenPromise = issueVideoToken(server, roomId, {
+        displayName: 'Race owner',
+        role: 'student',
+        membershipToken: joined.membershipToken
+    }, { Cookie: account.cookie });
+    await waitForRealtimeKitMeeting(server);
+    const closePromise = server.request(`/api/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { Cookie: account.cookie }
+    });
+    const [token, closed] = await Promise.all([tokenPromise, closePromise]);
+
+    assert.equal(token.status, 403);
+    assert.equal(token.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+    assert.equal(closed.status, 200);
+    assert.equal(closed.body.cleanupPending, false);
+    assert.equal((await server.request(`/api/rooms/${roomId}`)).status, 404);
+    const providerState = await server.realtimeKitState();
+    assert.deepEqual(providerState.closedMeetings, ['meeting_1']);
+    assert.deepEqual(providerState.disabledMeetings, ['meeting_1']);
+    assert.deepEqual(providerState.kickAllMeetings, ['meeting_1']);
+    assert.equal(providerState.participants.length, 1);
+    assert.ok(providerState.participants[0].deletedAt);
+    assert.deepEqual(
+        providerState.deletedParticipants.map(({ meetingId, participantId }) => ({ meetingId, participantId })),
+        [{ meetingId: 'meeting_1', participantId: 'participant_1' }]
+    );
+    assert.ok(providerState.exactKicks.some(({ meetingId, customParticipantIds }) => (
+        meetingId === 'meeting_1'
+        && customParticipantIds.includes(providerState.participants[0].body.custom_participant_id)
+    )));
+});
+
+test('room closure during provider meeting creation closes the meeting and retires any late identity', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { meetingDelayMs: 500 }
+    });
+    await cleanupServer(t, server);
+    const account = await signupUser(server, { displayName: 'Late meeting owner' });
+    const socket = await connectSocket(server.baseUrl, {
+        clientId: 'rtk-late-meeting-race',
+        extraHeaders: { Cookie: account.cookie }
+    });
+    t.after(async () => closeSocket(socket));
+
+    const created = await emitAck(socket, 'create-room', { roomName: 'Late Meeting Race Room' });
+    const roomId = created.room.roomId;
+    const joined = await emitAck(socket, 'join-room', {
+        roomId,
+        username: 'Late meeting owner',
+        clientId: 'rtk-late-meeting-race'
+    });
+    const tokenPromise = issueVideoToken(server, roomId, {
+        displayName: 'Late meeting owner',
+        role: 'student',
+        membershipToken: joined.membershipToken
+    }, { Cookie: account.cookie });
+    await waitForRealtimeKitMeetingRequest(server);
+
+    const closePromise = server.request(`/api/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { Cookie: account.cookie }
+    });
+    const closed = await closePromise;
+    const token = await tokenPromise;
+
+    assert.equal(closed.status, 200);
+    assert.equal(token.status, 403);
+    assert.equal(token.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+    assert.equal((await server.request(`/api/rooms/${roomId}`)).status, 404);
+    const providerState = await server.realtimeKitState();
+    assert.equal(providerState.meetings.length, 1);
+    assert.deepEqual(providerState.closedMeetings, ['meeting_1']);
+    assert.deepEqual(providerState.disabledMeetings, ['meeting_1']);
+    assert.deepEqual(providerState.kickAllMeetings, ['meeting_1']);
+    assert.deepEqual(
+        providerState.participants.filter((participant) => !participant.deletedAt),
+        []
+    );
+});
+
+test('room switching during provider token creation revokes the pending response', async (t) => {
+    const server = await startServer({
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { participantDelayMs: 250 }
+    });
+    await cleanupServer(t, server);
+    const socket = await connectSocket(server.baseUrl, { clientId: 'rtk-switch-race' });
+    t.after(async () => closeSocket(socket));
+    const source = await emitAck(socket, 'create-room', { roomName: 'Token Source' });
+    const target = await emitAck(socket, 'create-room', { roomName: 'Token Target' });
+    const sourceJoin = await emitAck(socket, 'join-room', {
+        roomId: source.room.roomId,
+        username: 'Switcher',
+        clientId: 'rtk-switch-race'
+    });
+
+    const tokenPromise = issueVideoToken(server, source.room.roomId, {
+        displayName: 'Switcher',
+        role: 'student',
+        membershipToken: sourceJoin.membershipToken
+    });
+    await waitForRealtimeKitMeeting(server);
+    const targetJoin = await emitAck(socket, 'join-room', {
+        roomId: target.room.roomId,
+        username: 'Switcher',
+        clientId: 'rtk-switch-race'
+    });
+    assert.equal(targetJoin.ok, true);
+    const token = await tokenPromise;
+    assert.equal(token.status, 403);
+    assert.equal(token.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
+    const sourceSnapshot = await server.request(`/api/rooms/${source.room.roomId}`);
+    assert.equal(sourceSnapshot.body.activeVideoParticipantCount, 0);
+    const providerState = await server.realtimeKitState();
+    assert.equal(providerState.deletedParticipants.length, 1);
+    assert.equal(providerState.deletedParticipants[0].participantId, 'participant_1');
+    assert.ok(providerState.exactKicks.some(({ meetingId, customParticipantIds }) => (
+        meetingId === 'meeting_1'
+        && customParticipantIds.includes(providerState.participants[0].body.custom_participant_id)
+    )));
 });
 
 test('RealtimeKit expired idle meeting metadata is recycled for reusable rooms', async (t) => {
@@ -929,7 +1392,8 @@ test('RealtimeKit expired idle meeting metadata is recycled for reusable rooms',
     const token = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-recycle-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: joinOwner.membershipToken
     });
     assert.equal(token.status, 200);
     assert.equal(token.body.meetingId, 'meeting_1');
@@ -939,7 +1403,57 @@ test('RealtimeKit expired idle meeting metadata is recycled for reusable rooms',
     assert.equal(fakeState.participants.length, 1);
 });
 
-test('RealtimeKit heartbeat, leave, and socket disconnect update active video counts', async (t) => {
+test('failed expired-meeting cleanup retains a durable retry record and issues no token', async (t) => {
+    const roomStateFile = makeTempStateFile('co-study-rtk-recycle-failure');
+    const roomId = 'OLD124';
+    fs.writeFileSync(roomStateFile, `${JSON.stringify([{
+        schemaVersion: 2,
+        id: roomId,
+        name: 'Old Cleanup Retry Room',
+        requirePassword: false,
+        mediaMode: 'mesh',
+        videoProvider: 'realtimekit',
+        videoProviderMeetingId: 'old_meeting_retry',
+        videoProviderMeetingCreatedAt: Date.now() - (5 * 60 * 1000),
+        videoProviderStatus: 'active',
+        createdAt: Date.now() - (24 * 60 * 60 * 1000),
+        messages: [],
+        board: { goal: '', tasks: [] },
+        schedule: null
+    }], null, 2)}\n`, 'utf8');
+    const server = await startServer({
+        roomStateFile,
+        resetStateFileOnStart: false,
+        withFakeRealtimeKit: true,
+        fakeRealtimeKitOptions: { failClose: true },
+        env: { MAX_ROOM_DURATION_MINUTES: '1' }
+    });
+    await cleanupServer(t, server);
+    const socket = await connectSocket(server.baseUrl, { clientId: 'rtk-recycle-failure' });
+    t.after(async () => closeSocket(socket));
+    const joined = await emitAck(socket, 'join-room', {
+        roomId,
+        username: 'Cleanup retry',
+        clientId: 'rtk-recycle-failure'
+    });
+    const token = await issueVideoToken(server, roomId, {
+        displayName: 'Cleanup retry',
+        role: 'student',
+        membershipToken: joined.membershipToken
+    });
+    assert.equal(token.status, 503);
+    assert.equal(token.body.errorCode, 'VIDEO_PROVIDER_UNAVAILABLE');
+    const persisted = JSON.parse(fs.readFileSync(roomStateFile, 'utf8'));
+    const retryRoom = persisted.find((room) => room.id === roomId);
+    assert.equal(retryRoom.videoProviderMeetingId, 'old_meeting_retry');
+    assert.equal(retryRoom.videoProviderStatus, 'error');
+    assert.match(retryRoom.providerCleanupLastError, /RealtimeKit request failed/);
+    const providerState = await server.realtimeKitState();
+    assert.equal(providerState.meetings.length, 0);
+    assert.equal(providerState.participants.length, 0);
+});
+
+test('RealtimeKit webhooks authoritatively release capacity while client lifecycle calls stay advisory', async (t) => {
     const server = await startServer({ withFakeRealtimeKit: true });
     await cleanupServer(t, server);
 
@@ -954,12 +1468,12 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
         roomName: 'RealtimeKit Lifecycle Room'
     });
     const roomId = createRoom.room.roomId;
-    await emitAck(ownerSocket, 'join-room', {
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
         roomId,
         username: 'Owner',
         clientId: 'rtk-life-owner'
     });
-    await emitAck(peerSocket, 'join-room', {
+    const peerJoin = await emitAck(peerSocket, 'join-room', {
         roomId,
         username: 'Peer',
         clientId: 'rtk-life-peer'
@@ -968,15 +1482,60 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
     const token = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'rtk-life-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: ownerJoin.membershipToken
     });
     assert.equal(token.status, 200);
 
+    const joinedEvent = {
+        event: 'meeting.participantJoined',
+        meeting: { id: token.body.meetingId, sessionId: 'session-lifecycle' },
+        participant: {
+            peerId: 'peer-owner',
+            customParticipantId: token.body.videoSessionId,
+            userDisplayName: 'Owner',
+            joinedAt: new Date().toISOString()
+        }
+    };
+    const forged = await server.request('/api/webhooks/realtimekit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'rtk-signature': Buffer.from('forged').toString('base64'),
+            'rtk-uuid': 'forged-delivery'
+        },
+        body: JSON.stringify(joinedEvent)
+    });
+    assert.equal(forged.status, 401);
+
+    const oversized = await server.signRealtimeKitWebhook({
+        ...joinedEvent,
+        padding: 'x'.repeat(129 * 1024)
+    }, 'oversized-delivery');
+    const oversizedResponse = await server.request('/api/webhooks/realtimekit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'rtk-signature': oversized.signature,
+            'rtk-uuid': oversized.uuid
+        },
+        body: oversized.raw
+    });
+    assert.equal(oversizedResponse.status, 413);
+    assert.equal(oversizedResponse.body.errorCode, 'REQUEST_TOO_LARGE');
+
+    const joined = await deliverRealtimeKitWebhook(server, joinedEvent, 'lifecycle-joined');
+    assert.equal(joined.status, 200);
+    assert.equal(joined.body.duplicate, false);
+    const replay = await deliverRealtimeKitWebhook(server, joinedEvent, 'lifecycle-joined');
+    assert.equal(replay.status, 200);
+    assert.equal(replay.body.duplicate, true);
+
     const heartbeat = await server.request(`/api/rooms/${roomId}/video-heartbeat`, {
         method: 'POST',
-        headers: { Cookie: videoCookies.get(`${server.baseUrl}:rtk-life-owner`) },
+        headers: { 'X-Halastudy-Membership': ownerJoin.membershipToken },
         body: {
-            clientSessionId: 'rtk-life-owner'
+            videoSessionId: token.body.videoSessionId
         }
     });
     assert.equal(heartbeat.status, 200);
@@ -984,38 +1543,174 @@ test('RealtimeKit heartbeat, leave, and socket disconnect update active video co
 
     const leave = await server.request(`/api/rooms/${roomId}/video-leave`, {
         method: 'POST',
-        headers: { Cookie: videoCookies.get(`${server.baseUrl}:rtk-life-owner`) },
+        headers: { 'X-Halastudy-Membership': ownerJoin.membershipToken },
         body: {
-            clientSessionId: 'rtk-life-owner'
+            videoSessionId: token.body.videoSessionId
         }
     });
     assert.equal(leave.status, 200);
-    assert.equal(leave.body.activeRoomVideoParticipants, 0);
+    assert.equal(leave.body.cleanupPending, true);
+    assert.equal(leave.body.activeRoomVideoParticipants, 1);
+
+    const ownerLeft = await deliverRealtimeKitWebhook(server, {
+        event: 'meeting.participantLeft',
+        meeting: { id: token.body.meetingId, sessionId: 'session-lifecycle' },
+        participant: {
+            peerId: 'peer-owner',
+            customParticipantId: token.body.videoSessionId,
+            leftAt: new Date().toISOString()
+        }
+    }, 'lifecycle-owner-left');
+    assert.equal(ownerLeft.status, 200);
+    assert.equal(ownerLeft.body.duplicate, false);
+
+    const afterProviderLeft = await server.request(`/api/rooms/${roomId}`);
+    assert.equal(afterProviderLeft.body.activeVideoParticipantCount, 0);
 
     const peerToken = await issueVideoToken(server, roomId, {
         displayName: 'Peer',
         clientSessionId: 'rtk-life-peer',
-        role: 'student'
+        role: 'student',
+        membershipToken: peerJoin.membershipToken
     });
     assert.equal(peerToken.status, 200);
     await closeSocket(peerSocket);
     await delay(100);
 
-    const snapshot = await server.request(`/api/rooms/${roomId}`);
+    let snapshot = await server.request(`/api/rooms/${roomId}`);
     assert.equal(snapshot.status, 200);
+    // A pending provider credential has no signed active peer yet. Socket
+    // revocation deletes it immediately instead of waiting for a left event.
+    assert.equal(snapshot.body.activeVideoParticipantCount, 0);
+
+    await deliverRealtimeKitWebhook(server, {
+        event: 'meeting.participantLeft',
+        meeting: { id: peerToken.body.meetingId, sessionId: 'session-lifecycle' },
+        participant: {
+            peerId: 'peer-peer',
+            customParticipantId: peerToken.body.videoSessionId,
+            leftAt: new Date().toISOString()
+        }
+    }, 'lifecycle-peer-left');
+    snapshot = await server.request(`/api/rooms/${roomId}`);
     assert.equal(snapshot.body.activeVideoParticipantCount, 0);
 });
 
+test('RealtimeKit token reuse is revoked, counts every provider peer, and cannot reactivate', async (t) => {
+    const server = await startServer({ withFakeRealtimeKit: true });
+    await cleanupServer(t, server);
+    const socket = await connectSocket(server.baseUrl, { clientId: 'rtk-token-reuse' });
+    t.after(async () => closeSocket(socket));
+    const created = await emitAck(socket, 'create-room', { roomName: 'Token Reuse Room' });
+    const roomId = created.room.roomId;
+    const joined = await emitAck(socket, 'join-room', {
+        roomId,
+        username: 'Reuse owner',
+        clientId: 'rtk-token-reuse'
+    });
+    const token = await issueVideoToken(server, roomId, {
+        displayName: 'Reuse owner',
+        role: 'student',
+        membershipToken: joined.membershipToken
+    });
+    assert.equal(token.status, 200);
+    const startedAt = Date.now();
+    const participantEvent = (event, peerId, offsetMs) => ({
+        event,
+        meeting: { id: token.body.meetingId, sessionId: 'reuse-provider-session' },
+        participant: {
+            peerId,
+            customParticipantId: token.body.videoSessionId,
+            ...(event === 'meeting.participantJoined'
+                ? { joinedAt: new Date(startedAt + offsetMs).toISOString() }
+                : { leftAt: new Date(startedAt + offsetMs).toISOString() })
+        }
+    });
+
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantJoined', 'reuse-peer-1', 1),
+        'reuse-join-1'
+    );
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantJoined', 'reuse-peer-2', 2),
+        'reuse-join-2'
+    );
+    let metrics = await server.request('/api/metrics');
+    assert.deepEqual(metrics.body.videoSessionCounts, {
+        pending: 0,
+        active: 0,
+        ending: 2,
+        total: 2
+    });
+    let providerState = await server.realtimeKitState();
+    assert.equal(providerState.deletedParticipants.length, 1);
+    assert.equal(providerState.exactKicks.length, 1);
+
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantLeft', 'reuse-peer-1', 3),
+        'reuse-left-1'
+    );
+    metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.videoSessionCounts.ending, 1);
+    providerState = await server.realtimeKitState();
+    assert.equal(providerState.exactKicks.length, 2);
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantLeft', 'reuse-peer-2', 4),
+        'reuse-left-2'
+    );
+    metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.videoSessionCounts.total, 0);
+
+    // A delayed/replayed provider join remains terminal. It is kicked again,
+    // never transitions back to active, and waits for the signed left event.
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantJoined', 'reuse-peer-late', 5),
+        'reuse-join-late'
+    );
+    metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.videoSessionCounts.active, 0);
+    assert.equal(metrics.body.videoSessionCounts.ending, 1);
+    providerState = await server.realtimeKitState();
+    assert.equal(providerState.exactKicks.length, 3);
+    await deliverRealtimeKitWebhook(
+        server,
+        participantEvent('meeting.participantLeft', 'reuse-peer-late', 6),
+        'reuse-left-late'
+    );
+    metrics = await server.request('/api/metrics');
+    assert.equal(metrics.body.videoSessionCounts.total, 0);
+});
+
 test('mesh rooms enforce participant caps while allowing same-identity reconnects at capacity', async (t) => {
-    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh' } });
+    const server = await startServer({ env: { VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     await cleanupServer(t, server);
 
-    const ownerSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-owner' });
+    const sessionBootstrap = await server.request('/');
+    const sessionSetCookie = Array.isArray(sessionBootstrap.headers['set-cookie'])
+        ? sessionBootstrap.headers['set-cookie']
+        : [sessionBootstrap.headers['set-cookie']].filter(Boolean);
+    const sessionCookie = sessionSetCookie
+        .map((value) => String(value).split(';')[0])
+        .find((value) => value.startsWith('coStudySessionId='));
+    assert.ok(sessionCookie);
+
+    const ownerSocket = await connectSocket(server.baseUrl, {
+        clientId: 'mesh-owner',
+        extraHeaders: { Cookie: sessionCookie }
+    });
     const peerOneSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-peer-1' });
     const peerTwoSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-peer-2' });
     const peerThreeSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-peer-3' });
     const blockedSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-peer-4' });
-    const reconnectSocket = await connectSocket(server.baseUrl, { clientId: 'mesh-owner' });
+    const reconnectSocket = await connectSocket(server.baseUrl, {
+        clientId: 'attacker-controlled-and-ignored',
+        extraHeaders: { Cookie: sessionCookie }
+    });
 
     t.after(async () => {
         await closeSocket(ownerSocket);
@@ -1223,15 +1918,23 @@ test('socket payloads are bounded at server boundaries', async (t) => {
     assert.equal(createRoom.ok, true);
     const roomId = createRoom.room.roomId;
 
-    const oversizedName = `  ${'Aziz'.repeat(20)}  `;
-    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
+    const oversizedName = 'Aziz'.repeat(20);
+    const rejectedName = await emitAck(ownerSocket, 'join-room', {
         roomId,
         username: oversizedName,
         clientId: 'bounds-owner'
     });
+    assert.deepEqual(rejectedName, { ok: false, errorCode: 'REQUEST_INVALID' });
+
+    const boundaryName = 'A'.repeat(20);
+    const ownerJoin = await emitAck(ownerSocket, 'join-room', {
+        roomId,
+        username: boundaryName,
+        clientId: 'bounds-owner'
+    });
     assert.equal(ownerJoin.ok, true);
     assert.equal(ownerJoin.room.participants[0].name.length, 20);
-    assert.equal(ownerJoin.room.participants[0].name, oversizedName.trim().slice(0, 20));
+    assert.equal(ownerJoin.room.participants[0].name, boundaryName);
 
     const peerJoin = await emitAck(peerSocket, 'join-room', {
         roomId,
@@ -1245,10 +1948,17 @@ test('socket payloads are bounded at server boundaries', async (t) => {
         receivedMessages.push(message);
     });
 
-    const oversizedMessage = `  ${'m'.repeat(600)}  `;
-    const sendMessage = await emitAck(ownerSocket, 'send-message', {
+    const oversizedMessage = 'm'.repeat(501);
+    const rejectedMessage = await emitAck(ownerSocket, 'send-message', {
         roomId,
         text: oversizedMessage
+    });
+    assert.deepEqual(rejectedMessage, { ok: false, errorCode: 'REQUEST_INVALID' });
+
+    const boundaryMessage = 'm'.repeat(500);
+    const sendMessage = await emitAck(ownerSocket, 'send-message', {
+        roomId,
+        text: boundaryMessage
     });
     assert.equal(sendMessage.ok, true);
 
@@ -1259,7 +1969,7 @@ test('socket payloads are bounded at server boundaries', async (t) => {
     const userMessage = receivedMessages.find((message) => message.type === 'user');
     assert.ok(userMessage);
     assert.equal(userMessage.text.length, 500);
-    assert.equal(userMessage.text, oversizedMessage.trim().slice(0, 500));
+    assert.equal(userMessage.text, boundaryMessage);
 
     const snapshot = await server.request(`/api/rooms/${roomId}`);
     assert.equal(snapshot.status, 200);
@@ -1292,6 +2002,67 @@ test('privacy has connected Arabic and English routes and links from landing and
 
     const open = await server.request('/open');
     assert.match(`${open.body}`, /href="\/privacy"/);
+});
+
+test('contact page is served with every channel and linked from every public page footer', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    for (const route of ['/contact', '/contact.html']) {
+        const contact = await server.request(route);
+        assert.equal(contact.status, 200, route);
+        assert.match(`${contact.headers['content-type']}`, /text\/html/);
+        const body = `${contact.body}`;
+        assert.match(body, /href="mailto:info@halastudy\.com"/);
+        assert.match(body, /href="tel:\+966599161315"/);
+        assert.match(body, /href="https:\/\/wa\.me\/966599161315"[^>]*rel="noopener"/);
+        // Same operator disclosure as privacy.html, in both languages.
+        assert.match(body, /مؤسسة هلا[\s\S]*عزيز الخنيزان/);
+        assert.match(body, /Hala, a sole proprietorship owned by Aziz Al Khunizan/);
+    }
+
+    for (const route of ['/', '/open', '/blog', '/blog/best-online-group-study-rooms-saudi',
+        '/blog/study-with-me-online-arabic', '/privacy', '/terms', '/account']) {
+        const page = await server.request(route);
+        assert.equal(page.status, 200, route);
+        assert.match(`${page.body}`, /<footer[\s\S]*href="\/contact"[\s\S]*<\/footer>/, `${route} footer must link /contact`);
+    }
+    const notFound = await server.request('/no-such-page-for-contact-test');
+    assert.equal(notFound.status, 404);
+    assert.match(`${notFound.body}`, /href="\/contact"/);
+});
+
+test('service worker is served from the origin root with update-safe headers', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    const worker = await server.request('/service-worker.js');
+    assert.equal(worker.status, 200);
+    assert.match(`${worker.headers['content-type']}`, /javascript/);
+    assert.match(`${worker.headers['cache-control']}`, /no-cache/);
+    assert.equal(worker.headers['service-worker-allowed'], '/');
+    assert.match(`${worker.body}`, /const CACHE_VERSION = '[^']+'/);
+});
+
+test('uncontrolled ambient WAV URLs resolve directly to compressed MP3 bodies', async (t) => {
+    const server = await startServer();
+    await cleanupServer(t, server);
+
+    for (const baseName of ['chimney-fire', 'cafe', 'waves']) {
+        const alias = await server.request(`/audio/${baseName}.wav`, { method: 'HEAD' });
+        const mp3Size = fs.statSync(path.join(repoRoot, 'audio', `${baseName}.mp3`)).size;
+        assert.equal(alias.status, 200);
+        assert.match(`${alias.headers['content-type']}`, /^audio\/mpeg/);
+        assert.equal(Number(alias.headers['content-length']), mp3Size);
+    }
+
+    const caseVariant = await server.request('/audio/CAFE.WAV', { method: 'HEAD' });
+    assert.equal(caseVariant.status, 200);
+    assert.match(`${caseVariant.headers['content-type']}`, /^audio\/mpeg/);
+    assert.equal(
+        Number(caseVariant.headers['content-length']),
+        fs.statSync(path.join(repoRoot, 'audio', 'cafe.mp3')).size
+    );
 });
 
 test('open alias and media mounts serve published assets only', async (t) => {
@@ -1332,7 +2103,7 @@ test('sanitizers strip invisible characters and reject non-string payloads', asy
         clientId: 'invisible-owner'
     });
     assert.equal(numericName.ok, false);
-    assert.equal(numericName.errorCode, 'NICKNAME_REQUIRED');
+    assert.equal(numericName.errorCode, 'REQUEST_INVALID');
 
     const invisibleName = await emitAck(ownerSocket, 'join-room', {
         roomId,
@@ -1355,11 +2126,17 @@ test('sanitizers strip invisible characters and reject non-string payloads', asy
         text: { nested: 'payload' }
     });
     assert.equal(objectMessage.ok, false);
-    assert.equal(objectMessage.errorCode, 'MESSAGE_REQUIRED');
+    assert.equal(objectMessage.errorCode, 'REQUEST_INVALID');
+
+    const rejectedEmojiMessage = await emitAck(ownerSocket, 'send-message', {
+        roomId,
+        text: '\u{1F3AF}'.repeat(600)
+    });
+    assert.deepEqual(rejectedEmojiMessage, { ok: false, errorCode: 'REQUEST_INVALID' });
 
     const emojiMessage = await emitAck(ownerSocket, 'send-message', {
         roomId,
-        text: '\u{1F3AF}'.repeat(600)
+        text: '\u{1F3AF}'.repeat(500)
     });
     assert.equal(emojiMessage.ok, true);
 
@@ -1367,7 +2144,7 @@ test('sanitizers strip invisible characters and reject non-string payloads', asy
     assert.equal(snapshot.status, 200);
     const emojiStored = snapshot.body.messages.find((message) => message.type === 'user');
     assert.ok(emojiStored);
-    // Truncation counts code points and never leaves a lone surrogate.
+    // The exact boundary counts code points and never leaves a lone surrogate.
     assert.equal(Array.from(emojiStored.text).length, 500);
     assert.doesNotMatch(emojiStored.text, /[\uD800-\uDBFF]$/);
 });
@@ -1478,24 +2255,30 @@ test('backup restore tooling and deploy verification work against the HTTP app',
 
     const backupResult = runNodeScript('scripts/backup-rooms.js', [], {
         env: {
+            BACKUP_ENCRYPTION_KEY: TEST_BACKUP_ENCRYPTION_KEY,
             ROOM_STATE_FILE: roomStateFile,
             ROOM_STATE_BACKUP_DIR: backupDir
         }
     });
     assert.equal(backupResult.status, 0, backupResult.stderr);
-    const backupFiles = fs.readdirSync(backupDir).filter((entry) => entry.endsWith('.backup.json'));
+    const backupFiles = fs.readdirSync(backupDir).filter((entry) => entry.endsWith('.hsbackup'));
     assert.equal(backupFiles.length, 1);
 
     fs.writeFileSync(roomStateFile, '[]\n', 'utf8');
 
-    const restoreResult = runNodeScript('scripts/restore-rooms.js', [path.join(backupDir, backupFiles[0])], {
+    const restoreResult = runNodeScript('scripts/restore-rooms.js', [
+        path.join(backupDir, backupFiles[0]),
+        '--apply',
+        '--writer-stopped'
+    ], {
         env: {
+            BACKUP_ENCRYPTION_KEY: TEST_BACKUP_ENCRYPTION_KEY,
             ROOM_STATE_FILE: roomStateFile,
             ROOM_STATE_BACKUP_DIR: backupDir
         }
     });
     assert.equal(restoreResult.status, 0, restoreResult.stderr);
-    assert.match(restoreResult.stdout, /Pre-restore safety backup/);
+    assert.match(restoreResult.stdout, /APPLIED/);
 
     server = await startServer({
         roomStateFile,
@@ -1575,15 +2358,20 @@ test('per-user session goal rides on user-status: sanitized, broadcast, and hidd
     const aliceRecord = carolJoin.room.participants.find((p) => p.name === 'Alice');
     assert.equal(aliceRecord.status.goal, 'Solve 25 quant questions');
 
-    // Over-long goals are truncated to 80 code points at the trust boundary,
+    // Over-long goals are rejected before mutation. Exact-boundary goals pass,
     // and bidi overrides (U+202E) are stripped like other user text.
     const nextStatusUpdate = () => new Promise((resolve) => {
         bobSocket.once('status-update', resolve);
     });
 
+    const oversizedGoal = await emitAck(aliceSocket, 'user-status', {
+        status: { text: '', visible: true, goal: 'g'.repeat(120) }
+    });
+    assert.deepEqual(oversizedGoal, { ok: false, errorCode: 'REQUEST_INVALID' });
+
     let pending = nextStatusUpdate();
     assert.equal((await emitAck(aliceSocket, 'user-status', {
-        status: { text: '', visible: true, goal: 'g'.repeat(120) }
+        status: { text: '', visible: true, goal: 'g'.repeat(80) }
     })).ok, true);
     assert.equal((await pending).status.goal.length, 80);
 
@@ -1593,7 +2381,7 @@ test('per-user session goal rides on user-status: sanitized, broadcast, and hidd
     })).ok, true);
     assert.equal((await pending).status.goal, 'reversed goal');
 
-    // Hidden status blanks the goal server-side (privacy contract).
+    // Hidden status omits all private activity fields server-side.
     assert.equal((await emitAck(aliceSocket, 'user-status', {
         status: { text: 'secret', visible: false, goal: 'secret goal' }
     })).ok, true);
@@ -1605,9 +2393,8 @@ test('per-user session goal rides on user-status: sanitized, broadcast, and hidd
     const daveJoin = await emitAck(daveSocket, 'join-room', { roomId, username: 'Dave', clientId: 'goal-dave' });
     assert.equal(daveJoin.ok, true);
     const hiddenAlice = daveJoin.room.participants.find((p) => p.name === 'Alice');
-    assert.equal(hiddenAlice.status.goal, '');
-    assert.equal(hiddenAlice.status.text, '');
     assert.equal(hiddenAlice.status.visible, false);
+    assert.deepEqual(Object.keys(hiddenAlice.status).sort(), ['updatedAt', 'visible']);
 });
 
 test('report-user validates targets, rate limits, persists sanitized, and never leaks to clients', async (t) => {
@@ -1640,11 +2427,19 @@ test('report-user validates targets, rate limits, persists sanitized, and never 
     const selfReport = await emitAck(reporterSocket, 'report-user', { targetId: reporterSocket.id });
     assert.equal(selfReport.errorCode, 'CANNOT_REPORT_SELF');
 
-    // Valid report: bad reason falls back to 'other', detail is truncated.
-    const firstReport = await emitAck(reporterSocket, 'report-user', {
+    // Invalid enums and excessive detail fail the request contract.
+    const invalidReport = await emitAck(reporterSocket, 'report-user', {
         targetId: targetSocket.id,
         reason: 'not-a-real-reason',
         detail: 'd'.repeat(300)
+    });
+    assert.deepEqual(invalidReport, { ok: false, errorCode: 'REQUEST_INVALID' });
+
+    // Valid report at the detail boundary is persisted unchanged.
+    const firstReport = await emitAck(reporterSocket, 'report-user', {
+        targetId: targetSocket.id,
+        reason: 'other',
+        detail: 'd'.repeat(200)
     });
     assert.equal(firstReport.ok, true);
     assert.match(firstReport.reportId, /^rpt-/);
@@ -1668,7 +2463,7 @@ test('report-user validates targets, rate limits, persists sanitized, and never 
     assert.equal(rateLimited.ok, false);
     assert.equal(rateLimited.errorCode, 'RATE_LIMITED');
 
-    // Persisted state carries the sanitized report (enum fallback + 200-char cap).
+    // Persisted state carries the validated report.
     await delay(400);
     const persisted = JSON.parse(fs.readFileSync(roomStateFile, 'utf8'));
     const persistedRoom = persisted.find((room) => room.id === roomId);
@@ -1721,7 +2516,8 @@ test('protected room GET exposes only a safe preview and leaks no private state'
     const token = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'priv-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: joinOwner.membershipToken
     });
     assert.equal(token.status, 200);
 
@@ -1875,7 +2671,7 @@ test('video-token requires verified room membership even for existing rooms', as
         role: 'student'
     });
     assert.equal(denied.status, 403);
-    assert.equal(denied.body.errorCode, 'ROOM_NOT_JOINED');
+    assert.equal(denied.body.errorCode, 'ROOM_MEMBERSHIP_REQUIRED');
     assert.equal(denied.body.authToken, undefined);
 
     // ...but a verified member can, after a real join.
@@ -1889,7 +2685,8 @@ test('video-token requires verified room membership even for existing rooms', as
     const granted = await issueVideoToken(server, roomId, {
         displayName: 'Owner',
         clientSessionId: 'vt-owner',
-        role: 'student'
+        role: 'student',
+        membershipToken: joinOwner.membershipToken
     });
     assert.equal(granted.status, 200);
     assert.equal(typeof granted.body.authToken, 'string');

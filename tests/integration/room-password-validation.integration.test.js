@@ -10,7 +10,8 @@ test('a requested room password is required before creating a protected room', a
     for (const password of ['', '   ', {}, undefined]) {
         const created = await emitAck(creator, 'create-room', { roomName: 'Private intent', mediaMode: 'mesh', requirePassword: true, password });
         assert.equal(created.ok, false, `invalid password type ${typeof password}`);
-        assert.equal(created.errorCode, 'ROOM_PASSWORD_REQUIRED');
+        // Non-string passwords never reach the handler: the request validator rejects the shape.
+        assert.equal(created.errorCode, typeof password === 'object' ? 'REQUEST_INVALID' : 'ROOM_PASSWORD_REQUIRED');
         assert.equal(created.room, undefined);
     }
     const protectedRoom = await emitAck(creator, 'create-room', { roomName: 'Protected control', mediaMode: 'mesh', requirePassword: true, password: 'valid-test-password' });

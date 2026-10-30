@@ -360,7 +360,7 @@ test('twenty study tools preserve ownership, trusted time, retries and lifecycle
 			await cohorts.accept(b, invitation.token);
 			scheduled = await cohorts.schedule(a, circle.id, {
 				roomId: 'saved-room',
-				title: 'تركيز، هادئ; one\ntwo ' + 'أ'.repeat(100),
+				title: `تركيز، هادئ; one\ntwo ${'أ'.repeat(100)}`,
 				startsAt: now() + 3600000,
 				durationMinutes: 25,
 			});

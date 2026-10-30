@@ -1,18 +1,18 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 
 async function fixture(browser, language, width) {
-    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh' } });
+    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     const account = await signupUser(server, { displayName: 'Synthetic feedback review' });
-    const context = await browser.newContext({ viewport: { width, height: 960 } });
+    const context = await createTestContext(browser, { viewport: { width, height: 960 } });
     await context.addCookies(account.cookie.split(';').map((part) => {
         const [name, ...value] = part.trim().split('=');
         return { name, value: value.join('='), url: server.baseUrl };
     }));
     await context.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language);
     const page = await context.newPage();
-    await page.goto(`${server.baseUrl}/app#planner`);
+    await gotoTestPage(page, `${server.baseUrl}/app#planner`);
     await expect(page.locator('#study-task')).toBeVisible();
     await expect(page.locator('#study-status')).toBeEmpty();
     const overview = async () => (await server.request('/api/platform/study/overview', { headers: { Cookie: account.cookie } })).body;

@@ -1,11 +1,11 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, waitForTestUrl } = require('../helpers/playwright-test');
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 
 let server;
 test.beforeEach(async () => {
     server = await startServer({ env: {
-        PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh',
+        PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true',
     } });
 });
 test.afterEach(async () => { await server?.stop(); });
@@ -23,12 +23,12 @@ async function enterRoom(page, language, theme = 'light') {
         devices.getUserMedia = async () => { throw new DOMException('Fixture camera denied', 'NotAllowedError'); };
         Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: devices });
     }, { lang: language, color: theme });
-    await page.goto(`${server.baseUrl}/open`);
+    await gotoTestPage(page, `${server.baseUrl}/open`);
     await page.locator('#room-name').fill('Quiet recovery room');
     await page.locator('#create-form button[type=submit]').click();
     await expect(page.locator('#create-result')).toBeVisible();
     await page.locator('#btn-enter-room').click();
-    await page.waitForURL(/\/index\.html\?room=/);
+    await waitForTestUrl(page, /\/index\.html\?room=/);
     await page.waitForLoadState('load');
     if (await page.locator('#join-overlay').isVisible()) {
         await page.locator('#join-name').fill(account.user.displayName);

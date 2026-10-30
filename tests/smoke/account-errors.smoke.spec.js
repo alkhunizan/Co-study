@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage } = require('../helpers/playwright-test');
 
 for (const lang of ['ar', 'en']) {
     test(`provider discovery failures can be retried in ${lang} before revealing Google`, async ({ page }) => {
@@ -11,7 +11,7 @@ for (const lang of ['ar', 'en']) {
                 body: JSON.stringify(unavailable ? { errorCode: 'SERVICE_UNAVAILABLE' } : { googleAuthEnabled: true }),
             }),
         );
-        await page.goto('/account');
+        await gotoTestPage(page, '/account');
         const retry = page.locator('#provider-unavailable [data-core-unavailable=retry]');
         await expect(retry).toBeVisible();
         await expect(page.locator('[data-google-auth]')).toBeHidden();
@@ -31,7 +31,7 @@ for (const lang of ['ar', 'en']) {
                 body: JSON.stringify({ errorCode: code }),
             }),
         );
-        await page.goto('/account');
+        await gotoTestPage(page, '/account');
         await page.click('#tab-signup');
         await page.fill('#signup-nickname', 'Synthetic learner');
         await page.fill('#signup-email', 'retry@example.invalid');

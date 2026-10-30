@@ -8,13 +8,19 @@ const crypto = require('node:crypto');
 const express = require('express');
 const { hashPassword, verifyPassword } = require('./password');
 const { registerRecoveryRoutes } = require('./recovery');
+const { GOOGLE_DELETE_GRANT_COOKIE } = require('./oauth-security');
 const {
     normalizeEmail,
     validatePassword,
     normalizeAvatarColor,
     sanitizeUserText
 } = require('./index');
-const { createUser, applyFocusSession, sanitizeFocusStats } = require('../../user-store');
+const {
+    createUser,
+    applyFocusSession,
+    normalizeCompletionId,
+    sanitizeFocusStats
+} = require('../../user-store');
 
 // A real PBKDF2 hash of a random secret, computed once per process, so a login
 // against an unknown email performs the same work as a wrong password.
@@ -28,6 +34,12 @@ const DISPLAY_NAME_MAX_LENGTH = 20;
 const BIO_MAX_LENGTH = 160;
 const FOCUS_SESSION_MAX_MINUTES = 240;
 
+async function verifyLoginPassword(user, password, verifier = verifyPassword) {
+    const passwordEnabled = !!user && user.passwordEnabled !== false && !!user.passwordHash;
+    const passwordOk = await verifier(password, passwordEnabled ? user.passwordHash : null);
+    return passwordEnabled && passwordOk;
+}
+
 function createAuthRouter(deps) {
     const {
         users,
@@ -39,15 +51,25 @@ function createAuthRouter(deps) {
         publicUser,
         setAuthCookie,
         clearAuthCookie,
-        flushUsers,
         requireUser,
-        disconnectUser,
-        canDeleteWithProvider,
         deletePlatformUser,
         preparePlatformDeletion = async () => () => {},
-        logFocusSession,
+        rotateAnonymousIdentity,
+        appendSetCookie,
+        parseCookies,
+        oauthSecurity,
+        persistUser,
+        deleteUser,
+        onUserDeleted,
+        onSessionLogout,
+        persistFocusCompletion,
+        runUserMutation,
         logger
     } = deps;
+
+    if (typeof runUserMutation !== 'function') {
+        throw new TypeError('createAuthRouter requires runUserMutation.');
+    }
 
     const router = express.Router();
     router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
@@ -56,44 +78,43 @@ function createAuthRouter(deps) {
         if (expected !== undefined && expected !== req.user?.id) return res.status(401).json({ errorCode: 'AUTH_ACCOUNT_CHANGED' });
         next();
     });
-    const mutations = new Map();
+    // Recovery routes mutate accounts through the same per-user coordinator and
+    // durable per-record persistence as the account routes above.
     function mutateAccount(req, res, fields, change) {
         const user = req.user;
-        const epoch = user.tokenEpoch;
-        const previous = mutations.get(user.id) || Promise.resolve();
-        const operation = previous.catch(() => {}).then(async () => {
-            if (users.get(user.id) !== user || user.tokenEpoch !== epoch) {
-                return res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
-            }
+        return runUserMutation(user, async () => {
             const before = Object.fromEntries(fields.map((field) => [field, structuredClone(user[field])]));
             const result = change(user);
-            const resultingEpoch = user.tokenEpoch;
             try {
-                await flushUsers();
-            } catch {
-                // Restore only this operation's fields. Room history, revocations
-                // and other accounts may have changed while the store was busy.
-                // Also restore the detached object: a concurrent failed delete
-                // can restore that same object later. Never reinsert it here.
+                await persistUser(user);
+            } catch (error) {
+                // Restore only this operation's fields; other state may have moved on.
                 Object.assign(user, before);
-                // Supersede any whole-map snapshot queued during the failed save.
-                try { await flushUsers(); } catch {
-                    logger.error({ event: 'account_rollback_persist_failed', userId: user.id });
-                }
-                return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+                throw error;
             }
-            if (users.get(user.id) !== user || user.tokenEpoch !== resultingEpoch) {
+            return result;
+        }).then((result) => result(), (error) => {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
                 return res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
             }
-            return result();
+            logger.error({ event: 'account_mutation_persist_failed', userId: user.id });
+            return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
         });
-        mutations.set(user.id, operation);
-        void operation.finally(() => {
-            if (mutations.get(user.id) === operation) mutations.delete(user.id);
-        }).catch(() => {});
-        return operation;
     }
     registerRecoveryRoutes(router, deps, mutateAccount);
+
+    function clearDeletionGrantCookie(req, res) {
+        if (typeof appendSetCookie !== 'function') return;
+        const parts = [
+            `${GOOGLE_DELETE_GRANT_COOKIE}=`,
+            'Path=/api/me',
+            'HttpOnly',
+            'SameSite=Lax',
+            'Max-Age=0'
+        ];
+        if (req.secure) parts.push('Secure');
+        appendSetCookie(res, parts.join('; '));
+    }
 
     router.post('/auth/signup', async (req, res) => {
         const requestIp = getRequestIp(req);
@@ -131,11 +152,13 @@ function createAuthRouter(deps) {
         users.set(user.id, user);
         usersByEmail.set(email, user.id);
         try {
-            await flushUsers();
-        } catch {
+            await persistUser(user);
+        } catch (error) {
             users.delete(user.id);
             usersByEmail.delete(email);
-            return res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            logger.warn({ event: 'user_signup_persist_failed', error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
         }
         setAuthCookie(req, res, user);
         logger.info({ event: 'user_signup', userId: user.id });
@@ -162,20 +185,17 @@ function createAuthRouter(deps) {
 
         const userId = email ? usersByEmail.get(email) : null;
         const user = userId ? users.get(userId) : null;
-        const loginEpoch = user?.tokenEpoch;
-        const loginHash = user?.passwordHash;
         // Unknown emails pay the same hash cost as wrong passwords, so response
         // time cannot reveal which emails have accounts (A-01).
         let passwordOk = false;
         if (user) {
-            passwordOk = await verifyPassword(password, user.passwordHash);
+            passwordOk = await verifyLoginPassword(user, password);
         } else {
             await verifyPassword(password, await decoyPasswordHash());
         }
-        if (!user || !passwordOk || users.get(user.id) !== user
-            || user.tokenEpoch !== loginEpoch || user.passwordHash !== loginHash) {
-            logger.warn?.({ event: 'authentication_rejected' });
+        if (!user || !passwordOk) {
             rateLimiters.authFailure.consume(failureKey);
+            logger.warn?.({ event: 'authentication_rejected' });
             res.status(401).json({ errorCode: 'INVALID_CREDENTIALS' });
             return;
         }
@@ -190,15 +210,16 @@ function createAuthRouter(deps) {
         res.json({ ok: true, user: publicUser(user) });
     });
 
-    router.post('/auth/logout', async (req, res) => {
-        if (req.user) {
-            req.user.tokenEpoch += 1;
-            disconnectUser(req.user.id);
-        }
-        // A retry may carry a cookie invalidated in memory by a failed first
-        // attempt. Commit pending revocations before acknowledging that retry.
-        await flushUsers();
+    router.post('/auth/logout', (req, res) => {
+        // A stateless account cookie can be present on several browsers. Revoke
+        // only sockets that share this request's signed anonymous browser
+        // session; password changes, bans, and deletion remain account-wide.
+        onSessionLogout?.({
+            userId: req.user?.id || null,
+            sessionId: req.sessionId || null
+        });
         clearAuthCookie(req, res);
+        rotateAnonymousIdentity?.(req, res);
         res.json({ ok: true });
     });
 
@@ -208,40 +229,61 @@ function createAuthRouter(deps) {
         res.json({ ok: true, user: req.user ? publicUser(req.user) : null });
     });
 
-    router.patch('/me/profile', requireUser, (req, res) => {
+    router.patch('/me/profile', requireUser, async (req, res) => {
         if (!applyHttpRateLimit(req, res, rateLimiters.profileMutation, req.user.id)) return;
 
         const body = req.body || {};
-        const patch = {};
+        const profilePatch = {};
         if (body.displayName !== undefined) {
             const displayName = sanitizeUserText(body.displayName, DISPLAY_NAME_MAX_LENGTH);
             if (!displayName) {
                 res.status(400).json({ errorCode: 'DISPLAY_NAME_REQUIRED' });
                 return;
             }
-            patch.displayName = displayName;
+            profilePatch.displayName = displayName;
         }
         if (body.avatarColor !== undefined) {
             if (normalizeAvatarColor(body.avatarColor) !== body.avatarColor) {
                 res.status(400).json({ errorCode: 'AVATAR_COLOR_INVALID' });
                 return;
             }
-            patch.avatarColor = body.avatarColor;
+            profilePatch.avatarColor = body.avatarColor;
         }
         if (body.bio !== undefined) {
             if (typeof body.bio !== 'string' || Array.from(body.bio).length > BIO_MAX_LENGTH) {
                 res.status(400).json({ errorCode: 'BIO_TOO_LONG' });
                 return;
             }
-            patch.bio = sanitizeUserText(body.bio, BIO_MAX_LENGTH);
+            profilePatch.bio = sanitizeUserText(body.bio, BIO_MAX_LENGTH);
         }
-        return mutateAccount(req, res, Object.keys(patch), (user) => {
-            Object.assign(user, patch);
-            return () => res.json({ ok: true, user: publicUser(user) });
-        });
+        try {
+            await runUserMutation(req.user, async () => {
+                const previousProfile = {
+                    displayName: req.user.displayName,
+                    avatarColor: req.user.avatarColor,
+                    bio: req.user.bio
+                };
+                Object.assign(req.user, profilePatch);
+                try {
+                    await persistUser(req.user);
+                } catch (error) {
+                    Object.assign(req.user, previousProfile);
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
+            }
+            logger.warn({ event: 'profile_persist_failed', userId: req.user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
+        res.json({ ok: true, user: publicUser(req.user) });
     });
 
-    router.post('/me/focus-session', requireUser, (req, res) => {
+    router.post('/me/focus-session', requireUser, async (req, res) => {
         if (!applyHttpRateLimit(req, res, rateLimiters.focusLog, req.user.id)) return;
 
         const minutes = Number(req.body?.minutes);
@@ -249,39 +291,105 @@ function createAuthRouter(deps) {
             res.status(400).json({ errorCode: 'FOCUS_MINUTES_INVALID' });
             return;
         }
-        return mutateAccount(req, res, ['focusStats', 'streak'], (user) => {
-            const result = applyFocusSession(user, { minutes });
-            return () => {
-                if (typeof logFocusSession === 'function') {
-                    void Promise.resolve().then(() => logFocusSession({
-                        userId: user.id, minutes: result.minutes, dayKey: result.dayKey
-                    })).catch(() => logger.error({ event: 'focus_analytics_failed' }));
+        const completionId = normalizeCompletionId(req.body?.completionId);
+        if (!completionId) {
+            res.status(400).json({ errorCode: 'FOCUS_COMPLETION_ID_INVALID' });
+            return;
+        }
+        let result;
+        try {
+            result = await runUserMutation(req.user, async () => {
+                const previousFocusStats = structuredClone(req.user.focusStats);
+                const previousStreak = structuredClone(req.user.streak);
+                const applied = applyFocusSession(req.user, { minutes, completionId });
+                if (applied.duplicate) return applied;
+
+                try {
+                    const persisted = await persistFocusCompletion(req.user, applied);
+                    if (persisted?.duplicate) {
+                        req.user.focusStats = persisted.focusStats || previousFocusStats;
+                        req.user.streak = persisted.streak || previousStreak;
+                        return {
+                            ...applied,
+                            duplicate: true,
+                            acceptedMinutes: persisted.acceptedMinutes,
+                            minutes: persisted.acceptedMinutes,
+                            dayKey: persisted.dayKey,
+                            focusStats: req.user.focusStats,
+                            streak: req.user.streak
+                        };
+                    }
+                    return applied;
+                } catch (error) {
+                    req.user.focusStats = previousFocusStats;
+                    req.user.streak = previousStreak;
+                    throw error;
                 }
-                return res.json({ ok: true, focusStats: result.focusStats, streak: result.streak });
-            };
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
+            }
+            logger.warn({ event: 'focus_persist_failed', userId: req.user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
+        res.json({
+            ok: true,
+            acceptedMinutes: result.acceptedMinutes,
+            duplicate: result.duplicate,
+            focusStats: result.focusStats,
+            streak: result.streak
         });
     });
 
     // One-time import of the pre-signup localStorage focus history. Merge is
     // max-per-day, so re-imports never inflate totals.
-    router.post('/me/stats/import', requireUser, (req, res) => {
+    router.post('/me/stats/import', requireUser, async (req, res) => {
         if (!applyHttpRateLimit(req, res, rateLimiters.profileMutation, req.user.id)) return;
 
         const imported = sanitizeFocusStats({ days: req.body?.days });
-        return mutateAccount(req, res, ['focusStats', 'streak'], (user) => {
-        const stats = user.focusStats;
-        for (const [dayKey, day] of Object.entries(imported.days)) {
-            const existing = stats.days[dayKey];
-            if (!existing) {
-                stats.days[dayKey] = day;
-            } else {
-                existing.focusMinutes = Math.max(existing.focusMinutes, day.focusMinutes);
-                existing.sessions = Math.max(existing.sessions, day.sessions);
+        let stats;
+        try {
+            stats = await runUserMutation(req.user, async () => {
+                const previousFocusStats = structuredClone(req.user.focusStats);
+                const nextStats = req.user.focusStats;
+                for (const [dayKey, day] of Object.entries(imported.days)) {
+                    const existing = nextStats.days[dayKey];
+                    if (!existing) {
+                        nextStats.days[dayKey] = day;
+                    } else {
+                        existing.focusMinutes = Math.max(existing.focusMinutes, day.focusMinutes);
+                        existing.sessions = Math.max(existing.sessions, day.sessions);
+                    }
+                }
+                let totalFocusMinutes = 0;
+                let totalSessions = 0;
+                for (const day of Object.values(nextStats.days)) {
+                    totalFocusMinutes += day.focusMinutes;
+                    totalSessions += day.sessions;
+                }
+                nextStats.totalFocusMinutes = Math.max(nextStats.totalFocusMinutes, totalFocusMinutes);
+                nextStats.totalSessions = Math.max(nextStats.totalSessions, totalSessions);
+                try {
+                    await persistUser(req.user);
+                    return nextStats;
+                } catch (error) {
+                    req.user.focusStats = previousFocusStats;
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
             }
+            logger.warn({ event: 'stats_import_persist_failed', userId: req.user.id, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
         }
-        user.focusStats = sanitizeFocusStats(stats);
-        return () => res.json({ ok: true, focusStats: user.focusStats, streak: user.streak });
-        });
+        res.json({ ok: true, focusStats: stats, streak: req.user.streak });
     });
 
     router.get('/me/stats', requireUser, (req, res) => {
@@ -300,50 +408,72 @@ function createAuthRouter(deps) {
         const requestIp = getRequestIp(req);
         if (!applyHttpRateLimit(req, res, rateLimiters.authLogin, requestIp)) return;
 
-        const deletionEpoch = req.user.tokenEpoch;
-        const deletionHash = req.user.passwordHash;
         const password = typeof req.body?.password === 'string' ? req.body.password : '';
-        const passwordOk = req.user.authProvider === 'google'
-            ? canDeleteWithProvider(req)
-            : await verifyPassword(password, req.user.passwordHash);
-        if (!passwordOk) {
-            res.status(401).json({
-                errorCode: req.user.authProvider === 'google' ? 'REAUTH_REQUIRED' : 'INVALID_CREDENTIALS'
-            });
+        const passwordEnabled = req.user.passwordEnabled !== false && !!req.user.passwordHash;
+        const passwordOk = await verifyPassword(password, passwordEnabled ? req.user.passwordHash : null);
+        const grantToken = typeof parseCookies === 'function'
+            ? parseCookies(req.headers.cookie || '')[GOOGLE_DELETE_GRANT_COOKIE]
+            : null;
+        const grantOk = !!grantToken && !!oauthSecurity?.consumeProof({
+            purpose: 'delete_grant',
+            token: grantToken,
+            userId: req.user.id
+        });
+        if (grantToken) clearDeletionGrantCookie(req, res);
+        if ((!passwordEnabled || !passwordOk) && !grantOk) {
+            res.status(401).json({ errorCode: 'INVALID_CREDENTIALS' });
             return;
         }
 
-        const userId = req.user.id;
+        const user = req.user;
+        const userId = user.id;
+        let cleanupPending = false;
         const finishPlatformDeletion = await preparePlatformDeletion(userId);
-        if (users.get(userId) !== req.user || req.user.tokenEpoch !== deletionEpoch
-            || req.user.passwordHash !== deletionHash) {
-            return res.status(401).json({ errorCode: 'REAUTH_REQUIRED' });
-        }
-        req.user.tokenEpoch += 1;
-        disconnectUser(userId);
-        usersByEmail.delete(req.user.email);
-        users.delete(userId);
-        // PDPL delete-my-data: flush immediately rather than debounced, so the
-        // record is gone from disk before we acknowledge.
         try {
-            await flushUsers();
+            await runUserMutation(user, async () => {
+                await deleteUser(user);
+                usersByEmail.delete(user.email);
+                users.delete(userId);
+            });
+        } catch (error) {
+            if (error?.code === 'AUTH_REQUIRED' || error?.code === 'ACCOUNT_TOMBSTONED') {
+                res.status(401).json({ errorCode: 'AUTH_REQUIRED' });
+                return;
+            }
+            logger.warn({ event: 'user_delete_persist_failed', userId, error: error?.message });
+            res.status(503).json({ errorCode: 'PERSISTENCE_UNAVAILABLE' });
+            return;
+        }
+        // Platform rows (circles, subscriptions, study data) follow the account.
+        try {
             await deletePlatformUser(userId);
         } catch (error) {
-            users.set(userId, req.user);
-            usersByEmail.set(req.user.email, userId);
-            try { await flushUsers(); } catch (_restoreError) {}
-            logger.error({ event: 'user_delete_failed', userId });
-            return res.status(error.status || 503).json({ errorCode: error.errorCode || 'PERSISTENCE_UNAVAILABLE' });
+            logger.error({ event: 'platform_user_delete_failed', userId, error: error?.message });
         }
         finishPlatformDeletion();
+        // Durable account deletion and removal from the live identity maps are
+        // complete before cascading through room locks. Releasing the per-user
+        // coordinator first prevents a join (room -> user) from deadlocking
+        // against deletion (user -> room).
+        if (typeof onUserDeleted === 'function') {
+            try {
+                const cleanup = await onUserDeleted(userId);
+                cleanupPending = !!cleanup?.cleanupPending;
+            } catch (error) {
+                cleanupPending = true;
+                logger.error({ event: 'user_delete_cascade_failed', userId, error: error?.message });
+            }
+        }
         clearAuthCookie(req, res);
+        rotateAnonymousIdentity?.(req, res);
         logger.info({ event: 'user_deleted', userId });
-        res.json({ ok: true });
+        res.json({ ok: true, cleanupPending });
     });
 
     return router;
 }
 
 module.exports = {
-    createAuthRouter
+    createAuthRouter,
+    verifyLoginPassword
 };

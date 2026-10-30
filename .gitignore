@@ -1,9 +1,27 @@
 node_modules/
 .claude/settings.local.json
+.gstack/
+
+# Local secrets and generated credential material. Keep the sanitized template.
 .env
-.env.local
+.env.*
+!.env.example
+credentials/
+*.credentials.*
+*.pem
+*.key
+*.p12
+*.pfx
+.auth/
+playwright/.auth/
+
+# Mutable application/process state belongs outside the repository.
+data/
+runtime/
+*.pid
+*.sock
 *.log
-.DS_Store
+*.hsbackup
 data/rooms.json
 data/rooms.json.tmp
 data/users.json
@@ -22,8 +40,21 @@ docs/**/evidence/
 halastudy-privacy-policy.md
 halastudy-terms-of-service.md
 data/backups/
+data/evidence/
+
+# Local/off-site backup artifacts and restore safety copies.
+backups/
+*.backup.*
+*.bak
+
+# Generated diagnostics, traces, and test output.
+diagnostics/
+docs/reports/*-diagnostic.*
+*.trace
 playwright-report/
 test-results/
 output/
+coverage/
+
+.DS_Store
 videos/hero/source/
-.gstack/

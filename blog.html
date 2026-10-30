@@ -62,8 +62,10 @@
     .post-card p { color: var(--ink-2); line-height: 1.75; margin: 0 0 14px; }
     .post-more { font-weight: var(--w-semibold); color: var(--ink); font-size: var(--t-body-sm); }
   </style>
+  <link rel="stylesheet" href="/design-system/public-shell.css">
+  <script src="/js/public-shell.js" defer></script>
 </head>
-<body class="is-landing-page">
+<body class="is-landing-page" data-public-page="blog">
   <header class="topbar">
     <a class="brand" href="/">
       <span>Hala<em>study</em><span class="dot">.</span></span>
@@ -96,7 +98,7 @@
       <a class="post-card" href="/blog/study-with-me-online-arabic">
         <div class="post-eyebrow" data-lang="post2Tag">دليل البداية</div>
         <h2 data-lang="post2Title">ذاكر معي أونلاين: ادخل غرفة مذاكرة صامتة وابدأ الآن</h2>
-        <p data-lang="post2Excerpt">تبي تذاكر بس التسويف ماسكك؟ ادخل غرفة صامتة مع طلاب مثلك، حدد هدفك، شغّل جلستك، وابدأ بدون سوالف.</p>
+        <p data-lang="post2Excerpt">ابدأ أول جلسة: افتح غرفة وادعُ رفيقك، حدد هدفك وشغّل المؤقت. تعرّف على الدخول كضيف وتوقعات الكاميرا.</p>
         <span class="post-more" data-lang="readMore">اقرأ التدوينة ←</span>
       </a>
     </div>
@@ -106,6 +108,7 @@
     <div class="links">
       <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
       <a href="/terms" data-lang="footerTerms">الشروط</a>
+      <a href="/contact" data-lang="footerContact">تواصل معنا</a>
     </div>
     <div class="footer-contact">
       <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
@@ -114,7 +117,15 @@
   </footer>
 
   <script>
-    window.HalaCore.initLang(window.HalaMarketingCopy.blog);
+    // Shared copy (also used for the server-rendered /en/blog route) plus the
+    // footer contact label, which only this page's footer carries.
+    (function () {
+      var shared = window.HalaMarketingCopy.blog;
+      window.HalaCore.initLang({
+        en: Object.assign({ footerContact: 'Contact' }, shared.en),
+        ar: Object.assign({ footerContact: 'تواصل معنا' }, shared.ar)
+      });
+    })();
   </script>
 </body>
 </html>

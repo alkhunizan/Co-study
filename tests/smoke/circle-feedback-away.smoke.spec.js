@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage } = require('../helpers/playwright-test');
 const fs = require('node:fs');
 const path = require('node:path');
 const { startServer } = require('../helpers/server-control');
@@ -11,7 +11,7 @@ let server, account, circle, otherCircle, socket;
 test.beforeAll(async () => {
     fs.mkdirSync(evidence, { recursive: true });
     server = await startServer({ env: {
-        PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh',
+        PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true',
         BILLING_MODE: 'test', BILLING_PROVIDER: 'simulator',
     } });
     fs.writeFileSync(path.join(evidence, 'server.json'), JSON.stringify({ pid: server.pid, baseUrl: server.baseUrl, state: 'running' }));
@@ -51,7 +51,7 @@ async function openCircle(page, language, width) {
         return { name, value: value.join('='), url: server.baseUrl };
     }));
     await page.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language);
-    await page.goto(`${server.baseUrl}/app#circles`);
+    await gotoTestPage(page, `${server.baseUrl}/app#circles`);
     await expect(page.locator('#loading')).toBeHidden();
     await page.locator('#circle-list .row').filter({ hasText: circle.name }).getByRole('button').click();
     await expect(page.locator('#circle-detail')).toBeVisible();

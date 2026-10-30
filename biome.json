@@ -15,6 +15,7 @@
 			"tests/**/*.js",
 			"!design-system",
 			"!.claude",
+			"!_archive",
 			"!**/*.html",
 			"!**/*.css",
 			"!**/*.jsx",

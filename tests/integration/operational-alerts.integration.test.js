@@ -7,7 +7,6 @@ const test = require('node:test');
 const { createOperationalAlerts } = require('../../services/ops/alerts');
 const { createBackupScheduler } = require('../../services/ops/backup-scheduler');
 const { createLogger } = require('../../services/logging/logger');
-const { createVideoRevocations } = require('../../services/video/revocations');
 
 test('payment reconciliation failures create a persistent private operational alert', async (t) => {
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'halastudy-payment-alert-'));
@@ -52,16 +51,14 @@ test('final alert flush retains delayed media cleanup failures and rejected owne
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'halastudy-alert-shutdown-'));
     const file = path.join(directory, 'alerts.json');
     const alerts = createOperationalAlerts({ file, env: {} });
-    const media = createVideoRevocations({
-        file: path.join(directory, 'media.json'),
-        provider: { async revokeParticipant() {
+    // A component whose final cleanup reports an incident only after a delay,
+    // as the video lifecycle does when a provider rejects a late revocation.
+    const media = {
+        async close() {
             await new Promise((resolve) => setTimeout(resolve, 30));
-            throw new Error('synthetic unavailable provider');
-        } },
-        logger: { error: alerts.observe }
-    });
-    await media.ready;
-    await media.track({ meetingId: 'meeting', participantId: 'participant', roomId: 'room', socketId: 'socket' });
+            alerts.observe({ level: 'error', event: 'video_revocation_failed', roomId: 'room' });
+        }
+    };
     await media.close();
     await alerts.close();
     assert.equal(JSON.parse(await fs.readFile(file, 'utf8'))[0].event, 'video_revocation_failed');
@@ -128,7 +125,7 @@ test('backup directory errors become alerts and nested log secrets are redacted'
     t.mock.method(console, 'warn', () => {});
     const logger = createLogger({}, { onEntry: (entry) => entries.push(entry), onEvent: alerts.observe });
     const backup = createBackupScheduler({ backupDir: path.join(blocked, 'backup'), logger });
-    await assert.rejects(backup.runBackup());
+    await assert.rejects(async () => backup.runBackup());
     assert.ok(backup.status.lastError);
     assert.equal(alerts.list()[0].event, 'backup_failed');
     logger.warn({ event: 'test', secret: { value: 'hidden' }, details: [{ authToken: 'hidden', ok: true }] });

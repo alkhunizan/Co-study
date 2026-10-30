@@ -1,9 +1,9 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 
 async function planner(browser, language, width, steps) {
-    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh' } });
+    const server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     const account = await signupUser(server, { displayName: 'Synthetic planner' });
     const request = (path, method = 'GET', body = undefined) => server.request(`/api/platform/study${path}`, {
         method, headers: { Cookie: account.cookie }, body,
@@ -13,14 +13,14 @@ async function planner(browser, language, width, steps) {
         due_date: null, estimate_minutes: 25, steps, requestId: require('node:crypto').randomUUID(),
     });
     expect(created.status).toBe(200);
-    const context = await browser.newContext({ viewport: { width, height: 960 } });
+    const context = await createTestContext(browser, { viewport: { width, height: 960 } });
     await context.addCookies(account.cookie.split(';').map((part) => {
         const [name, ...value] = part.trim().split('=');
         return { name, value: value.join('='), url: server.baseUrl };
     }));
     await context.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language);
     const page = await context.newPage();
-    await page.goto(`${server.baseUrl}/app#planner`);
+    await gotoTestPage(page, `${server.baseUrl}/app#planner`);
     await expect(page.locator('#study-task-list .row')).toHaveCount(1);
     await expect(page.locator('#study-status')).toBeEmpty();
     const task = async () => (await request('/overview')).body.tasks[0];

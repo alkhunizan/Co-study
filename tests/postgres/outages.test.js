@@ -132,7 +132,7 @@ test('real PostgreSQL migration, lock timeout, rollback, lease loss, backup and 
     assert.equal((await db.query("SELECT display_name FROM halastudy.users WHERE id='outage-user'")).rows[0].display_name, 'Original');
     await db.close();
     db = null;
-    const app = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATABASE_URL: url, VIDEO_PROVIDER: 'mesh' } });
+    const app = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATABASE_URL: url, VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true' } });
     t.after(() => app.stop());
     const owner = await signupUser(app);
     const socket = await connectSocket(app.baseUrl, { clientId: 'pg-outage-owner', extraHeaders: { Cookie: owner.cookie } });

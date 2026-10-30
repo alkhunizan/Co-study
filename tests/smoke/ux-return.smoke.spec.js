@@ -1,11 +1,11 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const AxeBuilder = require('@axe-core/playwright').default;
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
 let server;
 let ip = 150;
 test.use({ actionTimeout: 15000 });
-test.beforeAll(async () => { server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', BILLING_PROVIDER: 'simulator', VIDEO_PROVIDER: 'mesh', TRUST_PROXY: '1' } }); });
+test.beforeAll(async () => { server = await startServer({ env: { PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', BILLING_PROVIDER: 'simulator', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true', TRUST_PROXY: '1' } }); });
 test.afterAll(async () => { await server.stop(); });
 test.beforeEach(async ({ page }) => {
     await page.setExtraHTTPHeaders({ 'x-forwarded-for': `203.0.113.${ip++}` });
@@ -21,11 +21,11 @@ async function signIn(page) {
 test('return dashboard: four destinations, one-tap recent room, safe guest and empty states', async ({ page }, info) => {
     await signIn(page);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`${server.baseUrl}/open`);
+    await gotoTestPage(page, `${server.baseUrl}/open`);
     await page.locator('#room-name').fill('Return to quiet study');
     await page.locator('#create-form button[type=submit]').click();
     await expect(page.locator('#create-result')).toBeVisible();
-    await page.goto(`${server.baseUrl}/app`);
+    await gotoTestPage(page, `${server.baseUrl}/app`);
     await expect(page.locator('#return-room')).toContainText('Return to quiet study');
     await expect(page.locator('#next-session')).toContainText('No upcoming');
     for (const language of ['en', 'ar']) {
@@ -40,7 +40,7 @@ test('return dashboard: four destinations, one-tap recent room, safe guest and e
     }
     await page.locator('#return-room a').click();
     await expect(page).toHaveURL(/\/study\?room=/);
-    await page.goto(`${server.baseUrl}/app#account`);
+    await gotoTestPage(page, `${server.baseUrl}/app#account`);
     await expect(page.locator('[data-panel=account]')).toBeVisible();
     await expect(page.locator('#staff-nav')).toBeHidden();
     await page.locator('[data-view=security]').click();
@@ -53,7 +53,7 @@ test('return dashboard: four destinations, one-tap recent room, safe guest and e
 });
 test('focus recap: exact server credit, short sessions, repeat completion and reload', async ({ page }, info) => {
     await signIn(page);
-    await page.goto(`${server.baseUrl}/app#progress`);
+    await gotoTestPage(page, `${server.baseUrl}/app#progress`);
     await page.locator('#focus-start').click();
     await expect(page.locator('#focus-finish')).toBeVisible();
     await page.route('**/api/platform/focus/*/complete', (route) => route.abort('failed'));
@@ -85,18 +85,18 @@ test('focus recap: exact server credit, short sessions, repeat completion and re
 });
 test('local counters: explicit consent, actual joins/focus once, revoke and unavailable storage', async ({ page }) => {
     await signIn(page);
-    await page.goto(`${server.baseUrl}/app#account`);
+    await gotoTestPage(page, `${server.baseUrl}/app#account`);
     await expect(page.locator('#insights-consent')).not.toBeChecked();
     await page.locator('#insights-consent').check();
-    await page.goto(`${server.baseUrl}/en`);
-    await page.locator('.hero-actions [data-ux-entry=create]').click();
+    await gotoTestPage(page, `${server.baseUrl}/en`);
+    await page.locator('.hero-actions .btn-primary').click();
     await page.locator('#room-name').fill('Private counters');
     await page.locator('#create-form button[type=submit]').click();
     await page.locator('#btn-enter-room').click();
     await page.locator('#join-name').fill('Guest label never recorded');
     await page.locator('#join-form button[type=submit]').click();
     await expect(page.locator('#chat-input')).toBeEnabled();
-    await page.goto(`${server.baseUrl}/app#progress`);
+    await gotoTestPage(page, `${server.baseUrl}/app#progress`);
     await page.locator('#focus-start').click(); await page.locator('#focus-finish').click();
     await expect(page.locator('#focus-recap')).toBeVisible();
     const counters = await page.evaluate(() => (/** @type {any} */ (window)).HalaInsights.summary());
@@ -112,7 +112,7 @@ test('local counters: explicit consent, actual joins/focus once, revoke and unav
     await page.locator('#insights-reset').click();
     expect(await page.evaluate(() => localStorage.getItem('halastudyUx:v1'))).toBeNull();
     await page.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } }); });
-    await page.goto(`${server.baseUrl}/app#progress`);
+    await gotoTestPage(page, `${server.baseUrl}/app#progress`);
     await page.locator('#focus-start').click(); await expect(page.locator('#focus-finish')).toBeVisible();
 });
 test('schedule timezone: device inputs round-trip the same authoritative instant across DST', async ({ page, browser }) => {
@@ -137,7 +137,7 @@ test('schedule timezone: device inputs round-trip the same authoritative instant
     expect(Date.parse(instants[1])).toBeLessThan(reference + 366 * day);
     expect(offset(Date.parse(instants[0]))).not.toBe(offset(Date.parse(instants[1])));
     await signIn(page);
-    await page.goto(`${server.baseUrl}/open`);
+    await gotoTestPage(page, `${server.baseUrl}/open`);
     await page.locator('#room-name').fill('Timezone study');
     await page.locator('#create-form button[type=submit]').click();
     await expect(page.locator('#create-result')).toBeVisible();
@@ -150,12 +150,12 @@ test('schedule timezone: device inputs round-trip the same authoritative instant
     });
     const cookies = await page.context().cookies();
     for (const timeZone of ['Asia/Riyadh', 'Europe/London']) {
-        const context = await browser.newContext({ timezoneId: timeZone });
+        const context = await createTestContext(browser, { timezoneId: timeZone });
         try {
             await context.addCookies(cookies);
             await context.addInitScript(() => localStorage.setItem('halastudyLang', 'en'));
             const organizer = await context.newPage();
-            await organizer.goto(`${server.baseUrl}/app#circles`);
+            await gotoTestPage(organizer, `${server.baseUrl}/app#circles`);
             await organizer.locator('#circle-list button').click();
             await expect(organizer.locator('#schedule-zone')).toHaveText(timeZone);
             for (const instant of instants) {
@@ -182,16 +182,26 @@ test('shared shell: localized legal sections, primary target sizes and accessibi
     test.setTimeout(90000);
     await page.setViewportSize({ width: 390, height: 844 });
     for (const language of ['ar', 'en']) for (const name of ['privacy', 'terms']) {
-        await page.goto(`${server.baseUrl}/${language === 'en' ? 'en/' : ''}${name}`);
-        await expect(page.locator('main h1')).toHaveCount(1);
+        await gotoTestPage(page, `${server.baseUrl}/${language === 'en' ? 'en/' : ''}${name}`);
+        await expect(page.locator(`main section[lang=${language}] h1`)).toHaveCount(1);
         await expect(page.locator(`main section[lang=${language}]`)).toBeVisible();
-        await expect(page.locator(`main section[lang=${language === 'ar' ? 'en' : 'ar'}]`)).toHaveCount(0);
-        for (const target of await page.locator('.topbar a, .topbar button, footer a').all()) expect((await target.boundingBox()).height).toBeGreaterThanOrEqual(44);
+        // Both languages ship in the page, one section each.
+        await expect(page.locator(`main section[lang=${language === 'ar' ? 'en' : 'ar'}]`)).toHaveCount(1);
+        for (const target of await page.locator('.topbar a, .topbar button, footer a').all()) {
+            const box = await target.boundingBox();
+            if (box) expect(box.height).toBeGreaterThanOrEqual(44); // hidden controls (desktop nav on phones) have no box
+        }
         const scan = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
         expect(scan.violations.filter((item) => ['critical', 'serious'].includes(item.impact) || item.id === 'target-size')).toEqual([]);
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
         await page.screenshot({ path: info.outputPath(`${language}-${name}.png`), fullPage: true });
+        if (await page.locator('#nav-burger').isVisible()) await page.locator('#nav-burger').click();
+        // The chosen theme persists across pages, so each click flips it.
+        const themeBefore = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
         await page.locator('#theme-toggle').click();
+        await expect(page.locator('html')).toHaveAttribute('data-theme', themeBefore === 'dark' ? 'light' : 'dark');
+        // Colour transitions (180 ms) would otherwise be sampled mid-way by axe.
+        await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
         const dark = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
         expect(dark.violations.filter((item) => ['critical', 'serious'].includes(item.impact))).toEqual([]);
     }
@@ -199,7 +209,7 @@ test('shared shell: localized legal sections, primary target sizes and accessibi
 test('workspace accessibility: returning-user views in both languages, themes and three widths', async ({ page }, info) => {
     test.setTimeout(180000);
     await signIn(page);
-    await page.goto(`${server.baseUrl}/app#progress`);
+    await gotoTestPage(page, `${server.baseUrl}/app#progress`);
     await page.locator('#focus-start').click(); await page.locator('#focus-finish').click();
     await expect(page.locator('#focus-recap')).toBeVisible();
     const results = [];
@@ -236,7 +246,7 @@ test('online fonts diagnostic and real-font layout stability', async ({ page }, 
     const measurements = [];
     for (const language of ['ar', 'en']) for (const width of [390, 1440]) {
         await page.setViewportSize({ width, height: width === 390 ? 664 : 900 });
-        await page.goto(`${server.baseUrl}/${language === 'en' ? 'en' : ''}`);
+        await gotoTestPage(page, `${server.baseUrl}/${language === 'en' ? 'en' : ''}`);
         await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(10000);
         const measurement = await page.evaluate(() => ({ language: document.documentElement.lang, width: innerWidth, ...(/** @type {any} */ (window)).metrics, fonts: [...document.fonts].map((font) => ({ family: font.family, status: font.status })) }));
         measurements.push(measurement);
@@ -251,7 +261,7 @@ test('online fonts diagnostic and real-font layout stability', async ({ page }, 
         await page.screenshot({ path: info.outputPath(`online-fonts-${language}-${width}.png`), fullPage: false });
     }
     for (const route of ['/open', '/study', '/en/privacy']) {
-        await page.goto(server.baseUrl + route); await page.evaluate(() => document.fonts.ready);
+        await gotoTestPage(page, server.baseUrl + route); await page.evaluate(() => document.fonts.ready);
     }
     await info.attach('online-fonts.json', { body: JSON.stringify({ messages, requests, measurements }, null, 2), contentType: 'application/json' });
     expect(messages).toEqual([]);

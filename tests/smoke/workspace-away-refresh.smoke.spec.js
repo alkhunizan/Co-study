@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage } = require('../helpers/playwright-test');
 const fs = require('node:fs');
 const path = require('node:path');
 const { startServer } = require('../helpers/server-control');
@@ -12,7 +12,7 @@ let client = 10;
 test.beforeAll(async () => {
     fs.mkdirSync(evidence, { recursive: true });
     server = await startServer({ env: {
-        PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh',
+        PLATFORM_ENABLED: 'true', PLATFORM_DATA_DIR: 'memory://', VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true',
         BILLING_MODE: 'test', BILLING_PROVIDER: 'simulator', TRUST_PROXY: '1',
     } });
     fs.writeFileSync(path.join(evidence, 'server.json'), JSON.stringify({ pid: server.pid, baseUrl: server.baseUrl, state: 'running' }));
@@ -34,7 +34,7 @@ async function member(page, language) {
         return { name, value: value.join('='), url: server.baseUrl };
     }));
     await page.addInitScript((lang) => localStorage.setItem('halastudyLang', lang), language);
-    await page.goto(`${server.baseUrl}/app#home`);
+    await gotoTestPage(page, `${server.baseUrl}/app#home`);
     await expect(page.locator('#loading')).toBeHidden();
     await expect(page.locator('[data-panel=home]')).toBeVisible();
     await expect(page.locator('#study-status')).toBeHidden();
@@ -225,7 +225,7 @@ test('translating a circle schedule draft preserves its selected room through sa
             const room = await emitAck(socket, 'create-room', { roomName });
             expect(room.ok).toBe(true);
         }
-        await page.goto(`${server.baseUrl}/app#circles`);
+        await gotoTestPage(page, `${server.baseUrl}/app#circles`);
         await page.locator('#circle-list button').click();
         await expect(page.locator('#session-room option')).toHaveCount(2);
         const chosenRoom = await page.locator('#session-room option').nth(1).getAttribute('value');

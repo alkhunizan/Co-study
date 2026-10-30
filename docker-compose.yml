@@ -1,3 +1,4 @@
+# Local development only. PM2/Nginx remains the production deployment path.
 services:
   co-study:
     build: .
@@ -8,6 +9,9 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - PORT=3000
-      - NODE_ENV=production
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      NODE_ENV: development
+      VIDEO_PROVIDER: mesh
+      ENABLE_DEV_MESH: "true"
     restart: unless-stopped

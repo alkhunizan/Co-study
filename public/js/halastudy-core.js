@@ -65,56 +65,63 @@
     // Apply persisted theme immediately (pre-paint — this file loads sync).
     applyTheme(getStoredTheme());
 
+    /* ---------- offline worker ---------- */
+    function registerServiceWorker() {
+        const serviceWorker = global.navigator?.serviceWorker;
+        if (!serviceWorker) return;
+        serviceWorker.register('/service-worker.js', {
+            scope: '/',
+            updateViaCache: 'none'
+        }).catch(() => { /* offline support is best-effort */ });
+    }
+    registerServiceWorker();
+
     /* ---------- language ---------- */
     function getLang() {
+        // An explicit English URL (/en/...) is English for everyone, including
+        // crawlers with no storage. The unprefixed Arabic route is the shared
+        // canonical page, so a visitor's saved choice wins there.
         const routeLang = document.documentElement.getAttribute('data-route-lang');
-        if (routeLang === 'ar' || routeLang === 'en') return routeLang;
+        if (routeLang === 'en') return 'en';
         try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ar'; } catch (_e) { return 'ar'; }
     }
     function setStoredLang(lang) {
         try { localStorage.setItem(LANG_KEY, lang); } catch (_e) {}
     }
-    /* A bilingual public route (/ vs /en) is an explicit language choice:
-     * save it so app pages (/open, /account, ...) continue in that language.
-     * Single-language pages (Arabic articles) carry no persist flag. */
+    /* A bilingual public route (/ vs /en) is an explicit language choice for a
+     * first-time visitor: save it so app pages continue in that language. A
+     * visitor who already chose a language keeps it; the language switch is
+     * the only thing that changes a saved choice. */
     (function persistRouteLang() {
         const root = document.documentElement;
+        if (!root || typeof root.getAttribute !== 'function' || typeof root.hasAttribute !== 'function') return;
         const routeLang = root.getAttribute('data-route-lang');
-        if (root.hasAttribute('data-route-lang-persist') && (routeLang === 'ar' || routeLang === 'en')) setStoredLang(routeLang);
+        if (!root.hasAttribute('data-route-lang-persist') || (routeLang !== 'ar' && routeLang !== 'en')) return;
+        let stored = null;
+        try { stored = localStorage.getItem(LANG_KEY); } catch (_e) { /* storage unavailable */ }
+        if (!stored) setStoredLang(routeLang);
     })();
 
-    /* App pages are not server-localized, so their home/legal links are
-     * resolved from the saved language. Public pages already carry the
-     * route's links and are left alone, as are language-switch anchors. */
-    var LOCALIZED_PATHS = { '/': '/en', '/privacy': '/en/privacy', '/terms': '/en/terms', '/blog': '/en/blog', '/contact': '/en/contact' };
-    function localizedPath(path, lang) {
-        const arabicPath = Object.keys(LOCALIZED_PATHS).find((key) => key === path || LOCALIZED_PATHS[key] === path);
-        if (arabicPath === undefined) return path;
-        return (lang || getLang()) === 'en' ? LOCALIZED_PATHS[arabicPath] : arabicPath;
-    }
-    function localizeLink(anchor) {
-        if (anchor.hasAttribute('data-lang-value')) return;
-        const href = anchor.getAttribute('href');
-        const next = href === null ? href : localizedPath(href);
-        if (next !== href) anchor.setAttribute('href', next);
-    }
-    function localizeLinks() {
-        if (document.documentElement.hasAttribute('data-route-lang')) return;
-        document.querySelectorAll('a[href]').forEach(localizeLink);
-    }
-    if (!document.documentElement.hasAttribute('data-route-lang')) {
-        // Pages with their own lang engines save the switch on click; re-resolve
-        // after it, and again on activation so a link is never stale.
-        document.addEventListener('click', (event) => {
-            if (event.target instanceof Element && event.target.closest('[data-lang-value]')) setTimeout(localizeLinks, 0);
-        }, true);
-        for (const type of ['click', 'auxclick', 'contextmenu']) {
-            document.addEventListener(type, (event) => {
-                const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
-                if (anchor) localizeLink(anchor);
-            }, true);
+    /* Markup in one language that re-renders in the visitor's saved language
+     * after parsing would paint twice: the second paint moves every block
+     * below the hero (CLS ≈ 0.4 on the landing page). Keep the body invisible
+     * until that first language pass sets html[lang]; end-of-body scripts run
+     * before DOMContentLoaded, so the hold lasts milliseconds and releases
+     * unconditionally once the document is parsed. */
+    (function holdPaintUntilLangApplied() {
+        const root = document.documentElement;
+        if (!root || typeof root.getAttribute !== 'function' || typeof MutationObserver !== 'function') return;
+        const markupLang = (root.getAttribute('lang') || '').slice(0, 2);
+        if (!markupLang || markupLang === getLang()) return;
+        root.setAttribute('data-lang-swap', '');
+        const observer = new MutationObserver(release);
+        function release() {
+            root.removeAttribute('data-lang-swap');
+            observer.disconnect();
         }
-    }
+        observer.observe(root, { attributes: true, attributeFilter: ['lang'] });
+        document.addEventListener('DOMContentLoaded', release, { once: true });
+    })();
 
     /* Lang engine for pages without their own (account.html, 404.html).
      * Supports both attribute conventions used across the app:
@@ -167,7 +174,6 @@
             try { cb(langState.lang, copy); } catch (_e) {}
         });
         translateUnavailable();
-        localizeLinks();
     }
 
     function initLang(dict) {
@@ -184,16 +190,16 @@
     }
 
     /* ---------- fetch helper (same contract as video-client postJson) ---------- */
-    async function requestJson(method, url, body, extraHeaders = {}) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
+    /** @param {{ signal?: AbortSignal }} [requestOptions] */
+    function requestJson(method, url, body, requestOptions = {}) {
         /** @type {RequestInit & { headers: Record<string, string> }} */
         const options = {
             method: method,
-            headers: { ...extraHeaders },
-            credentials: 'include',
-            signal: controller.signal
+            headers: {},
+            credentials: 'include'
         };
+        // Platform requests stay pinned to the account this document first
+        // verified, so a newer sign-in in another tab cannot act as it.
         if (url.startsWith('/api/platform/') && documentAccountId) {
             options.headers['X-Halastudy-Account'] ||= documentAccountId;
         }
@@ -201,11 +207,20 @@
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body || {});
         }
-        try {
-                const response = await fetch(url, options);
-                const payload = await response.json();
-                if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('RESPONSE_INVALID');
+        if (requestOptions.signal) options.signal = requestOptions.signal;
+        // A stalled request must release the caller: 15 s is the shared deadline (V3-01).
+        else if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') options.signal = AbortSignal.timeout(15000);
+        return fetch(url, options).then((response) => response.json().catch(() => ({})).then((payload) => {
+                if (requestOptions.signal?.aborted) {
+                    const error = new Error('Request aborted');
+                    error.name = 'AbortError';
+                    throw error;
+                }
                 if (!response.ok) {
+                    // A 401 on a secondary read drops the cached user, but never
+                    // aborts an identity check already in flight: that check is the
+                    // authoritative answer and aborting it reads as "signed out".
+                    if (response.status === 401 && !authController) invalidateAuthCache(true);
                     /** @type {Error & { status?: number, code?: string, payload?: any }} */
                     const error = new Error(`Request failed: ${response.status}`);
                     error.status = response.status;
@@ -213,42 +228,58 @@
                     error.payload = payload;
                     throw error;
                 }
+                if (String(method).toUpperCase() === 'DELETE' && String(url).split(/[?#]/)[0] === '/api/me') {
+                    invalidateAuthCache(true);
+                }
                 return payload;
-        } finally { clearTimeout(timeout); }
+            }));
     }
 
     /* ---------- auth session cache ---------- */
     var userPromise = null;
-    // Keep this document bound to its first verified account until navigation.
     var documentAccountId = null;
+    var authGeneration = 0;
+    var authController = null;
+
+    function invalidateAuthCache(cacheGuest = false) {
+        authGeneration += 1;
+        if (authController) {
+            authController.abort();
+            authController = null;
+        }
+        userPromise = cacheGuest ? Promise.resolve(null) : null;
+    }
 
     function getUser() {
         if (!userPromise) {
-            const pending = requestJson('GET', '/api/auth/me')
+            const generation = authGeneration;
+            const controller = new AbortController();
+            authController = controller;
+            userPromise = requestJson('GET', '/api/auth/me', undefined, { signal: controller.signal })
                 .then((payload) => {
-                    if (payload.user !== null && (typeof payload.user !== 'object' || typeof payload.user?.id !== 'string')) {
-                        throw new Error('RESPONSE_INVALID');
-                    }
-                    if (payload.user && !documentAccountId) documentAccountId = payload.user.id;
-                    return payload.user;
+                    if (generation !== authGeneration || controller.signal.aborted) return null;
+                    // Keep this document bound to its first verified account until navigation.
+                    if (payload?.user && !documentAccountId) documentAccountId = payload.user.id;
+                    return payload?.user ? payload.user : null;
                 })
-                .catch((error) => {
-                    if (userPromise === pending) userPromise = null;
-                    throw error;
+                .catch(() => null)
+                .finally(() => {
+                    if (authController === controller) authController = null;
                 });
-            userPromise = pending;
         }
         return userPromise;
     }
 
     function refreshUser() {
-        userPromise = null;
+        invalidateAuthCache();
         return getUser();
     }
 
     function signout() {
+        invalidateAuthCache(true);
         return requestJson('POST', '/api/auth/logout')
-            .then(() => { userPromise = Promise.resolve(null); return null; });
+            .catch(() => { /* already signed out */ })
+            .then(() => null);
     }
     function clearStudyStorage(userId) {
         if (typeof userId !== 'string' || !userId) return;
@@ -312,7 +343,7 @@
                         { label: ar ? 'عضوية VIP' : 'VIP membership', href: '/plans' },
                         { label: ar ? 'حسابي' : 'My account', href: '/account.html' },
                         { label: ar ? 'تسجيل الخروج' : 'Sign out', danger: true, onSelect: () => {
-                            signout().then(() => { global.location.assign(localizedPath('/')); }).catch(() => {
+                            signout().then(() => { global.location.assign('/'); }).catch(() => {
                                 ui.toast(ar ? 'تعذّر تسجيل الخروج. حاول مرة أخرى.' : 'Sign-out failed. Please try again.', { kind: 'error' });
                             });
                         } }
@@ -353,7 +384,7 @@
         if (!message) return;
         try {
             if (localStorage.getItem(ANNOUNCE_DISMISS_KEY) === announcement.id) return;
-        } catch (_e) { /* storage unavailable */ }
+        } catch { /* storage unavailable */ }
 
         var banner = document.createElement('div');
         banner.id = 'announce-banner';
@@ -372,7 +403,7 @@
             + 'font-size:16px;line-height:1;min-inline-size:32px;min-block-size:32px;border-radius:50%;';
         dismiss.addEventListener('click', () => {
             banner.remove();
-            try { localStorage.setItem(ANNOUNCE_DISMISS_KEY, announcement.id); } catch (_e) {}
+            try { localStorage.setItem(ANNOUNCE_DISMISS_KEY, announcement.id); } catch {}
         });
         banner.appendChild(text);
         banner.appendChild(dismiss);
@@ -392,7 +423,6 @@
     }
 
     function boot() {
-        localizeLinks();
         initAuthEntry();
         initAnnouncement();
     }
@@ -407,7 +437,6 @@
         showAnnouncement: showAnnouncement,
         clearAnnouncement: clearAnnouncement,
         getLang: getLang,
-        localizedPath: localizedPath,
         initLang: initLang,
         t: (key) => activeCopy()[key],
         onLangChange: (cb) => { langState.listeners.push(cb); },

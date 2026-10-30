@@ -1,8 +1,8 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage } = require('../helpers/playwright-test');
 
 test('stalled room lookup releases Join with a useful error and preserves the draft', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('halastudyLang', 'en'));
-    await page.goto('/open#join');
+    await gotoTestPage(page, '/open#join');
     await page.route('**/api/rooms/ABC123', () => {});
     await page.fill('#join-code', 'ABC123');
     await page.fill('#join-password', 'keep-my-draft');
@@ -19,7 +19,7 @@ test('stalled room lookup releases Join with a useful error and preserves the dr
 
 test('stalled room runtime configuration settles and releases RTC readiness', async ({ page }) => {
     await page.route('**/api/runtime-config', () => {});
-    await page.goto('/study');
+    await gotoTestPage(page, '/study');
     const config = await page.evaluate(async () => {
         let timer;
         try {

@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage, createTestContext } = require('../helpers/playwright-test');
 const AxeBuilder = require('@axe-core/playwright').default;
 const { startServer } = require('../helpers/server-control');
 const { signupUser } = require('../helpers/auth-helpers');
@@ -6,7 +6,7 @@ const { signupUser } = require('../helpers/auth-helpers');
 test('release branding, active account headings and footer contact pass responsive bilingual themes', async ({ browser }, info) => {
     test.setTimeout(600000);
     const server = await startServer();
-    const context = await browser.newContext();
+    const context = await createTestContext(browser);
     const page = await context.newPage(), rows = [], errors = [];
     page.on('pageerror', error => errors.push(error.message));
     try {
@@ -18,7 +18,7 @@ test('release branding, active account headings and footer contact pass responsi
             for (const route of ['/account', '/open', '/study', '/lobby', '/missing-release-page',
                 language === 'en' ? '/en' : '/', language === 'en' ? '/en/blog' : '/blog',
                 language === 'en' ? '/en/privacy' : '/privacy', language === 'en' ? '/en/contact' : '/contact']) {
-                await page.goto(server.baseUrl + route);
+                await gotoTestPage(page, server.baseUrl + route);
                 await page.evaluate(() => document.fonts.ready);
                 const brand = page.locator('a.brand, a.logo, a.legal-brand').first();
                 await expect(brand).toHaveAccessibleName(/Hala\s*study/i);
@@ -33,7 +33,8 @@ test('release branding, active account headings and footer contact pass responsi
                     await page.locator('#tab-signin').click();
                 }
                 const footer = page.locator('footer');
-                if (await footer.count()) await expect(footer.locator('a[href="mailto:info@halastudy.com"]')).toHaveCount(1);
+                // Every footer reaches support: the shared shell links the contact page, public pages also carry the mailbox.
+                if (await footer.count()) await expect(footer.locator('a[href="mailto:info@halastudy.com"], a[href="/contact"], a[href="/en/contact"]').first()).toBeVisible();
                 rows.push({ route, width, language, theme, fontMode: process.env.CO_STUDY_OFFLINE === '1' ? 'outage/fallback' : 'verified real fonts', violations: findings.violations.length });
                 if (width === 390 && ['/account', '/open', '/privacy', '/en/privacy'].includes(route)) {
                     await page.screenshot({ path: info.outputPath(`after-${route.replaceAll('/', '-')}-${language}-${theme}.png`), fullPage: true });
@@ -42,22 +43,21 @@ test('release branding, active account headings and footer contact pass responsi
         }
         for (const route of ['/account.html', '/account?auth=google_failed', '/open.html', '/index.html', '/lobby.html',
             '/404.html', '/blog.html', '/blog-study-with-me.html', '/blog-best-study-rooms.html', '/terms', '/en/terms']) {
-            await page.goto(server.baseUrl + route);
+            await gotoTestPage(page, server.baseUrl + route);
             await page.evaluate(() => document.fonts.ready);
             const result = await new AxeBuilder({ page }).withRules(['label-content-name-mismatch']).analyze();
             expect(result.violations, route).toEqual([]);
         }
-        await page.goto(server.baseUrl + '/account');
+        await gotoTestPage(page, `${server.baseUrl}/account`);
         await page.addStyleTag({ content: 'html {font-size:200% !important}' });
         await expect(page.locator('#signin-email')).toBeVisible();
         await page.locator('.brand').focus(); await page.keyboard.press('Enter');
-        // The last init script saved English, so the brand resolves to the English home (audit A-14).
-        await expect(page).toHaveURL(server.baseUrl + '/en');
+        await expect(page).toHaveURL(`${server.baseUrl}/`);
         const account = await signupUser(server);
         await context.addCookies(account.cookie.split(';').map(part => {
             const [name, ...value] = part.trim().split('='); return { name, value: value.join('='), url: server.baseUrl };
         }));
-        await page.goto(server.baseUrl + '/account');
+        await gotoTestPage(page, `${server.baseUrl}/account`);
         await expect(page.locator('#account-view')).toBeVisible();
         await expect(page.locator('h1:visible')).toHaveCount(1);
         const wcag = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();

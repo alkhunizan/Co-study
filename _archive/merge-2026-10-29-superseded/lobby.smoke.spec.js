@@ -1,7 +1,7 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, gotoTestPage } = require('../helpers/playwright-test');
 
 test('lobby camera control announces actual state across languages', async ({ page }) => {
-    await page.goto('/lobby');
+    await gotoTestPage(page, '/lobby');
     await page.locator('#name-input').fill('Camera control fixture');
     await page.locator('#name-go').click();
     await expect(page.locator('#lobby-view')).toBeVisible();
@@ -18,7 +18,7 @@ test('lobby camera control announces actual state across languages', async ({ pa
 });
 
 test('lobby renews its media session and page exit tears it down', async ({ page }) => {
-    await page.goto('/lobby');
+    await gotoTestPage(page, '/lobby');
     await page.clock.install();
     await page.evaluate(async () => {
         const w = /** @type {any} */ (window);
@@ -40,7 +40,7 @@ test('lobby renews its media session and page exit tears it down', async ({ page
 });
 
 test('lobby query parameters cannot invent participants', async ({ page }) => {
-    await page.goto('/lobby?demo=12');
+    await gotoTestPage(page, '/lobby?demo=12');
     await page.evaluate(() => /** @type {any} */ (window).setParticipants([{ id: 'real-test-member', name: 'Real test member', cameraOn: false }]));
     await expect.poll(() => page.evaluate('state.participants.length')).toBe(1);
     await page.evaluate(() => /** @type {any} */ (window).setParticipants([]));
@@ -48,7 +48,7 @@ test('lobby query parameters cannot invent participants', async ({ page }) => {
 });
 
 test('lobby join and camera failures show feedback and allow retry', async ({ page }) => {
-    await page.goto('/lobby');
+    await gotoTestPage(page, '/lobby');
     await page.evaluate(() => {
         document.documentElement.lang = 'en';
         const lobby = /** @type {any} */ (window);

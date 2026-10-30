@@ -45,6 +45,9 @@ function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backu
                 entryCount += result.entries;
                 pruneOldBackups('platform');
             }
+            if (written.length === 0) {
+                throw new Error('No readable snapshot sources; no plaintext diagnostic snapshot was created.');
+            }
             status.lastRunAt = Date.now();
             status.lastError = null;
             logger.info({ event: 'backup_completed', files: written.length, entries: entryCount });
@@ -58,6 +61,14 @@ function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backu
 
     function runBackup() {
         if (stopped) return Promise.reject(new Error('BACKUP_SCHEDULER_STOPPED'));
+        // Report an unusable configuration synchronously, as the legacy
+        // scheduler always did, before any asynchronous snapshot work starts.
+        if (!extraBackup && targets.length === 0) {
+            const error = new Error('No readable snapshot sources; no plaintext diagnostic snapshot was created.');
+            status.lastError = error.message;
+            logger.error({ event: 'backup_failed', message: error.message });
+            throw error;
+        }
         if (!running) running = writeBackup().finally(() => { running = null; });
         return running;
     }
@@ -66,7 +77,11 @@ function createBackupScheduler({ intervalMinutes = 0, retentionCount = 48, backu
         stopped = false;
         if (timer || !intervalMinutes) return;
         timer = setInterval(() => {
-            void runBackup().catch(() => {});
+            try {
+                void runBackup().catch(() => {});
+            } catch (_error) {
+                // Already logged by the configuration check; keep the schedule alive.
+            }
         }, intervalMinutes * 60 * 1000);
         timer.unref();
     }

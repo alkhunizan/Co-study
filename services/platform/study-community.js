@@ -314,7 +314,7 @@ function agendaCalendar(sessions, now = Date.now()) {
 				}
 				return result;
 			})
-			.join('\r\n') + '\r\n'
-	);
+			.join('\r\n')
+	).concat('\r\n');
 }
 module.exports = { createStudyCommunity, agendaCalendar };

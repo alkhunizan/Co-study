@@ -640,6 +640,91 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 2. Want F6 + F12 next (the other two cheap real ones), or hold and merge this first?
 3. Merge `fix/identity-and-room-switch` to main + deploy, or PR for review?
 
+## 2026-10-18 — Site-wide fix and enhancement planning
+
+**Goal for this session:** Prepare a site-wide plan while preserving the original checkout and its blog edits.
+
+**What worked:** Created an isolated worktree from e9412fd; inventoried all 103 commits beyond GitHub main; inspected 36 local page configurations; verified the three-migration contract. Aziz confirmed keeping the warm, quiet visual identity.
+
+**What broke:** Reproduced English mobile landing overflow (444px document at 390px viewport); legal pages do not use saved English preference; rollout list omits the third migration. Dependency advisories and broader verification requirements are recorded in the plan. No application fix is claimed.
+
+**What I changed:** Added the design, 10-task plan, and complete commit inventory under docs/superpowers/. Project-root STATUS.md and NEXT.md now point to this worktree. Production and original source edits were not changed.
+
+**Next session starts with:** Task 1 in docs/superpowers/plans/2026-10-18-site-wide-readiness-plan.md: establish a Node 22 candidate baseline and repair the dependency lockfile.
+
+**Open questions for Aziz:** No answer needed to execute Task 1. Password recovery requires verified email delivery before that feature can ship. Publication and production changes remain separately authorized actions.
+
+## 2026-10-18 — Readiness Task 1 execution
+
+**Goal for this session:** Establish the Node 22 candidate baseline and repair compatible dependencies in the isolated worktree.
+
+**What worked:** Node 22.23.3 / npm 10.9.9; full quality gate exit 0 with 223 unit and 201 integration tests, no skips. Production and development audits report zero findings. Final lockfile installs cleanly. Original blog and OG hashes are unchanged.
+
+**What broke:** Baseline audit reported five production packages plus development dependency smol-toml. Four restore tests used July fixtures with the real October clock and failed the intentional age limit. npm 10 dropped libc metadata from 20 unchanged optional packages during audit repair; restored those entries after verifying no other changes in them.
+
+**What I changed:** Compatible package-lock updates and parser override floor; four test calls now inject the existing July fixture timestamp. Production restore safeguards and assertions are unchanged. Added Task 1 evidence, checked the plan's Task 1 items, preserved unrelated TODOS, and advanced project continuity to Task 2. Changes are uncommitted; HEAD remains e9412fd. No production or remote write occurred.
+
+**Next session starts with:** Task 2: reconcile the three-migration rollout, startup, persistence, backup/restore, and release documentation, then run the infrastructure gate in Linux/Docker. See docs/superpowers/plans/2026-10-18-task1-evidence.md and .harness/handoffs/handoff-2026-10-18-readiness-task1.md.
+
+**Open questions for Aziz:** None needed for local Task 2 work. Deployment, real-device/provider checks, and password recovery delivery remain separate release gates.
+
+## 2026-10-18 — Readiness Task 2 execution
+
+**Goal for this session:** Reconcile release/persistence instructions and rehearse the infrastructure gate while preserving Task 1.
+
+**What worked:** Linux Node 22.23.3 infrastructure gate passed: ShellCheck, all three migrations twice in disposable PostgreSQL, 19 Docker layers/final filesystem with five excluded canaries, and Nginx syntax. Existing recovery/migration/startup/deploy tests passed 86/86 with no skips. Eight docs rendered and 25 relative links resolved. Task 1 manifest, lock and restore-test hashes are unchanged.
+
+**What broke:** Windows CRLF shell files failed Linux ShellCheck SC1017; the disposable copy was normalized to Git's LF content and the full gate then passed. Windows tar export failed on tracked filenames; Python tarfile preserved the tracked working-tree inventory. No repository code or checks were changed.
+
+**What I changed:** Reconciled rollout, backup/restore, deployment, launch, CLAUDE and both README files. Aligned VERSION to the existing 1.2.0.0 changelog/npm 1.2.0 baseline without assigning a release. Recorded Task 2 evidence and recovery/bootstrap limitations, updated plan/continuity, and wrote the Task 2 handoff. All changes remain uncommitted on e9412fd; nothing deployed or published.
+
+**Next session starts with:** Task 3's failing English 390px landing-overflow regression. Read .harness/handoffs/handoff-2026-10-18-readiness-task2.md and preserve all Task 1/2 work.
+
+**Open questions for Aziz:** None for local Task 3. Real-provider/device, staging migration, lost-host recovery, browser acceptance and deployed SHA remain release gates.
+
+
+## 2026-10-18 — Readiness Task 3 execution
+
+**Goal for this session:** Repair mobile overflow and public-page consistency while preserving all Task 1/2 work.
+
+**What worked:** Node 22 quality passed with 223 unit and 201 integration tests, no skips, and zero production audit findings. Final public browser regressions passed 68/68 across Chromium/WebKit desktop/mobile; a final keyboard rerun passed 4/4. Real-font checks passed 160 page configurations, 20 final landing configurations and 14 breakpoint/label checks. Task 1/2 dependency, restore-test and runbook files are byte-identical; both legal main sections and the study page are unchanged.
+
+**What broke:** Reproduced 444px English landing width at 390px, missing shared navigation, ignored legal preferences, tile/timer collisions and resize focus loss. Windows WebKit left an empty loaded font set's ready promise pending. A generic blur fallback closed Safari's menu on touch clicks; limiting its deferred check to Tab exits fixed that regression. The broad smoke diagnostic stopped at 177 passes, 3 intermediate touch-menu failures, 2 existing mobile admin skips and 6 unrun cases; all failed/unrun cases passed in the final 68-case public suite. A fresh full release-wide browser gate is still due later. Two existing rollout-contract assertions were stale after Task 2's wording/command changes and now check the revised safe procedure without changing the runbook.
+
+**What I changed:** Added opt-in public-shell JS/CSS on eight pages, repaired wrapping/card grids and 44px controls, preserved per-language legal text, and extended browser regressions. Existing preference utilities are reused and study controls remain independent. Added Task 3 evidence/handoff, completed the plan checkboxes and advanced continuity to Task 4. Everything remains uncommitted on e9412fd; no remote or production write occurred.
+
+**Next session starts with:** Task 4's landing content regression, then simulated activity/preview labeling and supported landing/blog claims. Read .harness/handoffs/handoff-2026-10-18-readiness-task3.md and preserve all Task 1/2/3 work, including the shared shell. Compare the original blog/OG changes separately rather than copying old pages wholesale.
+
+**Open questions for Aziz:** None for local Task 4. Real-provider/device, designated-staging migration, lost-host recovery, final release gates and deployed SHA remain separate requirements.
+
+## 2026-10-18 — Readiness Task 4 execution
+
+**Goal for this session:** Make landing/blog activity and feature claims credible, preserve all Task 1/2/3 work, and review the original article/OG patch separately.
+
+**What worked:** Node 22 quality passed (223 unit / 201 integration, no skips, zero production audit findings). Public browser checks passed 80/80 across Chromium/WebKit desktop/mobile; the final article target/keyboard refinement passed 8/8. Real-font checks covered 80 configurations plus 40 final article configurations, all measured final cases clean. Original article/OG hashes and protected prior repairs are unchanged.
+
+**What broke:** New content regressions failed on the missing quiet-room label and missing article OG metadata before edits. Real-font inspection found 19.5–33px article navigation and 24px FAQ targets; padding on the outer details element did not enlarge the clickable summary. Moving padding into the summary and giving standalone links 44px targets fixed the measured issue. Phone screenshot review also prompted stronger contrast for the new entry explanation.
+
+**What I changed:** Removed simulated activity totals/LIVE chips and froze sample timers; added approved bilingual quiet/preview labels and accurate guest/account/camera guidance. Applied the reviewed original article patch, retained editorial/OG improvements, removed unverified dates/reading times and unsupported feature/privacy claims, aligned FAQ schema and corrected article targets. Added Task 4 evidence/handoff and advanced plan/continuity to Task 5. Everything remains uncommitted at e9412fd; no remote or production write occurred.
+
+**Next session starts with:** Task 5's existing guest/account create → invite → join → leave flows and smoke coverage. Read .harness/handoffs/handoff-2026-10-18-readiness-task4.md and preserve all Task 1/2/3/4 repairs.
+
+**Open questions for Aziz:** None for local Task 5. Final release-wide gates, real-provider/device, OAuth, staging migration, lost-host recovery and deployed SHA remain separate requirements.
+
+## 2026-10-18 — Readiness Task 5 execution
+
+**Goal for this session:** Finish create/join/onboarding states while preserving all verified, uncommitted Task 1/2/3/4 work.
+
+**What worked:** Final Node 22 quality passed (223 unit / 201 integration, no skips, zero production audit findings). The final five-suite browser matrix passed 208/208 with no skips across Chromium/WebKit desktop/mobile. Font-loaded entry inspection passed 40 base and 16 expanded/error configurations; the latter also verified 360×330px submit reachability and a 5.35:1 minimum for the checked text. Original article/OG hashes are unchanged.
+
+**What broke:** Pre-fix regressions reproduced visible unselected password fields, lost signup drafts, unbounded lookup waits, silent clipboard denial and missing workspace pending status. A real protected preview uses a nested limited response that the UI treated as a flat snapshot. Stronger visibility checks caught inline-flex overriding hidden badges. Screenshot review caught dark entry fields/buttons with poor text colors. Intermediate assertions were corrected to the existing not-found wording, nested protected count and genuinely hidden joined form; interrupted runs are not counted as passes.
+
+**What I changed:** Added tab-scoped draft restoration, optional-field tiles, associated errors/live states, bounded joins with duplicate/late-ack guards, correct private preview handling, room-bound password handoff and manual clipboard fallback. Repaired entry scrolling, target sizes, hidden-form focus behavior and dark/error contrast. Preserved backend/provider membership boundaries. Saved Task 5 evidence/handoff and advanced continuity to Task 6; everything remains uncommitted at e9412fd.
+
+**Next session starts with:** Task 6 lobby guest/account entry and existing media/session lifecycle coverage. Read .harness/handoffs/handoff-2026-10-18-readiness-task5.md and preserve all Task 1–5 work.
+
+**Open questions for Aziz:** None for this local Task 5 closure. Real-provider/device, OAuth, staging migration, lost-host recovery, final release-wide gates and deployed SHA remain separate requirements.
+
 ## 2026-10-20 — Viber production gate
 
 **Goal for this session:** Run all nine Viber phases on the new member/VIP/staff platform and produce an evidence-backed release verdict.
@@ -865,3 +950,27 @@ The Day 5 work also caught a real production CSS bug that the rebrand quietly re
 **Open questions for Aziz:**
 - Which staging URL and recovery-email provider should be used? Production recovery currently has no delivery adapter; the local-only outbox is not real delivery.
 - Merchant selection/contract, actual media termination, hosted restore, external alert receipt and deployment still require their designated environments and acceptance evidence.
+
+## 2026-10-30 — merge origin/main into viber/2026-10-27
+
+**Goal for this session:** bring main (6072cec) into the branch, resolve the 44 conflicts, keep every quality gate green.
+
+**What worked:**
+- Main's architecture adopted (user-mutation coordinator, join saga + socket locks, public shell, site-wide legal pages, Playwright 4-project matrix); branch features re-applied on top (platform, SEO locale renderer, recovery mail, operational alerts, audit P1 fixes).
+- Gates on the merged tree: check, warning-free lint, tsc, knip, audit:prod, unit 242/242, integration 302/302, chromium-desktop + chromium-mobile smoke green.
+
+**What broke:**
+- `/en` landing rendered from `marketing-copy.js` then re-rendered from an inline dict → CLS 0.38. The inline dict is gone; the module is the single source again.
+- `/` for English visitors painted Arabic then swapped → `halastudy-core.js` now holds the first paint until the language pass runs.
+- A 401 on a secondary account read aborted the in-flight identity check and read as "signed out" (reload loop) → the auth cache no longer aborts a running refresh.
+- `measureJoin('success')` and the branch order of the timer controls were lost in the merge; restored.
+- Main's open page stored room passwords in the session draft; the branch's no-secrets draft semantics were ported instead.
+
+**What I changed:**
+- Merge commit on `viber/2026-10-27`; superseded branch modules/tests archived under `_archive/merge-2026-10-29-superseded/`.
+
+**Next session starts with:**
+- WebKit matrix: 122 failures, all in branch-only specs that never ran under WebKit (the branch config had no WebKit projects). Groups: fake-camera specs (camera-privacy, 16), `#room-focus-retry` hidden (28), circle feedback (18), join/`#chat-input` (6), font-load screenshot timeouts. Decide skip-vs-fix per group.
+
+**Open questions for Aziz:**
+- None blocking the push.

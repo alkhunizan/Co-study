@@ -265,6 +265,9 @@ html[lang="ar"] .h-h2,
 .num-eastern  { font-feature-settings: "lnum" 0; }
 [lang="ar-u-nu-arab"] { font-feature-settings: "lnum" 0; }
 
+/* halastudy-core.js holds the first paint while a saved language replaces the markup language. */
+html[data-lang-swap] body { visibility: hidden; }
+
 /* Standalone navigation targets; inline prose links retain natural wrapping. */
 footer a, .topbar a { display: inline-flex; align-items: center; justify-content: center; min-block-size: 44px; padding-inline: 8px; }
 .is-legal-page .topbar { flex-wrap: wrap; gap: 12px; }

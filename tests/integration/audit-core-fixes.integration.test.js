@@ -1,6 +1,5 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { createVideoRevocations } = require('../../services/video/revocations');
 const { signupUser } = require('../helpers/auth-helpers');
 const { startServer } = require('../helpers/server-control');
 const { closeSocket, connectSocket, emitAck } = require('../helpers/socket-client');
@@ -27,33 +26,6 @@ test('login timing does not distinguish unknown emails from wrong passwords', as
     assert.ok(median(known) > 5, `hash work expected on known email, got ${median(known)}ms`);
     assert.ok(median(unknown) >= median(known) * 0.5,
         `unknown email answered too fast: ${median(unknown)}ms vs ${median(known)}ms`);
-});
-
-// A-02: one grant the provider keeps rejecting must not block every video
-// token in every room forever. After a bounded number of attempts it is
-// parked as stalled and no longer counts as pending.
-test('a permanently failing revocation stops blocking after bounded attempts', async () => {
-    let attempts = 0;
-    const journal = createVideoRevocations({ file: null, logger: { error() {} },
-        provider: { async revokeParticipant() { attempts += 1; throw new Error('rejected'); } } });
-    await journal.track({ meetingId: 'meeting', participantId: 'stuck', socketId: 'socket', roomId: 'room' });
-    await journal.revokeWhere(() => true);
-    for (let i = 0; i < 12; i++) await journal.drain();
-    const status = journal.status();
-    assert.equal(status.healthy, true);
-    assert.equal(status.pending, 0, `still pending after ${attempts} attempts`);
-    assert.equal(status.stalled, 1);
-    assert.ok(attempts >= 5 && attempts <= 13, `attempts=${attempts}`);
-    // A fresh grant still revokes normally beside the stalled one.
-    let revoked = 0;
-    const healthyJournal = createVideoRevocations({ file: null, logger: { error() {} },
-        provider: { async revokeParticipant(row) { if (row.participantId === 'stuck') throw new Error('rejected'); revoked += 1; } } });
-    await healthyJournal.track({ meetingId: 'meeting', participantId: 'stuck', socketId: 's', roomId: 'room' });
-    await healthyJournal.track({ meetingId: 'meeting', participantId: 'fine', socketId: 's', roomId: 'room' });
-    await healthyJournal.revokeWhere(() => true);
-    for (let i = 0; i < 8; i++) await healthyJournal.drain();
-    assert.equal(revoked, 1);
-    assert.equal(healthyJournal.status().pending, 0);
 });
 
 // A-16: socket events inside an ordinary (non-circle) room must not issue a

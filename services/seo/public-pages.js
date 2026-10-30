@@ -73,20 +73,8 @@ function renderPage(page, pages) {
     const blog = english ? '/en/blog' : '/blog';
     const contact = english ? '/en/contact' : '/contact';
     let html = translate(page.html, copy[page.kind]?.[page.lang]);
-    if (page.kind === 'legal') {
-        html = html.replace('<body>', '<body class="is-legal-page">');
-        // Keep the approved paragraphs intact, presenting one language per route.
-        html = html.replace(/<section lang="(ar|en)"[^>]*>[\s\S]*?<\/section>/g,
-            (section, lang) => lang === page.lang ? section : '').replace(/<hr[^>]*class="lang-divider"[^>]*>/g, '');
-        html = html.replace(/<header class="topbar">[\s\S]*?<\/header>/, `<header class="topbar">
-<a class="legal-brand" href="${home}"><bdi>Halastudy</bdi></a>
-<nav aria-label="${english ? 'Page navigation' : 'التنقل'}"><a href="/open">${english ? 'Open a room' : 'افتح غرفة'}</a>
-<div class="lang-switch" role="group" aria-label="${english ? 'Language' : 'اللغة'}"><button type="button" data-lang-value="ar" lang="ar">عربي</button><button type="button" data-lang-value="en" lang="en">EN</button></div>
-<button type="button" id="theme-toggle" aria-label="${english ? 'Toggle theme' : 'تبديل المظهر'}">◐</button></nav></header>`);
-        html = html.replace(/<footer class="legal-footer">[\s\S]*?<\/footer>/, `<footer class="legal-footer">
-<a href="${english ? '/en' : ''}/privacy">${english ? 'Privacy' : 'الخصوصية'}</a><a href="${english ? '/en' : ''}/terms">${english ? 'Terms' : 'الشروط'}</a></footer>`);
-        html = html.replace('</head>', '<script src="/js/halastudy-core.js"></script><script src="/js/legal-shell.js" defer></script>\n</head>');
-    }
+    // Legal pages carry both languages and the shared public shell; only
+    // metadata and the route language are injected here.
     html = html.replace(/<html\b[^>]*>/, `<html lang="${page.lang}" dir="${english ? 'ltr' : 'rtl'}" data-theme="light" data-route-lang="${page.lang}"${page.alternate ? ' data-route-lang-persist' : ''}>`);
     html = html.replace(/<title>[\s\S]*?<\/title>|<meta\b[^>]*(?:name="(?:description|twitter:[^"]+)"|property="og:[^"]+")[^>]*>|<link\b[^>]*rel="(?:canonical|alternate)"[^>]*>/gi, '');
     const alternates = page.alternate ? [
@@ -117,9 +105,8 @@ ${page.image.includes('/images/og/') ? '<meta property="og:image:width" content=
         match === 'href="/blog"' ? `href="${blog}"` : match === 'href="/contact"' ? `href="${contact}"` : `href="${home}"`);
     if (english) html = html.replace(/href="\/(privacy|terms)"/g, 'href="/en/$1"');
     if (page.alternate) {
-        html = html.replace(/<button([^>]*data-lang-value="(ar|en)"[^>]*)>([\s\S]*?)<\/button>/g,
-            (_whole, attrs, lang, label) => `<a${attrs.replace(/type="button"|\sclass="is-on"/g, '')} href="${lang === page.lang ? page.path : page.alternate}" lang="${lang}" hreflang="${lang}"${lang === page.lang ? ' class="is-on" aria-current="page"' : ''}>${label}</a>`);
-        html = html.replace('role="tablist"', 'role="navigation"');
+        // The language switch stays the shared shell's in-place control. A
+        // crawlable link to the alternate-language route rides in the footer.
     }
     html = html.replace(/href="\/(open|account|lobby)\.html/g, 'href="/$1');
     const contactLinks = `<a href="${contact}">${english ? 'Contact us' : 'تواصل معنا'}</a>
@@ -127,7 +114,15 @@ ${page.image.includes('/images/og/') ? '<meta property="og:image:width" content=
     const footer = html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/i)?.[0] || '';
     const supportEmail = footer.includes('href="mailto:info@halastudy.com"') ? ''
         : '<a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>';
-    html = html.replace('</footer>', `${contactLinks}\n${supportEmail}\n</footer>`);
+    // Pages whose footer already links the contact page keep their own link.
+    const contactBlock = footer.includes(`href="${contact}"`) || footer.includes('href="/contact"') ? '' : contactLinks;
+    const alternateLink = page.alternate
+        ? `<a class="locale-alternate" href="${page.alternate}" lang="${english ? 'ar' : 'en'}" hreflang="${english ? 'ar' : 'en'}">${english ? 'العربية' : 'English'}</a>`
+        : '';
+    html = html.replace('</footer>', `${contactBlock}
+${supportEmail}
+${alternateLink}
+</footer>`);
     if (page.kind === 'article') {
         html = html.replace(/<div class="table-wrap">/g,
             '<div class="table-wrap" tabindex="0" role="region" aria-label="جدول المقارنة">');
@@ -187,6 +182,12 @@ function registerPublicPages(app, root) {
     app.get('/sitemap.xml', (_req, res) => res.type('application/xml').send(
         `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((page) =>
             `  <url><loc>${ORIGIN}${page.path}</loc></url>`).join('\n')}\n</urlset>`));
+    // The legacy contact.html address keeps serving the page (deploy verifiers fetch it directly).
+    app.get('/contact.html', (_req, res) => {
+        res.setHeader('Content-Language', 'ar');
+        res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate');
+        res.type('html').send(rendered.get('/contact'));
+    });
     for (const page of pages) app.get(page.path, (_req, res) => {
         res.setHeader('Content-Language', page.lang);
         // The shared session middleware may set a cookie on first visit.

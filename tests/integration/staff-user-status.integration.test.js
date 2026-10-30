@@ -14,7 +14,7 @@ test('staff can only change the status of accounts ranked strictly below them (A
     const server = await startServer({
         env: {
             PLATFORM_ENABLED: 'true', PLATFORM_DATABASE_URL: '', PLATFORM_DATA_DIR: 'memory://', BILLING_MODE: 'test',
-            VIDEO_PROVIDER: 'mesh', SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '', ADMIN_PATH, ADMIN_PASSWORD_HASH,
+            VIDEO_PROVIDER: 'mesh', ENABLE_DEV_MESH: 'true', ADMIN_PATH, ADMIN_PASSWORD_HASH,
             // Six accounts exceed the per-IP signup limit; give each its own client IP.
             TRUST_PROXY: '1'
         }

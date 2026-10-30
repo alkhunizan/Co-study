@@ -38,17 +38,21 @@ test('overlapping joins under a held final authorization cannot retain two room 
     const gate = new Promise(resolve => { release = () => resolve(undefined); });
     fixture.platform.canJoin = async (...args) => {
         const result = await canJoin(...args);
-        if (args[0] === first && ++count === 2) { entered(); await gate; }
+        // Membership is checked once per join on main; hold the first room's check.
+        if (args[0] === first && ++count === 1) { entered(); await gate; }
         return result;
     };
     const joining = emitAck(socket, 'join-room', { roomId: first, username: 'One identity' });
     await started;
-    const overlapping = await emitAck(socket, 'join-room', { roomId: second, username: 'One identity' });
+    // Membership operations are serialized per socket, so the second join queues
+    // behind the held first one; releasing the gate lets both settle in order.
+    const overlapping = emitAck(socket, 'join-room', { roomId: second, username: 'One identity' });
     release();
-    assert.equal((await joining).ok, true);
+    const [firstResult, secondResult] = await Promise.all([joining, overlapping]);
+    assert.equal(firstResult.ok, true);
+    assert.equal(secondResult.ok, true, JSON.stringify(secondResult));
     const occupied = [first, second].map(id => fixture.app.rooms.get(id).users.has(socket.id));
-    assert.equal(occupied.filter(Boolean).length, 1, JSON.stringify({ occupied, overlapping }));
-    assert.equal((await emitAck(socket, 'join-room', { roomId: second, username: 'One identity' })).ok, true);
+    assert.equal(occupied.filter(Boolean).length, 1, JSON.stringify({ occupied }));
     assert.equal(fixture.app.rooms.get(first).users.has(socket.id), false);
     assert.equal(fixture.app.rooms.get(second).users.has(socket.id), true);
 });
@@ -92,10 +96,11 @@ test('hidden status omits manual and activity fields from socket and room snapsh
     }
     const hiddenUpdate = new Promise(resolve => peer.once('status-update', resolve));
     assert.equal((await emitAck(owner, 'user-status', { status: { visible: false, text: 'PRIVATE-TEXT',
-        goal: 'PRIVATE-GOAL', manual: 'PRIVATE-MANUAL', manualPreset: 'PRIVATE-PRESET',
-        ambientType: 'PRIVATE-AMBIENT', timerMode: 'focus', autoSync: true } })).ok, true);
+        goal: 'PRIVATE-GOAL', manual: 'PRIVATE-MANUAL', manualPreset: 'studying',
+        ambientType: 'rain', timerMode: 'focus', autoSync: true } })).ok, true);
     const hidden = await hiddenUpdate;
-    assert.doesNotMatch(JSON.stringify(hidden), /PRIVATE-|"focus"|"autoSync":true/);
+    // A hidden status carries no private text, preset, ambient sound, timer phase or sync flag.
+    assert.doesNotMatch(JSON.stringify(hidden), /PRIVATE-|"studying"|"rain"|"focus"|"autoSync":true/);
     assert.doesNotMatch((await server.request(`/api/rooms/${created.room.code}`)).text, /PRIVATE-/);
     const visibleUpdate = new Promise(resolve => peer.once('status-update', resolve));
     await emitAck(owner, 'user-status', { status: { visible: true, manual: 'Reading', text: 'Reading' } });

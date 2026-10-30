@@ -46,6 +46,8 @@ function getLocalIPv4() {
         createServer: (app) => https.createServer({ key: cert.private, cert: cert.cert }, app)
     });
 
+    await appServer.initialize();
+
     appServer.listen(({ config }) => {
         const localIP = getLocalIPv4();
         console.log(`Co-Study local HTTPS listening on https://localhost:${config.port}`);

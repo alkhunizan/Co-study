@@ -30,16 +30,75 @@ function amzDate(now) {
     return now.toISOString().replace(/[:-]|\.\d{3}/g, '');
 }
 
+function decodeXml(value) {
+    return String(value || '')
+        .replace(/&#(\d+);/g, (match, code) => decodeXmlCodePoint(match, code, 10))
+        .replace(/&#x([0-9a-f]+);/gi, (match, code) => decodeXmlCodePoint(match, code, 16))
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+}
+
+function decodeXmlCodePoint(original, rawCode, radix) {
+    const code = Number.parseInt(rawCode, radix);
+    if (!Number.isInteger(code) || code < 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) {
+        return original;
+    }
+    return String.fromCodePoint(code);
+}
+
+function xmlTag(block, name) {
+    const match = String(block).match(new RegExp(`<${name}>([\\s\\S]*?)<\\/${name}>`));
+    return match ? decodeXml(match[1]) : '';
+}
+
+function parseListObjectsXml(xml) {
+    const objects = [];
+    for (const match of String(xml).matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
+        const block = match[1];
+        const size = Number(xmlTag(block, 'Size'));
+        objects.push({
+            key: xmlTag(block, 'Key'),
+            lastModified: xmlTag(block, 'LastModified') || null,
+            etag: xmlTag(block, 'ETag').replace(/^"|"$/g, '') || null,
+            size: Number.isSafeInteger(size) && size >= 0 ? size : null,
+            storageClass: xmlTag(block, 'StorageClass') || null
+        });
+    }
+    return {
+        objects,
+        isTruncated: xmlTag(xml, 'IsTruncated').toLowerCase() === 'true',
+        nextContinuationToken: xmlTag(xml, 'NextContinuationToken') || null
+    };
+}
+
+function encodeCanonicalQuery(entries) {
+    return entries
+        .map(([key, value]) => [encodeSegment(String(key)), encodeSegment(String(value))])
+        .sort(([leftKey, leftValue], [rightKey, rightValue]) => {
+            if (leftKey !== rightKey) return leftKey < rightKey ? -1 : 1;
+            if (leftValue === rightValue) return 0;
+            return leftValue < rightValue ? -1 : 1;
+        })
+        .map(([key, value]) => `${key}=${value}`)
+        .join('&');
+}
+
 function createR2Client(config = {}) {
     const {
         endpoint = process.env.R2_ENDPOINT,
         accessKeyId = process.env.R2_ACCESS_KEY_ID,
-        secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
+        secretAccessKey = process.env.R2_SECRET_ACCESS_KEY,
+        fetchImpl = globalThis.fetch,
+        timeoutMs = REQUEST_TIMEOUT_MS
     } = config;
 
     if (!endpoint || !accessKeyId || !secretAccessKey) {
         throw new Error('R2 client requires R2_ENDPOINT, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY.');
     }
+    if (typeof fetchImpl !== 'function') throw new Error('R2 client requires a fetch implementation.');
     const host = new URL(endpoint).host;
 
     /**
@@ -95,9 +154,9 @@ function createR2Client(config = {}) {
             + `SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
-            const response = await fetch(`https://${host}${canonicalPath}`, {
+            const response = await fetchImpl(`https://${host}${canonicalPath}`, {
                 method,
                 headers,
                 // Node's fetch accepts a Buffer body; TS's DOM BodyInit doesn't list it.
@@ -158,19 +217,34 @@ function createR2Client(config = {}) {
             }
             return true;
         },
-        async listObjects(bucket, prefix = '') {
-            // list-type=2 needs a query string; keep it simple with a raw path +
-            // query and re-sign including the query in the canonical request.
-            const res = await signedRequestWithQuery('GET', bucketPath(bucket), `list-type=2&prefix=${encodeSegment(prefix)}`);
-            if (!res.ok) {
-                throw new Error(`listObjects failed (HTTP ${res.status}).`);
+        async listObjectsDetailed(bucket, prefix = '') {
+            const objects = [];
+            let continuationToken = null;
+            const seenTokens = new Set();
+            for (let page = 0; page < 10_000; page += 1) {
+                const query = [['list-type', '2'], ['prefix', prefix]];
+                if (continuationToken) query.push(['continuation-token', continuationToken]);
+                const res = await signedRequestWithQuery('GET', bucketPath(bucket), query);
+                if (!res.ok) throw new Error(`listObjects failed (HTTP ${res.status}).`);
+                const parsed = parseListObjectsXml(res.text);
+                objects.push(...parsed.objects);
+                if (!parsed.isTruncated) return objects;
+                if (!parsed.nextContinuationToken || seenTokens.has(parsed.nextContinuationToken)) {
+                    throw new Error('listObjects pagination returned an invalid continuation token.');
+                }
+                continuationToken = parsed.nextContinuationToken;
+                seenTokens.add(continuationToken);
             }
-            return [...res.text.matchAll(/<Key>([^<]+)<\/Key>/g)].map((m) => m[1]);
+            throw new Error('listObjects exceeded the pagination safety limit.');
+        },
+        async listObjects(bucket, prefix = '') {
+            const objects = await this.listObjectsDetailed(bucket, prefix);
+            return objects.map((object) => object.key);
         }
     };
 
     // Variant that includes a canonical query string (for list-type=2).
-    async function signedRequestWithQuery(method, canonicalPath, rawQuery) {
+    async function signedRequestWithQuery(method, canonicalPath, queryEntries) {
         const now = new Date();
         const amz = amzDate(now);
         const datestamp = amz.slice(0, 8);
@@ -178,8 +252,7 @@ function createR2Client(config = {}) {
         const headers = { host, 'x-amz-content-sha256': payloadHash, 'x-amz-date': amz };
         const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
         const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amz}\n`;
-        // Canonical query: sort by key.
-        const canonicalQuery = rawQuery.split('&').sort().join('&');
+        const canonicalQuery = encodeCanonicalQuery(queryEntries);
         const canonicalRequest = [method, canonicalPath, canonicalQuery, canonicalHeaders, signedHeaders, payloadHash].join('\n');
         const scope = `${datestamp}/${REGION}/${SERVICE}/aws4_request`;
         const stringToSign = ['AWS4-HMAC-SHA256', amz, scope, sha256Hex(canonicalRequest)].join('\n');
@@ -187,9 +260,9 @@ function createR2Client(config = {}) {
         const signature = crypto.createHmac('sha256', kSigning).update(stringToSign).digest('hex');
         const authorization = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
-            const response = await fetch(`https://${host}${canonicalPath}?${canonicalQuery}`, {
+            const response = await fetchImpl(`https://${host}${canonicalPath}?${canonicalQuery}`, {
                 method,
                 headers: { ...headers, Authorization: authorization },
                 signal: controller.signal
@@ -202,4 +275,9 @@ function createR2Client(config = {}) {
     }
 }
 
-module.exports = { createR2Client };
+function createR2ReadOnlyClient(config = {}) {
+    const client = createR2Client(config);
+    return Object.freeze({ host: client.host, listObjectsDetailed: client.listObjectsDetailed.bind(client) });
+}
+
+module.exports = { createR2Client, createR2ReadOnlyClient };

@@ -48,7 +48,7 @@
       padding-inline: 20px;
       border-radius: 999px;
       cursor: pointer;
-      min-block-size: 36px;
+      min-block-size: 44px;
     }
     .auth-tabs button:focus-visible { outline: none; box-shadow: var(--sh-focus); }
     .auth-tabs button.is-on { background: var(--card); color: var(--ink); box-shadow: 0 1px 4px rgba(28,24,20,0.08); }
@@ -144,8 +144,10 @@
     }
     .hidden { display: none !important; }
   </style>
+  <link rel="stylesheet" href="/design-system/public-shell.css">
+  <script src="/js/public-shell.js" defer></script>
 </head>
-<body class="is-open-page">
+<body class="is-open-page" data-public-page="account">
   <header class="topbar">
     <a class="brand" href="/">
       <span>Hala<em>study</em><span class="dot">.</span></span>
@@ -281,6 +283,19 @@
         <p class="form-note hidden" id="rooms-empty" data-lang="roomsEmpty">أول ما تفتح غرفة أو تدخل وحدة، بتلقاها هنا.</p>
       </div>
 
+      <div class="form-card hidden" id="google-link-card" hidden>
+        <h3 class="form-title" data-lang="googleLinkTitle">اربط حساب جوجل</h3>
+        <p class="form-note" data-lang="googleLinkNote">أكد كلمة مرورك، ثم اختر حساب جوجل الذي يحمل نفس البريد.</p>
+        <div class="input-group">
+          <label for="google-link-password" data-lang="labelGoogleLinkPassword">كلمة المرور الحالية</label>
+          <input type="password" id="google-link-password" maxlength="64" autocomplete="current-password">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="btn-link-google" data-lang="btnLinkGoogle">اربط جوجل</button>
+        </div>
+        <p class="form-feedback" id="google-link-feedback"></p>
+      </div>
+
       <div class="form-card danger-card" id="danger-card">
         <h2 class="form-title" data-lang="dangerTitle">إدارة الحساب</h2>
         <div class="form-actions">
@@ -288,12 +303,13 @@
         </div>
         <hr class="lang-divider">
         <p class="form-note" data-lang="deleteNote">حذف الحساب يمسح بريدك ودقائق تركيزك وسلسلتك نهائيًا. حسب نظام حماية البيانات، هذا الحذف فوري ولا يمكن التراجع عنه.</p>
-        <div class="input-group">
+        <div class="input-group" id="delete-password-group">
           <label for="delete-password" data-lang="labelPasswordConfirm">كلمة المرور للتأكيد</label>
           <input type="password" id="delete-password" maxlength="64" autocomplete="current-password">
         </div>
         <div class="form-actions">
           <button type="button" class="btn btn-danger-ghost" id="btn-delete" data-lang="btnDeleteData">احذف بياناتي</button>
+          <button type="button" class="btn btn-danger-ghost hidden" id="btn-delete-google" data-lang="btnDeleteWithGoogle" hidden>أكد عبر جوجل واحذف</button>
         </div>
         <p class="form-feedback" id="danger-feedback"></p>
       </div>
@@ -306,6 +322,7 @@
       <a href="/"><span class="back-arrow" aria-hidden="true">←</span> Halastudy</a>
       <a href="/privacy" data-lang="footerPrivacy">الخصوصية</a>
       <a href="/terms" data-lang="footerTerms">الشروط</a>
+      <a href="/contact" data-lang="footerContact">تواصل معنا</a>
     </div>
   
     <a href="mailto:info@halastudy.com" dir="ltr">info@halastudy.com</a>
@@ -337,6 +354,17 @@
           legacyHistoryNote: 'Includes the earlier timer and imported history. It does not award validated points. See verified progress in your workspace.',
           verifiedProgress: 'My verified progress',
           statStreak: 'Last recorded streak',
+          errLinkRequired: 'Sign in with your password, then link Google from this page.',
+          errLinkEmailMismatch: 'Choose the Google account with the same verified email.',
+          errGoogleSubjectInUse: 'That Google account is already linked elsewhere.',
+          errGoogleReauth: 'Google reauthentication did not match this account.',
+          googleLinkTitle: 'Connect Google',
+          googleLinkNote: 'Confirm your password, then choose the Google account with the same email.',
+          labelGoogleLinkPassword: 'Current password',
+          btnLinkGoogle: 'Connect Google',
+          googleLinkedToast: 'Google account connected',
+          statsTitle: 'Your focus',
+          statStreak: 'Day streak',
           statBest: 'Best streak',
           statTotalFocus: 'Focus hours',
           profileTitle: 'Your profile',
@@ -354,6 +382,7 @@
           deleteNote: 'Delete your account and personal progress. Shared room content and operational records follow the privacy policy.',
           labelPasswordConfirm: 'Password to confirm',
           btnDeleteData: 'Delete my data',
+          btnDeleteWithGoogle: 'Verify with Google and delete',
           deleteConfirmTitle: 'Delete this account?',
           deleteConfirmBody: 'Your account, personal focus history, and memberships will be removed. Circles you own will be archived and their rooms closed. This cannot be undone.',
           deleteConfirmLabel: 'Delete forever',
@@ -376,6 +405,7 @@
           errNETWORK: 'Connection hiccup. Try again.',
           footerTag: 'Halastudy · Online focus rooms for studying and working — study or work live, with serious people.',
           footerPrivacy: 'Privacy',
+          footerContact: 'Contact',
           footerTerms: 'Terms'
         },
         ar: {
@@ -401,6 +431,17 @@
           legacyHistoryNote: 'يشمل المؤقّت القديم والبيانات المستوردة. لا يمنح نقاطًا موثّقة. راجع تقدّمك الموثّق في مساحتك.',
           verifiedProgress: 'تقدّمي الموثّق',
           statStreak: 'آخر سلسلة مسجّلة',
+          errLinkRequired: 'ادخل بكلمة المرور، ثم اربط جوجل من هذه الصفحة.',
+          errLinkEmailMismatch: 'اختر حساب جوجل الذي يحمل نفس البريد المؤكد.',
+          errGoogleSubjectInUse: 'حساب جوجل هذا مربوط بحساب آخر.',
+          errGoogleReauth: 'تأكيد جوجل لا يطابق هذا الحساب.',
+          googleLinkTitle: 'اربط حساب جوجل',
+          googleLinkNote: 'أكد كلمة مرورك، ثم اختر حساب جوجل الذي يحمل نفس البريد.',
+          labelGoogleLinkPassword: 'كلمة المرور الحالية',
+          btnLinkGoogle: 'اربط جوجل',
+          googleLinkedToast: 'تم ربط حساب جوجل',
+          statsTitle: 'تركيزك',
+          statStreak: 'سلسلة الأيام',
           statBest: 'أفضل سلسلة',
           statTotalFocus: 'ساعات التركيز',
           profileTitle: 'ملفك',
@@ -418,6 +459,7 @@
           deleteNote: 'احذف حسابك وتقدّمك الشخصي. يخضع محتوى الغرف المشتركة والسجلات التشغيلية لسياسة الخصوصية.',
           labelPasswordConfirm: 'كلمة المرور للتأكيد',
           btnDeleteData: 'احذف بياناتي',
+          btnDeleteWithGoogle: 'أكد عبر جوجل واحذف',
           deleteConfirmTitle: 'تحذف الحساب؟',
           deleteConfirmBody: 'سيُحذف حسابك وسجل تركيزك الشخصي وعضوياتك، وستُؤرشف المجموعات التي تملكها وتُغلق غرفها. لا يمكن التراجع عن هذا الإجراء.',
           deleteConfirmLabel: 'احذف نهائيًا',
@@ -440,6 +482,7 @@
           errNETWORK: 'النت تعثّر. جرّب مرة ثانية.',
           footerTag: 'هلاستدي · غرف تركيز أونلاين للمذاكرة والعمل — ذاكر أو اشتغل لايف مع ناس جادّين.',
           footerPrivacy: 'الخصوصية',
+          footerContact: 'تواصل معنا',
           footerTerms: 'الشروط'
         }
       };
@@ -455,6 +498,7 @@
 
       const core = window.HalaCore;
       const auth = window.HalaAuth;
+      let googleAuthEnabled = false;
       core.initLang(dict);
 
       const themeBtn = document.getElementById('theme-toggle');
@@ -465,7 +509,16 @@
         const unavailable = document.getElementById('provider-unavailable');
         try {
           const cfg = await core.requestJson('GET', '/api/runtime-config');
-          document.querySelectorAll('[data-google-auth]').forEach((el) => { el.hidden = !cfg.googleAuthEnabled; });
+          const enabled = !!(cfg && cfg.googleAuthEnabled);
+          googleAuthEnabled = enabled;
+          document.querySelectorAll('[data-google-auth]').forEach((el) => { el.hidden = !enabled; });
+          if (enabled) {
+            const guestGoogleLink = document.querySelector('[data-google-auth] a[href="/auth/google"]');
+            if (guestGoogleLink) {
+              guestGoogleLink.href = `/auth/google?next=${encodeURIComponent(resolveNextUrl())}`;
+            }
+            renderAuthMethodControls();
+          }
           unavailable.hidden = true;
         } catch (_error) {
           core.showUnavailable(unavailable, loadAuthProviders);
@@ -486,6 +539,10 @@
           return await core.requestJson(method, path, body, { 'X-Halastudy-Account': currentUser?.id || '' });
         } catch (error) {
           if (['AUTH_ACCOUNT_CHANGED', 'AUTH_REQUIRED'].includes(error.code)) {
+            // Only a real identity change resets the page; a transient 401 on a
+            // secondary read leaves the account view and its drafts in place.
+            const user = await verifyIdentity().catch(() => undefined);
+            if (user === undefined || (user && user.id === currentUser?.id)) throw error;
             accountView.classList.add('hidden');
             signinForm.reset(); signupForm.reset();
             document.getElementById('profile-form').reset();
@@ -495,10 +552,17 @@
           throw error;
         }
       }
+      // One identity check at a time: overlapping refreshes would cancel each
+      // other and report a superseded lookup as a signed-out user.
+      let identityCheck = null;
+      function verifyIdentity() {
+        if (!identityCheck) identityCheck = auth.refreshUser().finally(() => { identityCheck = null; });
+        return identityCheck;
+      }
       async function checkAccountIdentity() {
         if (!currentUser) return;
         try {
-          const user = await auth.refreshUser();
+          const user = await verifyIdentity();
           if (user?.id !== currentUser.id) { accountView.classList.add('hidden'); location.reload(); }
         } catch { /* Existing draft stays; server pin still rejects stale writes. */ }
       }
@@ -506,13 +570,17 @@
       window.addEventListener('pageshow', checkAccountIdentity);
       document.addEventListener('visibilitychange', () => { if (!document.hidden) void checkAccountIdentity(); });
 
-      // Surface a Google-callback failure, then scrub the query param so a
-      // reload doesn't re-show it. Success (?auth=google) just falls through to
-      // the normal signed-in render (the cookie is already set).
+      // Capture callback results before scrubbing them so reauth flows can
+      // finish only after the account session has been loaded below.
       const authParam = new URLSearchParams(location.search).get('auth');
-      if (authParam === 'google_failed' || authParam === 'banned') {
+      if (authParam === 'google_failed' || authParam === 'banned' || authParam === 'link_required') {
         const fb = document.getElementById('signin-feedback');
-        if (fb) fb.textContent = t(authParam === 'banned' ? 'errACCOUNT_BANNED' : 'errGoogle');
+        if (fb) {
+          const feedbackKey = authParam === 'banned'
+            ? 'errACCOUNT_BANNED'
+            : authParam === 'link_required' ? 'errLinkRequired' : 'errGoogle';
+          fb.textContent = t(feedbackKey);
+        }
       }
       if (authParam) {
         const cleaned = new URL(location.href);
@@ -625,6 +693,25 @@
       /* ---------- signed in: account hub ---------- */
       let currentUser = null;
 
+      function renderAuthMethodControls() {
+        if (!currentUser) return;
+        const methods = currentUser.authMethods || {};
+        const linkCard = document.getElementById('google-link-card');
+        const linkHidden = !(googleAuthEnabled && methods.password && !methods.google);
+        linkCard.hidden = linkHidden;
+        linkCard.classList.toggle('hidden', linkHidden);
+        const passwordGroup = document.getElementById('delete-password-group');
+        passwordGroup.hidden = !methods.password;
+        passwordGroup.classList.toggle('hidden', !methods.password);
+        const passwordDelete = document.getElementById('btn-delete');
+        passwordDelete.hidden = !methods.password;
+        passwordDelete.classList.toggle('hidden', !methods.password);
+        const googleDelete = document.getElementById('btn-delete-google');
+        const googleDeleteHidden = !(googleAuthEnabled && methods.google);
+        googleDelete.hidden = googleDeleteHidden;
+        googleDelete.classList.toggle('hidden', googleDeleteHidden);
+      }
+
       function renderStats(stats, streak) {
         const hours = Math.round(((stats && stats.totalFocusMinutes) || 0) / 60 * 10) / 10;
         document.getElementById('stat-streak').textContent = formatEmotional((streak && streak.current) || 0);
@@ -691,6 +778,7 @@
         accountView.classList.remove('hidden');
         document.getElementById('profile-nickname').value = user.displayName;
         document.getElementById('profile-bio').value = user.bio || '';
+        renderAuthMethodControls();
         renderSwatches(user.avatarColor);
         for (const id of ['stat-streak', 'stat-best', 'stat-hours']) document.getElementById(id).textContent = '—';
         await Promise.all([loadStats(), loadRooms()]);
@@ -715,6 +803,19 @@
         } catch (e) {
           core.showUnavailable(document.getElementById('rooms-unavailable'), loadRooms);
         }
+        if (authParam === 'google_linked') {
+          window.HalaUI.toast(t('googleLinkedToast'), { kind: 'success' });
+        } else if (authParam === 'link_email_mismatch') {
+          setFeedback('google-link-feedback', t('errLinkEmailMismatch'), 'error');
+        } else if (authParam === 'google_subject_in_use') {
+          setFeedback('google-link-feedback', t('errGoogleSubjectInUse'), 'error');
+        } else if (authParam === 'google_reauth_failed') {
+          setFeedback('danger-feedback', t('errGoogleReauth'), 'error');
+        } else if (authParam === 'delete_granted') {
+          const pending = sessionStorage.getItem('halastudyPendingGoogleDelete') === '1';
+          sessionStorage.removeItem('halastudyPendingGoogleDelete');
+          if (pending) void deleteAccount({});
+        }
       }
 
       document.getElementById('profile-form').addEventListener('submit', async (event) => {
@@ -738,24 +839,35 @@
         try {
           await auth.signout();
           window.HalaUI.toast(t('signedOutToast'));
-          setTimeout(() => location.assign(core.localizedPath('/')), 400);
+          setTimeout(() => location.assign('/'), 400);
         } catch (error) {
           setFeedback('profile-feedback', errText(error), 'error');
         }
       });
 
-      document.getElementById('btn-delete').addEventListener('click', async () => {
-        setFeedback('danger-feedback', '');
-        const password = document.getElementById('delete-password').value;
-        if (currentUser?.authProvider === 'google' && new URLSearchParams(location.search).get('reauth') !== 'complete') {
-          location.assign('/auth/google?purpose=delete');
+      document.getElementById('btn-link-google').addEventListener('click', async () => {
+        setFeedback('google-link-feedback', '');
+        const password = document.getElementById('google-link-password').value;
+        if (!password) {
+          setFeedback('google-link-feedback', t('errINVALID_CREDENTIALS'), 'error');
           return;
         }
-        if (!password && currentUser?.authProvider !== 'google') {
-          setFeedback('danger-feedback', t('errINVALID_CREDENTIALS'), 'error');
-          return;
+        try {
+          const prepared = await core.postJson('/api/auth/google/link', {
+            password,
+            next: '/account?auth=google_linked'
+          });
+          if (!prepared.redirectTo || !prepared.redirectTo.startsWith('/auth/google?')) {
+            throw new Error('Invalid Google authorization redirect.');
+          }
+          location.assign(prepared.redirectTo);
+        } catch (error) {
+          setFeedback('google-link-feedback', errText(error), 'error');
         }
-        const confirmed = await window.HalaUI.confirm({
+      });
+
+      async function confirmDeletion() {
+        return window.HalaUI.confirm({
           title: t('deleteConfirmTitle'),
           body: t('deleteConfirmBody'),
           confirmLabel: t('deleteConfirmLabel'),
@@ -763,12 +875,14 @@
           destructive: true,
           typedConfirmation: currentUser ? currentUser.displayName : ''
         });
-        if (!confirmed) return;
+      }
+
+      async function deleteAccount(body) {
         try {
-          await accountRequest('DELETE', '/api/me', { password });
+          await core.requestJson('DELETE', '/api/me', body);
           core.clearStudyStorage(currentUser?.id);
           window.HalaUI.toast(t('deletedToast'));
-          setTimeout(() => location.assign(core.localizedPath('/')), 800);
+          setTimeout(() => location.assign('/'), 800);
         } catch (error) {
           if (error.code === 'REAUTH_REQUIRED') {
             location.assign('/auth/google?purpose=delete');
@@ -776,6 +890,26 @@
           }
           setFeedback('danger-feedback', errText(error), 'error');
         }
+      }
+
+      document.getElementById('btn-delete').addEventListener('click', async () => {
+        setFeedback('danger-feedback', '');
+        const password = document.getElementById('delete-password').value;
+        if (!password) {
+          setFeedback('danger-feedback', t('errINVALID_CREDENTIALS'), 'error');
+          return;
+        }
+        const confirmed = await confirmDeletion();
+        if (!confirmed) return;
+        await deleteAccount({ password });
+      });
+
+      document.getElementById('btn-delete-google').addEventListener('click', async () => {
+        setFeedback('danger-feedback', '');
+        const confirmed = await confirmDeletion();
+        if (!confirmed) return;
+        sessionStorage.setItem('halastudyPendingGoogleDelete', '1');
+        location.assign('/auth/google?intent=reauth_delete&next=%2Faccount%3Fauth%3Ddelete_granted');
       });
 
       /* ---------- boot ---------- */
