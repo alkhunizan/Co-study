@@ -35,6 +35,7 @@
     .contact-option {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       justify-content: space-between;
       gap: 16px;
       min-block-size: 56px;
@@ -49,7 +50,7 @@
     .contact-option:hover { border-color: var(--accent-2); }
     .contact-option:focus-visible, .contact-shell p a:focus-visible { outline: none; box-shadow: var(--sh-focus); }
     .contact-option .label { font-weight: var(--w-semibold); }
-    .contact-option .value { color: var(--ink-2); font-family: var(--font-mono); font-size: var(--t-body-sm); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+    .contact-option .value { min-inline-size: 0; color: var(--ink-2); font-family: var(--font-mono); font-size: var(--t-body-sm); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
     @media (prefers-reduced-motion: reduce) { .contact-option { transition: none; } }
   </style>
   <link rel="stylesheet" href="/design-system/public-shell.css">
